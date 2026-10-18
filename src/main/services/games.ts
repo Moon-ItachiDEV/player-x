@@ -4,19 +4,21 @@ import { readFile, readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { shell } from 'electron'
-import type { Game } from '@shared/types'
+import type { Game, ScanReport, Store } from '@shared/types'
 
 const isWin = process.platform === 'win32'
+const DRIVES = isWin ? ['C', 'D', 'E', 'F', 'G', 'H'] : []
 
-function regQuery(key: string, value: string): Promise<string | null> {
-  if (!isWin) return Promise.resolve(null)
+function run(cmd: string, args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile('reg', ['query', key, '/v', value], { windowsHide: true }, (err, stdout) => {
-      if (err) return resolve(null)
-      const m = stdout.match(new RegExp(`${value}\\s+REG_\\w+\\s+(.+)`))
-      resolve(m ? m[1].trim() : null)
-    })
+    execFile(cmd, args, { windowsHide: true, maxBuffer: 64 * 1024 * 1024 }, (err, stdout) => resolve(err ? null : stdout))
   })
+}
+
+async function regQuery(key: string, value: string): Promise<string | null> {
+  if (!isWin) return null
+  const out = await run('reg', ['query', key, '/v', value])
+  return out?.match(new RegExp(`${value}\\s+REG_\\w+\\s+(.+)`))?.[1].trim() ?? null
 }
 
 async function safeReaddir(dir: string): Promise<string[]> {
@@ -27,62 +29,132 @@ async function safeReaddir(dir: string): Promise<string[]> {
   }
 }
 
+// ---------- Programmes installés (registre Windows) ----------
+// Steam et l'EA app y déclarent chaque jeu : c'est le filet de sécurité quand les dossiers
+// attendus ne sont pas là (bibliothèque sur un autre disque, installation personnalisée…).
+
+interface UninstallEntry {
+  key: string
+  DisplayName?: string
+  InstallLocation?: string
+  Publisher?: string
+  DisplayIcon?: string
+}
+
+let uninstallCache: Promise<UninstallEntry[]> | null = null
+
+function uninstallEntries(): Promise<UninstallEntry[]> {
+  if (!isWin) return Promise.resolve([])
+  uninstallCache ??= (async () => {
+    const roots = [
+      'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+      'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+      'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'
+    ]
+    const entries: UninstallEntry[] = []
+    for (const root of roots) {
+      const out = await run('reg', ['query', root, '/s'])
+      if (!out) continue
+      let current: UninstallEntry | null = null
+      for (const line of out.split(/\r?\n/)) {
+        if (line.startsWith('HKEY_')) {
+          current = { key: line.trim() }
+          entries.push(current)
+          continue
+        }
+        const m = line.match(/^\s+(DisplayName|InstallLocation|Publisher|DisplayIcon)\s+REG_\w+\s+(.*)$/)
+        if (m && current) current[m[1] as 'DisplayName'] = m[2].trim()
+      }
+    }
+    return entries
+  })()
+  return uninstallCache
+}
+
 // ---------- Steam ----------
 
 // Outils et runtimes Steam qui ne sont pas des jeux.
 const STEAM_NOT_GAMES = new Set(['228980', '1070560', '1391110', '1628350', '1493710', '2180100', '961940', '1580130'])
 
-async function steamRoot(): Promise<string | null> {
-  const candidates = [
-    (await regQuery('HKCU\\Software\\Valve\\Steam', 'SteamPath'))?.replace(/\//g, '\\'),
-    'C:\\Program Files (x86)\\Steam',
-    join(homedir(), '.steam', 'steam'),
-    join(homedir(), '.local', 'share', 'Steam'),
-    join(homedir(), 'Library', 'Application Support', 'Steam')
-  ]
-  return candidates.find((p) => p && existsSync(join(p, 'steamapps'))) ?? null
-}
-
 function vdfValue(text: string, key: string): string | undefined {
   return text.match(new RegExp(`"${key}"\\s+"([^"]*)"`, 'i'))?.[1]
 }
 
-export async function scanSteam(): Promise<Game[]> {
-  const root = await steamRoot()
-  if (!root) return []
-  const libraries = new Set([root])
-  try {
-    const vdf = await readFile(join(root, 'steamapps', 'libraryfolders.vdf'), 'utf8')
-    for (const m of vdf.matchAll(/"path"\s+"([^"]+)"/g)) libraries.add(m[1].replace(/\\\\/g, '\\'))
-  } catch {
-    /* pas de bibliothèque secondaire */
+function steamGame(appId: string, name: string, installDir?: string): Game {
+  return {
+    id: `steam:${appId}`,
+    store: 'steam',
+    storeId: appId,
+    name,
+    installDir,
+    coverUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
+    heroUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_hero.jpg`
   }
+}
 
-  const games: Game[] = []
-  for (const lib of libraries) {
+export async function scanSteam(report: ScanReport): Promise<Game[]> {
+  const regPath = (await regQuery('HKCU\\Software\\Valve\\Steam', 'SteamPath'))?.replace(/\//g, '\\')
+  const candidates = [
+    regPath,
+    ...DRIVES.flatMap((d) => [
+      `${d}:\\Program Files (x86)\\Steam`,
+      `${d}:\\Program Files\\Steam`,
+      `${d}:\\Steam`,
+      `${d}:\\SteamLibrary`,
+      `${d}:\\Games\\Steam`,
+      `${d}:\\Jeux\\Steam`
+    ]),
+    join(homedir(), '.steam', 'steam'),
+    join(homedir(), '.local', 'share', 'Steam'),
+    join(homedir(), 'Library', 'Application Support', 'Steam')
+  ].filter((p): p is string => !!p)
+
+  // Clé normalisée : le registre donne « c:/program files (x86)/steam », le .vdf « C:\\Program Files (x86)\\Steam ».
+  const libraries = new Map<string, string>()
+  const addLibrary = (p: string): void => {
+    const key = isWin ? p.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase() : p
+    if (!libraries.has(key)) libraries.set(key, p)
+  }
+  for (const root of candidates) {
+    if (!existsSync(join(root, 'steamapps'))) continue
+    addLibrary(root)
+    try {
+      const vdf = await readFile(join(root, 'steamapps', 'libraryfolders.vdf'), 'utf8')
+      for (const m of vdf.matchAll(/"path"\s+"([^"]+)"/g)) addLibrary(m[1].replace(/\\\\/g, '\\'))
+    } catch {
+      /* pas de bibliothèque secondaire */
+    }
+  }
+  report.checked.push(regPath ? `Registre Steam : ${regPath}` : 'Registre Steam : introuvable')
+  report.checked.push(libraries.size ? `Bibliothèques : ${[...libraries.values()].join(', ')}` : 'Aucune bibliothèque Steam trouvée')
+
+  const games = new Map<string, Game>()
+  for (const lib of libraries.values()) {
     const appsDir = join(lib, 'steamapps')
     for (const file of await safeReaddir(appsDir)) {
-      if (!/^appmanifest_\d+\.acf$/.test(file)) continue
+      if (!/^appmanifest_\d+\.acf$/i.test(file)) continue
       try {
         const acf = await readFile(join(appsDir, file), 'utf8')
         const appId = vdfValue(acf, 'appid')
         const name = vdfValue(acf, 'name')
         if (!appId || !name || STEAM_NOT_GAMES.has(appId) || /redistributable|proton|steam linux runtime/i.test(name)) continue
-        games.push({
-          id: `steam:${appId}`,
-          store: 'steam',
-          storeId: appId,
-          name,
-          installDir: join(appsDir, 'common', vdfValue(acf, 'installdir') ?? ''),
-          coverUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
-          heroUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_hero.jpg`
-        })
+        games.set(appId, steamGame(appId, name, join(appsDir, 'common', vdfValue(acf, 'installdir') ?? '')))
       } catch {
         /* manifeste illisible, on l'ignore */
       }
     }
   }
-  return games
+
+  // Filet de sécurité : entrées « Steam App <id> » du registre.
+  let fromRegistry = 0
+  for (const e of await uninstallEntries()) {
+    const appId = e.key.match(/Steam App (\d+)$/)?.[1]
+    if (!appId || games.has(appId) || STEAM_NOT_GAMES.has(appId) || !e.DisplayName) continue
+    games.set(appId, steamGame(appId, e.DisplayName, e.InstallLocation))
+    fromRegistry++
+  }
+  if (isWin) report.checked.push(`Programmes installés : ${fromRegistry} jeu(x) Steam en plus`)
+  return [...games.values()]
 }
 
 // ---------- Epic Games ----------
@@ -97,13 +169,14 @@ interface EpicManifest {
   AppCategories?: string[]
 }
 
-export async function scanEpic(): Promise<Game[]> {
+export async function scanEpic(report: ScanReport): Promise<Game[]> {
   const dir = join(process.env.ProgramData ?? 'C:\\ProgramData', 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests')
+  report.checked.push(existsSync(dir) ? `Manifestes : ${dir}` : `Dossier absent : ${dir}`)
   const games: Game[] = []
   for (const file of await safeReaddir(dir)) {
     if (!file.endsWith('.item')) continue
     try {
-      const m = JSON.parse(await readFile(join(dir, file), 'utf8')) as EpicManifest
+      const m = JSON.parse((await readFile(join(dir, file), 'utf8')).replace(/^\uFEFF/, '')) as EpicManifest
       if (m.bIsIncompleteInstall) continue
       if (m.AppCategories && !m.AppCategories.includes('games')) continue
       games.push({
@@ -122,59 +195,108 @@ export async function scanEpic(): Promise<Game[]> {
 }
 
 // ---------- EA app (expérimental) ----------
-// Chaque jeu EA installé contient __Installer/installerdata.xml avec ses contentIDs.
+// Chaque jeu EA installé contient normalement __Installer/installerdata.xml avec ses contentIDs.
 
-async function eaRoots(): Promise<string[]> {
-  const roots = new Set<string>()
-  const custom = await regQuery('HKLM\\SOFTWARE\\Electronic Arts\\EA Desktop', 'InstallLocation')
-  if (custom) roots.add(custom)
-  for (const drive of ['C', 'D', 'E', 'F']) {
-    roots.add(`${drive}:\\Program Files\\EA Games`)
-    roots.add(`${drive}:\\Program Files (x86)\\Origin Games`)
-    roots.add(`${drive}:\\EA Games`)
+async function readEaGame(installDir: string, fallbackName: string, exePath?: string): Promise<Game | null> {
+  try {
+    const xml = await readFile(join(installDir, '__Installer', 'installerdata.xml'), 'utf8')
+    const contentId = xml.match(/<contentID>([^<]+)<\/contentID>/)?.[1]
+    const title = xml.match(/<gameTitle locale="(?:fr_FR|en_US)">([^<]+)<\/gameTitle>/)?.[1]
+    if (contentId) return { id: `ea:${contentId}`, store: 'ea', storeId: contentId, name: title ?? fallbackName, installDir, exePath }
+  } catch {
+    /* pas de fichier d'installation EA */
   }
-  return [...roots].filter((r) => existsSync(r))
+  // Sans contentID on lancera l'exécutable directement (l'EA app s'ouvrira si le jeu l'exige).
+  if (exePath) return { id: `ea:${fallbackName}`, store: 'ea', storeId: '', name: fallbackName, installDir, exePath }
+  return null
 }
 
-export async function scanEa(): Promise<Game[]> {
+export async function scanEa(report: ScanReport): Promise<Game[]> {
   if (!isWin) return []
-  const games: Game[] = []
-  for (const root of await eaRoots()) {
+  const games = new Map<string, Game>()
+  const roots = DRIVES.flatMap((d) => [`${d}:\\Program Files\\EA Games`, `${d}:\\Program Files (x86)\\Origin Games`, `${d}:\\EA Games`]).filter((r) =>
+    existsSync(r)
+  )
+  report.checked.push(roots.length ? `Dossiers EA : ${roots.join(', ')}` : 'Aucun dossier EA Games trouvé')
+  for (const root of roots) {
     for (const folder of await safeReaddir(root)) {
-      const installDir = join(root, folder)
-      try {
-        const xml = await readFile(join(installDir, '__Installer', 'installerdata.xml'), 'utf8')
-        const contentId = xml.match(/<contentID>([^<]+)<\/contentID>/)?.[1]
-        if (!contentId) continue
-        const title = xml.match(/<gameTitle locale="(?:fr_FR|en_US)">([^<]+)<\/gameTitle>/)?.[1]
-        games.push({ id: `ea:${contentId}`, store: 'ea', storeId: contentId, name: title ?? folder, installDir })
-      } catch {
-        /* pas un jeu EA */
-      }
+      const game = await readEaGame(join(root, folder), folder)
+      if (game) games.set(game.installDir!.toLowerCase(), game)
     }
   }
-  return games
+
+  let fromRegistry = 0
+  for (const e of await uninstallEntries()) {
+    if (!e.DisplayName || !e.InstallLocation || !/electronic arts/i.test(e.Publisher ?? '')) continue
+    if (/\bEA app\b|EA Desktop|Origin$/i.test(e.DisplayName)) continue
+    const dir = e.InstallLocation.replace(/[\\"]+$/, '')
+    if (games.has(dir.toLowerCase())) continue
+    const exe = e.DisplayIcon?.replace(/^"|"?,\d+$|"$/g, '')
+    const game = await readEaGame(dir, e.DisplayName, exe?.toLowerCase().endsWith('.exe') ? exe : undefined)
+    if (game) {
+      games.set(dir.toLowerCase(), game)
+      fromRegistry++
+    }
+  }
+  report.checked.push(`Programmes installés : ${fromRegistry} jeu(x) EA en plus`)
+  return [...games.values()]
+}
+
+// ---------- Scan complet ----------
+
+let lastReport: ScanReport[] = []
+
+export function getScanReport(): ScanReport[] {
+  return lastReport
 }
 
 export async function scanAllGames(): Promise<Game[]> {
-  const results = await Promise.all([scanSteam(), scanEpic(), scanEa()])
-  return results.flat().sort((a, b) => a.name.localeCompare(b.name))
+  uninstallCache = null
+  const scanners: [Store, (r: ScanReport) => Promise<Game[]>][] = [
+    ['steam', scanSteam],
+    ['epic', scanEpic],
+    ['ea', scanEa]
+  ]
+  // Un store en erreur ne doit pas vider toute la bibliothèque.
+  const results = await Promise.all(
+    scanners.map(async ([store, scan]) => {
+      const report: ScanReport = { store, found: 0, checked: [] }
+      try {
+        const games = await scan(report)
+        report.found = games.length
+        return { games, report }
+      } catch (e) {
+        report.error = e instanceof Error ? e.message : String(e)
+        return { games: [] as Game[], report }
+      }
+    })
+  )
+  lastReport = results.map((r) => r.report)
+  console.log('[scan]', JSON.stringify(lastReport, null, 2))
+  return results.flatMap((r) => r.games).sort((a, b) => a.name.localeCompare(b.name))
 }
 
 // ---------- Lancement ----------
 // On passe par le client officiel de chaque store (protocole URL) : il gère DRM, mises à jour et overlay.
 
-export function launchUrl(game: Game): string {
+export function launchUrl(game: Game): string | null {
   switch (game.store) {
     case 'steam':
       return `steam://rungameid/${game.storeId}`
     case 'epic':
       return `com.epicgames.launcher://apps/${encodeURIComponent(game.storeId)}?action=launch&silent=true`
     case 'ea':
-      return `origin2://game/launch?offerIds=${encodeURIComponent(game.storeId)}&autoDownload=1`
+      return game.storeId ? `origin2://game/launch?offerIds=${encodeURIComponent(game.storeId)}&autoDownload=1` : null
   }
 }
 
 export async function launch(game: Game): Promise<void> {
-  await shell.openExternal(launchUrl(game))
+  const url = launchUrl(game)
+  if (url) return shell.openExternal(url)
+  if (game.exePath) {
+    const err = await shell.openPath(game.exePath)
+    if (err) throw new Error(err)
+    return
+  }
+  throw new Error(`Impossible de lancer ${game.name}.`)
 }

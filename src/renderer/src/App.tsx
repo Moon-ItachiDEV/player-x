@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Account, FriendsResult, Game, Settings } from '@shared/types'
+import type { Account, FriendsResult, Game, ScanReport, Settings } from '@shared/types'
 import { FriendsPanel } from './components/FriendsPanel'
 import { Library } from './components/Library'
 import { Login } from './components/Login'
@@ -16,6 +16,7 @@ export default function App(): React.JSX.Element {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [games, setGames] = useState<Game[]>([])
   const [scanning, setScanning] = useState(false)
+  const [scanReport, setScanReport] = useState<ScanReport[]>([])
   const [friends, setFriends] = useState<FriendsResult>({ friends: [], errors: {} })
   const [toast, setToast] = useState<string | null>(null)
 
@@ -28,10 +29,13 @@ export default function App(): React.JSX.Element {
     setScanning(true)
     try {
       setGames(await api.getGames(refresh))
+    } catch (e) {
+      notify(e instanceof Error ? e.message : String(e))
     } finally {
+      setScanReport(await api.getScanReport())
       setScanning(false)
     }
-  }, [])
+  }, [notify])
 
   const loadFriends = useCallback(async () => setFriends(await api.getFriends()), [])
 
@@ -70,7 +74,12 @@ export default function App(): React.JSX.Element {
   }
 
   const launch = async (game: Game): Promise<void> => {
-    await api.launchGame(game.id)
+    try {
+      await api.launchGame(game.id)
+    } catch (e) {
+      notify(e instanceof Error ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(e))
+      return
+    }
     notify(settings?.demoMode ? `Mode démo : ${game.name} serait lancé` : `Lancement de ${game.name}…`)
     setGames(await api.getGames())
   }
@@ -81,6 +90,7 @@ export default function App(): React.JSX.Element {
     return (
       <>
         <Login
+          discordReady={!!settings.discordClientId && !!settings.discordClientSecret}
           onLogin={login}
           onSkip={() => setEntered(true)}
           onDemo={async () => {
@@ -101,6 +111,7 @@ export default function App(): React.JSX.Element {
           <Library
             games={games}
             scanning={scanning}
+            report={scanReport}
             onLaunch={launch}
             onRefresh={() => loadGames(true)}
             onFavorite={async (g) => setGames(await api.toggleFavorite(g.id))}

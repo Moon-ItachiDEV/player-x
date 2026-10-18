@@ -21,6 +21,12 @@ export async function initDb(): Promise<void> {
     );
     CREATE TABLE IF NOT EXISTS launches (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, at INTEGER NOT NULL);
   `)
+  // Migration : colonne ajoutée après la première version.
+  try {
+    db.run('ALTER TABLE games ADD COLUMN exe_path TEXT')
+  } catch {
+    /* déjà présente */
+  }
   persist()
 }
 
@@ -61,7 +67,7 @@ export function deleteKv(key: string): void {
 // --- jeux ---
 
 export function listGames(): Game[] {
-  const res = db.exec('SELECT id, store, store_id, name, install_dir, cover_url, hero_url, last_played, favorite FROM games')
+  const res = db.exec('SELECT id, store, store_id, name, install_dir, cover_url, hero_url, last_played, favorite, exe_path FROM games')
   if (!res.length) return []
   return res[0].values.map((r) => ({
     id: r[0] as string,
@@ -72,7 +78,8 @@ export function listGames(): Game[] {
     coverUrl: (r[5] as string) ?? undefined,
     heroUrl: (r[6] as string) ?? undefined,
     lastPlayed: (r[7] as number) ?? undefined,
-    favorite: r[8] === 1
+    favorite: r[8] === 1,
+    exePath: (r[9] as string) ?? undefined
   }))
 }
 
@@ -80,15 +87,20 @@ export function listGames(): Game[] {
 export function replaceGames(games: Game[]): void {
   const keep = new Map(listGames().map((g) => [g.id, g]))
   db.run('BEGIN')
-  db.run('DELETE FROM games')
-  for (const g of games) {
-    const old = keep.get(g.id)
-    db.run(
-      'INSERT INTO games (id, store, store_id, name, install_dir, cover_url, hero_url, last_played, favorite) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [g.id, g.store, g.storeId, g.name, g.installDir ?? null, g.coverUrl ?? null, g.heroUrl ?? null, old?.lastPlayed ?? null, old?.favorite ? 1 : 0]
-    )
+  try {
+    db.run('DELETE FROM games')
+    for (const g of games) {
+      const old = keep.get(g.id)
+      db.run(
+        'INSERT OR REPLACE INTO games (id, store, store_id, name, install_dir, cover_url, hero_url, last_played, favorite, exe_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [g.id, g.store, g.storeId, g.name, g.installDir ?? null, g.coverUrl ?? null, g.heroUrl ?? null, old?.lastPlayed ?? null, old?.favorite ? 1 : 0, g.exePath ?? null]
+      )
+    }
+    db.run('COMMIT')
+  } catch (e) {
+    db.run('ROLLBACK')
+    throw e
   }
-  db.run('COMMIT')
   persist()
 }
 

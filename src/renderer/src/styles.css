@@ -810,3 +810,33 @@ code {
     transform: translate(-50%, 8px);
   }
 }
+
+/* ---------- diagnostic du scan ---------- */
+
+.scan-report {
+  text-align: left;
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+.scan-row {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.scan-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.scan-error {
+  color: #ffb4b4;
+}
+.scan-line {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}

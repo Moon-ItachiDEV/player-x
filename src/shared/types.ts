@@ -6,6 +6,8 @@ export interface Game {
   storeId: string
   name: string
   installDir?: string
+  /** Exécutable de secours quand le store ne fournit pas d'identifiant de lancement. */
+  exePath?: string
   coverUrl?: string
   heroUrl?: string
   lastPlayed?: number
@@ -48,10 +50,19 @@ export interface FriendsResult {
   errors: Partial<Record<FriendPlatform, string>>
 }
 
+export interface ScanReport {
+  store: Store
+  found: number
+  /** Dossiers et sources examinés, pour comprendre un scan vide. */
+  checked: string[]
+  error?: string
+}
+
 export interface LauncherApi {
   getGames(refresh?: boolean): Promise<Game[]>
   launchGame(id: string): Promise<void>
   toggleFavorite(id: string): Promise<Game[]>
+  getScanReport(): Promise<ScanReport[]>
   getFriends(): Promise<FriendsResult>
   getAccounts(): Promise<Account[]>
   login(platform: 'steam' | 'discord'): Promise<Account>

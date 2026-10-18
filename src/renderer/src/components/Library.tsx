@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { Game, Store } from '@shared/types'
+import type { Game, ScanReport, Store } from '@shared/types'
 import { Badge } from './Badge'
 
 type Filter = 'all' | 'favorites' | Store
@@ -39,15 +39,37 @@ function timeAgo(ts?: number): string {
   return `Il y a ${Math.round(min / 1440)} j`
 }
 
+export function ScanDetails({ report }: { report: ScanReport[] }): React.JSX.Element {
+  return (
+    <div className="scan-report">
+      {report.map((r) => (
+        <div key={r.store} className="scan-row">
+          <div className="scan-head">
+            <Badge kind={r.store} />
+            <b>{r.found} jeu(x)</b>
+            {r.error && <span className="scan-error">{r.error}</span>}
+          </div>
+          {r.checked.map((c) => (
+            <div key={c} className="scan-line">
+              {c}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 interface Props {
   games: Game[]
   scanning: boolean
+  report: ScanReport[]
   onLaunch: (g: Game) => void
   onRefresh: () => void
   onFavorite: (g: Game) => void
 }
 
-export function Library({ games, scanning, onLaunch, onRefresh, onFavorite }: Props): React.JSX.Element {
+export function Library({ games, scanning, report, onLaunch, onRefresh, onFavorite }: Props): React.JSX.Element {
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
 
@@ -107,7 +129,8 @@ export function Library({ games, scanning, onLaunch, onRefresh, onFavorite }: Pr
       {games.length === 0 && !scanning && (
         <div className="empty">
           <h3>Aucun jeu détecté</h3>
-          <p>Le scan cherche les jeux installés via Steam, Epic Games et l’EA app sur ce PC. Active le mode démo dans Paramètres pour voir l’interface remplie.</p>
+          <p>Le scan cherche les jeux installés via Steam, Epic Games et l’EA app sur ce PC. Voici ce qu’il a examiné :</p>
+          <ScanDetails report={report} />
         </div>
       )}
 

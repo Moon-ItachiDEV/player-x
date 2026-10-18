@@ -5,6 +5,7 @@ const api: LauncherApi = {
   getGames: (refresh) => ipcRenderer.invoke('games:list', refresh),
   launchGame: (id) => ipcRenderer.invoke('games:launch', id),
   toggleFavorite: (id) => ipcRenderer.invoke('games:favorite', id),
+  getScanReport: () => ipcRenderer.invoke('games:report'),
   getFriends: () => ipcRenderer.invoke('friends:list'),
   getAccounts: () => ipcRenderer.invoke('accounts:list'),
   login: (platform) => ipcRenderer.invoke('accounts:login', platform),

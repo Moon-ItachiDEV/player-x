@@ -5,7 +5,7 @@ import * as db from './db'
 import { loginDiscord, loginSteam } from './services/auth'
 import { DEMO_FRIENDS, DEMO_GAMES } from './services/demo'
 import { connectPsn, getAllFriends } from './services/friends'
-import { launch, scanAllGames } from './services/games'
+import { getScanReport, launch, scanAllGames } from './services/games'
 import { getAccounts, getSettings, removeAccount, saveSettings } from './services/settings'
 
 try {
@@ -53,6 +53,7 @@ function registerIpc(): void {
     db.recordLaunch(id)
     if (!getSettings().demoMode) await launch(game)
   })
+  ipcMain.handle('games:report', () => getScanReport())
   ipcMain.handle('games:favorite', async (_e, id: string) => {
     if (getSettings().demoMode && !db.listGames().some((g) => g.id === id)) {
       // En démo, les jeux fictifs sont ajoutés en base pour garder favoris et sessions.

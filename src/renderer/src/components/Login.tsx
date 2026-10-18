@@ -1,10 +1,11 @@
 interface Props {
+  discordReady: boolean
   onLogin: (platform: 'steam' | 'discord' | 'psn') => void
   onSkip: () => void
   onDemo: () => void
 }
 
-export function Login({ onLogin, onSkip, onDemo }: Props): React.JSX.Element {
+export function Login({ discordReady, onLogin, onSkip, onDemo }: Props): React.JSX.Element {
   return (
     <div className="login">
       <div className="login-glow" />
@@ -19,9 +20,12 @@ export function Login({ onLogin, onSkip, onDemo }: Props): React.JSX.Element {
         <button className="login-btn steam" onClick={() => onLogin('steam')}>
           Se connecter avec Steam
         </button>
-        <button className="login-btn discord" onClick={() => onLogin('discord')}>
-          Se connecter avec Discord
-        </button>
+        {/* Discord exige une appli déclarée par le développeur : le bouton n'apparaît qu'une fois configurée. */}
+        {discordReady && (
+          <button className="login-btn discord" onClick={() => onLogin('discord')}>
+            Se connecter avec Discord
+          </button>
+        )}
         <div className="login-alt">
           <button className="link-btn" onClick={onSkip}>
             Continuer sans compte
