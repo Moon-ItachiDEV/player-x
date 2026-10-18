@@ -13,6 +13,7 @@ import { Setup } from './components/setup/Setup'
 import { Stats } from './components/stats/Stats'
 import { TopBar } from './components/TopBar'
 import { UpdateNotice } from './components/UpdateNotice'
+import { WhatsNew } from './components/WhatsNew'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
 import { COVER_MIN, type LoginPlatform, type SettingsSection, type UiPrefs, type View } from './contracts'
 import { closeTarget, takeMorphSource, useSystemReducedMotion, useWindowActivity, withViewTransition } from './motion'
@@ -465,6 +466,7 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
         onOpenFolder={openFolder}
       />
       <UpdateNotice onOpenAbout={() => goSettings('about')} />
+      <WhatsNew />
     </div>
   )
 }
