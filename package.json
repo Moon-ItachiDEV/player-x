@@ -9,7 +9,7 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "dist": "electron-vite build && electron-builder --win",
+    "dist": "electron-vite build && electron-builder --win --x64 --publish never",
     "postinstall": "node node_modules/electron/install.js"
   },
   "build": {
@@ -18,9 +18,26 @@
     "files": [
       "out/**/*"
     ],
+    "directories": {
+      "output": "dist"
+    },
     "win": {
-      "target": "nsis"
-    }
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Plateforme Gaming"
+    },
+    "publish": null
   },
   "dependencies": {
     "psn-api": "^2.18.1",

@@ -67,7 +67,10 @@ export function deleteKv(key: string): void {
 // --- jeux ---
 
 export function listGames(): Game[] {
-  const res = db.exec('SELECT id, store, store_id, name, install_dir, cover_url, hero_url, last_played, favorite, exe_path FROM games')
+  const res = db.exec(`
+    SELECT g.id, g.store, g.store_id, g.name, g.install_dir, g.cover_url, g.hero_url, g.last_played, g.favorite, g.exe_path,
+           (SELECT COUNT(*) FROM launches l WHERE l.game_id = g.id)
+    FROM games g`)
   if (!res.length) return []
   return res[0].values.map((r) => ({
     id: r[0] as string,
@@ -79,7 +82,8 @@ export function listGames(): Game[] {
     heroUrl: (r[6] as string) ?? undefined,
     lastPlayed: (r[7] as number) ?? undefined,
     favorite: r[8] === 1,
-    exePath: (r[9] as string) ?? undefined
+    exePath: (r[9] as string) ?? undefined,
+    launches: r[10] as number
   }))
 }
 

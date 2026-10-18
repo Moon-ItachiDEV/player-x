@@ -11,6 +11,8 @@ export interface Game {
   coverUrl?: string
   heroUrl?: string
   lastPlayed?: number
+  /** Nombre de lancements depuis Plateforme Gaming. */
+  launches?: number
   favorite?: boolean
 }
 
@@ -63,6 +65,8 @@ export interface LauncherApi {
   launchGame(id: string): Promise<void>
   toggleFavorite(id: string): Promise<Game[]>
   getScanReport(): Promise<ScanReport[]>
+  /** Prévient quand la bibliothèque change en arrière-plan (jaquettes récupérées…). Renvoie la fonction de désabonnement. */
+  onGamesChanged(cb: () => void): () => void
   getFriends(): Promise<FriendsResult>
   getAccounts(): Promise<Account[]>
   login(platform: 'steam' | 'discord'): Promise<Account>

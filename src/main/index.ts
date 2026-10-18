@@ -3,6 +3,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import type { FriendPlatform, Game, Settings } from '@shared/types'
 import * as db from './db'
 import { loginDiscord, loginSteam } from './services/auth'
+import { applyArtwork, updateArtwork } from './services/artwork'
 import { DEMO_FRIENDS, DEMO_GAMES } from './services/demo'
 import { connectPsn, getAllFriends } from './services/friends'
 import { getScanReport, launch, scanAllGames } from './services/games'
@@ -36,11 +37,25 @@ function createWindow(): void {
 
 let scanned = false
 
+function notifyGamesChanged(): void {
+  for (const w of BrowserWindow.getAllWindows()) w.webContents.send('games:changed')
+}
+
 async function games(refresh = false): Promise<Game[]> {
-  if (getSettings().demoMode) return DEMO_GAMES.map((g) => ({ ...g, ...db.listGames().find((d) => d.id === g.id) }))
+  if (getSettings().demoMode) {
+    const saved = db.listGames()
+    return applyArtwork(DEMO_GAMES).map((g) => ({ ...g, ...saved.find((d) => d.id === g.id), coverUrl: g.coverUrl, heroUrl: g.heroUrl }))
+  }
   if (refresh || !scanned) {
-    db.replaceGames(await scanAllGames())
+    const found = applyArtwork(await scanAllGames())
+    db.replaceGames(found)
     scanned = true
+    // Les jaquettes manquantes arrivent en arrière-plan : la bibliothèque s'affiche tout de suite.
+    updateArtwork(found).then((changed) => {
+      if (!changed) return
+      db.replaceGames(applyArtwork(db.listGames()))
+      notifyGamesChanged()
+    })
   }
   return db.listGames()
 }
@@ -81,6 +96,8 @@ app.whenReady().then(async () => {
   await db.initDb()
   registerIpc()
   createWindow()
+  // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
+  if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
 })
 

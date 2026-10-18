@@ -6,6 +6,11 @@ const api: LauncherApi = {
   launchGame: (id) => ipcRenderer.invoke('games:launch', id),
   toggleFavorite: (id) => ipcRenderer.invoke('games:favorite', id),
   getScanReport: () => ipcRenderer.invoke('games:report'),
+  onGamesChanged: (cb) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('games:changed', listener)
+    return () => ipcRenderer.removeListener('games:changed', listener)
+  },
   getFriends: () => ipcRenderer.invoke('friends:list'),
   getAccounts: () => ipcRenderer.invoke('accounts:list'),
   login: (platform) => ipcRenderer.invoke('accounts:login', platform),
