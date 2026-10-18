@@ -50,6 +50,20 @@ export interface Settings {
   /** Jeton NPSSO PlayStation (non officiel). */
   psnNpsso: string
   demoMode: boolean
+  /** Alertes quand un ami Steam ou PlayStation se connecte (`all`) ou seulement quand il lance un jeu (`games`). */
+  friendAlerts: FriendAlertMode
+}
+
+export type FriendAlertMode = 'all' | 'games' | 'off'
+
+/** Un ami vient de se connecter ou de lancer un jeu. */
+export interface FriendAlert {
+  key: string
+  friend: Friend
+  kind: 'online' | 'in-game'
+  at: number
+  /** Alerte d'essai (Paramètres) ou du mode démo. */
+  sample?: boolean
 }
 
 export interface FriendsResult {
@@ -192,6 +206,12 @@ export interface LauncherApi {
   bf6Art(): Promise<Bf6Art>
   bf6GetTracked(): Promise<Bf6Tracked>
   bf6SetTracked(tracked: Bf6Tracked): Promise<Bf6Tracked>
+  /** Alertes d'amis à afficher dans la fenêtre (quand elle est au premier plan ; sinon Windows les affiche). */
+  onFriendAlert(cb: (alerts: FriendAlert[]) => void): () => void
+  /** Clic sur une notification Windows : ouvrir le panneau d'amis. */
+  onShowFriends(cb: () => void): () => void
+  /** Envoie une alerte d'essai, dans la fenêtre et en notification Windows. */
+  testFriendAlert(): Promise<void>
   platform: string
   version: string
 }

@@ -1,7 +1,8 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
-import type { FriendPlatform, Game, Settings } from '@shared/types'
+import type { Friend, FriendPlatform, Game, Settings } from '@shared/types'
 import * as db from './db'
+import { checkFriends, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
 import { DEMO_FRIENDS, DEMO_GAMES, demoGames } from './services/demo'
@@ -48,6 +49,8 @@ function createWindow(): void {
 }
 
 let scanned = false
+/** Dernière liste d'amis réelle, pour l'alerte d'essai. */
+let lastFriends: Friend[] = []
 
 function notifyGamesChanged(): void {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send('games:changed')
@@ -135,19 +138,30 @@ function registerIpc(): void {
     return games()
   })
   ipcMain.handle('friends:list', async () => {
-    if (getSettings().demoMode) return { friends: DEMO_FRIENDS, errors: {} }
-    return getAllFriends()
+    if (getSettings().demoMode) {
+      demoFriendAlert(DEMO_FRIENDS)
+      return { friends: DEMO_FRIENDS, errors: {} }
+    }
+    const result = await getAllFriends()
+    checkFriends(result)
+    lastFriends = result.friends
+    return result
   })
+  ipcMain.handle('friends:test-alert', () => testFriendAlert(getSettings().demoMode ? DEMO_FRIENDS : lastFriends))
   ipcMain.handle('accounts:list', () => getAccounts())
   ipcMain.handle('accounts:login', (_e, platform: 'steam' | 'discord') => (platform === 'steam' ? loginSteam() : loginDiscord()))
   ipcMain.handle('accounts:psn', () => connectPsn())
   ipcMain.handle('accounts:cancel', () => cancelLogin())
-  ipcMain.handle('accounts:logout', (_e, platform: FriendPlatform) => removeAccount(platform))
+  ipcMain.handle('accounts:logout', (_e, platform: FriendPlatform) => {
+    resetFriendAlerts()
+    return removeAccount(platform)
+  })
   ipcMain.handle('settings:get', () => getSettings())
   ipcMain.handle('settings:save', (_e, patch: Partial<Settings>) => {
     const wasDemo = getSettings().demoMode
     const next = saveSettings(patch)
     if (next.demoMode !== wasDemo) {
+      resetFriendAlerts()
       // Au retour du mode démo, on rescanne la vraie bibliothèque.
       scanned = false
       // Jaquettes des jeux fictifs, aussi quand la démo s'active en cours de session.
@@ -165,6 +179,9 @@ function registerIpc(): void {
     if (url.startsWith('https://')) return shell.openExternal(url)
   })
 }
+
+// Notifications Windows : même identifiant que l'installeur, sinon elles ne s'affichent pas.
+if (process.platform === 'win32') app.setAppUserModelId('dev.breezy.playerx')
 
 app.whenReady().then(async () => {
   await db.initDb()

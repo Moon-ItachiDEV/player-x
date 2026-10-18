@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Account, FriendPlatform, FriendsResult, Game, ScanReport, Settings } from '@shared/types'
 import { AccountMenu } from './components/AccountMenu'
 import { Ambient } from './components/Ambient'
+import { FriendAlerts } from './components/FriendAlerts'
 import { FriendsPanel } from './components/friends/FriendsPanel'
 import { GameSheet } from './components/GameSheet'
 import { Library } from './components/library/Library'
@@ -169,6 +170,9 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     const timer = setInterval(loadFriends, 60_000)
     return () => clearInterval(timer)
   }, [entered, accountsKey, settings?.demoMode, settings?.discordGuildId, settings?.steamApiKey, settings?.psnNpsso, loadFriends])
+
+  // Clic sur une notification Windows d'un ami : on montre le panneau d'amis.
+  useEffect(() => api.onShowFriends(() => updateUi({ friendsPanel: 'open' })), [updateUi])
 
   // Ctrl+F / Ctrl+K : recherche.
   useEffect(() => {
@@ -465,6 +469,7 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
         onFavorite={toggleFavorite}
         onOpenFolder={openFolder}
       />
+      <FriendAlerts games={games} onShowFriends={() => updateUi({ friendsPanel: 'open' })} />
       <UpdateNotice onOpenAbout={() => goSettings('about')} />
       <WhatsNew />
     </div>

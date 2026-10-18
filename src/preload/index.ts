@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { LauncherApi, UpdateState } from '@shared/types'
+import type { FriendAlert, LauncherApi, UpdateState } from '@shared/types'
 
 declare const __APP_VERSION__: string
 
@@ -37,6 +37,17 @@ const api: LauncherApi = {
   bf6Art: () => ipcRenderer.invoke('bf6:art'),
   bf6GetTracked: () => ipcRenderer.invoke('bf6:tracked'),
   bf6SetTracked: (tracked) => ipcRenderer.invoke('bf6:set-tracked', tracked),
+  onFriendAlert: (cb) => {
+    const listener = (_e: unknown, alerts: FriendAlert[]): void => cb(alerts)
+    ipcRenderer.on('friends:alert', listener)
+    return () => ipcRenderer.removeListener('friends:alert', listener)
+  },
+  onShowFriends: (cb) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('friends:show', listener)
+    return () => ipcRenderer.removeListener('friends:show', listener)
+  },
+  testFriendAlert: () => ipcRenderer.invoke('friends:test-alert'),
   platform: process.platform,
   version: __APP_VERSION__
 }
