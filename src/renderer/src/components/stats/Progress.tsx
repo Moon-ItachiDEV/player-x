@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { capitalize } from '@shared/text'
 import type { Bf6Account, Bf6Point } from '@shared/types'
 import { Segmented } from '../ui/Overlay'
 import './progress.css'
@@ -119,24 +120,26 @@ export function Progress({ account, fetchedAt }: { account: Bf6Account; fetchedA
           </h2>
           <span className="caption">Un relevé par jour, gardé sur ce PC</span>
         </div>
-        <div className="pg-controls">
-          <Segmented
-            label="Indicateur"
-            value={metric}
-            options={(Object.keys(METRICS) as Metric[]).map((k) => ({ value: k, label: METRICS[k].short }))}
-            onChange={setMetric}
-          />
-          <Segmented
-            label="Période"
-            value={range}
-            options={[
-              { value: '7', label: '7 j' },
-              { value: '30', label: '30 j' },
-              { value: 'all', label: 'Tout' }
-            ]}
-            onChange={setRange}
-          />
-        </div>
+        {history.length >= 2 && (
+          <div className="pg-controls">
+            <Segmented
+              label="Indicateur"
+              value={metric}
+              options={(Object.keys(METRICS) as Metric[]).map((k) => ({ value: k, label: METRICS[k].short }))}
+              onChange={setMetric}
+            />
+            <Segmented
+              label="Période"
+              value={range}
+              options={[
+                { value: '7', label: '7 j' },
+                { value: '30', label: '30 j' },
+                { value: 'all', label: 'Tout' }
+              ]}
+              onChange={setRange}
+            />
+          </div>
+        )}
       </header>
 
       {enough ? (
@@ -168,9 +171,11 @@ export function Progress({ account, fetchedAt }: { account: Bf6Account; fetchedA
             <circle className="pg-empty-dot" cx="4" cy="52" r="4" />
           </svg>
           <p className="bf-text">
-            {history.length
-              ? 'Premier relevé enregistré. Reviens demain : ta courbe se dessine à raison d’un relevé par jour.'
-              : 'Ta courbe commence aujourd’hui : Player X garde un relevé de tes stats chaque jour.'}
+            {history.length >= 2
+              ? 'Pas encore deux relevés sur cette période : choisis « Tout » pour voir toute ta courbe.'
+              : history.length
+                ? 'Premier relevé enregistré. Reviens demain : ta courbe se dessine à raison d’un relevé par jour.'
+                : 'Ta courbe commence aujourd’hui : Player X garde un relevé de tes stats chaque jour.'}
           </p>
         </div>
       )}
@@ -293,7 +298,7 @@ function Chart({ points, metric }: { points: Bf6Point[]; metric: Metric }): Reac
 
       {a && (
         <div className="pg-tip" style={{ left: tipLeft, top: Math.max(0, xy[active!][1] - 12) }} role="presentation">
-          <span className="pg-tip-day">{longDay.format(a.at)}</span>
+          <span className="pg-tip-day">{capitalize(longDay.format(a.at))}</span>
           <span className="pg-tip-value">
             <span className="pg-tip-swatch" aria-hidden="true" />
             {m.short} <strong className="num">{m.format(values[active!])}</strong>

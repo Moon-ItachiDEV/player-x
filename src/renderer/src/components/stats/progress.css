@@ -142,7 +142,6 @@
 .pg-tip-day {
   font-size: 12px;
   color: var(--text-2);
-  text-transform: capitalize;
 }
 .pg-tip-value {
   display: flex;
