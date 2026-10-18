@@ -1,6 +1,7 @@
 import { net } from 'electron'
-import type { Bf6Account, Bf6Match, Bf6Platform, Bf6Row, Bf6Snapshot, Bf6Stats, Bf6Tracked } from '@shared/types'
+import type { Bf6Account, Bf6Art, Bf6Match, Bf6Platform, Bf6Row, Bf6Snapshot, Bf6Stats, Bf6Tracked } from '@shared/types'
 import { getKv, setKv } from '../db'
+import { fetchAssets } from './artwork'
 
 // Statistiques Battlefield 6 via gametools.network : EA n'a pas d'API publique, ce service communautaire
 // lit le service de stats du jeu et le rend en JSON, sans clé. Tout passe par le processus principal (pas de CORS).
@@ -48,7 +49,12 @@ const isObj = (v: unknown): v is Raw => typeof v === 'object' && v !== null && !
 function num(v: unknown): number | undefined {
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined
   if (typeof v !== 'string') return undefined
-  const n = parseFloat(v.replace(/[^0-9.,-]/g, '').replace(/,(?=\d{3}\b)/g, '').replace(',', '.'))
+  const n = parseFloat(
+    v
+      .replace(/[^0-9.,-]/g, '')
+      .replace(/,(?=\d{3}\b)/g, '')
+      .replace(',', '.')
+  )
   return Number.isFinite(n) ? n : undefined
 }
 
@@ -86,7 +92,12 @@ function toStats(raw: Raw, account: Bf6Account): Bf6Stats {
   const wins = num(raw.wins) ?? 0
   const losses = num(raw.loses ?? raw.losses) ?? 0
   return {
-    account: { ...account, name: str(raw.userName) ?? account.name, personaId: str(raw.id) ?? account.personaId, nucleusId: str(raw.userId) ?? account.nucleusId },
+    account: {
+      ...account,
+      name: str(raw.userName) ?? account.name,
+      personaId: str(raw.id) ?? account.personaId,
+      nucleusId: str(raw.userId) ?? account.nucleusId
+    },
     avatarUrl: str(raw.avatar)?.startsWith('https://') ? str(raw.avatar) : undefined,
     kills,
     deaths,
@@ -208,7 +219,12 @@ function cleanAccount(v: unknown): Bf6Account | null {
   if (!name || !(PLATFORMS as unknown[]).includes(v.platform)) return null
   const personaId = str(v.personaId)
   const nucleusId = str(v.nucleusId)
-  return { name, platform: v.platform as Bf6Platform, ...(personaId && /^\d+$/.test(personaId) ? { personaId } : {}), ...(nucleusId && /^\d+$/.test(nucleusId) ? { nucleusId } : {}) }
+  return {
+    name,
+    platform: v.platform as Bf6Platform,
+    ...(personaId && /^\d+$/.test(personaId) ? { personaId } : {}),
+    ...(nucleusId && /^\d+$/.test(nucleusId) ? { nucleusId } : {})
+  }
 }
 
 export function getBf6Tracked(): Bf6Tracked {
@@ -225,4 +241,24 @@ export function setBf6Tracked(input: unknown): Bf6Tracked {
     .slice(0, MAX_RIVALS)
   setKv('bf6Tracked', { me, rivals })
   return { me, rivals }
+}
+
+// ---------- visuels du jeu ----------
+
+/** Battlefield 6 sur Steam : https://store.steampowered.com/app/2807960 */
+const BF6_STEAM_APPID = '2807960'
+const ART_MAX_AGE = 7 * 24 * 3600_000
+
+export async function getBf6Art(): Promise<Bf6Art> {
+  const cached = getKv<(Bf6Art & { at: number }) | null>('bf6Art', null)
+  if (cached && Date.now() - cached.at < ART_MAX_AGE) return cached
+  try {
+    const a = (await fetchAssets([BF6_STEAM_APPID])).get(BF6_STEAM_APPID)
+    const art = { heroUrl: a?.hero, coverUrl: a?.cover, logoUrl: a?.logo, at: Date.now() }
+    setKv('bf6Art', art)
+    return art
+  } catch {
+    // Hors ligne : on garde les anciens visuels s'il y en a, sinon la page affiche son fond de marque.
+    return cached ?? {}
+  }
 }

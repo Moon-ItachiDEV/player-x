@@ -139,6 +139,13 @@ export interface Bf6Snapshot {
   stale?: string
 }
 
+/** Visuels du jeu (catalogue Steam), chargés à l'exécution : rien n'est livré avec l'appli. */
+export interface Bf6Art {
+  heroUrl?: string
+  coverUrl?: string
+  logoUrl?: string
+}
+
 /** Ton compte et les joueurs que tu suis pour le classement. */
 export interface Bf6Tracked {
   me: Bf6Account | null
@@ -177,6 +184,7 @@ export interface LauncherApi {
   bf6Search(name: string): Promise<Bf6Match[]>
   /** Stats d'un compte : gardées 10 min, sauf `refresh`. */
   bf6Stats(account: Bf6Account, refresh?: boolean): Promise<Bf6Snapshot>
+  bf6Art(): Promise<Bf6Art>
   bf6GetTracked(): Promise<Bf6Tracked>
   bf6SetTracked(tracked: Bf6Tracked): Promise<Bf6Tracked>
   platform: string
