@@ -160,7 +160,7 @@ function LibrarySection({ report, scanning, lastScanAt, gamesCount, demo, onResc
         </span>
       </div>
       <SettingRow label="Jeux favoris" value="Mis en avant en tête de ta bibliothèque">
-        <button className="btn btn-secondary" onClick={onOpenSetup} disabled={gamesCount === 0}>
+        <button className="btn btn-secondary" onClick={onOpenSetup} disabled={gamesCount === 0} data-open-setup>
           <Icon name="star" size={16} />
           Choisir mes jeux favoris
         </button>

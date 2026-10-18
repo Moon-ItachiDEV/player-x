@@ -124,9 +124,12 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
       } catch (e) {
         notify(errorMessage(e), { kind: 'error' })
       } finally {
-        setScanning(false)
-        setLastScanAt(Date.now())
-        setReport(await api.getScanReport())
+        // Un scan devenu obsolète (bascule du mode démo) ne touche plus à l'état affiché.
+        if (epoch === libraryEpoch.current) {
+          setScanning(false)
+          setLastScanAt(Date.now())
+          setReport(await api.getScanReport())
+        }
       }
     },
     [notify]
@@ -156,12 +159,14 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     return api.onGamesChanged(() => api.getGames().then(setGames))
   }, [loadGames, setEntered])
 
+  // Les comptes comptent par identité : un pseudo ou un avatar mis à jour ne relance pas toute la récupération.
+  const accountsKey = accounts.map((a) => `${a.platform}:${a.id}`).join('|')
   useEffect(() => {
     if (!entered) return
     loadFriends()
     const timer = setInterval(loadFriends, 60_000)
     return () => clearInterval(timer)
-  }, [entered, accounts, settings?.demoMode, settings?.discordGuildId, settings?.steamApiKey, settings?.psnNpsso, loadFriends])
+  }, [entered, accountsKey, settings?.demoMode, settings?.discordGuildId, settings?.steamApiKey, settings?.psnNpsso, loadFriends])
 
   // Ctrl+F / Ctrl+K : recherche.
   useEffect(() => {
@@ -182,6 +187,9 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     if ('demoMode' in patch) {
       libraryEpoch.current++
       setGames(await api.getGames())
+      // Un scan encore en cours appartient à l'ancienne bibliothèque : il ne doit plus bloquer l'écran.
+      setScanning(false)
+      setReport(await api.getScanReport())
     }
     return next
   }, [])
@@ -268,6 +276,8 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
       }
       setSetup({ open: false, first: false })
       if (toLibrary) setView('library')
+      // Retour aux Paramètres : le focus revient sur le bouton qui a ouvert l'écran.
+      else requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-open-setup]')?.focus())
     },
     [setSetup]
   )

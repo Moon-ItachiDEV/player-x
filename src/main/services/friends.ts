@@ -56,20 +56,29 @@ export async function getSteamProfiles(key: string, ids: string[]): Promise<Stea
   return players
 }
 
+/** Met à jour le pseudo et l'avatar du compte Steam enregistré (la clé a pu être ajoutée après la connexion). */
+function refreshOwnSteamProfile(account: Account, me: SteamPlayer | undefined): void {
+  if (!me || (me.personaname === account.name && me.avatarfull === account.avatarUrl)) return
+  // Seulement si ce compte est toujours connecté (pas de retour d'un compte déconnecté entre-temps).
+  if (getAccounts().some((a) => a.platform === 'steam' && a.id === account.id)) saveAccount({ ...account, name: me.personaname, avatarUrl: me.avatarfull })
+}
+
 async function steamFriends(account: Account, key: string): Promise<Friend[]> {
   const res = await fetch(
     `https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${key}&steamid=${account.id}&relationship=friend`
   )
-  if (res.status === 401) throw new UserError('Ta liste d’amis Steam est privée : passe-la en public dans ton profil Steam.')
+  if (res.status === 401) {
+    // Liste d'amis privée : le profil, lui, reste lisible.
+    await getSteamProfiles(key, [account.id])
+      .then(([me]) => refreshOwnSteamProfile(account, me))
+      .catch(() => {})
+    throw new UserError('Ta liste d’amis Steam est privée : passe-la en public dans ton profil Steam.')
+  }
   if (!res.ok) throw new Error(`Steam API ${res.status}`)
   const list = ((await res.json()) as { friendslist?: { friends: { steamid: string }[] } }).friendslist?.friends ?? []
-  // Son propre profil dans la même requête : le pseudo et l'avatar arrivent même si la clé a été ajoutée après la connexion.
+  // Son propre profil dans la même requête.
   const players = await getSteamProfiles(key, [account.id, ...list.map((f) => f.steamid)])
-  const me = players.find((p) => p.steamid === account.id)
-  if (me && (me.personaname !== account.name || me.avatarfull !== account.avatarUrl)) {
-    // Seulement si ce compte est toujours connecté (pas de retour d'un compte déconnecté entre-temps).
-    if (getAccounts().some((a) => a.platform === 'steam' && a.id === account.id)) saveAccount({ ...account, name: me.personaname, avatarUrl: me.avatarfull })
-  }
+  refreshOwnSteamProfile(account, players.find((p) => p.steamid === account.id))
   return players.filter((p) => p.steamid !== account.id).map((p) => {
     const status: FriendStatus = p.gameextrainfo
       ? 'in-game'

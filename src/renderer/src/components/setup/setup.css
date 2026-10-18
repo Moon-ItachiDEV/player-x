@@ -530,8 +530,8 @@ button.setup-step-btn:hover {
     inset 0 1px 0 rgb(255 255 255 / 0.18),
     0 12px 32px -12px rgb(124 58 237 / 0.85);
 }
-.setup-cta:focus-visible,
-.setup-go:focus-visible {
+.setup-cta:focus-visible:not(:disabled),
+.setup-go:focus-visible:not(:disabled) {
   box-shadow:
     var(--focus),
     0 12px 32px -12px rgb(124 58 237 / 0.85);

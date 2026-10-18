@@ -188,8 +188,8 @@ kbd {
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
     var(--glow-accent);
 }
-/* L'ombre du bouton remplaçait l'anneau de focus global */
-.btn-primary:focus-visible {
+/* L'ombre du bouton remplaçait l'anneau de focus global (et le survol ne doit pas le masquer) */
+.btn-primary:focus-visible:not(:disabled) {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
     var(--focus);
