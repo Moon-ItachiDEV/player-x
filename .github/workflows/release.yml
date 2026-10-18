@@ -1,5 +1,6 @@
 # Publie une version de Player X : installeur NSIS + latest.yml + .blockmap sur GitHub Releases.
-# Déclenché par un tag vX.Y.Z (git tag v0.4.1 && git push --tags) ou à la main depuis l'onglet Actions.
+# Déclenché par un tag vX.Y.Z (git tag v0.4.1 && git push --tags) ou à la main depuis l'onglet Actions (le tag v<version> est alors créé).
+# Notes de version : docs/release-notes/<version>.md si le fichier existe, sinon générées par GitHub.
 name: Release
 
 on:
@@ -47,8 +48,50 @@ jobs:
       - name: Compiler
         run: npx electron-vite build
 
-      # releaseType "release" (package.json › build.publish) : la release est publiée directement, pas en brouillon.
-      - name: Construire et publier l'installeur
+      # La release est préparée en brouillon AVANT electron-builder : il envoie l'exe et le blockmap en parallèle,
+      # et s'il doit créer la release lui-même, les deux envois la créent en même temps et l'un échoue (422).
+      # Le brouillon reste invisible pour les mises à jour tant que tous les fichiers ne sont pas envoyés.
+      # Lancement manuel : le tag v<version> est créé sur ce commit (un tag poussé avec GITHUB_TOKEN ne relance pas ce workflow).
+      - name: Préparer la release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          tag="v${version}"
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${tag}" > /dev/null; then
+            git tag "${tag}" "${GITHUB_SHA}"
+            git push origin "refs/tags/${tag}"
+          fi
+          if gh release view "${tag}" > /dev/null 2>&1; then
+            echo "La release ${tag} existe déjà : electron-builder y ajoute les fichiers."
+          else
+            notes="docs/release-notes/${version}.md"
+            if [ -f "${notes}" ]; then
+              gh release create "${tag}" --draft --verify-tag --title "Player X ${version}" --notes-file "${notes}"
+            else
+              gh release create "${tag}" --draft --verify-tag --title "Player X ${version}" --generate-notes
+            fi
+          fi
+
+      - name: Construire et envoyer l'installeur
         run: npx electron-builder --win --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publiée seulement si les trois fichiers attendus par electron-updater sont là.
+      - name: Publier la release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          tag="v${version}"
+          assets="$(gh release view "${tag}" --json assets --jq '.assets[].name')"
+          for f in latest.yml "Player-X-Setup-${version}.exe" "Player-X-Setup-${version}.exe.blockmap"; do
+            if ! grep -qxF "${f}" <<< "${assets}"; then
+              echo "::error::Fichier manquant dans la release ${tag} : ${f}"
+              exit 1
+            fi
+          done
+          gh release edit "${tag}" --draft=false --latest
