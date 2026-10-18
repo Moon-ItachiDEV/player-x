@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { cleanName, norm, plural, timeAgo } from '@shared/text'
+import { cleanName, formatPlaytime, norm, plural, timeAgo } from '@shared/text'
 import type { Friend, Game } from '@shared/types'
 import { follow, fxOn, setArtBase } from '../../motion'
 import { Avatar } from '../ui/Avatar'
 import { generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
+import { LiveBadge } from '../ui/LiveBadge'
 import { StoreTag } from '../ui/StoreTag'
 import { FavStar, usePop } from './GameCard'
 import './hero.css'
@@ -309,7 +310,12 @@ function HeroBody({ game, kicker, slide, launching, onLaunch, onOpen, onFavorite
       <div className="hero-meta">
         <StoreTag kind={game.store} long />
         <span>{game.lastPlayed ? `Lancé ${timeAgo(game.lastPlayed)}` : 'Jamais lancé depuis Player X'}</span>
-        {!!game.launches && <span className="num">{plural(game.launches, 'lancement', 'lancements')}</span>}
+        {game.playtime ? (
+          <span className="num">{formatPlaytime(game.playtime)} de jeu</span>
+        ) : (
+          !!game.launches && <span className="num">{plural(game.launches, 'lancement', 'lancements')}</span>
+        )}
+        {game.running && <LiveBadge />}
       </div>
       <div className="hero-actions">
         <button className={`btn btn-primary btn-play ${launching ? 'is-launching' : ''}`} data-magnetic="" disabled={launching} onClick={() => onLaunch(game)}>
