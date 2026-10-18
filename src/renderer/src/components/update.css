@@ -1,4 +1,4 @@
-/* Bandeau « mise à jour prête » (UpdateNotice.tsx) : ancré en bas à gauche du contenu, à côté de la barre latérale.
+/* Bandeau de mise à jour (UpdateNotice.tsx) : ancré en bas à gauche du contenu, à côté de la barre latérale.
    Sous le voile du tiroir de jeu et des dialogues (il ne doit jamais leur passer devant), au-dessus du contenu. */
 
 .upd-dock {
@@ -36,9 +36,7 @@
   gap: 12px;
   padding: 10px 8px 10px 10px;
   border-radius: var(--r-lg);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.035), transparent 60%),
-    rgba(37, 42, 60, 0.96);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.035), transparent 60%), rgba(37, 42, 60, 0.96);
   backdrop-filter: blur(12px);
   border: 1px solid var(--line-2);
   box-shadow:
@@ -59,18 +57,6 @@
   /* Violet seul : le cyan est réservé à « en jeu » */
   background: linear-gradient(180deg, var(--accent), var(--accent-solid));
   opacity: 0.9;
-}
-
-.upd-icon {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-line);
-  color: var(--accent-text);
 }
 
 .upd-text {
@@ -116,62 +102,108 @@
   }
 }
 
-/* ---------- téléchargement en cours (discret) ---------- */
+/* ---------- téléchargement 0 → 100 % ---------- */
 
-.upd-chip {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 168px;
-  padding: 8px 12px 9px;
-  border-radius: var(--r-md);
-  background: rgba(28, 32, 48, 0.9);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--line-1);
-  box-shadow: var(--sh-1);
-  color: var(--text-2);
+.upd-card {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+}
+button.upd-progress {
+  width: 340px;
+  max-width: 100%;
+  padding: 10px 14px 10px 10px;
   text-align: left;
-  animation: upd-in var(--d-3) var(--ease-out) both;
-  transition:
-    border-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color var(--d-1) var(--ease-out);
 }
-.upd-chip:hover {
+button.upd-progress:hover {
   border-color: var(--line-3);
+}
+button.upd-progress:focus-visible {
+  box-shadow: var(--sh-2), var(--focus);
+}
+.upd-progress .upd-text {
+  gap: 3px;
+}
+.upd-pct {
+  align-self: start;
+  font: 700 13px/18px var(--font-display);
   color: var(--text-1);
 }
-.upd-chip:focus-visible {
-  box-shadow:
-    var(--sh-1),
-    var(--focus);
-  border-color: var(--line-3);
-  color: var(--text-1);
-}
-.upd-chip-label {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  font: 500 12px/14px var(--font-ui);
-}
-.upd-chip-pct {
-  margin-left: auto;
-  padding-left: 12px;
-  color: var(--text-3);
-}
-.upd-chip-track {
+.upd-bar {
   position: relative;
   height: 3px;
+  margin-top: 4px;
   border-radius: 2px;
   overflow: hidden;
   background: var(--line-2);
 }
-.upd-chip-fill {
+.upd-bar-fill {
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background: var(--brand-gradient);
   transform-origin: left center;
-  transition: transform var(--d-4) var(--ease-out);
+}
+
+/* Anneau : la progression du téléchargement, puis le compte à rebours du redémarrage. */
+.upd-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+}
+.upd-ring > svg {
+  position: absolute;
+  inset: 0;
+  rotate: -90deg;
+}
+.upd-ring-track {
+  fill: none;
+  stroke: var(--line-2);
+  stroke-width: 3;
+}
+.upd-ring-fill {
+  fill: none;
+  stroke: url(#upd-ring-grad);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+/* Le téléchargement est déjà lissé par le pourcentage affiché. */
+.upd-progress .upd-ring-fill {
+  transition: none;
+}
+.upd-ring-center {
+  position: relative;
+  display: grid;
+  place-items: center;
+  font: 700 11px/1 var(--font-display);
+  color: var(--text-1);
+}
+.upd-ring.is-done .upd-ring-center {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.upd-ring .spinner {
+  width: 14px;
+  height: 14px;
+}
+
+/* Prête : le bouton Redémarrer reste visible, « Plus tard » est secondaire. */
+.upd-ready .upd-actions {
+  gap: 4px;
+}
+.upd-ready .upd-actions .btn {
+  margin-right: 0;
+}
+.upd-ready .upd-sub .num {
+  color: var(--text-1);
+  font-weight: 600;
 }
 
 /* ---------- effets riches (Effets visuels activés) ---------- */
@@ -190,16 +222,20 @@
   pointer-events: none;
   animation: upd-sheen 1100ms var(--ease-in-out) 260ms both;
 }
-/* Halo violet qui respire quelques fois, puis s'arrête (en pause quand la fenêtre est en arrière-plan) */
-:root[data-fx='on'] .upd-icon::before {
+:root[data-fx='on'] .upd-ring.is-done .upd-ring-center {
+  animation: upd-pop 420ms var(--ease-pop) both;
+}
+/* Reflet qui balaie la barre pendant le téléchargement (en pause quand la fenêtre est en arrière-plan). */
+:root[data-fx='on'] .upd-bar-fill::after {
   content: '';
   position: absolute;
-  inset: -5px;
-  border-radius: 50%;
-  border: 1.5px solid var(--accent-line);
-  opacity: 0;
-  pointer-events: none;
-  animation: upd-breathe 1.8s var(--ease-drift) 600ms 6 alternate both;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.45) 50%, transparent 100%);
+  translate: -100% 0;
+  animation: upd-sweep 1.6s var(--ease-in-out) infinite;
+}
+:root[data-window='idle'] .upd-bar-fill::after {
+  animation-play-state: paused;
 }
 
 @keyframes upd-in-rich {
@@ -208,18 +244,19 @@
     transform: translateY(14px) scale(0.96);
   }
 }
+@keyframes upd-pop {
+  from {
+    scale: 0.4;
+    opacity: 0;
+  }
+}
+@keyframes upd-sweep {
+  to {
+    translate: 100% 0;
+  }
+}
 @keyframes upd-sheen {
   to {
     translate: 130% 0;
-  }
-}
-@keyframes upd-breathe {
-  from {
-    opacity: 0;
-    scale: 0.92;
-  }
-  to {
-    opacity: 0.9;
-    scale: 1.06;
   }
 }
