@@ -73,6 +73,16 @@ function pickHero(games: Game[]): Game | null {
   return games.find((g) => g.favorite && hasArt(g)) ?? games.find(hasArt) ?? null
 }
 
+/** Jeux à la une (5 au plus) : le héros, puis les favoris et les derniers joués qui ont une bannière. */
+function pickFeatured(games: Game[]): Game[] {
+  const first = pickHero(games)
+  if (!first) return []
+  const rest = games.filter((g) => g.id !== first.id && !!g.heroUrl)
+  const favs = rest.filter((g) => g.favorite).sort((a, b) => byRecent(a, b) || byName(a, b))
+  const played = rest.filter((g) => !g.favorite && g.lastPlayed).sort(byRecent)
+  return [first, ...favs, ...played].slice(0, 5)
+}
+
 function prefersReducedMotion(): boolean {
   return document.documentElement.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches
 }
@@ -111,14 +121,15 @@ export function Library(props: LibraryProps): React.JSX.Element {
     )
   }, [games, chip, q, prefs.sort])
 
-  const hero = useMemo(() => pickHero(games), [games])
+  const featured = useMemo(() => pickFeatured(games), [games])
+  const heroId = featured[0]?.id
   const recent = useMemo(
     () =>
       games
-        .filter((g) => g.lastPlayed && g.id !== hero?.id)
+        .filter((g) => g.lastPlayed && g.id !== heroId)
         .sort(byRecent)
         .slice(0, 8),
-    [games, hero]
+    [games, heroId]
   )
 
   const seeAll = (): void => {
@@ -179,8 +190,9 @@ export function Library(props: LibraryProps): React.JSX.Element {
 
   return (
     <div className="page lib" aria-busy={scanning || undefined}>
-      {!searching && hero && (
-        <Hero key={hero.id} game={hero} friends={friends} launching={launchingId === hero.id} onLaunch={onLaunch} onOpen={onOpen} onFavorite={onFavorite} />
+      {/* Pas de key : le héros garde sa diapositive par identifiant quand la liste change. */}
+      {!searching && featured.length > 0 && (
+        <Hero games={featured} friends={friends} launchingId={launchingId} onLaunch={onLaunch} onOpen={onOpen} onFavorite={onFavorite} />
       )}
       {!searching && recent.length >= 2 && <RecentShelf games={recent} launchingId={launchingId} onOpen={onOpen} onLaunch={onLaunch} onSeeAll={seeAll} />}
 

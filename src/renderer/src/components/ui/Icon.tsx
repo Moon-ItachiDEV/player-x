@@ -35,7 +35,8 @@ const PATHS = {
   key: 'M15.5 7.5l3 3M21 2l-9.6 9.6M15.5 7.5L19 4M7.5 21a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11z',
   sliders: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
   library: 'M4 19V5M9 19V5M14 19l-1-14M19.5 19L16 5.5',
-  plus: 'M12 5v14M5 12h14'
+  plus: 'M12 5v14M5 12h14',
+  pause: 'M9 5v14M15 5v14'
 } as const
 
 export type IconName = keyof typeof PATHS | 'play'

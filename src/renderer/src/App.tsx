@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Account, FriendPlatform, FriendsResult, Game, ScanReport, Settings } from '@shared/types'
 import { AccountMenu } from './components/AccountMenu'
+import { Ambient } from './components/Ambient'
 import { FriendsPanel } from './components/friends/FriendsPanel'
 import { GameSheet } from './components/GameSheet'
 import { Library } from './components/library/Library'
@@ -11,7 +12,9 @@ import { SettingsView } from './components/settings/SettingsView'
 import { TopBar } from './components/TopBar'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
 import { COVER_MIN, type LoginPlatform, type SettingsSection, type UiPrefs, type View } from './contracts'
+import { closeTarget, takeMorphSource, useSystemReducedMotion, withViewTransition } from './motion'
 import './styles/shell.css'
+import './styles/transitions.css'
 
 const api = window.launcher
 
@@ -29,6 +32,7 @@ export default function App(): React.JSX.Element {
   const [ui, setUi] = useState<UiPrefs>(loadUi)
   // Remonté ici : les toasts ne laissent la place du panneau d'amis que quand la coque est affichée.
   const [entered, setEntered] = useState(false)
+  const systemReduced = useSystemReducedMotion()
   const updateUi = useCallback((patch: Partial<UiPrefs>) => {
     setUi((prev) => {
       const next = { ...prev, ...patch }
@@ -46,7 +50,9 @@ export default function App(): React.JSX.Element {
     root.classList.toggle('reduce-motion', ui.reduceMotion)
     root.classList.toggle('no-blur', !ui.transparency)
     root.style.setProperty('--cover-min', `${COVER_MIN[ui.coverSize]}px`)
-  }, [ui])
+    // Seul interrupteur des effets riches (CSS :root[data-fx='on'], JS fxOn()).
+    root.dataset.fx = ui.visualFx && !ui.reduceMotion && !systemReduced ? 'on' : 'off'
+  }, [ui, systemReduced])
 
   return (
     <ToastProvider right={entered && ui.friendsPanel === 'open' ? 'var(--friends-w)' : '0px'}>
@@ -233,6 +239,14 @@ function Shell({ ui, updateUi, entered, setEntered }: ShellProps): React.JSX.Ele
 
   const openGame = useMemo(() => games.find((g) => g.id === openGameId) ?? null, [games, openGameId])
 
+  // Ouverture et fermeture de la fiche : la jaquette (ou le visuel) d'origine se transforme en en-tête.
+  const openSheet = useCallback((g: Game) => {
+    withViewTransition(() => setOpenGameId(g.id), { kind: 'open', source: takeMorphSource(g.id) })
+  }, [])
+  const closeSheet = useCallback(() => {
+    withViewTransition(() => setOpenGameId(null), { kind: 'close', source: openGameId ? closeTarget(openGameId) : null })
+  }, [openGameId])
+
   if (!ready || !settings) return <div className="boot" />
 
   if (!entered) {
@@ -275,6 +289,7 @@ function Shell({ ui, updateUi, entered, setEntered }: ShellProps): React.JSX.Ele
         friendsOpen={friendsOpen}
         onToggleFriends={() => updateUi({ friendsPanel: friendsOpen ? 'hidden' : 'open' })}
       />
+      <Ambient />
       <main className="content" key={view}>
         {view === 'library' && (
           <Library
@@ -287,7 +302,7 @@ function Shell({ ui, updateUi, entered, setEntered }: ShellProps): React.JSX.Ele
             onClearQuery={() => setQuery('')}
             launchingId={launchingId}
             onLaunch={launch}
-            onOpen={(g) => setOpenGameId(g.id)}
+            onOpen={openSheet}
             onFavorite={toggleFavorite}
             onRescan={() => loadGames(true)}
             onEnableDemo={enableDemo}
@@ -299,7 +314,7 @@ function Shell({ ui, updateUi, entered, setEntered }: ShellProps): React.JSX.Ele
             accounts={accounts}
             friends={friends}
             launchingId={launchingId}
-            onOpenGame={(g) => setOpenGameId(g.id)}
+            onOpenGame={openSheet}
             onLaunch={launch}
             onManageAccounts={() => goSettings('accounts')}
             onShowFriends={() => updateUi({ friendsPanel: 'open' })}
@@ -358,7 +373,7 @@ function Shell({ ui, updateUi, entered, setEntered }: ShellProps): React.JSX.Ele
         game={openGame}
         friends={friends.friends}
         launching={!!openGame && launchingId === openGame.id}
-        onClose={() => setOpenGameId(null)}
+        onClose={closeSheet}
         onLaunch={launch}
         onFavorite={toggleFavorite}
         onOpenFolder={openFolder}

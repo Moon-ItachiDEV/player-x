@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Account, FriendPlatform } from '@shared/types'
 import type { RailProps, View } from '../contracts'
 import { Avatar } from './ui/Avatar'
@@ -12,6 +12,7 @@ const PRIORITY: FriendPlatform[] = ['steam', 'discord', 'psn']
 // Sur macOS, les feux de fenêtre occupent le coin haut gauche.
 const IS_MAC = window.launcher?.platform === 'darwin'
 const INDICATOR_H = 20
+const MOVE_MS = 340
 
 /** Compte affiché dans la barre : Steam, puis Discord, puis PSN. */
 function primaryAccount(accounts: Account[]): Account | undefined {
@@ -32,15 +33,20 @@ export function Rail({ view, onView, accounts, demo, accountMenuOpen, onToggleAc
   const railRef = useRef<HTMLElement>(null)
   const buttons = useRef<Partial<Record<View, HTMLButtonElement | null>>>({})
   const [indicatorY, setIndicatorY] = useState<number | null>(null)
+  const [pillY, setPillY] = useState(0)
   const [animate, setAnimate] = useState(false)
+  const [moving, setMoving] = useState(false)
+  const lastView = useRef(view)
 
-  // Indicateur actif : une seule barre qui glisse vers le bouton de la vue courante.
+  // Indicateur actif et fond du bouton : ils glissent ensemble vers le bouton de la vue courante.
   useLayoutEffect(() => {
     const rail = railRef.current
     if (!rail) return
     const place = (): void => {
       const btn = buttons.current[view]
-      if (btn) setIndicatorY(btn.offsetTop + (btn.offsetHeight - INDICATOR_H) / 2)
+      if (!btn) return
+      setIndicatorY(btn.offsetTop + (btn.offsetHeight - INDICATOR_H) / 2)
+      setPillY(btn.offsetTop)
     }
     place()
     const ro = new ResizeObserver(place)
@@ -54,6 +60,16 @@ export function Rail({ view, onView, accounts, demo, accountMenuOpen, onToggleAc
     const id = requestAnimationFrame(() => setAnimate(true))
     return () => cancelAnimationFrame(id)
   }, [indicatorY, animate])
+
+  // Changement de vue : la barre s'étire pendant le glissement (effets visuels uniquement, en CSS).
+  useEffect(() => {
+    if (lastView.current === view) return
+    lastView.current = view
+    if (!animate) return
+    setMoving(true)
+    const t = setTimeout(() => setMoving(false), MOVE_MS)
+    return () => clearTimeout(t)
+  }, [view, animate])
 
   const account = primaryAccount(accounts)
   const name = account?.name ?? 'Joueur'
@@ -79,7 +95,13 @@ export function Rail({ view, onView, accounts, demo, accountMenuOpen, onToggleAc
     <nav ref={railRef} className="rail" aria-label="Navigation principale">
       <div className="rail-logo">{!IS_MAC && <BrandMark height={18} />}</div>
 
-      {indicatorY !== null && <span className={`rail-indicator ${animate ? 'animate' : ''}`} style={{ transform: `translateY(${indicatorY}px)` }} aria-hidden="true" />}
+      {indicatorY !== null && (
+        <>
+          <span className={`rail-pill ${animate ? 'animate' : ''}`} style={{ transform: `translateY(${pillY}px)` }} aria-hidden="true" />
+          {/* translate (et non transform) : l'étirement en scale reste centré sur la barre */}
+          <span className={`rail-indicator ${animate ? 'animate' : ''} ${moving ? 'is-moving' : ''}`} style={{ translate: `0 ${indicatorY}px` }} aria-hidden="true" />
+        </>
+      )}
 
       {TOP_ITEMS.map((i) => navButton(i.view, i.icon, i.label))}
 

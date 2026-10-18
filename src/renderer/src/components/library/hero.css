@@ -1,0 +1,410 @@
+/* Héros plein cadre : le visuel du jeu se fond dans la page ; carrousel des jeux à la une. */
+
+.hero {
+  --hero-h: clamp(320px, 46vh, 480px);
+  --poster-w: calc((var(--hero-h) - 72px) * 2 / 3);
+  position: relative;
+  flex-shrink: 0;
+  height: var(--hero-h);
+  margin: -24px calc(var(--lib-pad-x) * -1) -16px;
+  overflow: clip;
+  isolation: isolate;
+}
+@media (max-width: 1200px) {
+  .hero {
+    margin-top: -20px;
+  }
+}
+
+/* ---------- visuel ---------- */
+
+/* Plus large que le héros : marge pour la parallaxe ; le bas se fond dans la page. */
+.hero-stage {
+  position: absolute;
+  inset: -12px -18px 0;
+  mask-image: linear-gradient(180deg, #000 0%, #000 50%, transparent 100%);
+  translate: calc(var(--hx, 0) * -14px) calc(var(--hy, 0) * -8px);
+}
+.hero-art {
+  position: absolute;
+  inset: 0;
+  transition: opacity var(--d-5) var(--ease-in-out);
+}
+.hero-art.is-out {
+  opacity: 0;
+}
+@starting-style {
+  .hero-art.is-in {
+    opacity: 0;
+  }
+}
+.hero-art-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 25%;
+  opacity: 0;
+  transition: opacity var(--d-4) var(--ease-out);
+}
+.hero-art-img.is-loaded {
+  opacity: 1;
+}
+/* Jaquette floutée quand il n'y a pas de bannière */
+.hero-art-blur {
+  filter: blur(32px) saturate(1.3) brightness(0.7);
+  transform: scale(1.25);
+}
+
+/* Voile de lisibilité à gauche ; il s'efface en bas pour ne pas marquer de couture avec la page. */
+.hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--bg-1) 88%, transparent) 0%,
+    color-mix(in srgb, var(--bg-1) 55%, transparent) 34%,
+    transparent 66%
+  );
+  mask-image: linear-gradient(180deg, #000 75%, transparent 100%);
+}
+
+/* Jaquette nette à droite quand il n'y a pas de bannière */
+.hero-poster {
+  position: absolute;
+  top: 36px;
+  right: calc(var(--lib-pad-x) + 8px);
+  width: var(--poster-w);
+  height: calc(var(--hero-h) - 72px);
+  object-fit: cover;
+  border-radius: 12px;
+  box-shadow:
+    var(--sh-2),
+    0 0 0 1px var(--line-2);
+  z-index: 2;
+  opacity: 0;
+  translate: calc(var(--hx, 0) * -8px) calc(var(--hy, 0) * -5px);
+  transition: opacity var(--d-4) var(--ease-out);
+}
+.hero-poster.is-loaded {
+  opacity: 1;
+}
+@starting-style {
+  .hero-poster.is-loaded {
+    opacity: 0;
+  }
+}
+
+/* ---------- texte et actions ---------- */
+
+.hero-body {
+  position: absolute;
+  left: var(--lib-pad-x);
+  right: var(--lib-pad-x);
+  bottom: 40px;
+  max-width: 560px;
+  z-index: 3;
+  translate: calc(var(--hx, 0) * 5px) calc(var(--hy, 0) * 3px);
+}
+.hero.is-carousel .hero-body {
+  bottom: 60px;
+}
+.hero.has-poster .hero-body {
+  right: calc(var(--lib-pad-x) + 8px + var(--poster-w) + 32px);
+}
+.hero-kicker {
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.hero-title {
+  font: 700 40px/44px var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  text-wrap: balance;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 1279px) {
+  .hero-title {
+    font-size: 32px;
+    line-height: 36px;
+  }
+}
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 4px;
+  margin: 12px 0 20px;
+  font: 400 13px/18px var(--font-ui);
+  color: var(--text-2);
+}
+.hero-meta > span:not(.store-tag) {
+  display: inline-flex;
+  align-items: center;
+}
+.hero-meta > * + span::before {
+  content: '';
+  width: 3px;
+  height: 3px;
+  margin: 0 10px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Boutons « verre » sur l'image */
+.hero-glass-btn {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  color: var(--text-1);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line-2);
+  backdrop-filter: blur(12px);
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    transform 80ms var(--ease-out);
+}
+.hero-glass-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.hero-glass-btn:active {
+  transform: scale(0.97);
+}
+.hero-glass-btn.is-on {
+  color: var(--favorite);
+}
+.no-blur .hero-glass-btn {
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+}
+
+/* Pastille « 2 amis y jouent » */
+.hero-friends {
+  position: absolute;
+  right: var(--lib-pad-x);
+  bottom: 40px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px 0 6px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--bg-0) 55%, transparent);
+  border: 1px solid var(--line-2);
+  backdrop-filter: blur(12px);
+  font: 600 13px/1 var(--font-ui);
+  color: var(--text-1);
+  white-space: nowrap;
+}
+.no-blur .hero-friends {
+  background: color-mix(in srgb, var(--bg-0) 88%, transparent);
+}
+/* Avec la jaquette à droite, la pastille se pose sur son bord bas */
+.hero.has-poster .hero-friends {
+  right: calc(var(--lib-pad-x) + 8px + var(--poster-w) / 2);
+  bottom: 20px;
+  transform: translateX(50%);
+}
+.hero-avatars {
+  display: flex;
+}
+.hero-avatars .avatar {
+  box-shadow: 0 0 0 2px var(--bg-0);
+}
+.hero-avatars .avatar + .avatar {
+  margin-left: -8px;
+}
+.hero-friends-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--live);
+}
+
+/* ---------- carrousel ---------- */
+
+.hero-dots {
+  position: absolute;
+  left: var(--lib-pad-x);
+  bottom: 26px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Zone de clic 20×20, point visible 6×6 */
+.hero-dot {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+}
+.hero-dot-bar {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 0.35);
+  transition:
+    width 260ms var(--ease-glide),
+    background-color var(--d-1) var(--ease-out);
+}
+.hero-dot:hover .hero-dot-bar {
+  background: rgb(255 255 255 / 0.6);
+}
+.hero-dot[aria-current='true'] .hero-dot-bar {
+  width: 24px;
+  background: rgb(255 255 255 / 0.22);
+}
+/* Sobre et réduit : remplissage fixe et plein */
+.hero-dot-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left;
+}
+.hero-pause {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: rgb(255 255 255 / 0.7);
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out);
+}
+.hero-pause:hover {
+  color: var(--text-1);
+  background: rgb(255 255 255 / 0.1);
+}
+/* Sans effets visuels, pas de défilement automatique : rien à mettre en pause */
+:root:not([data-fx='on']) .hero-pause {
+  display: none;
+}
+
+/* ---------- squelette ---------- */
+
+.hero-skel.skel {
+  --hero-h: clamp(320px, 46vh, 480px);
+  flex-shrink: 0;
+  height: var(--hero-h);
+  margin: -24px calc(var(--lib-pad-x) * -1) -16px;
+  border-radius: 0;
+  background: linear-gradient(180deg, var(--surface-1) 40%, transparent 100%);
+}
+@media (max-width: 1200px) {
+  .hero-skel.skel {
+    margin-top: -20px;
+  }
+}
+.hero-skel-bars {
+  position: absolute;
+  left: var(--lib-pad-x);
+  right: var(--lib-pad-x);
+  bottom: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hero-skel-bars span {
+  display: block;
+  max-width: 70%;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+/* ---------- effets complets ---------- */
+
+/* Arrivée d'une diapositive : le visuel se pose */
+:root[data-fx='on'] .hero-art.is-in {
+  animation: hero-art-in 1100ms var(--ease-glide) both;
+}
+@keyframes hero-art-in {
+  from {
+    scale: 1.06;
+  }
+}
+
+/* Dérive lente de la bannière */
+:root[data-fx='on'] .hero-art-img.fx-loop {
+  animation: hero-drift 26s var(--ease-drift) infinite alternate;
+}
+:root[data-fx='on'] .hero.is-offscreen .hero-art-img {
+  animation-play-state: paused;
+}
+@keyframes hero-drift {
+  from {
+    scale: 1.04;
+  }
+  to {
+    scale: 1.1;
+    translate: -1.2% -0.8%;
+  }
+}
+
+/* Parallaxe au défilement (transform ; la parallaxe au pointeur passe par translate) */
+:root[data-fx='on'] .hero-stage {
+  animation: hero-scroll linear both;
+  animation-timeline: --px-content;
+  animation-range: 0 460px;
+}
+@keyframes hero-scroll {
+  to {
+    transform: translateY(140px);
+  }
+}
+
+/* Entrée du texte en cascade */
+:root[data-fx='on'] .hero-body > * {
+  animation: hero-text-in 420ms var(--ease-glide) both;
+}
+:root[data-fx='on'] .hero-body > :nth-child(2) {
+  animation-delay: 60ms;
+}
+:root[data-fx='on'] .hero-body > :nth-child(3) {
+  animation-delay: 120ms;
+}
+:root[data-fx='on'] .hero-body > :nth-child(4) {
+  animation-delay: 180ms;
+}
+@keyframes hero-text-in {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+}
+
+/* Défilement automatique : la fin de la barre fait avancer le carrousel (Hero.tsx).
+   Pause au survol, au focus clavier, sur demande, hors écran et fenêtre inactive. */
+:root[data-fx='on'] .hero-dot-fill {
+  animation: hero-progress 7000ms linear forwards;
+}
+:root[data-fx='on'] .hero:hover .hero-dot-fill,
+:root[data-fx='on'] .hero:has(:focus-visible) .hero-dot-fill,
+:root[data-fx='on'] .hero.is-paused .hero-dot-fill,
+:root[data-fx='on'] .hero.is-offscreen .hero-dot-fill,
+:root[data-window='idle'] .hero-dot-fill {
+  animation-play-state: paused;
+}
+@keyframes hero-progress {
+  from {
+    scale: 0 1;
+  }
+}

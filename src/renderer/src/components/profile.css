@@ -406,6 +406,7 @@ button.prof-last:hover {
   container-type: inline-size;
 }
 .prof-gt-open {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -417,6 +418,27 @@ button.prof-last:hover {
 .prof-gt-open:focus-visible {
   box-shadow: none; /* l'anneau est porté par la jaquette */
 }
+/* Ombre de survol : fondue par l'opacité d'un pseudo-élément, jamais par un box-shadow animé */
+.prof-gt-open::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-card-hover);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--d-2) var(--ease-out),
+    transform var(--d-2) var(--ease-out);
+}
+.prof-gt:hover .prof-gt-open::before,
+.prof-gt:focus-within .prof-gt-open::before {
+  opacity: 1;
+  transform: translateY(-4px);
+}
 .prof-gt-box {
   position: relative;
   display: block;
@@ -425,9 +447,7 @@ button.prof-last:hover {
   isolation: isolate;
   background: var(--surface-1);
   box-shadow: var(--sh-1);
-  transition:
-    transform var(--d-2) var(--ease-out),
-    box-shadow var(--d-2) var(--ease-out);
+  transition: transform var(--d-2) var(--ease-out);
 }
 .prof-gt-box::after {
   content: '';
@@ -448,12 +468,11 @@ button.prof-last:hover {
 .prof-gt:hover .prof-gt-box,
 .prof-gt:focus-within .prof-gt-box {
   transform: translateY(-4px);
-  box-shadow: var(--sh-card-hover);
 }
 .prof-gt-open:focus-visible .prof-gt-box {
   box-shadow:
     var(--focus),
-    var(--sh-card-hover);
+    var(--sh-1);
 }
 .prof-gt:hover .prof-gt-box .cover {
   transform: scale(1.04);

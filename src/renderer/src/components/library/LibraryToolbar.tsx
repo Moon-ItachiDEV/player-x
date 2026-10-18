@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Store } from '@shared/types'
+import { withViewTransition } from '../../motion'
 import { Icon } from '../ui/Icon'
 import { Menu } from '../ui/Overlay'
 import { KIND_LABEL } from '../ui/StoreTag'
@@ -82,7 +83,13 @@ export function LibraryToolbar(props: ToolbarProps): React.JSX.Element {
         ) : (
           <div className="lib-chips" role="group" aria-label="Filtrer la bibliothèque">
             {chips.map((c) => (
-              <button key={c.id} className={`chip ${chip === c.id ? 'active' : ''}`} aria-pressed={chip === c.id} onClick={() => onChip(c.id)}>
+              <button
+                key={c.id}
+                className={`chip ${chip === c.id ? 'active' : ''}`}
+                aria-pressed={chip === c.id}
+                // Les jaquettes glissent vers leur nouvelle place (transition de vue).
+                onClick={() => c.id !== chip && withViewTransition(() => onChip(c.id), { kind: 'reorder' })}
+              >
                 {c.id === 'fav' && <Icon name="star" size={12} filled className="lib-chip-star" />}
                 {c.id !== 'all' && c.id !== 'fav' && <span className="chip-dot" style={{ background: `var(--store-${c.id})` }} />}
                 {c.label}
@@ -154,10 +161,11 @@ function SortButton({ sort, onSort }: { sort: LibSort; onSort: (s: LibSort) => v
     wasOpen.current = false
   }, [open])
 
+  // Menu fermé d'abord : React l'applique à la fin du clic, avant la capture de l'ancien état.
   const pick = (s: LibSort): void => {
-    onSort(s)
     close()
     btn.current?.focus()
+    if (s !== sort) withViewTransition(() => onSort(s), { kind: 'reorder' })
   }
 
   const onItemKey = (e: React.KeyboardEvent<HTMLButtonElement>): void => {

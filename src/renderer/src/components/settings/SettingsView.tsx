@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { timeAgo } from '@shared/text'
 import type { FriendPlatform, ScanReport } from '@shared/types'
 import { COVER_MIN, type SettingsProps, type SettingsSection, type UiPrefs } from '../../contracts'
+import { useSystemReducedMotion } from '../../motion'
 import { Icon, type IconName } from '../ui/Icon'
 import { Segmented, Switch } from '../ui/Overlay'
 import { STORE_LONG, StoreTag } from '../ui/StoreTag'
@@ -243,6 +244,18 @@ function InterfaceSection({ ui, onUiChange }: { ui: UiPrefs; onUiChange: (patch:
           <Switch checked={ui.reduceMotion} onChange={(reduceMotion) => onUiChange({ reduceMotion })} label="Réduire les animations" />
         </SettingRow>
         <SettingRow
+          label="Effets visuels"
+          value={
+            ui.reduceMotion || systemReduced
+              ? 'En pause · les animations sont réduites'
+              : ui.visualFx
+                ? 'Activés · jaquettes en relief, reflets, fond aux couleurs du jeu survolé'
+                : 'Désactivés · interface sobre, moins de calcul graphique'
+          }
+        >
+          <Switch checked={ui.visualFx} onChange={(visualFx) => onUiChange({ visualFx })} label="Effets visuels" />
+        </SettingRow>
+        <SettingRow
           label="Effets de transparence"
           value={ui.transparency ? 'Activés · flou derrière les barres et les notifications' : 'Désactivés · couleurs pleines, sans flou'}
         >
@@ -251,15 +264,4 @@ function InterfaceSection({ ui, onUiChange }: { ui: UiPrefs; onUiChange: (patch:
       </div>
     </>
   )
-}
-
-function useSystemReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
-  useEffect(() => {
-    const mq = matchMedia('(prefers-reduced-motion: reduce)')
-    const on = (): void => setReduced(mq.matches)
-    mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
-  }, [])
-  return reduced
 }

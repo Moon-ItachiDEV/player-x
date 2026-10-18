@@ -152,7 +152,7 @@ function useSettled(loading: boolean, hasData: boolean): boolean {
   return settled || hasData
 }
 
-/** Ids des amis qui viennent de passer « en jeu » (une impulsion d'anneau, une seule fois). */
+/** Ids des amis qui viennent de passer « en jeu » (deux impulsions d'anneau, une seule fois). */
 function useInGamePulse(entries: Entry[]): ReadonlySet<string> {
   const prev = useRef<Map<string, FriendStatus> | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -166,7 +166,7 @@ function useInGamePulse(entries: Entry[]): ReadonlySet<string> {
     if (!fresh.length) return
     setPulsing(new Set(fresh))
     clearTimeout(timer.current)
-    timer.current = setTimeout(() => setPulsing(new Set()), 1300)
+    timer.current = setTimeout(() => setPulsing(new Set()), 2500)
   }, [entries])
   useEffect(() => () => clearTimeout(timer.current), [])
   return pulsing
@@ -357,7 +357,7 @@ function Row({ entry, pulse }: { entry: Entry; pulse: boolean }): React.JSX.Elem
   const sub = subLine(entry)
   return (
     <li className={`fr-row st-${status}`}>
-      <span className={`fr-av ${pulse ? 'is-pulsing' : ''}`}>
+      <span className={`fr-av ${status === 'in-game' ? 'fx-loop' : ''} ${pulse ? 'is-pulsing' : ''}`}>
         <Avatar name={friend.name} url={friend.avatarUrl} size={32} status={status} />
       </span>
       <span className="fr-text">

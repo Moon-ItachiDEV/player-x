@@ -1,1 +1,35 @@
-/* Fond aux couleurs du jeu (lot D) */
+/* Fond aux couleurs du jeu (lot D) : deux toiles de 128 × 72 déjà floutées, agrandies par le CSS. Aucun filtre CSS ici. */
+
+.bd-layer {
+  position: absolute;
+  inset: -4%;
+  width: 108%;
+  height: 108%;
+  opacity: 0;
+  transition: opacity var(--d-5) var(--ease-in-out);
+  will-change: opacity;
+}
+.bd-layer.is-front {
+  opacity: 0.8;
+}
+:root:not([data-fx='on']) .bd-layer {
+  display: none;
+}
+
+/* Voile : garde le texte lisible même sur une image blanche (voir le budget de contraste).
+   Il n'apparaît qu'avec une image, pour laisser intact le halo violet de .backdrop sinon. */
+.bd-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgb(14 16 24 / 0.6) 0%, rgb(14 16 24 / 0.72) 40%, var(--bg-1) 88%),
+    radial-gradient(120% 90% at 50% 0%, transparent 40%, rgb(11 13 20 / 0.55) 100%);
+  opacity: 0;
+  transition: opacity var(--d-5) var(--ease-in-out);
+}
+.bd-layer.is-front ~ .bd-shade {
+  opacity: 1;
+}
+:root:not([data-fx='on']) .bd-shade {
+  display: none;
+}

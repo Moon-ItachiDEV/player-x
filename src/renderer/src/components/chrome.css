@@ -25,6 +25,8 @@
 }
 
 .rail-btn {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
   width: 44px;
@@ -37,19 +39,42 @@
     color var(--d-1) var(--ease-out),
     transform 80ms var(--ease-out);
 }
-.rail-btn:hover {
+/* Le bouton actif garde le fond de .rail-pill, même survolé */
+.rail-btn:hover:not([aria-current='page']) {
   background: var(--surface-1);
   color: var(--text-1);
 }
 .rail-btn[aria-current='page'] {
-  background: var(--surface-2);
   color: var(--text-1);
 }
 .rail-btn:active {
   transform: scale(0.97);
 }
+.rail-btn svg {
+  transition: scale 160ms var(--ease-glide);
+}
+.rail-btn:hover svg {
+  scale: 1.08;
+}
 
-/* Barre active : un seul élément qui glisse d'un bouton à l'autre */
+/* Fond du bouton actif : un seul élément qui glisse d'un bouton à l'autre */
+.rail-pill {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  pointer-events: none;
+}
+.rail-pill.animate {
+  transition: transform 340ms var(--ease-glide);
+}
+
+/* Barre active : glisse avec le fond, s'étire pendant le trajet (effets visuels) */
 .rail-indicator {
   position: absolute;
   top: 0;
@@ -61,7 +86,15 @@
   pointer-events: none;
 }
 .rail-indicator.animate {
-  transition: transform 220ms var(--ease-out);
+  transition: translate 340ms var(--ease-glide);
+}
+:root[data-fx='on'] .rail-indicator.is-moving {
+  animation: rail-stretch 340ms var(--ease-glide);
+}
+@keyframes rail-stretch {
+  40% {
+    scale: 1 1.8;
+  }
 }
 
 .rail-spacer {
@@ -106,6 +139,7 @@
 /* ---------- barre du haut ---------- */
 
 .topbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -119,6 +153,28 @@
 }
 .topbar.is-mac {
   padding-right: 24px;
+}
+/* Filet violet qui apparaît dès que le contenu défile (timeline --px-content, voir shell.css) */
+.topbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-line) 35%, var(--accent-line) 65%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+:root[data-fx='on'] .topbar::after {
+  animation: tb-line linear both;
+  animation-timeline: --px-content;
+  animation-range: 0 64px;
+}
+@keyframes tb-line {
+  to {
+    opacity: 1;
+  }
 }
 @media (max-width: 1200px) {
   .topbar {
@@ -160,6 +216,10 @@
 }
 .tb-search-icon {
   flex-shrink: 0;
+  transition: color var(--d-1) var(--ease-out);
+}
+.tb-search:focus-within .tb-search-icon {
+  color: var(--accent);
 }
 
 .tb-search-input {
@@ -268,6 +328,14 @@
 }
 .tb-stack .avatar {
   box-shadow: 0 0 0 2px var(--ring);
+  transition: translate 200ms var(--ease-glide);
+}
+/* Survol : la pile d'avatars s'écarte légèrement */
+.tb-friends:hover .tb-stack .avatar:nth-child(2) {
+  translate: 2px 0;
+}
+.tb-friends:hover .tb-stack .avatar:nth-child(3) {
+  translate: 4px 0;
 }
 .tb-stack .avatar + .avatar {
   margin-left: -6px;

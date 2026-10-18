@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { capitalize, cleanName, formatDate, plural, timeAgo } from '@shared/text'
 import type { Account, FriendPlatform, FriendsResult, Game, Store } from '@shared/types'
 import type { ProfileProps } from '../contracts'
+import { setArtFocus, setMorphSource } from '../motion'
 import { Avatar } from './ui/Avatar'
 import { Cover } from './ui/Cover'
 import { Icon } from './ui/Icon'
@@ -294,10 +295,48 @@ interface GameTileProps {
 /** Jaquette 2:3 cliquable (ouvre la fiche) avec un bouton Jouer au survol. */
 function GameTile({ game, meta, launching, onOpen, onLaunch }: GameTileProps): React.JSX.Element {
   const name = cleanName(game.name)
+  const art = game.heroUrl || game.coverUrl
+  const box = useRef<HTMLSpanElement>(null)
+  // Fond aux couleurs du jeu : on ne l'efface que si cette tuile l'a posé.
+  const hovered = useRef(false)
+  const focused = useRef(false)
+  useEffect(
+    () => () => {
+      if (hovered.current || focused.current) setArtFocus(null)
+    },
+    []
+  )
   return (
-    <div className={`prof-gt ${launching ? 'is-launching' : ''}`} aria-busy={launching || undefined}>
-      <button className="prof-gt-open" onClick={() => onOpen(game)} aria-label={`${name}, ${meta}`}>
-        <span className="prof-gt-box">
+    <div
+      className={`prof-gt ${launching ? 'is-launching' : ''}`}
+      aria-busy={launching || undefined}
+      onPointerEnter={() => {
+        hovered.current = true
+        setArtFocus(art)
+      }}
+      onPointerLeave={() => {
+        if (hovered.current) setArtFocus(null)
+        hovered.current = false
+      }}
+    >
+      <button
+        className="prof-gt-open"
+        onClick={() => {
+          setMorphSource(box.current, game.id, 'cover')
+          onOpen(game)
+        }}
+        onFocus={(e) => {
+          if (!e.currentTarget.matches(':focus-visible')) return
+          focused.current = true
+          setArtFocus(art)
+        }}
+        onBlur={() => {
+          if (focused.current) setArtFocus(null)
+          focused.current = false
+        }}
+        aria-label={`${name}, ${meta}`}
+      >
+        <span className="prof-gt-box" ref={box}>
           <Cover key={game.id} game={game} />
         </span>
         <span className="prof-gt-name" title={name}>

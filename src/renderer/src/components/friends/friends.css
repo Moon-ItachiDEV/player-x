@@ -226,6 +226,30 @@
   display: inline-grid;
   flex-shrink: 0;
   border-radius: 50%;
+  transition: scale 200ms var(--ease-glide);
+}
+.fr-row:hover .fr-av {
+  scale: 1.06;
+}
+/* En jeu, au survol : un anneau cyan qui respire (effets visuels, s'arrête avec le survol) */
+:root[data-fx='on'] .fr-row.st-in-game:hover .fr-av::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1.5px solid var(--st-ingame);
+  pointer-events: none;
+  animation: fr-breathe 1.8s var(--ease-drift) infinite alternate;
+}
+@keyframes fr-breathe {
+  from {
+    opacity: 0.25;
+    scale: 0.96;
+  }
+  to {
+    opacity: 0.8;
+    scale: 1.04;
+  }
 }
 .fr-text {
   display: flex;
@@ -264,7 +288,7 @@
   background: color-mix(in srgb, var(--tint) 16%, transparent);
 }
 
-/* Passage « en jeu » : une impulsion d'anneau, une seule fois */
+/* Passage « en jeu » : deux impulsions d'anneau, une seule fois */
 .fr-av.is-pulsing::after {
   content: '';
   position: absolute;
@@ -274,6 +298,11 @@
   pointer-events: none;
   opacity: 0;
   animation: fr-pulse 1200ms var(--ease-out);
+  animation-iteration-count: 2;
+}
+/* Animation finie : .fx-loop (posé pour l'anneau de survol) ne doit pas la figer quand la fenêtre est inactive */
+:root[data-window='idle'] .fr-av.is-pulsing::after {
+  animation-play-state: running !important;
 }
 @keyframes fr-pulse {
   from {

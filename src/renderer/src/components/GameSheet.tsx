@@ -24,7 +24,8 @@ export function GameSheet(props: GameSheetProps): React.JSX.Element | null {
   if (game && game !== last) setLast(game)
   useEffect(() => {
     if (game) return
-    const t = setTimeout(() => setLast(null), CLOSE_MS)
+    // Fermeture en transition de vue : le tiroir est déjà masqué dans le nouvel état, on le retire tout de suite.
+    const t = setTimeout(() => setLast(null), document.documentElement.classList.contains('vt-close') ? 0 : CLOSE_MS)
     return () => clearTimeout(t)
   }, [game])
 
@@ -41,6 +42,8 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
   const [stuck, setStuck] = useState(false)
   const [pop, setPop] = useState(0)
   const openedAt = useRef(0)
+  // Ouverte par une transition de vue : pas de glissement CSS en plus (la classe reste pour cette ouverture).
+  const [morph] = useState(() => document.documentElement.classList.contains('vt-open'))
 
   useEscape(!closing, onClose)
 
@@ -110,11 +113,14 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
   }
 
   return (
-    <div className={`sheet-root ${closing ? 'is-closing' : ''}`} inert={closing}>
+    <div className={`sheet-root ${morph ? 'is-morph' : ''} ${closing ? 'is-closing' : ''}`} inert={closing}>
       <div className="sheet-scrim" onClick={onScrimClick} aria-hidden="true" />
       <aside ref={panelRef} className="sheet-panel" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={trapFocus}>
         <header className="sheet-art">
           <Cover key={game.id} game={game} variant="landscape" showTitle={false} />
+          <div className="sheet-poster">
+            <Cover key={`p-${game.id}`} game={game} variant="portrait" showTitle={false} />
+          </div>
           <div className="sheet-art-shade" />
           <button className="icon-btn sheet-close" onClick={onClose} aria-label="Fermer" title="Fermer (Échap)">
             <Icon name="x" size={18} />
@@ -129,7 +135,12 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
 
         <div ref={sentinelRef} className="sheet-sentinel" />
         <div className={`sheet-actions ${stuck ? 'is-stuck' : ''}`}>
-          <button className={`btn btn-primary btn-play sheet-play ${launching ? 'is-launching' : ''}`} onClick={() => onLaunch(game)} disabled={launching}>
+          <button
+            className={`btn btn-primary btn-play sheet-play ${launching ? 'is-launching' : ''}`}
+            onClick={() => onLaunch(game)}
+            disabled={launching}
+            data-magnetic
+          >
             {launching ? (
               <>
                 <span className="spinner" aria-hidden="true" />

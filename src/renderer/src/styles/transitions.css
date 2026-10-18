@@ -1,0 +1,76 @@
+/* Transitions de vue (motion.ts). Toutes ≤ 340 ms : la page ne reçoit pas les clics pendant ce temps. */
+::view-transition-group(root) {
+  animation-duration: 220ms;
+  animation-timing-function: var(--ease-out);
+}
+
+/* Jaquette → affiche, visuel → en-tête */
+::view-transition-group(px-cover),
+::view-transition-group(px-art) {
+  animation-duration: 340ms;
+  animation-timing-function: var(--ease-glide);
+}
+::view-transition-old(px-cover),
+::view-transition-new(px-cover),
+::view-transition-old(px-art),
+::view-transition-new(px-art) {
+  height: 100%;
+  object-fit: cover;
+  animation-duration: 340ms;
+}
+
+/* Tiroir */
+::view-transition-new(px-sheet):only-child {
+  animation: px-sheet-in 300ms var(--ease-glide) both;
+}
+::view-transition-old(px-sheet):only-child {
+  animation: px-sheet-out 200ms var(--ease-in) both;
+}
+@keyframes px-sheet-in {
+  from {
+    opacity: 0;
+    translate: 32px 0;
+  }
+}
+@keyframes px-sheet-out {
+  to {
+    opacity: 0;
+    translate: 32px 0;
+  }
+}
+.vt-close::view-transition-group(px-cover),
+.vt-close::view-transition-group(px-art) {
+  animation-duration: 300ms;
+}
+
+/* Grille : tri et filtres */
+::view-transition-group(*.px-card) {
+  animation-duration: 300ms;
+  animation-timing-function: var(--ease-glide);
+}
+::view-transition-old(*.px-card):only-child {
+  animation: px-card-out 180ms var(--ease-in) both;
+}
+::view-transition-new(*.px-card):only-child {
+  animation: px-card-in 260ms var(--ease-glide) 60ms both;
+}
+@keyframes px-card-out {
+  to {
+    opacity: 0;
+    scale: 0.94;
+  }
+}
+@keyframes px-card-in {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

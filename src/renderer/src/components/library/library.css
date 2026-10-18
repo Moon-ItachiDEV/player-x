@@ -1,4 +1,4 @@
-/* Bibliothèque : héros, « Joués récemment », barre d'outils collante, grille de jaquettes, états vides. */
+/* Bibliothèque : barre d'outils collante, grille de jaquettes, états vides. Héros et étagère : hero.css, shelf.css. */
 
 .lib {
   --lib-pad-x: 32px; /* doit suivre le padding horizontal de .page */
@@ -11,237 +11,6 @@
   .lib {
     --lib-pad-x: 24px;
   }
-}
-
-/* ---------- héros ---------- */
-
-.lib-hero {
-  --hero-h: clamp(260px, 36vh, 380px);
-  --poster-w: calc((var(--hero-h) - 72px) * 2 / 3);
-  position: relative;
-  flex-shrink: 0;
-  height: var(--hero-h);
-  border-radius: var(--r-xl);
-  overflow: hidden;
-  background: var(--surface-1);
-  isolation: isolate;
-}
-.lib-hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: inset 0 0 0 1px var(--line-1);
-  pointer-events: none;
-  z-index: 5;
-}
-.lib-hero-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 25%;
-  opacity: 0;
-  transform: scale(1.03);
-  transition:
-    opacity var(--d-4) var(--ease-out),
-    transform var(--d-4) var(--ease-out);
-}
-.lib-hero-img.is-loaded {
-  opacity: 1;
-  transform: none;
-}
-.lib-hero-blur,
-.lib-hero-blur.is-loaded {
-  filter: blur(32px) saturate(1.3) brightness(0.7);
-  transform: scale(1.25);
-}
-.lib-hero-scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--bg-0) 92%, transparent) 0%,
-      color-mix(in srgb, var(--bg-0) 70%, transparent) 38%,
-      transparent 72%
-    ),
-    linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 85%, transparent) 0%, transparent 45%);
-}
-/* Jaquette nette à droite quand il n'y a pas de bannière */
-.lib-hero-poster {
-  position: absolute;
-  top: 36px;
-  bottom: 36px;
-  right: 40px;
-  width: var(--poster-w);
-  height: calc(var(--hero-h) - 72px);
-  object-fit: cover;
-  border-radius: 12px;
-  box-shadow:
-    var(--sh-2),
-    0 0 0 1px var(--line-2);
-  z-index: 2;
-  opacity: 0;
-  transition: opacity var(--d-4) var(--ease-out);
-}
-.lib-hero-poster.is-loaded {
-  opacity: 1;
-}
-
-.lib-hero-body {
-  position: absolute;
-  left: 40px;
-  right: 40px;
-  bottom: 36px;
-  max-width: 560px;
-  z-index: 3;
-}
-.lib-hero.has-poster .lib-hero-body {
-  right: calc(40px + var(--poster-w) + 32px);
-}
-.lib-hero-kicker {
-  color: var(--accent);
-  margin-bottom: 8px;
-}
-.lib-hero-title {
-  font: 700 40px/44px var(--font-display);
-  letter-spacing: -0.02em;
-  color: var(--text-1);
-  text-wrap: balance;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-@media (max-width: 1279px) {
-  .lib-hero-title {
-    font-size: 32px;
-    line-height: 36px;
-  }
-}
-.lib-hero-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  row-gap: 4px;
-  margin: 12px 0 20px;
-  font: 400 13px/18px var(--font-ui);
-  color: var(--text-2);
-}
-.lib-hero-meta > span:not(.store-tag) {
-  display: inline-flex;
-  align-items: center;
-}
-.lib-hero-meta > * + span::before {
-  content: '';
-  width: 3px;
-  height: 3px;
-  margin: 0 10px;
-  border-radius: 50%;
-  background: var(--text-3);
-}
-.lib-hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-/* Boutons « verre » sur l'image */
-.lib-glass-btn {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  flex-shrink: 0;
-  color: var(--text-1);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--line-2);
-  backdrop-filter: blur(12px);
-  transition:
-    background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out),
-    transform 80ms var(--ease-out);
-}
-.lib-glass-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
-}
-.lib-glass-btn:active {
-  transform: scale(0.97);
-}
-.lib-glass-btn.is-on {
-  color: var(--favorite);
-}
-.no-blur .lib-glass-btn {
-  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
-}
-
-/* Pastille « 2 amis y jouent » */
-.lib-hero-friends {
-  position: absolute;
-  right: 32px;
-  bottom: 36px;
-  z-index: 4;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 14px 0 6px;
-  border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--bg-0) 55%, transparent);
-  border: 1px solid var(--line-2);
-  backdrop-filter: blur(12px);
-  font: 600 13px/1 var(--font-ui);
-  color: var(--text-1);
-  white-space: nowrap;
-}
-.no-blur .lib-hero-friends {
-  background: color-mix(in srgb, var(--bg-0) 88%, transparent);
-}
-/* Avec la jaquette à droite, la pastille se pose sur son bord bas */
-.lib-hero.has-poster .lib-hero-friends {
-  right: calc(40px + var(--poster-w) / 2);
-  bottom: 20px;
-  transform: translateX(50%);
-}
-.lib-hero-avatars {
-  display: flex;
-}
-.lib-hero-avatars .avatar {
-  box-shadow: 0 0 0 2px var(--bg-0);
-}
-.lib-hero-avatars .avatar + .avatar {
-  margin-left: -8px;
-}
-.lib-hero-friends-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--live);
-}
-
-/* Squelette du héros */
-.lib-hero-skel.skel {
-  flex-shrink: 0;
-  height: clamp(260px, 36vh, 380px);
-  border-radius: var(--r-xl);
-}
-.lib-hero-skel-bars {
-  position: absolute;
-  left: 40px;
-  bottom: 36px;
-  right: 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.lib-hero-skel-bars span {
-  display: block;
-  max-width: 70%;
-  border-radius: var(--r-sm);
-  background: var(--surface-2);
 }
 
 /* ---------- étoile favorite ---------- */
@@ -257,196 +26,6 @@
   50% {
     transform: scale(1.3);
   }
-}
-
-/* ---------- « Joués récemment » ---------- */
-
-.lib-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.lib-section-title {
-  font: 600 16px/22px var(--font-ui);
-  letter-spacing: -0.005em;
-}
-.lib-shelf {
-  flex-shrink: 0;
-  min-width: 0;
-}
-.lib-shelf-viewport {
-  position: relative;
-}
-.lib-shelf-track {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 264px;
-  gap: 16px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x mandatory;
-  scroll-padding-inline: 6px;
-  scrollbar-width: none;
-  /* place pour l'élévation au survol et l'anneau de focus */
-  padding: 6px;
-  margin: -6px;
-}
-.lib-shelf-track::-webkit-scrollbar {
-  display: none;
-}
-.lib-shelf-track.fade-r {
-  mask-image: linear-gradient(90deg, black calc(100% - 48px), transparent);
-}
-.lib-shelf-track.fade-l {
-  mask-image: linear-gradient(90deg, transparent, black 48px);
-}
-.lib-shelf-track.fade-l.fade-r {
-  mask-image: linear-gradient(90deg, transparent, black 48px, black calc(100% - 48px), transparent);
-}
-.lib-shelf-arrow {
-  position: absolute;
-  top: 50%;
-  margin-top: -16px;
-  z-index: 6;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  color: var(--text-1);
-  background: var(--surface-3);
-  border: 1px solid var(--line-2);
-  box-shadow: var(--sh-2);
-  opacity: 0;
-  transition:
-    opacity var(--d-1) var(--ease-out),
-    background-color var(--d-1) var(--ease-out);
-}
-.lib-shelf-arrow:hover {
-  background: var(--surface-2);
-}
-.lib-shelf-arrow.prev {
-  left: -12px;
-}
-.lib-shelf-arrow.next {
-  right: -12px;
-}
-.lib-shelf-viewport:hover .lib-shelf-arrow {
-  opacity: 1;
-}
-
-.lib-tile {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  border-radius: 12px;
-  scroll-snap-align: start;
-  transition: transform var(--d-2) var(--ease-out);
-}
-.lib-tile::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: inset 0 0 0 1px var(--line-1);
-  pointer-events: none;
-  z-index: 3;
-  transition: box-shadow var(--d-2) var(--ease-out);
-}
-.lib-tile-art {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  overflow: hidden;
-  background: var(--surface-1);
-}
-.lib-tile-art .cover {
-  height: 100%;
-  aspect-ratio: auto;
-  transition: transform 300ms var(--ease-out);
-}
-.lib-tile-scrim {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 90%, transparent), transparent 60%);
-}
-.lib-tile-text {
-  position: absolute;
-  left: 12px;
-  right: 60px;
-  bottom: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.lib-tile-name {
-  font: 600 14px/20px var(--font-ui);
-  color: var(--text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.lib-tile-meta {
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.lib-tile.is-launching .lib-tile-meta {
-  color: var(--accent-text);
-}
-.lib-tile-open {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  border-radius: inherit;
-}
-.lib-tile-play {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  z-index: 4;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  color: #fff;
-  background: var(--accent-solid);
-  opacity: 0;
-  transform: scale(0.9);
-  pointer-events: none;
-  transition:
-    opacity var(--d-2) var(--ease-out),
-    transform var(--d-2) var(--ease-out),
-    background-color var(--d-1) var(--ease-out);
-}
-.lib-tile-play svg {
-  margin-left: 2px;
-}
-.lib-tile-play:hover:not(:disabled) {
-  background: var(--accent-solid-hover);
-}
-.lib-tile:hover,
-.lib-tile:focus-within {
-  transform: translateY(-2px);
-}
-.lib-tile:hover::after,
-.lib-tile:focus-within::after {
-  box-shadow: inset 0 0 0 1px var(--line-3);
-}
-.lib-tile:hover .lib-tile-art .cover {
-  transform: scale(1.05);
-}
-.lib-tile:hover .lib-tile-play,
-.lib-tile:focus-within .lib-tile-play,
-.lib-tile.is-launching .lib-tile-play {
-  opacity: 1;
-  transform: none;
-  pointer-events: auto;
 }
 
 /* ---------- barre d'outils collante ---------- */
@@ -550,7 +129,16 @@
   margin-top: 16px;
 }
 
+/*
+ * Jaquettes (motion-premium.md §4). Une seule carte riche à la fois : relief, reflet, halo et anneau
+ * n'existent que sous [data-tilt] (posé par useTilt) ou :focus-visible. Aucune promotion forcée
+ * (le texte agrandi deviendrait flou) ni confinement de rendu (il rognerait le halo) : voir §8.
+ */
 .lib-card {
+  --px: 0.5;
+  --py: 0.5;
+  position: relative;
+  z-index: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -558,9 +146,61 @@
   cursor: pointer;
   border-radius: var(--r-md);
 }
+.lib-card:hover,
+.lib-card:focus-visible,
+.lib-card[data-tilt] {
+  z-index: 1;
+}
 .lib-card:focus-visible {
   box-shadow: none; /* l'anneau est porté par la jaquette */
 }
+
+/* Cadre jamais transformé : perspective, et contexte d'empilement pour l'ombre et le halo (z -1) */
+.lib-card-media {
+  position: relative;
+  perspective: 900px;
+}
+/* L'ombre portée apparaît par opacité : on n'anime jamais box-shadow */
+.lib-card-media::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--r-md);
+  box-shadow: 0 26px 44px -16px rgb(0 0 0 / 0.8);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--d-out) var(--ease-out),
+    translate var(--d-out) var(--ease-out),
+    scale var(--d-out) var(--ease-out);
+}
+
+/* Halo aux couleurs de la jaquette, chargé au premier survol (display: none au repos) */
+.lib-card-glow {
+  position: absolute;
+  inset: 8% 6% -5%;
+  z-index: -1;
+  display: none;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  filter: blur(26px) saturate(1.5);
+  opacity: 0;
+  scale: 0.9;
+  pointer-events: none;
+  transition:
+    opacity 360ms var(--ease-out),
+    scale 360ms var(--ease-out),
+    translate 360ms var(--ease-out),
+    display 360ms allow-discrete;
+}
+.lib-card-glow img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .lib-card-box {
   position: relative;
   aspect-ratio: 2 / 3;
@@ -569,9 +209,11 @@
   isolation: isolate;
   background: var(--surface-1);
   box-shadow: var(--sh-1);
+  /* transform : retour à plat quand l'inclinaison s'arrête ; pendant le survol, la boucle rAF le pilote */
   transition:
-    transform var(--d-2) var(--ease-out),
-    box-shadow var(--d-2) var(--ease-out);
+    translate var(--d-out) var(--ease-out),
+    scale var(--d-out) var(--ease-out),
+    transform var(--d-out) var(--ease-out);
 }
 .lib-card-box::after {
   content: '';
@@ -581,11 +223,11 @@
   box-shadow: inset 0 0 0 1px var(--line-1);
   pointer-events: none;
   z-index: 3;
-  transition: box-shadow var(--d-2) var(--ease-out);
 }
 .lib-card-box .cover {
   height: 100%;
-  transition: transform 300ms var(--ease-out);
+  scale: 1;
+  transition: scale 400ms var(--ease-out);
 }
 .lib-card-tag.store-tag {
   position: absolute;
@@ -598,42 +240,84 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 85%, transparent), transparent 55%);
+  background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 92%, transparent), transparent 58%);
   opacity: 0;
   transition: opacity var(--d-2) var(--ease-out);
 }
+/* Reflet : la lumière glisse sur la jaquette en suivant le pointeur */
+.lib-card-glare {
+  position: absolute;
+  inset: -50%;
+  z-index: 2;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.5) 0%, rgb(255 255 255 / 0.16) 20%, transparent 42%);
+  mix-blend-mode: soft-light;
+  translate: calc((var(--px) - 0.5) * 50%) calc((var(--py) - 0.5) * 50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--d-out) var(--ease-out);
+}
+/* Bordure éclairée côté pointeur (survol) ou arc qui tourne (focus clavier) */
+.lib-card-ring {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  padding: 1.5px;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  background: radial-gradient(
+    200px circle at calc(var(--px) * 100%) calc(var(--py) * 100%),
+    rgb(196 181 253 / 0.95),
+    rgb(124 58 237 / 0.6) 38%,
+    rgb(255 255 255 / 0.06) 70%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms var(--ease-out);
+}
 .lib-card-play {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  margin: -24px 0 0 -24px;
-  border-radius: 50%;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  border-radius: 9px;
+  font: 700 12.5px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
   color: #fff;
   background: var(--accent-solid);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 6px 16px -6px rgb(124 58 237 / 0.7);
   opacity: 0;
-  transform: scale(0.9);
+  translate: 0 10px;
   pointer-events: none;
   transition:
-    opacity var(--d-2) var(--ease-out),
-    transform var(--d-2) var(--ease-out),
-    box-shadow var(--d-2) var(--ease-out);
+    opacity 180ms var(--ease-out),
+    translate 260ms var(--ease-glide),
+    background-color var(--d-1) var(--ease-out);
 }
-.lib-card-play svg {
-  margin-left: 2px;
+.lib-card-play .spinner {
+  width: 14px;
+  height: 14px;
 }
 .lib-card-play:hover:not(:disabled) {
-  box-shadow: var(--glow-accent);
+  background: var(--accent-solid-hover);
 }
 .lib-card-fav {
   position: absolute;
   top: 6px;
   right: 6px;
-  z-index: 2;
+  z-index: 3;
   display: grid;
   place-items: center;
   width: 30px;
@@ -655,38 +339,137 @@
   opacity: 1;
 }
 
-.lib-card:hover .lib-card-box,
-.lib-card:focus-visible .lib-card-box {
-  transform: translateY(-4px);
-  box-shadow: var(--sh-card-hover);
+/* Sobre (« Effets visuels » coupé) : élévation de 4 px et léger zoom, comme avant */
+.lib-card:is(:hover, :focus-visible) .lib-card-box {
+  translate: 0 -4px;
+  transition:
+    translate var(--d-in) var(--ease-glide),
+    scale var(--d-in) var(--ease-glide),
+    transform var(--d-out) var(--ease-out);
+}
+.lib-card:is(:hover, :focus-visible) .lib-card-media::before {
+  opacity: 1;
+  translate: 0 -4px;
+  transition:
+    opacity var(--d-in) var(--ease-glide),
+    translate var(--d-in) var(--ease-glide),
+    scale var(--d-in) var(--ease-glide);
 }
 .lib-card:focus-visible .lib-card-box {
-  box-shadow:
-    var(--focus),
-    var(--sh-card-hover);
+  box-shadow: var(--focus);
 }
-.lib-card:hover .lib-card-box::after,
-.lib-card:focus-visible .lib-card-box::after {
+.lib-card:is(:hover, :focus-visible) .lib-card-box::after {
   box-shadow: inset 0 0 0 1px var(--line-3);
 }
-.lib-card:hover .lib-card-box .cover,
-.lib-card:focus-visible .lib-card-box .cover {
-  transform: scale(1.04);
+.lib-card:is(:hover, :focus-visible) .lib-card-box .cover {
+  scale: 1.04;
 }
-.lib-card:hover .lib-card-overlay,
-.lib-card:focus-visible .lib-card-overlay,
-.lib-card.is-launching .lib-card-overlay {
+.lib-card:is(:hover, :focus-visible, [data-tilt], .is-launching) .lib-card-overlay {
   opacity: 1;
 }
-.lib-card:hover .lib-card-play,
-.lib-card:focus-visible .lib-card-play,
-.lib-card.is-launching .lib-card-play {
+.lib-card:is(:hover, :focus-visible, .is-launching) .lib-card-play {
   opacity: 1;
-  transform: none;
+  translate: 0 0;
   pointer-events: auto;
+  transition:
+    opacity 180ms var(--ease-out) 40ms,
+    translate 260ms var(--ease-glide) 40ms,
+    background-color var(--d-1) var(--ease-out);
 }
 .lib-card.is-launching .lib-card-play:disabled {
   opacity: 0.85;
+}
+
+/* Complet : inclinaison, reflet et anneau sous la souris (sans transition CSS sur transform : la boucle rAF lisse) */
+:root[data-fx='on'] .lib-card[data-tilt] .lib-card-box {
+  transform: rotateX(calc((0.5 - var(--py)) * 9deg)) rotateY(calc((var(--px) - 0.5) * 12deg));
+  translate: 0 -6px;
+  scale: 1.05;
+  transition:
+    translate var(--d-in) var(--ease-glide),
+    scale var(--d-in) var(--ease-glide);
+}
+/* Focus clavier : même élévation, pas d'inclinaison */
+:root[data-fx='on'] .lib-card:focus-visible .lib-card-box {
+  translate: 0 -6px;
+  scale: 1.05;
+}
+:root[data-fx='on'] .lib-card:is([data-tilt], :focus-visible) .lib-card-media::before {
+  opacity: 1;
+  translate: 0 -6px;
+  scale: 1.05;
+  transition:
+    opacity var(--d-in) var(--ease-glide),
+    translate var(--d-in) var(--ease-glide),
+    scale var(--d-in) var(--ease-glide);
+}
+/* Parallaxe interne : l'image glisse à l'opposé du pointeur ; revient au centre avec --px/--py */
+:root[data-fx='on'] .lib-card-box .cover {
+  translate: calc((0.5 - var(--px)) * 10px) calc((0.5 - var(--py)) * 10px);
+}
+:root[data-fx='on'] .lib-card:is([data-tilt], :focus-visible) .lib-card-box .cover {
+  scale: 1.08;
+}
+:root[data-fx='on'] .lib-card[data-tilt] .lib-card-glare {
+  opacity: 1;
+  transition: opacity var(--d-in) var(--ease-out);
+}
+:root[data-fx='on'] .lib-card[data-tilt] .lib-card-ring {
+  opacity: 1;
+}
+:root[data-fx='on'] .lib-card:focus-visible .lib-card-ring {
+  opacity: 1;
+  background: conic-gradient(
+    from var(--ring-angle),
+    rgb(155 108 255 / 0.3),
+    #c4b5fd 18%,
+    rgb(155 108 255 / 0.3) 36%,
+    rgb(155 108 255 / 0.3)
+  );
+  animation: lib-ring-spin 4s linear infinite;
+}
+:root[data-fx='on'] .lib-card:is([data-tilt], :focus-visible) .lib-card-glow {
+  display: block;
+  opacity: 0.6;
+  scale: 1.04;
+  translate: 0 8px;
+}
+@starting-style {
+  :root[data-fx='on'] .lib-card:is([data-tilt], :focus-visible) .lib-card-glow {
+    opacity: 0;
+    scale: 0.9;
+  }
+}
+@property --ring-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes lib-ring-spin {
+  to {
+    --ring-angle: 360deg;
+  }
+}
+
+/* Entrée en cascade, une fois par montage (22 ms par carte, plafonnée à la 13e) */
+:root[data-fx='on'] .lib-card.is-entering {
+  animation: lib-card-in 420ms var(--ease-glide) backwards;
+  animation-delay: calc(min(sibling-index() - 1, 12) * 22ms);
+}
+@keyframes lib-card-in {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+}
+
+/* Pendant une transition de vue : jaquette à plat, ni reflet ni anneau dans les captures */
+.vt-active .lib-card-box {
+  transform: none !important;
+}
+.vt-active :is(.lib-card-glare, .lib-card-ring) {
+  opacity: 0 !important;
+  transition: none !important;
 }
 
 .lib-card-text {
