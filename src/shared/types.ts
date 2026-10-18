@@ -75,5 +75,10 @@ export interface LauncherApi {
   getSettings(): Promise<Settings>
   saveSettings(settings: Partial<Settings>): Promise<Settings>
   openExternal(url: string): Promise<void>
+  /** Ouvre le dossier d'installation d'un jeu (le chemin est retrouvé côté processus principal). */
+  openGameFolder(id: string): Promise<void>
+  /** Abandonne une connexion Steam/Discord en attente (libère le port de retour). */
+  cancelLogin(): Promise<void>
   platform: string
+  version: string
 }

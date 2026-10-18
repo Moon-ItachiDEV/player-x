@@ -1,0 +1,352 @@
+/* Panneau amis (colonne de droite). La grille de la coque le place via .friends. */
+
+.friends {
+  --cut: var(--bg-2);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  background: var(--bg-2);
+  border-left: 1px solid var(--line-1);
+}
+/* avatar.css fixe --cut sur .avatar lui-même : on le redéfinit ici pour suivre le fond de la ligne. */
+.friends .avatar {
+  --cut: var(--bg-2);
+}
+
+/* ---------- en-tête ---------- */
+
+.fr-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 10px 0 16px;
+  flex-shrink: 0;
+}
+.fr-title {
+  font: 600 15px/20px var(--font-ui);
+  color: var(--text-1);
+}
+.fr-count {
+  height: 20px;
+}
+.fr-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+/* ---------- filtre de plateforme ---------- */
+
+.fr-filter {
+  margin: 0 12px 12px;
+  flex-shrink: 0;
+}
+.friends .fr-seg {
+  display: flex;
+  width: 100%;
+}
+.friends .fr-seg button {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Quatre options ne tiennent pas sur 288px : deux colonnes. */
+.friends .fr-seg.is-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* ---------- liste ---------- */
+
+.fr-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 4px 8px 16px;
+}
+
+.fr-caption {
+  padding: 6px 8px 8px;
+}
+
+/* ---------- erreurs par plateforme ---------- */
+
+.fr-error {
+  display: flex;
+  gap: 10px;
+  margin: 0 4px 8px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 22%, transparent);
+  font: 400 12.5px/17px var(--font-ui);
+  color: var(--text-2);
+}
+.fr-error-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--warning);
+}
+.fr-error-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fr-error-text strong {
+  font-weight: 600;
+  color: var(--text-1);
+}
+.fr-error-text .link-btn {
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 17px;
+}
+
+/* ---------- sections repliables ---------- */
+
+.fr-section + .fr-section {
+  margin-top: 4px;
+}
+.fr-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--text-3);
+  text-align: left;
+}
+.fr-section-head .overline {
+  transition: color var(--d-1) var(--ease-out);
+}
+.fr-section-head:hover,
+.fr-section-head:hover .overline {
+  color: var(--text-2);
+}
+.fr-section-count {
+  font: 500 11px/14px var(--font-ui);
+  color: var(--text-3);
+}
+.fr-chev {
+  flex-shrink: 0;
+  transition: transform var(--d-2) var(--ease-out);
+}
+.fr-section.is-collapsed .fr-chev {
+  transform: rotate(-90deg);
+}
+.fr-section-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 200ms var(--ease-in-out);
+}
+.fr-section.is-collapsed .fr-section-body {
+  grid-template-rows: 0fr;
+}
+.fr-section-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ---------- groupes par jeu (EN JEU) ---------- */
+
+.fr-group + .fr-group {
+  margin-top: 4px;
+}
+.fr-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+}
+.fr-mini {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: var(--r-xs);
+  overflow: hidden;
+}
+.fr-mini .cover {
+  height: 100%;
+}
+.fr-mini .cover-glyph {
+  font-size: 10px;
+}
+.fr-group-name {
+  min-width: 0;
+  font: 600 12px/16px var(--font-ui);
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fr-group-count {
+  flex-shrink: 0;
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+
+/* ---------- lignes ---------- */
+
+.fr-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fr-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 8px;
+  border-radius: var(--r-md);
+  transition: background-color var(--d-1) var(--ease-out);
+}
+.fr-row:hover {
+  background: var(--surface-1);
+}
+.friends .fr-row:hover .avatar {
+  --cut: var(--surface-1);
+}
+.fr-av {
+  position: relative;
+  display: inline-grid;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.fr-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.fr-name {
+  font: 600 13.5px/18px var(--font-ui);
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fr-row.st-offline .fr-name {
+  font-weight: 500;
+  color: var(--text-3);
+}
+.fr-sub {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Monogramme discret, teinté au survol de la ligne */
+.fr-row .fr-tag {
+  color: var(--text-3);
+  background: var(--surface-2);
+  transition:
+    color var(--d-1) var(--ease-out),
+    background-color var(--d-1) var(--ease-out);
+}
+.fr-row:hover .fr-tag {
+  color: var(--tint);
+  background: color-mix(in srgb, var(--tint) 16%, transparent);
+}
+
+/* Passage « en jeu » : une impulsion d'anneau, une seule fois */
+.fr-av.is-pulsing::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--st-ingame);
+  pointer-events: none;
+  opacity: 0;
+  animation: fr-pulse 1200ms var(--ease-out);
+}
+@keyframes fr-pulse {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+}
+
+/* ---------- aucun compte ---------- */
+
+.fr-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 20px;
+  text-align: center;
+}
+.fr-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--surface-1);
+  border: 1px solid var(--line-1);
+  color: var(--text-2);
+}
+.fr-empty h3 {
+  font: 600 14px/20px var(--font-ui);
+  color: var(--text-1);
+}
+.fr-empty p {
+  font: 400 13px/18px var(--font-ui);
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+.fr-empty .btn {
+  margin-top: 8px;
+}
+
+/* ---------- premier chargement ---------- */
+
+.fr-skel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 8px;
+}
+.fr-skel-av {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.fr-skel-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.fr-skel-line {
+  display: block;
+  height: 11px;
+  border-radius: var(--r-xs);
+}
+.fr-skel-line.short {
+  height: 9px;
+}

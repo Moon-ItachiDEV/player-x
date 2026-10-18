@@ -97,7 +97,7 @@ export function replaceGames(games: Game[]): void {
       const old = keep.get(g.id)
       db.run(
         'INSERT OR REPLACE INTO games (id, store, store_id, name, install_dir, cover_url, hero_url, last_played, favorite, exe_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [g.id, g.store, g.storeId, g.name, g.installDir ?? null, g.coverUrl ?? null, g.heroUrl ?? null, old?.lastPlayed ?? null, old?.favorite ? 1 : 0, g.exePath ?? null]
+        [g.id, g.store, g.storeId, g.name, g.installDir ?? null, g.coverUrl ?? null, g.heroUrl ?? null, old?.lastPlayed ?? g.lastPlayed ?? null, (old ? old.favorite : g.favorite) ? 1 : 0, g.exePath ?? null]
       )
     }
     db.run('COMMIT')

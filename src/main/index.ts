@@ -2,9 +2,9 @@ import { join } from 'node:path'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import type { FriendPlatform, Game, Settings } from '@shared/types'
 import * as db from './db'
-import { loginDiscord, loginSteam } from './services/auth'
+import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
-import { DEMO_FRIENDS, DEMO_GAMES } from './services/demo'
+import { DEMO_FRIENDS, DEMO_GAMES, demoGames } from './services/demo'
 import { connectPsn, getAllFriends } from './services/friends'
 import { getScanReport, launch, scanAllGames } from './services/games'
 import { getAccounts, getSettings, removeAccount, saveSettings } from './services/settings'
@@ -17,14 +17,23 @@ try {
 
 function createWindow(): void {
   const win = new BrowserWindow({
-    width: 1400,
-    height: 860,
+    width: 1440,
+    height: 900,
     minWidth: 1024,
     minHeight: 640,
-    backgroundColor: '#07080f',
-    title: 'Plateforme Gaming',
+    backgroundColor: '#0b0d14',
+    title: 'Player X',
+    icon: join(app.getAppPath(), 'resources', 'icon.png'),
     autoHideMenuBar: true,
-    webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: true, contextIsolation: true }
+    // Barre de titre intégrée à l'interface ; Windows garde ses boutons natifs (réduire, agrandir, fermer).
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset' as const }
+      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#0b0d14', symbolColor: '#a3a8bd', height: 48 } }),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: true,
+      contextIsolation: true
+    }
   })
   // Les liens externes s'ouvrent dans le navigateur, pas dans l'appli.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -43,8 +52,13 @@ function notifyGamesChanged(): void {
 
 async function games(refresh = false): Promise<Game[]> {
   if (getSettings().demoMode) {
-    const saved = db.listGames()
-    return applyArtwork(DEMO_GAMES).map((g) => ({ ...g, ...saved.find((d) => d.id === g.id), coverUrl: g.coverUrl, heroUrl: g.heroUrl }))
+    // Historique fictif, remplacé par le vrai dès qu'on lance ou met en favori un jeu de démo.
+    const saved = new Map(db.listGames().map((g) => [g.id, g]))
+    return applyArtwork(demoGames()).map((g) => {
+      const s = saved.get(g.id)
+      if (!s) return g
+      return { ...g, favorite: s.favorite, lastPlayed: s.lastPlayed ?? g.lastPlayed, launches: (g.launches ?? 0) + (s.launches ?? 0) }
+    })
   }
   if (refresh || !scanned) {
     const found = applyArtwork(await scanAllGames())
@@ -65,14 +79,22 @@ function registerIpc(): void {
   ipcMain.handle('games:launch', async (_e, id: string) => {
     const game = (await games()).find((g) => g.id === id)
     if (!game) throw new Error('Jeu introuvable.')
+    if (getSettings().demoMode && !db.listGames().some((g) => g.id === id)) db.replaceGames([...db.listGames(), game])
     db.recordLaunch(id)
     if (!getSettings().demoMode) await launch(game)
   })
   ipcMain.handle('games:report', () => getScanReport())
+  ipcMain.handle('games:open-folder', async (_e, id: string) => {
+    // Le chemin vient de la base, jamais du renderer.
+    const dir = (await games()).find((g) => g.id === id)?.installDir
+    if (!dir) throw new Error('Dossier d’installation inconnu.')
+    const err = await shell.openPath(dir)
+    if (err) throw new Error(err)
+  })
   ipcMain.handle('games:favorite', async (_e, id: string) => {
     if (getSettings().demoMode && !db.listGames().some((g) => g.id === id)) {
       // En démo, les jeux fictifs sont ajoutés en base pour garder favoris et sessions.
-      db.replaceGames([...db.listGames(), ...DEMO_GAMES.filter((g) => g.id === id)])
+      db.replaceGames([...db.listGames(), ...(await games()).filter((g) => g.id === id)])
     }
     db.toggleFavorite(id)
     return games()
@@ -84,6 +106,7 @@ function registerIpc(): void {
   ipcMain.handle('accounts:list', () => getAccounts())
   ipcMain.handle('accounts:login', (_e, platform: 'steam' | 'discord') => (platform === 'steam' ? loginSteam() : loginDiscord()))
   ipcMain.handle('accounts:psn', () => connectPsn())
+  ipcMain.handle('accounts:cancel', () => cancelLogin())
   ipcMain.handle('accounts:logout', (_e, platform: FriendPlatform) => removeAccount(platform))
   ipcMain.handle('settings:get', () => getSettings())
   ipcMain.handle('settings:save', (_e, patch: Partial<Settings>) => saveSettings(patch))

@@ -1,0 +1,57 @@
+/* --cut : couleur du fond derrière la pastille, à définir sur un parent (défaut : --bg-2). */
+.avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-3);
+  flex-shrink: 0;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.avatar-initial {
+  font-weight: 600;
+  color: var(--text-2);
+}
+.avatar-badge {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  border-radius: 50%;
+  border: 2.5px solid var(--cut, var(--bg-2));
+  box-sizing: content-box;
+  background: var(--st-offline);
+}
+
+/* En jeu : pastille cyan pleine + anneau autour de l'avatar */
+.avatar.st-in-game {
+  box-shadow:
+    0 0 0 2px var(--cut, var(--bg-2)),
+    0 0 0 4px var(--st-ingame);
+}
+.avatar.st-in-game .avatar-badge {
+  background: var(--st-ingame);
+}
+/* En ligne / connecté : pastille verte pleine */
+.avatar.st-online .avatar-badge,
+.avatar.st-connected .avatar-badge {
+  background: var(--st-online);
+}
+/* Absent : croissant ambré */
+.avatar.st-away .avatar-badge {
+  background: radial-gradient(circle at 30% 30%, var(--cut, var(--bg-2)) 0 32%, var(--st-away) 34%);
+}
+/* Hors ligne / invité : anneau creux, avatar désaturé */
+.avatar.st-offline .avatar-badge,
+.avatar.st-guest .avatar-badge {
+  background: var(--cut, var(--bg-2));
+  box-shadow: inset 0 0 0 2.5px var(--st-offline);
+}
+.avatar.st-offline img {
+  filter: grayscale(1);
+  opacity: 0.55;
+}

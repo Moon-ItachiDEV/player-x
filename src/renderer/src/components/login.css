@@ -1,0 +1,279 @@
+/* Connexion : panneau gauche (460px) + mosaïque de jaquettes à droite */
+
+.login {
+  position: relative;
+  display: grid;
+  grid-template-columns: 460px minmax(0, 1fr);
+  height: 100%;
+  background: var(--bg-0);
+  overflow: hidden;
+}
+
+/* Bande de déplacement de la fenêtre ; les 150px de droite restent libres pour les boutons Windows. */
+.login-drag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--topbar-h);
+  padding-right: 150px;
+  z-index: var(--z-sticky);
+}
+.login-drag > div {
+  height: 100%;
+  -webkit-app-region: drag;
+}
+
+/* ---------- panneau gauche ---------- */
+
+.login-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 56px 48px 32px;
+  background: var(--bg-1);
+  border-right: 1px solid var(--line-1);
+  overflow-y: auto;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Formulaire et attente superposés dans la même cellule, en fondu croisé. */
+.login-stage {
+  display: grid;
+  margin-block: auto;
+  padding-block: 32px;
+}
+.login-stage > * {
+  grid-area: 1 / 1;
+  transition: opacity var(--d-2) var(--ease-out);
+}
+.login-stage > .is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.login-title span {
+  display: block;
+  color: var(--text-2);
+}
+
+.login-sub {
+  max-width: 340px;
+  margin: 12px 0 32px;
+  color: var(--text-2);
+}
+
+/* Bouton fournisseur (Steam) */
+.login-provider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--line-2);
+  color: var(--text-1);
+  font: 600 14px/20px var(--font-ui);
+  text-align: left;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    border-color var(--d-1) var(--ease-out),
+    transform 80ms var(--ease-out);
+}
+.login-provider:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--line-3);
+}
+.login-provider:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.login-provider:disabled {
+  opacity: 0.5;
+}
+.login-provider-tile {
+  display: inline-flex;
+}
+.login-provider-label {
+  flex: 1;
+  min-width: 0;
+}
+.login-provider-chevron {
+  color: var(--text-3);
+  transition: transform var(--d-1) var(--ease-out);
+}
+.login-provider:hover:not(:disabled) .login-provider-chevron {
+  transform: translateX(2px);
+}
+
+.login-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font: 500 12.5px/18px var(--font-ui);
+  user-select: text;
+  animation: login-fade var(--d-2) var(--ease-out);
+}
+.login-error svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.login-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.login-or::before,
+.login-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line-2);
+}
+
+.login-skip-caption {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.login-demo {
+  display: block;
+  margin: 20px auto 0;
+  font-size: 13px;
+}
+
+/* Attente du navigateur */
+.login-wait {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.login-wait h2 {
+  margin-top: 20px;
+  font: 600 18px/24px var(--font-ui);
+}
+.login-wait p {
+  max-width: 340px;
+  margin: 8px 0 24px;
+  color: var(--text-2);
+}
+
+.login-privacy {
+  flex-shrink: 0;
+  max-width: 340px;
+  font: 400 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+
+/* ---------- mosaïque ---------- */
+
+.login-mosaic {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-0);
+}
+
+/* Grille inclinée : assez large pour couvrir le panneau une fois tournée (min. 4 × 180px). */
+.login-wall {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(768px, calc(90% + 10vh));
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+  transform: translate(-50%, -50%) rotate(-6deg) scale(1.15);
+  pointer-events: none;
+}
+
+/* Une colonne = sa liste deux fois ; décaler de 50 % retombe exactement sur la même image. */
+.login-col {
+  transform: translateY(var(--rest, 0%));
+  animation: login-drift var(--dur, 90s) linear var(--delay, 0s) infinite;
+  will-change: transform;
+}
+.login-col.is-down {
+  animation-direction: reverse;
+}
+.login-tile {
+  margin-bottom: 16px;
+  border-radius: var(--r-md);
+}
+
+@keyframes login-drift {
+  from {
+    transform: translateY(25%);
+  }
+  to {
+    transform: translateY(-25%);
+  }
+}
+
+.login-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-0) 90%, transparent) 0, transparent 120px),
+    radial-gradient(60% 60% at 70% 40%, color-mix(in srgb, var(--brand-violet) 18%, transparent), transparent 70%),
+    linear-gradient(
+      90deg,
+      var(--bg-1) 0%,
+      color-mix(in srgb, var(--bg-1) 70%, transparent) 25%,
+      color-mix(in srgb, var(--bg-1) 20%, transparent) 60%,
+      color-mix(in srgb, var(--bg-1) 50%, transparent) 100%
+    );
+}
+
+.login-count {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--bg-1) 60%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--line-2);
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-1);
+  animation: login-fade var(--d-4) var(--ease-out);
+}
+.login-count strong {
+  font-weight: 700;
+}
+
+@keyframes login-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Mosaïque immobile si les animations sont réduites (système ou réglage « Réduire les animations »). */
+.reduce-motion .login-col {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-col {
+    animation: none;
+  }
+}

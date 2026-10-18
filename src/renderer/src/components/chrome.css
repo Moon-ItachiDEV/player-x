@@ -1,0 +1,354 @@
+/* Chrome de l'application : barre latérale (.rail-), barre du haut (.tb-) et menu du compte (.acc-) */
+
+/* ---------- barre latérale ---------- */
+
+.rail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 0;
+  padding-bottom: 12px;
+  background: var(--bg-2);
+  border-right: 1px solid var(--line-1);
+}
+
+.rail-logo {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: var(--topbar-h);
+  margin-bottom: 8px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+.rail-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--text-3);
+  flex-shrink: 0;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    transform 80ms var(--ease-out);
+}
+.rail-btn:hover {
+  background: var(--surface-1);
+  color: var(--text-1);
+}
+.rail-btn[aria-current='page'] {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+.rail-btn:active {
+  transform: scale(0.97);
+}
+
+/* Barre active : un seul élément qui glisse d'un bouton à l'autre */
+.rail-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  pointer-events: none;
+}
+.rail-indicator.animate {
+  transition: transform 220ms var(--ease-out);
+}
+
+.rail-spacer {
+  flex: 1;
+}
+
+.pill.rail-demo {
+  justify-content: center;
+  width: 44px;
+  height: 18px;
+  padding: 0;
+  margin-bottom: 4px;
+  font: 700 9.5px/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.rail-account {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-top: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.rail-account .avatar {
+  --cut: var(--bg-2);
+}
+.rail-account:hover .avatar {
+  box-shadow:
+    0 0 0 2px var(--bg-2),
+    0 0 0 4px var(--line-3);
+}
+.rail-account[aria-expanded='true'] .avatar {
+  box-shadow:
+    0 0 0 2px var(--bg-2),
+    0 0 0 4px var(--accent-line);
+}
+
+/* ---------- barre du haut ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  height: var(--topbar-h);
+  /* À droite : place pour les boutons natifs de Windows (réduire, agrandir, fermer) */
+  padding: 0 150px 0 32px;
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--line-1);
+  -webkit-app-region: drag;
+}
+.topbar.is-mac {
+  padding-right: 24px;
+}
+@media (max-width: 1200px) {
+  .topbar {
+    padding-left: 24px;
+  }
+}
+.topbar input,
+.topbar button {
+  -webkit-app-region: no-drag;
+}
+
+.tb-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 360px;
+  min-width: 220px;
+  height: 32px;
+  padding: 0 5px 0 10px;
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  border: 1px solid var(--line-1);
+  color: var(--text-3);
+  cursor: text;
+  -webkit-app-region: no-drag;
+  transition:
+    border-color var(--d-1) var(--ease-out),
+    box-shadow var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out);
+}
+.tb-search:hover {
+  border-color: var(--line-2);
+  color: var(--text-2);
+}
+.tb-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-solid) 30%, transparent);
+  color: var(--text-2);
+}
+.tb-search-icon {
+  flex-shrink: 0;
+}
+
+.tb-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  color: var(--text-1);
+  font: 400 13px/1 var(--font-ui);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.tb-search-input::placeholder {
+  color: var(--text-3);
+  transition: color var(--d-1) var(--ease-out);
+}
+.tb-search:hover .tb-search-input::placeholder {
+  color: var(--text-2);
+}
+/* Le contour de focus est porté par .tb-search */
+.tb-search-input:focus-visible {
+  box-shadow: none;
+}
+.tb-search-input::-webkit-search-cancel-button,
+.tb-search-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  display: none;
+}
+
+.tb-kbd {
+  flex-shrink: 0;
+  margin-right: 3px;
+  transition: opacity var(--d-1) var(--ease-out);
+}
+.tb-search:focus-within .tb-kbd {
+  opacity: 0;
+}
+
+.tb-clear {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+  flex-shrink: 0;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out);
+}
+.tb-clear:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.tb-spacer {
+  flex: 1;
+}
+
+/* Résumé des amis : avatars empilés + « 3 en jeu » */
+.tb-friends {
+  --ring: var(--bg-0);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px 0 10px;
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  font: 600 12.5px/1 var(--font-ui);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out);
+}
+.tb-friends.has-stack {
+  padding-left: 6px;
+}
+.tb-friends:hover {
+  --ring: var(--surface-1);
+  background: var(--surface-1);
+  color: var(--text-1);
+}
+.tb-friends[aria-pressed='true'] {
+  --ring: var(--surface-1);
+  background: var(--surface-1);
+}
+.tb-friends[aria-pressed='true']:hover {
+  --ring: var(--surface-2);
+  background: var(--surface-2);
+}
+.tb-friends-icon {
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.tb-friends[aria-pressed='true'] .tb-friends-icon:last-child {
+  color: var(--text-2);
+}
+
+.tb-stack {
+  display: flex;
+}
+.tb-stack .avatar {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+.tb-stack .avatar + .avatar {
+  margin-left: -6px;
+}
+
+.tb-live {
+  color: var(--live);
+}
+
+/* ---------- menu du compte ---------- */
+
+.acc-menu {
+  transform-origin: bottom left;
+}
+
+.acc-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+}
+.acc-head .avatar {
+  --cut: var(--surface-1);
+}
+.acc-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.acc-name {
+  font: 600 14px/20px var(--font-ui);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acc-rows {
+  padding: 2px 0;
+}
+.acc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px;
+}
+.acc-row-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acc-row.is-missing .store-tag {
+  opacity: 0.6;
+}
+
+.pill.acc-pill {
+  gap: 5px;
+  height: 18px;
+  padding: 0 7px;
+  font-size: 10.5px;
+}
+.pill.acc-pill::before {
+  width: 5px;
+  height: 5px;
+}
+
+.acc-connect {
+  height: 28px;
+  padding: 0 6px;
+  margin-left: -6px;
+  border-radius: var(--r-sm);
+  color: var(--accent);
+  font: 600 13px/1 var(--font-ui);
+  text-align: left;
+  transition: background-color var(--d-1) var(--ease-out);
+}
+.acc-connect:hover {
+  background: var(--surface-2);
+}

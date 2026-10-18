@@ -1,3 +1,4 @@
+import { cleanName as clean, norm } from '@shared/text'
 import type { Game } from '@shared/types'
 import { getKv, setKv } from '../db'
 
@@ -21,19 +22,6 @@ interface Art {
 }
 
 type ArtCache = Record<string, Art>
-
-const clean = (name: string): string =>
-  name
-    .replace(/[™®©]/g, '')
-    .replace(/\s*[-–:]?\s*(Standard|Deluxe|Ultimate|Gold|Premium|Complete|Definitive|Game of the Year)\s+Edition$/i, '')
-    .trim()
-
-const norm = (s: string): string =>
-  clean(s)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]/g, '')
 
 /** Appid Steam d'un jeu non-Steam, seulement si le nom correspond vraiment (pas le premier résultat venu). */
 async function findSteamAppId(name: string): Promise<string | null> {

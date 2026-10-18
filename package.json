@@ -1,7 +1,7 @@
 {
   "name": "plateforme-gaming",
-  "version": "0.1.0",
-  "description": "Prototype de launcher gaming : lance tes jeux Steam, Epic et EA et vois tes amis en ligne.",
+  "version": "0.2.0",
+  "description": "Player X : lance tes jeux Steam, Epic et EA et vois tes amis en ligne.",
   "main": "out/main/index.js",
   "private": true,
   "scripts": {
@@ -13,10 +13,11 @@
     "postinstall": "node node_modules/electron/install.js"
   },
   "build": {
-    "appId": "dev.breezy.plateformegaming",
-    "productName": "Plateforme Gaming",
+    "appId": "dev.breezy.playerx",
+    "productName": "Player X",
     "files": [
-      "out/**/*"
+      "out/**/*",
+      "resources/icon.png"
     ],
     "directories": {
       "output": "dist"
@@ -30,16 +31,23 @@
           ]
         }
       ],
-      "signAndEditExecutable": false
+      "icon": "resources/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "Plateforme Gaming"
+      "shortcutName": "Player X",
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "artifactName": "Player-X-Setup-${version}.${ext}"
     },
-    "publish": null
+    "publish": null,
+    "icon": "resources/icon.png"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/sora": "^5.3.0",
+    "@fontsource/michroma": "^5.3.0",
     "psn-api": "^2.18.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -56,5 +64,6 @@
     "electron-vite": "^6.0.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.4"
-  }
+  },
+  "productName": "Player X"
 }

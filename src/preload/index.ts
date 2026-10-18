@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { LauncherApi } from '@shared/types'
 
+declare const __APP_VERSION__: string
+
 const api: LauncherApi = {
   getGames: (refresh) => ipcRenderer.invoke('games:list', refresh),
   launchGame: (id) => ipcRenderer.invoke('games:launch', id),
@@ -19,7 +21,10 @@ const api: LauncherApi = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
   openExternal: (url) => ipcRenderer.invoke('shell:open', url),
-  platform: process.platform
+  openGameFolder: (id) => ipcRenderer.invoke('games:open-folder', id),
+  cancelLogin: () => ipcRenderer.invoke('accounts:cancel'),
+  platform: process.platform,
+  version: __APP_VERSION__
 }
 
 contextBridge.exposeInMainWorld('launcher', api)

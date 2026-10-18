@@ -10,8 +10,25 @@ import { getSteamProfiles } from './friends'
 export const CALLBACK_PORT = 47823
 const BASE = `http://127.0.0.1:${CALLBACK_PORT}`
 
+let cancelPending: (() => void) | null = null
+
+/** Annule la connexion en cours : ferme le serveur local et rejette l'attente. */
+export function cancelLogin(): void {
+  cancelPending?.()
+}
+
 function waitForCallback(path: string): Promise<URL> {
+  cancelPending?.()
   return new Promise((resolve, reject) => {
+    const done = (): void => {
+      clearTimeout(timer)
+      server.close()
+      cancelPending = null
+    }
+    cancelPending = () => {
+      done()
+      reject(new Error('Connexion annulée.'))
+    }
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', BASE)
       if (url.pathname !== path) {
@@ -21,17 +38,19 @@ function waitForCallback(path: string): Promise<URL> {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
       res.end(
         '<body style="background:#0b0d17;color:#e8eaff;font-family:sans-serif;display:grid;place-items:center;height:100vh">' +
-          '<h2>Connexion réussie, tu peux revenir sur Plateforme Gaming.</h2></body>'
+          '<h2>Connexion réussie, tu peux revenir sur Player X.</h2></body>'
       )
-      clearTimeout(timer)
-      server.close()
+      done()
       resolve(url)
     })
     const timer = setTimeout(() => {
-      server.close()
+      done()
       reject(new Error('Connexion expirée, réessaie.'))
     }, 5 * 60_000)
-    server.on('error', reject)
+    server.on('error', (e) => {
+      done()
+      reject(e)
+    })
     server.listen(CALLBACK_PORT, '127.0.0.1')
   })
 }
