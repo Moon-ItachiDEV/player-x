@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile, readdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { shell } from 'electron'
@@ -39,6 +39,7 @@ interface UninstallEntry {
   InstallLocation?: string
   Publisher?: string
   DisplayIcon?: string
+  UninstallString?: string
 }
 
 let uninstallCache: Promise<UninstallEntry[]> | null = null
@@ -62,7 +63,7 @@ function uninstallEntries(): Promise<UninstallEntry[]> {
           entries.push(current)
           continue
         }
-        const m = line.match(/^\s+(DisplayName|InstallLocation|Publisher|DisplayIcon)\s+REG_\w+\s+(.*)$/)
+        const m = line.match(/^\s+(DisplayName|InstallLocation|Publisher|DisplayIcon|UninstallString)\s+REG_\w+\s+(.*)$/)
         if (m && current) current[m[1] as 'DisplayName'] = m[2].trim()
       }
     }
@@ -196,6 +197,25 @@ export async function scanEpic(report: ScanReport): Promise<Game[]> {
 
 // ---------- EA app (expérimental) ----------
 // Chaque jeu EA installé contient normalement __Installer/installerdata.xml avec ses contentIDs.
+// Pour trouver les dossiers, on croise plusieurs sources : dossiers par défaut, dossier choisi dans
+// l'EA app, clés de registre « EA Games » / « Electronic Arts » et programmes installés.
+
+const NOT_GAME_EXE = /unins|setup|crash|report|redist|vc_|dxsetup|touchup|cleanup|launcher|helper|activation/i
+
+/** Exécutable le plus probable à la racine d'un dossier de jeu (le plus gros .exe hors outils). */
+async function guessExe(dir: string): Promise<string | undefined> {
+  let best: { path: string; size: number } | undefined
+  for (const f of await safeReaddir(dir)) {
+    if (!f.toLowerCase().endsWith('.exe') || NOT_GAME_EXE.test(f)) continue
+    try {
+      const { size } = await stat(join(dir, f))
+      if (!best || size > best.size) best = { path: join(dir, f), size }
+    } catch {
+      /* fichier inaccessible */
+    }
+  }
+  return best?.path
+}
 
 async function readEaGame(installDir: string, fallbackName: string, exePath?: string): Promise<Game | null> {
   try {
@@ -207,38 +227,90 @@ async function readEaGame(installDir: string, fallbackName: string, exePath?: st
     /* pas de fichier d'installation EA */
   }
   // Sans contentID on lancera l'exécutable directement (l'EA app s'ouvrira si le jeu l'exige).
-  if (exePath) return { id: `ea:${fallbackName}`, store: 'ea', storeId: '', name: fallbackName, installDir, exePath }
+  const exe = exePath ?? (await guessExe(installDir))
+  if (exe) return { id: `ea:${fallbackName.toLowerCase()}`, store: 'ea', storeId: '', name: fallbackName, installDir, exePath: exe }
   return null
+}
+
+/** Dossier d'installation choisi dans l'EA app (Paramètres > Téléchargement). */
+async function eaAppInstallDirs(): Promise<string[]> {
+  const dir = join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'Electronic Arts', 'EA Desktop')
+  const dirs: string[] = []
+  for (const f of await safeReaddir(dir)) {
+    if (!/^user.*\.ini$/i.test(f)) continue
+    try {
+      const ini = await readFile(join(dir, f), 'utf8')
+      for (const m of ini.matchAll(/^user\.downloadinplacedir=(.+)$/gim)) dirs.push(m[1].trim().replace(/\\+$/, ''))
+    } catch {
+      /* fichier illisible */
+    }
+  }
+  return dirs
+}
+
+/** Valeurs « Install Dir » sous les clés de registre des éditeurs EA. */
+async function eaRegistryDirs(): Promise<{ name: string; dir: string }[]> {
+  const found: { name: string; dir: string }[] = []
+  for (const root of [
+    'HKLM\\SOFTWARE\\WOW6432Node\\EA Games',
+    'HKLM\\SOFTWARE\\WOW6432Node\\Electronic Arts',
+    'HKLM\\SOFTWARE\\EA Games',
+    'HKLM\\SOFTWARE\\Electronic Arts'
+  ]) {
+    const out = await run('reg', ['query', root, '/s'])
+    if (!out) continue
+    let key = ''
+    for (const line of out.split(/\r?\n/)) {
+      if (line.startsWith('HKEY_')) key = line.trim()
+      const m = line.match(/^\s+(?:Install Dir|InstallDir|Install Location)\s+REG_\w+\s+(.+)$/i)
+      if (m && key) found.push({ name: key.split('\\').pop() ?? key, dir: m[1].trim().replace(/[\\"]+$/, '') })
+    }
+  }
+  return found.filter((f) => !/EA Desktop|EA app|Origin$/i.test(f.name))
 }
 
 export async function scanEa(report: ScanReport): Promise<Game[]> {
   if (!isWin) return []
   const games = new Map<string, Game>()
-  const roots = DRIVES.flatMap((d) => [`${d}:\\Program Files\\EA Games`, `${d}:\\Program Files (x86)\\Origin Games`, `${d}:\\EA Games`]).filter((r) =>
-    existsSync(r)
-  )
+  const add = (g: Game | null): boolean => {
+    if (!g || games.has(g.installDir!.toLowerCase()) || [...games.values()].some((x) => x.id === g.id)) return false
+    games.set(g.installDir!.toLowerCase(), g)
+    return true
+  }
+
+  const appDirs = await eaAppInstallDirs()
+  const roots = [
+    ...appDirs,
+    ...DRIVES.flatMap((d) => [`${d}:\\Program Files\\EA Games`, `${d}:\\Program Files (x86)\\Origin Games`, `${d}:\\EA Games`, `${d}:\\Games\\EA Games`])
+  ].filter((r, i, all) => existsSync(r) && all.findIndex((x) => x.toLowerCase() === r.toLowerCase()) === i)
+  report.checked.push(appDirs.length ? `Dossier choisi dans l'EA app : ${appDirs.join(', ')}` : "Réglages de l'EA app : introuvables")
   report.checked.push(roots.length ? `Dossiers EA : ${roots.join(', ')}` : 'Aucun dossier EA Games trouvé')
   for (const root of roots) {
     for (const folder of await safeReaddir(root)) {
-      const game = await readEaGame(join(root, folder), folder)
-      if (game) games.set(game.installDir!.toLowerCase(), game)
+      if (folder.startsWith('.') || /^(_|EA app|EA Desktop)/i.test(folder)) continue
+      add(await readEaGame(join(root, folder), folder))
     }
   }
 
   let fromRegistry = 0
-  for (const e of await uninstallEntries()) {
-    if (!e.DisplayName || !e.InstallLocation || !/electronic arts/i.test(e.Publisher ?? '')) continue
-    if (/\bEA app\b|EA Desktop|Origin$/i.test(e.DisplayName)) continue
-    const dir = e.InstallLocation.replace(/[\\"]+$/, '')
-    if (games.has(dir.toLowerCase())) continue
-    const exe = e.DisplayIcon?.replace(/^"|"?,\d+$|"$/g, '')
-    const game = await readEaGame(dir, e.DisplayName, exe?.toLowerCase().endsWith('.exe') ? exe : undefined)
-    if (game) {
-      games.set(dir.toLowerCase(), game)
-      fromRegistry++
-    }
+  for (const { name, dir } of await eaRegistryDirs()) {
+    if (existsSync(dir) && add(await readEaGame(dir, name))) fromRegistry++
   }
-  report.checked.push(`Programmes installés : ${fromRegistry} jeu(x) EA en plus`)
+  report.checked.push(`Registre EA : ${fromRegistry} jeu(x) en plus`)
+
+  let fromPrograms = 0
+  for (const e of await uninstallEntries()) {
+    if (!e.DisplayName || !e.InstallLocation) continue
+    const isEa =
+      /electronic arts/i.test(e.Publisher ?? '') ||
+      /EAInstaller|EA Desktop|EADesktop|Origin/i.test(e.UninstallString ?? '') ||
+      /EA Games|Origin Games/i.test(e.InstallLocation)
+    if (!isEa || /\bEA app\b|EA Desktop|Origin$/i.test(e.DisplayName)) continue
+    const dir = e.InstallLocation.replace(/[\\"]+$/, '')
+    const exe = e.DisplayIcon?.replace(/^"|"?,\d+$|"$/g, '')
+    if (add(await readEaGame(dir, e.DisplayName, exe?.toLowerCase().endsWith('.exe') ? exe : undefined))) fromPrograms++
+  }
+  report.checked.push(`Programmes installés : ${fromPrograms} jeu(x) EA en plus`)
   return [...games.values()]
 }
 
