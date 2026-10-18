@@ -51,11 +51,17 @@ function read(key: string): string | null {
   }
 }
 
+/**
+ * Écran de démarrage déjà passé AVANT ce lancement : lu au chargement de l'appli, avant que l'écran de démarrage
+ * d'une installation neuve ne l'enregistre (sinon la fenêtre s'ouvrirait juste après ce premier écran).
+ */
+const SETUP_BEFORE_LAUNCH = read(SETUP_KEY) !== null
+
 /** À ouvrir si la version a changé depuis le dernier lancement. Pas au tout premier lancement (installation neuve). */
 function shouldOpen(version: string): boolean {
   const seen = read(SEEN_KEY)
   // Les versions d'avant cette fenêtre n'enregistraient rien : l'écran de démarrage déjà passé prouve une mise à jour.
-  const updated = seen ? seen !== version : read(SETUP_KEY) !== null
+  const updated = seen ? seen !== version : SETUP_BEFORE_LAUNCH
   try {
     localStorage.setItem(SEEN_KEY, version)
   } catch {
