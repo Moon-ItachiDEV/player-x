@@ -1,6 +1,7 @@
-/* Page Stats de jeu (Battlefield 6) : bannière, joueur, chiffres clés, détails, classement. */
+/* Page Stats de jeu (Battlefield 6) : en-tête plein cadre, chiffres clés, armes et classes, détail, podium. */
 
 .bf {
+  --bf-pad-x: 32px; /* doit suivre le padding horizontal de .page */
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -8,63 +9,195 @@
   margin: 0 auto;
   container-type: inline-size;
 }
+@media (max-width: 1200px) {
+  .bf {
+    --bf-pad-x: 24px;
+  }
+}
 
-/* ---------- en-tête ---------- */
+/* ---------- en-tête plein cadre ---------- */
 
-.bf-head {
+.bf-hero {
   position: relative;
   display: flex;
   align-items: flex-end;
-  height: 160px;
-  padding: 24px 28px;
-  border-radius: var(--r-xl);
-  overflow: hidden;
+  justify-content: space-between;
+  gap: 32px;
+  min-height: 300px;
+  margin: -24px calc(var(--bf-pad-x) * -1) 0;
+  padding: 72px var(--bf-pad-x) 28px;
   isolation: isolate;
-  background: var(--surface-1);
+  overflow: clip;
 }
-.bf-banner {
+.bf-hero-art {
   position: absolute;
   inset: 0;
   z-index: -1;
+  background:
+    radial-gradient(80% 120% at 85% 0%, color-mix(in srgb, var(--brand-violet) 38%, transparent) 0%, transparent 60%),
+    radial-gradient(60% 90% at 10% 10%, color-mix(in srgb, #4f7cff 18%, transparent) 0%, transparent 70%),
+    var(--bg-1);
+  mask-image: linear-gradient(180deg, #000 60%, transparent 100%);
 }
-/* Sans visuel du jeu : dégradé de marque, comme la bannière du profil. */
-.bf-banner::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--brand-gradient);
-  opacity: 0.3;
-}
-.bf-banner img {
+.bf-hero-art img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: saturate(1.1) brightness(0.55);
+  object-position: 50% 30%;
+  filter: saturate(1.1) brightness(0.6);
 }
-.bf-banner-tint {
+/* Sans visuel du jeu : grand « BF6 » en filigrane et trame tactique. */
+.bf-hero-mark {
+  position: absolute;
+  right: 3%;
+  top: 22px;
+  font: 800 180px/1 var(--font-display);
+  letter-spacing: -0.04em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.07);
+  user-select: none;
+}
+.bf-hero.has-art .bf-hero-mark {
+  display: none;
+}
+.bf-hero-grid {
   position: absolute;
   inset: 0;
-  background: linear-gradient(0deg, rgba(11, 13, 20, 0.85) 0%, transparent 70%);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(70% 90% at 70% 20%, #000 0%, transparent 75%);
 }
-.bf-banner.has-art .bf-banner-tint {
-  background:
-    linear-gradient(0deg, rgba(11, 13, 20, 0.9) 0%, transparent 70%),
-    linear-gradient(115deg, color-mix(in srgb, var(--brand-violet) 40%, transparent) 0%, transparent 60%);
+.bf-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bg-1) 80%, transparent) 0%, transparent 70%);
 }
-.bf-head-text {
+.bf-hero-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 14px;
+  min-width: 0;
 }
-.bf-head-text .overline {
+.bf-kicker {
+  color: var(--accent);
+}
+.bf-hero-title {
+  font: 700 40px/44px var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Identité */
+.bf-id {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+.bf-id-avatar {
+  display: flex;
+  flex-shrink: 0;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--brand-gradient);
+  box-shadow: 0 10px 30px -8px rgba(124, 58, 237, 0.7);
+}
+.bf-id-avatar .avatar {
+  box-shadow: 0 0 0 3px var(--bg-1);
+}
+.bf-id-avatar .avatar-initial {
+  font: 700 30px/1 var(--font-display);
+}
+.bf-id-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.bf-id-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-2);
+}
+.bf-meta-item .num {
+  color: var(--text-1);
+  font-weight: 600;
+}
+.bf-id-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+/* Chiffres phares */
+.bf-headline {
+  display: flex;
+  flex-shrink: 0;
+  margin: 0;
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--surface-1) 72%, transparent);
+  border: 1px solid var(--line-2);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--sh-2);
+}
+:root.no-blur .bf-headline {
+  backdrop-filter: none;
+  background: var(--surface-1);
+}
+.bf-headline-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 26px;
+}
+.bf-headline-item + .bf-headline-item {
+  border-left: 1px solid var(--line-1);
+}
+.bf-headline dd {
+  margin: 0;
+  font: 700 30px/34px var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+.bf-headline-item.is-main dd {
+  font-size: 44px;
+  line-height: 48px;
+  background: linear-gradient(135deg, #fff 0%, var(--accent-text) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.bf-headline-item.is-main dt {
   color: var(--accent-text);
+}
+
+@container (max-width: 860px) {
+  .bf-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .bf-skel {
   height: 120px;
   border-radius: var(--r-lg);
+}
+.bf-banner-msg {
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  border: 1px solid var(--line-1);
 }
 
 /* ---------- cartes ---------- */
@@ -72,7 +205,7 @@
 .bf-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   padding: 20px;
 }
 .bf-card-head {
@@ -102,24 +235,38 @@
 .bf-plat {
   display: inline-flex;
   align-items: center;
-  height: 18px;
-  padding: 0 7px;
-  margin-left: 6px;
+  height: 20px;
+  padding: 0 8px;
   border-radius: var(--r-pill);
-  background: var(--surface-2);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--line-1);
   font: 600 11px/1 var(--font-ui);
   color: var(--text-2);
+  white-space: nowrap;
+}
+.bf-board-name .bf-plat {
+  margin-left: 8px;
   vertical-align: 1px;
 }
-.bf-player .caption .bf-plat,
-.bf-result .bf-plat {
-  margin-left: 0;
-}
 
-/* ---------- recherche ---------- */
+/* ---------- relier son profil ---------- */
 
 .bf-link {
   max-width: 720px;
+  padding: 28px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--accent-soft) 0%, transparent 55%),
+    var(--surface-1);
+}
+.bf-link-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent-text);
 }
 .bf-search {
   display: flex;
@@ -157,35 +304,6 @@
   white-space: nowrap;
 }
 
-/* ---------- joueur ---------- */
-
-.bf-player {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 4px;
-}
-.bf-player-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.bf-player-name {
-  font: 700 22px/28px var(--font-display);
-  color: var(--text-1);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.bf-player-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
-
 /* ---------- chiffres clés ---------- */
 
 .bf-tiles {
@@ -199,15 +317,188 @@
   }
 }
 .bf-tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 16px;
+  padding: 16px 18px;
+  overflow: hidden;
+  transition:
+    border-color var(--d-in) var(--ease-glide),
+    translate var(--d-in) var(--ease-glide);
+}
+.bf-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+}
+.bf-tile:hover {
+  border-color: var(--line-3);
+}
+:root[data-fx='on'] .bf-tile:hover {
+  translate: 0 -2px;
 }
 .bf-tile-value {
   font: 700 28px/34px var(--font-display);
   letter-spacing: -0.01em;
   color: var(--text-1);
+}
+.bf-meter {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.bf-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-gradient);
+}
+
+/* Entrée en cascade (effets visuels uniquement) */
+@keyframes bf-rise {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+:root[data-fx='on'] .bf-tile {
+  animation: bf-rise var(--d-4) var(--ease-glide) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+:root[data-fx='on'] .bf-meter > span {
+  animation: bf-fill 900ms var(--ease-glide) both 200ms;
+}
+@keyframes bf-fill {
+  from {
+    width: 0;
+  }
+}
+
+/* ---------- armes favorites et classes ---------- */
+
+.bf-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 20px;
+}
+@container (max-width: 900px) {
+  .bf-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.bf-arsenal {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bf-weapon {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 14px;
+  border-radius: var(--r-md);
+  background: var(--bg-0);
+  border: 1px solid var(--line-1);
+  overflow: hidden;
+}
+.bf-weapon.is-first {
+  border-color: var(--accent-line);
+  background:
+    radial-gradient(120% 90% at 50% 0%, var(--accent-soft) 0%, transparent 70%),
+    var(--bg-0);
+}
+.bf-weapon-rank {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  font: 700 12px/1 var(--font-display);
+  color: var(--text-3);
+}
+.bf-weapon.is-first .bf-weapon-rank {
+  color: var(--accent-text);
+}
+.bf-weapon-art {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 72px;
+  margin-top: 6px;
+}
+.bf-weapon-art img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6));
+}
+/* Pas d'image : le nom en grand filigrane. */
+.bf-weapon-ghost {
+  font: 800 30px/1 var(--font-display);
+  letter-spacing: -0.02em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.16);
+  white-space: nowrap;
+}
+.bf-weapon-name {
+  font: 600 14px/18px var(--font-ui);
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bf-weapon-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.bf-weapon-stats .num {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.bf-classes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bf-class {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bf-class-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.bf-class-name {
+  font: 600 14px/18px var(--font-ui);
+  color: var(--text-1);
+}
+.bf-class-share {
+  font: 700 14px/18px var(--font-display);
+  color: var(--text-2);
+}
+.bf-class.is-first .bf-class-share {
+  color: var(--accent-text);
+}
+.bf-class:not(.is-first) .bf-meter > span {
+  background: var(--text-3);
 }
 
 /* ---------- tableaux ---------- */
@@ -227,15 +518,21 @@
   border-bottom: 1px solid var(--line-1);
 }
 .bf-table td {
-  padding: 8px 10px;
+  padding: 9px 10px;
   color: var(--text-2);
   border-bottom: 1px solid var(--line-1);
 }
 .bf-table tbody tr:last-child td {
   border-bottom: 0;
 }
-.bf-table tbody tr:hover td {
+.bf-table tbody tr {
+  transition: background-color var(--d-1) var(--ease-out);
+}
+.bf-table tbody tr:hover {
   background: var(--surface-2);
+}
+.bf-table tbody tr:nth-child(-n + 3) .bf-rank {
+  color: var(--accent-text);
 }
 .bf-table .bf-n {
   text-align: right;
@@ -257,14 +554,137 @@
 .bf-rank {
   width: 28px;
   color: var(--text-3);
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
 }
 .bf-more {
   align-self: flex-start;
 }
 
-/* ---------- classement ---------- */
+/* ---------- podium ---------- */
+
+.bf-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  max-width: 640px;
+  width: 100%;
+  margin: 8px auto 0;
+  padding: 0;
+  list-style: none;
+}
+.bf-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  text-align: center;
+}
+.bf-step.is-1 {
+  order: 2;
+}
+.bf-step.is-2 {
+  order: 1;
+}
+.bf-step.is-3 {
+  order: 3;
+}
+.bf-step-avatar {
+  position: relative;
+  display: flex;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--line-3);
+}
+.bf-step.is-1 .bf-step-avatar {
+  background: var(--brand-gradient);
+  box-shadow: 0 10px 30px -10px rgba(124, 58, 237, 0.8);
+}
+.bf-step-avatar .avatar {
+  box-shadow: 0 0 0 2px var(--surface-1);
+}
+.bf-step-rank {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  border: 2px solid var(--surface-1);
+  font: 700 11px/1 var(--font-display);
+  color: var(--text-1);
+}
+.bf-step.is-1 .bf-step-rank {
+  background: var(--accent-solid);
+}
+.bf-step-name {
+  max-width: 100%;
+  font: 600 14px/18px var(--font-ui);
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bf-step-value {
+  font: 700 22px/26px var(--font-display);
+  color: var(--text-1);
+}
+.bf-step.is-1 .bf-step-value {
+  font-size: 28px;
+  line-height: 32px;
+}
+.bf-step-block {
+  width: 100%;
+  margin-top: 4px;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, transparent 100%);
+  border-top: 1px solid var(--line-3);
+}
+.bf-step.is-1 .bf-step-block {
+  height: 56px;
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.3) 0%, transparent 100%);
+  border-top: 2px solid var(--accent);
+}
+.bf-step.is-2 .bf-step-block {
+  height: 36px;
+}
+.bf-step.is-3 .bf-step-block {
+  height: 22px;
+}
+.bf-step.is-me .bf-step-name {
+  color: var(--accent-text);
+}
+.bf-step-remove {
+  position: absolute;
+  top: 0;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  opacity: 0;
+  transition: opacity var(--d-1) var(--ease-out);
+}
+.bf-step:hover .bf-step-remove,
+.bf-step-remove:focus-visible {
+  opacity: 1;
+}
+:root[data-fx='on'] .bf-step {
+  animation: bf-rise var(--d-4) var(--ease-glide) both;
+}
+:root[data-fx='on'] .bf-step.is-1 {
+  animation-delay: 120ms;
+}
+:root[data-fx='on'] .bf-step.is-3 {
+  animation-delay: 60ms;
+}
+
+/* ---------- classement (suite) ---------- */
 
 .bf-board {
   display: flex;
@@ -273,6 +693,9 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.bf-board:empty {
+  display: none;
 }
 .bf-board-row {
   display: grid;
@@ -309,11 +732,11 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--text-3);
   transition: width var(--d-4) var(--ease-out);
 }
-.bf-board-row:not(.is-me) .bf-bar > span {
-  background: var(--text-3);
+.bf-board-row.is-me .bf-bar > span {
+  background: var(--brand-gradient);
 }
 .bf-board-value {
   font: 700 16px/20px var(--font-display);
