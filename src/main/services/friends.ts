@@ -63,8 +63,14 @@ async function steamFriends(account: Account, key: string): Promise<Friend[]> {
   if (res.status === 401) throw new UserError('Ta liste d’amis Steam est privée : passe-la en public dans ton profil Steam.')
   if (!res.ok) throw new Error(`Steam API ${res.status}`)
   const list = ((await res.json()) as { friendslist?: { friends: { steamid: string }[] } }).friendslist?.friends ?? []
-  const players = await getSteamProfiles(key, list.map((f) => f.steamid))
-  return players.map((p) => {
+  // Son propre profil dans la même requête : le pseudo et l'avatar arrivent même si la clé a été ajoutée après la connexion.
+  const players = await getSteamProfiles(key, [account.id, ...list.map((f) => f.steamid)])
+  const me = players.find((p) => p.steamid === account.id)
+  if (me && (me.personaname !== account.name || me.avatarfull !== account.avatarUrl)) {
+    // Seulement si ce compte est toujours connecté (pas de retour d'un compte déconnecté entre-temps).
+    if (getAccounts().some((a) => a.platform === 'steam' && a.id === account.id)) saveAccount({ ...account, name: me.personaname, avatarUrl: me.avatarfull })
+  }
+  return players.filter((p) => p.steamid !== account.id).map((p) => {
     const status: FriendStatus = p.gameextrainfo
       ? 'in-game'
       : p.personastate === 0

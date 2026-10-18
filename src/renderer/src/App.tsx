@@ -131,6 +131,9 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     setFriendsLoading(true)
     try {
       setFriends(await api.getFriends())
+      // Le pseudo ou l'avatar d'un compte peut être mis à jour pendant la récupération des amis.
+      const next = await api.getAccounts()
+      setAccounts((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
     } finally {
       setFriendsLoading(false)
     }
