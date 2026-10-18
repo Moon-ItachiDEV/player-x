@@ -35,6 +35,7 @@ function useBf6(account: Bf6Account | null): { snap: Bf6Snapshot | null; error: 
   const [snap, setSnap] = useState<Bf6Snapshot | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [doneKey, setDoneKey] = useState<string | null>(null)
   const [force, setForce] = useState(0)
   const key = account ? keyOf(account) : ''
   const lastKey = useRef(key)
@@ -49,6 +50,7 @@ function useBf6(account: Bf6Account | null): { snap: Bf6Snapshot | null; error: 
     setError(null)
     if (!account) {
       setLoading(false)
+      setDoneKey(null)
       return
     }
     // Seul le passage lancé par « Actualiser » contourne le cache.
@@ -64,14 +66,20 @@ function useBf6(account: Bf6Account | null): { snap: Bf6Snapshot | null; error: 
         setSnap(null)
         setError(errorMessage(e))
       })
-      .finally(() => live && setLoading(false))
+      .finally(() => {
+        if (!live) return
+        setLoading(false)
+        setDoneKey(key)
+      })
     return () => {
       live = false
     }
     // Le compte compte par identité : le même compte renvoyé par le stockage ne relance rien.
   }, [key, force])
 
-  return { snap, error, loading, refresh: useCallback(() => setForce((n) => n + 1), []) }
+  // Tant que le compte affiché n'a reçu ni stats ni erreur, il est en cours de chargement (y compris avant le premier effet).
+  const pending = !!account && doneKey !== key
+  return { snap, error, loading: loading || pending, refresh: useCallback(() => setForce((n) => n + 1), []) }
 }
 
 export function Stats({ games }: StatsProps): React.JSX.Element {
@@ -133,6 +141,7 @@ export function Stats({ games }: StatsProps): React.JSX.Element {
         </div>
 
         {tracked?.me && me.snap && <Headline snap={me.snap} />}
+        {tracked?.me && !me.snap && me.loading && <div className="skel bf-headline-skel" aria-hidden="true" />}
       </header>
 
       {!tracked ? (
@@ -328,7 +337,7 @@ function Overview({ snap }: { snap: Bf6Snapshot }): React.JSX.Element {
   const s = snap.stats
   // `meter` : une vraie proportion (0-100), dessinée en jauge.
   const tiles: { label: string; value: string; foot: string; meter?: number }[] = [
-    { label: 'Éliminations', value: int.format(s.kills), foot: `${int.format(s.assists)} assistances` },
+    { label: 'Éliminations', value: int.format(s.kills), foot: `${int.format(s.assists)} ${s.assists > 1 ? 'assistances' : 'assistance'}` },
     { label: 'Morts', value: int.format(s.deaths), foot: `${dec.format(s.killDeath)} élim. par mort` },
     { label: 'Matchs', value: int.format(s.matches), foot: `${int.format(s.wins)} V · ${int.format(s.losses)} D`, meter: s.winPercent },
     {
@@ -363,9 +372,9 @@ function Overview({ snap }: { snap: Bf6Snapshot }): React.JSX.Element {
 
 /** Visuel d'une arme ; sans image (ou image en échec), son nom en filigrane. */
 function WeaponArt({ image, name }: { image?: string; name: string }): React.JSX.Element {
-  const [broken, setBroken] = useState(false)
-  if (!image || broken) return <span className="bf-weapon-ghost">{name}</span>
-  return <img src={image} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
+  const [failed, setFailed] = useState<string>()
+  if (!image || failed === image) return <span className="bf-weapon-ghost">{name}</span>
+  return <img src={image} alt="" loading="lazy" draggable={false} onError={() => setFailed(image)} />
 }
 
 function Arsenal({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
@@ -469,7 +478,7 @@ function Maps({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
       <ol className="bf-maps-list">
         {top.map((m, i) => (
           <li key={m.id} className="bf-map">
-            {m.image && <img src={m.image} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}
+            {m.image && <img key={m.image} src={m.image} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}
             <span className="bf-map-shade" aria-hidden="true" />
             <span className="bf-map-rank num">{i + 1}</span>
             <span className="bf-map-text">
@@ -576,7 +585,7 @@ function Details({ snap }: { snap: Bf6Snapshot }): React.JSX.Element {
                 <td>
                   <span className={`bf-row-name ${tab === 'weapons' ? '' : 'has-thumb'}`}>
                     {/* Image en échec : la place reste, pour que les noms restent alignés */}
-                    {r.image && <img src={r.image} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />}
+                    {r.image && <img key={r.image} src={r.image} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />}
                     {r.name}
                   </span>
                 </td>
@@ -630,21 +639,38 @@ function Leaderboard({ tracked, meSnap, meError, meLoading, onChange }: Leaderbo
   const [rivals, setRivals] = useState<Record<string, { snap?: Bf6Snapshot; error?: string }>>({})
   const [loading, setLoading] = useState(false)
   const [force, setForce] = useState(0)
-  const usedForce = useRef(0)
+  /** Joueurs que le dernier « Actualiser le classement » doit encore relire sans cache, et relectures en cours. */
+  const forced = useRef<{ force: number; pending: Set<string>; inflight: Map<string, Promise<Bf6Snapshot>> }>({
+    force: 0,
+    pending: new Set(),
+    inflight: new Map()
+  })
   const rivalKeys = tracked.rivals.map(keyOf).join('|')
 
   // Un joueur après l'autre : le service limite les appels rapprochés.
   useEffect(() => {
-    // Seul le passage lancé par « Actualiser le classement » contourne le cache (pas les ajouts ou retraits suivants).
-    const refresh = force !== usedForce.current
-    usedForce.current = force
+    // Seul « Actualiser le classement » contourne le cache, pour les joueurs présents au clic. Un ajout ou un retrait
+    // pendant ce passage le relance : les joueurs pas encore relus le sont toujours sans cache, les nouveaux venus non.
+    const keys = tracked.rivals.map(keyOf)
+    if (forced.current.force !== force) forced.current = { force, pending: new Set(keys), inflight: new Map() }
+    const { pending, inflight } = forced.current
+    for (const k of pending) if (!keys.includes(k)) pending.delete(k)
     let live = true
     setLoading(true)
     ;(async () => {
       for (const a of tracked.rivals) {
         const k = keyOf(a)
         try {
-          const snap = await api.bf6Stats(a, refresh)
+          // Une relecture déjà partie pour ce joueur est attendue, pas relancée (un appel à la fois).
+          let forcedFetch = inflight.get(k)
+          if (!forcedFetch && pending.has(k)) {
+            forcedFetch = api.bf6Stats(a, true).finally(() => {
+              pending.delete(k)
+              inflight.delete(k)
+            })
+            inflight.set(k, forcedFetch)
+          }
+          const snap = await (forcedFetch ?? api.bf6Stats(a, false))
           if (live) setRivals((prev) => ({ ...prev, [k]: { snap } }))
         } catch (e) {
           if (live) setRivals((prev) => ({ ...prev, [k]: { error: errorMessage(e) } }))
