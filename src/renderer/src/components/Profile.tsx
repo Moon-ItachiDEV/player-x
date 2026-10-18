@@ -27,7 +27,7 @@ function primaryAccount(accounts: Account[]): Account | undefined {
   return undefined
 }
 
-export function Profile({ games, accounts, friends, onOpenGame, onLaunch, onManageAccounts, onShowFriends }: ProfileProps): React.JSX.Element {
+export function Profile({ games, accounts, friends, launchingId, onOpenGame, onLaunch, onManageAccounts, onShowFriends }: ProfileProps): React.JSX.Element {
   const stats = useMemo(() => {
     const launched = games
       .filter((g) => launchesOf(g) > 0)
@@ -127,7 +127,7 @@ export function Profile({ games, accounts, friends, onOpenGame, onLaunch, onMana
               </h2>
               <div className="prof-recent">
                 {stats.recent.map((g) => (
-                  <GameTile key={g.id} game={g} meta={capitalize(timeAgo(g.lastPlayed!))} onOpen={onOpenGame} onLaunch={onLaunch} />
+                  <GameTile key={g.id} game={g} meta={capitalize(timeAgo(g.lastPlayed!))} launching={launchingId === g.id} onOpen={onOpenGame} onLaunch={onLaunch} />
                 ))}
               </div>
             </section>
@@ -141,7 +141,7 @@ export function Profile({ games, accounts, friends, onOpenGame, onLaunch, onMana
             {stats.favorites.length > 0 ? (
               <div className="prof-favs">
                 {stats.favorites.map((g) => (
-                  <GameTile key={g.id} game={g} meta={KIND_LABEL[g.store]} onOpen={onOpenGame} onLaunch={onLaunch} />
+                  <GameTile key={g.id} game={g} meta={KIND_LABEL[g.store]} launching={launchingId === g.id} onOpen={onOpenGame} onLaunch={onLaunch} />
                 ))}
               </div>
             ) : (
@@ -286,15 +286,16 @@ function TopLaunched({ games, onOpenGame }: { games: Game[]; onOpenGame: (g: Gam
 interface GameTileProps {
   game: Game
   meta: string
+  launching: boolean
   onOpen: (g: Game) => void
   onLaunch: (g: Game) => void
 }
 
 /** Jaquette 2:3 cliquable (ouvre la fiche) avec un bouton Jouer au survol. */
-function GameTile({ game, meta, onOpen, onLaunch }: GameTileProps): React.JSX.Element {
+function GameTile({ game, meta, launching, onOpen, onLaunch }: GameTileProps): React.JSX.Element {
   const name = cleanName(game.name)
   return (
-    <div className="prof-gt">
+    <div className={`prof-gt ${launching ? 'is-launching' : ''}`} aria-busy={launching || undefined}>
       <button className="prof-gt-open" onClick={() => onOpen(game)} aria-label={`${name}, ${meta}`}>
         <span className="prof-gt-box">
           <Cover key={game.id} game={game} />
@@ -304,8 +305,14 @@ function GameTile({ game, meta, onOpen, onLaunch }: GameTileProps): React.JSX.El
         </span>
         <span className="caption prof-gt-meta">{meta}</span>
       </button>
-      <button className="prof-gt-play" onClick={() => onLaunch(game)} aria-label={`Jouer à ${name}`} title="Jouer">
-        <Icon name="play" size={16} />
+      <button
+        className="prof-gt-play"
+        onClick={() => onLaunch(game)}
+        disabled={launching}
+        aria-label={`Jouer à ${name}`}
+        title={launching ? 'Lancement…' : 'Jouer'}
+      >
+        {launching ? <span className="spinner" /> : <Icon name="play" size={16} />}
       </button>
     </div>
   )

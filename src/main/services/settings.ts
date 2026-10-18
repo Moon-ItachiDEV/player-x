@@ -1,20 +1,23 @@
 import type { Account, FriendPlatform, Settings } from '@shared/types'
 import { deleteKv, getKv, setKv } from '../db'
 
-const DEFAULTS: Settings = {
-  steamApiKey: process.env.STEAM_API_KEY ?? '',
-  discordClientId: process.env.DISCORD_CLIENT_ID ?? '',
-  discordClientSecret: process.env.DISCORD_CLIENT_SECRET ?? '',
-  discordGuildId: '',
-  psnNpsso: '',
-  demoMode: false
+// Lu à chaque appel : le .env est chargé après l'import de ce module.
+function defaults(): Settings {
+  return {
+    steamApiKey: process.env.STEAM_API_KEY ?? '',
+    discordClientId: process.env.DISCORD_CLIENT_ID ?? '',
+    discordClientSecret: process.env.DISCORD_CLIENT_SECRET ?? '',
+    discordGuildId: '',
+    psnNpsso: '',
+    demoMode: false
+  }
 }
 
 export function getSettings(): Settings {
   const saved = getKv<Partial<Settings>>('settings', {})
-  // Une valeur vide en base ne masque pas celle du .env
-  const merged = { ...DEFAULTS }
-  for (const [k, v] of Object.entries(saved)) if (v !== '' && v !== undefined) (merged as Record<string, unknown>)[k] = v
+  // Une valeur enregistrée (même vide) l'emporte sur le .env
+  const merged = { ...defaults() }
+  for (const [k, v] of Object.entries(saved)) if (v !== undefined && v !== null) (merged as Record<string, unknown>)[k] = v
   return merged
 }
 

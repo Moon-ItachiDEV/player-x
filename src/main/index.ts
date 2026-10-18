@@ -50,14 +50,28 @@ function notifyGamesChanged(): void {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send('games:changed')
 }
 
+// Favoris et lancements du mode démo : gardés à part pour ne jamais toucher la vraie bibliothèque.
+interface DemoState {
+  /** Absent tant qu'on n'a rien changé : on garde les favoris fictifs. */
+  favorites?: string[]
+  launches: Record<string, { count: number; last: number }>
+}
+
+function demoState(): DemoState {
+  return { launches: {}, ...db.getKv<Partial<DemoState>>('demoState', {}) }
+}
+
 async function games(refresh = false): Promise<Game[]> {
   if (getSettings().demoMode) {
-    // Historique fictif, remplacé par le vrai dès qu'on lance ou met en favori un jeu de démo.
-    const saved = new Map(db.listGames().map((g) => [g.id, g]))
+    const state = demoState()
     return applyArtwork(demoGames()).map((g) => {
-      const s = saved.get(g.id)
-      if (!s) return g
-      return { ...g, favorite: s.favorite, lastPlayed: s.lastPlayed ?? g.lastPlayed, launches: (g.launches ?? 0) + (s.launches ?? 0) }
+      const l = state.launches[g.id]
+      return {
+        ...g,
+        favorite: state.favorites ? state.favorites.includes(g.id) : g.favorite,
+        lastPlayed: l?.last ?? g.lastPlayed,
+        launches: (g.launches ?? 0) + (l?.count ?? 0)
+      }
     })
   }
   if (refresh || !scanned) {
@@ -79,24 +93,31 @@ function registerIpc(): void {
   ipcMain.handle('games:launch', async (_e, id: string) => {
     const game = (await games()).find((g) => g.id === id)
     if (!game) throw new Error('Jeu introuvable.')
-    if (getSettings().demoMode && !db.listGames().some((g) => g.id === id)) db.replaceGames([...db.listGames(), game])
+    if (getSettings().demoMode) {
+      const state = demoState()
+      const count = (state.launches[id]?.count ?? 0) + 1
+      db.setKv('demoState', { ...state, launches: { ...state.launches, [id]: { count, last: Date.now() } } })
+      return
+    }
+    // La session n'est comptée qu'une fois le jeu vraiment lancé.
+    await launch(game)
     db.recordLaunch(id)
-    if (!getSettings().demoMode) await launch(game)
   })
   ipcMain.handle('games:report', () => getScanReport())
   ipcMain.handle('games:open-folder', async (_e, id: string) => {
+    if (getSettings().demoMode) throw new Error('Mode démo : ce dossier n’existe pas sur ton PC.')
     // Le chemin vient de la base, jamais du renderer.
     const dir = (await games()).find((g) => g.id === id)?.installDir
     if (!dir) throw new Error('Dossier d’installation inconnu.')
     const err = await shell.openPath(dir)
-    if (err) throw new Error(err)
+    if (err) throw new Error('Impossible d’ouvrir le dossier : il a peut-être été déplacé ou supprimé.')
   })
   ipcMain.handle('games:favorite', async (_e, id: string) => {
-    if (getSettings().demoMode && !db.listGames().some((g) => g.id === id)) {
-      // En démo, les jeux fictifs sont ajoutés en base pour garder favoris et sessions.
-      db.replaceGames([...db.listGames(), ...(await games()).filter((g) => g.id === id)])
-    }
-    db.toggleFavorite(id)
+    if (getSettings().demoMode) {
+      const current = (await games()).filter((g) => g.favorite).map((g) => g.id)
+      const favorites = current.includes(id) ? current.filter((f) => f !== id) : [...current, id]
+      db.setKv('demoState', { ...demoState(), favorites })
+    } else db.toggleFavorite(id)
     return games()
   })
   ipcMain.handle('friends:list', async () => {
@@ -109,7 +130,17 @@ function registerIpc(): void {
   ipcMain.handle('accounts:cancel', () => cancelLogin())
   ipcMain.handle('accounts:logout', (_e, platform: FriendPlatform) => removeAccount(platform))
   ipcMain.handle('settings:get', () => getSettings())
-  ipcMain.handle('settings:save', (_e, patch: Partial<Settings>) => saveSettings(patch))
+  ipcMain.handle('settings:save', (_e, patch: Partial<Settings>) => {
+    const wasDemo = getSettings().demoMode
+    const next = saveSettings(patch)
+    if (next.demoMode !== wasDemo) {
+      // Au retour du mode démo, on rescanne la vraie bibliothèque.
+      scanned = false
+      // Jaquettes des jeux fictifs, aussi quand la démo s'active en cours de session.
+      if (next.demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())
+    }
+    return next
+  })
   ipcMain.handle('shell:open', (_e, url: string) => {
     if (url.startsWith('https://')) return shell.openExternal(url)
   })

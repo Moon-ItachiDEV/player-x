@@ -20,7 +20,7 @@ const discordId = (v: string): string | null => (/^\d{15,22}$/.test(v) ? null : 
 interface Props {
   settings: Settings
   report: ScanReport[]
-  onSaveSettings: (patch: Partial<Settings>) => Promise<void>
+  onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>
   /** Carte à montrer et à focaliser en arrivant (depuis « Configurer »). */
   focusCard: FriendPlatform | null
   onFocused: () => void
@@ -96,7 +96,7 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
           <SecretField
             label="Clé Steam Web API"
             value={settings.steamApiKey}
-            onSave={(v) => onSaveSettings({ steamApiKey: v })}
+            onSave={async (v) => (await onSaveSettings({ steamApiKey: v })).steamApiKey}
             savedToast="Clé enregistrée"
             clearedToast="Clé effacée"
             placeholder="32 caractères"
@@ -119,7 +119,7 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
           <TextField
             label="Client ID"
             value={settings.discordClientId}
-            onSave={(v) => onSaveSettings({ discordClientId: v })}
+            onSave={async (v) => (await onSaveSettings({ discordClientId: v })).discordClientId}
             savedToast="Client ID enregistré"
             clearedToast="Client ID effacé"
             placeholder="Identifiant de ton application"
@@ -129,7 +129,7 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
           <SecretField
             label="Client Secret"
             value={settings.discordClientSecret}
-            onSave={(v) => onSaveSettings({ discordClientSecret: v })}
+            onSave={async (v) => (await onSaveSettings({ discordClientSecret: v })).discordClientSecret}
             savedToast="Client Secret enregistré"
             clearedToast="Client Secret effacé"
             masculine
@@ -148,7 +148,7 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
             ref={guildInput}
             label="ID du serveur (widget)"
             value={settings.discordGuildId}
-            onSave={(v) => onSaveSettings({ discordGuildId: v })}
+            onSave={async (v) => (await onSaveSettings({ discordGuildId: v })).discordGuildId}
             savedToast="Serveur enregistré"
             clearedToast="Serveur retiré"
             placeholder="Identifiant numérique du serveur"
@@ -167,7 +167,7 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
           <SecretField
             label="Jeton NPSSO"
             value={settings.psnNpsso}
-            onSave={(v) => onSaveSettings({ psnNpsso: v })}
+            onSave={async (v) => (await onSaveSettings({ psnNpsso: v })).psnNpsso}
             savedToast="Jeton enregistré"
             clearedToast="Jeton effacé"
             placeholder="64 caractères"

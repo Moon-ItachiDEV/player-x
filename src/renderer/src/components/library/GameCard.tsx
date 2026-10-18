@@ -6,7 +6,14 @@ import { Icon } from '../ui/Icon'
 import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
 
 // Délai avant d'ouvrir la fiche au clic, pour laisser au double-clic le temps de lancer le jeu.
+// Un double-clic plus lent est rattrapé par le voile de la fiche (GameSheet).
 const CLICK_DELAY = 220
+
+let cardOpenAt = 0
+/** Vrai si la fiche vient d'être ouverte par le clic simple d'une jaquette (et pas par « Détails » ou une vignette). */
+export function openedByCard(withinMs: number): boolean {
+  return performance.now() - cardOpenAt < withinMs
+}
 
 /** Compteur qui rejoue l'animation « pop » de l'étoile à chaque clic. */
 export function usePop(): [number, () => void] {
@@ -52,7 +59,10 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
   const onClick = (e: React.MouseEvent): void => {
     clearTimeout(timer.current)
     if (e.detail > 1) return
-    timer.current = setTimeout(() => onOpen(game), CLICK_DELAY)
+    timer.current = setTimeout(() => {
+      cardOpenAt = performance.now()
+      onOpen(game)
+    }, CLICK_DELAY)
   }
 
   const onKeyDown = (e: React.KeyboardEvent): void => {

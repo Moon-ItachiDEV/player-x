@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Store } from '@shared/types'
 import { Icon } from '../ui/Icon'
@@ -113,7 +113,7 @@ export function LibraryToolbar(props: ToolbarProps): React.JSX.Element {
 /** Bouton « Trier : Récents » et son menu (rendu dans body : le flou de la barre casserait le position: fixed). */
 function SortButton({ sort, onSort }: { sort: LibSort; onSort: (s: LibSort) => void }): React.JSX.Element {
   const btn = useRef<HTMLButtonElement>(null)
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
   const open = pos !== null
   const wasOpen = useRef(false)
 
@@ -123,6 +123,16 @@ function SortButton({ sort, onSort }: { sort: LibSort; onSort: (s: LibSort) => v
     const r = btn.current.getBoundingClientRect()
     setPos({ top: r.bottom + 6, right: window.innerWidth - r.right })
   }
+
+  // Pas la place sous le bouton : on ouvre le menu au-dessus (hauteur réelle, mesurée avant affichage).
+  useLayoutEffect(() => {
+    const menu = document.querySelector<HTMLElement>('.lib-sort-menu')
+    if (!open || !menu || !btn.current) return
+    const r = btn.current.getBoundingClientRect()
+    if (r.bottom + 6 + menu.offsetHeight > window.innerHeight && r.top > window.innerHeight - r.bottom) {
+      setPos({ bottom: window.innerHeight - r.top + 6, right: window.innerWidth - r.right })
+    }
+  }, [open])
 
   useEffect(() => {
     if (open) {

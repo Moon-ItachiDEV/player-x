@@ -8,10 +8,13 @@ import { Icon } from './ui/Icon'
 import { useEscape } from './ui/Overlay'
 import { STORE_LONG, StoreTag } from './ui/StoreTag'
 import { errorMessage, useToast } from './ui/Toasts'
+import { openedByCard } from './library/GameCard'
 import './gamesheet.css'
 
 /** Durée de l'animation de fermeture (doit suivre gamesheet.css). */
 const CLOSE_MS = 180
+/** Délai de double-clic de Windows : un clic sur le voile juste après l'ouverture vient d'un double-clic sur une jaquette. */
+const DBL_CLICK_MS = 500
 
 /** Tiroir de fiche de jeu, à droite. `game === null` : fermé. */
 export function GameSheet(props: GameSheetProps): React.JSX.Element | null {
@@ -37,8 +40,22 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
   const sentinelRef = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(false)
   const [pop, setPop] = useState(0)
+  const openedAt = useRef(0)
 
   useEscape(!closing, onClose)
+
+  useEffect(() => {
+    if (!closing) openedAt.current = performance.now()
+  }, [closing, game.id])
+
+  // Double-clic lent sur une jaquette : le 2e clic tombe sur le voile. On lance le jeu au lieu de refermer.
+  // Ouverte autrement (« Détails », vignette), un double-clic est seulement ignoré.
+  const onScrimClick = (e: React.MouseEvent): void => {
+    const justOpened = performance.now() - openedAt.current < DBL_CLICK_MS
+    if (justOpened && e.detail === 2 && !launching && openedByCard(DBL_CLICK_MS)) onLaunch(game)
+    if (justOpened || e.detail > 1) return
+    onClose()
+  }
 
   // Focus : on entre dans le tiroir à l'ouverture, on rend la main à l'élément d'origine à la fermeture.
   useEffect(() => {
@@ -84,6 +101,9 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
   const title = cleanName(game.name)
   const titleId = `sheet-title-${game.id}`
   const playing = friends.filter((f) => f.status === 'in-game' && f.game && norm(f.game) === norm(game.name))
+  // Discord : membres en ligne d'un serveur, jamais des amis.
+  const pals = playing.filter((f) => f.platform !== 'discord')
+  const members = playing.filter((f) => f.platform === 'discord')
   const toggleFavorite = (): void => {
     if (!game.favorite) setPop((n) => n + 1)
     onFavorite(game)
@@ -91,7 +111,7 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
 
   return (
     <div className={`sheet-root ${closing ? 'is-closing' : ''}`} inert={closing}>
-      <div className="sheet-scrim" onClick={onClose} aria-hidden="true" />
+      <div className="sheet-scrim" onClick={onScrimClick} aria-hidden="true" />
       <aside ref={panelRef} className="sheet-panel" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={trapFocus}>
         <header className="sheet-art">
           <Cover key={game.id} game={game} variant="landscape" showTitle={false} />
@@ -157,11 +177,11 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
         <section className="sheet-section">
           <h3 className="sheet-h">
             Amis sur ce jeu
-            {playing.length > 0 && <span className="sheet-h-count num">{playing.length}</span>}
+            {pals.length > 0 && <span className="sheet-h-count num">{pals.length}</span>}
           </h3>
-          {playing.length ? (
+          {pals.length ? (
             <ul className="sheet-friends">
-              {playing.map((f) => (
+              {pals.map((f) => (
                 <FriendRow key={f.id} friend={f} />
               ))}
             </ul>
@@ -169,6 +189,20 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
             <p className="caption">Aucun ami n'y joue en ce moment.</p>
           )}
         </section>
+
+        {members.length > 0 && (
+          <section className="sheet-section">
+            <h3 className="sheet-h">
+              Membres du serveur Discord
+              <span className="sheet-h-count num">{members.length}</span>
+            </h3>
+            <ul className="sheet-friends">
+              {members.map((f) => (
+                <FriendRow key={f.id} friend={f} />
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className="sheet-section">
           <h3 className="sheet-h">Installation</h3>

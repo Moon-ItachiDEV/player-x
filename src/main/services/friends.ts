@@ -7,8 +7,29 @@ import {
   getUserFriendsAccountIds,
   type AuthTokensResponse
 } from 'psn-api'
-import type { Account, Friend, FriendsResult, FriendStatus } from '@shared/types'
+import type { Account, Friend, FriendPlatform, FriendsResult, FriendStatus } from '@shared/types'
 import { getAccounts, getSettings, saveAccount } from './settings'
+
+// ---------- Messages d'erreur ----------
+// fetch et psn-api renvoient des erreurs en anglais : l'interface n'affiche que du français.
+
+/** Message déjà rédigé pour l'utilisateur, affiché tel quel. */
+class UserError extends Error {}
+
+const NETWORK_ERROR = 'Connexion impossible : vérifie ta connexion internet.'
+const PSN_AUTH_ERROR = 'Jeton PlayStation invalide ou expiré : colle un nouveau NPSSO dans Paramètres.'
+const FALLBACK: Record<FriendPlatform, string> = {
+  steam: 'Impossible de récupérer tes amis Steam pour le moment.',
+  discord: 'Impossible de récupérer les membres du serveur Discord pour le moment.',
+  psn: 'Impossible de récupérer tes amis PlayStation pour le moment.'
+}
+
+const isNetworkError = (e: unknown): boolean => e instanceof TypeError && /fetch failed|network/i.test(e.message)
+
+function frenchError(e: unknown, fallback: string): string {
+  if (e instanceof UserError) return e.message
+  return isNetworkError(e) ? NETWORK_ERROR : fallback
+}
 
 // ---------- Steam Web API ----------
 
@@ -35,7 +56,7 @@ async function steamFriends(account: Account, key: string): Promise<Friend[]> {
   const res = await fetch(
     `https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${key}&steamid=${account.id}&relationship=friend`
   )
-  if (res.status === 401) throw new Error('Ta liste d’amis Steam est privée : passe-la en public dans ton profil Steam.')
+  if (res.status === 401) throw new UserError('Ta liste d’amis Steam est privée : passe-la en public dans ton profil Steam.')
   if (!res.ok) throw new Error(`Steam API ${res.status}`)
   const list = ((await res.json()) as { friendslist?: { friends: { steamid: string }[] } }).friendslist?.friends ?? []
   const players = await getSteamProfiles(key, list.map((f) => f.steamid))
@@ -61,7 +82,7 @@ interface DiscordWidget {
 
 async function discordServerMembers(guildId: string): Promise<Friend[]> {
   const res = await fetch(`https://discord.com/api/guilds/${guildId}/widget.json`)
-  if (res.status === 403) throw new Error('Le widget de ce serveur Discord est désactivé (Paramètres du serveur > Widget).')
+  if (res.status === 403) throw new UserError('Le widget de ce serveur Discord est désactivé (Paramètres du serveur > Widget).')
   if (!res.ok) throw new Error(`Discord ${res.status}`)
   const widget = (await res.json()) as DiscordWidget
   return widget.members.map((m) => ({
@@ -89,8 +110,15 @@ async function psnAuth(npsso: string): Promise<{ accessToken: string }> {
       /* on retombe sur le NPSSO */
     }
   }
-  const code = await exchangeNpssoForAccessCode(npsso)
-  psnTokens = { ...(await exchangeAccessCodeForAuthTokens(code)), obtainedAt: now }
+  let tokens: AuthTokensResponse
+  try {
+    tokens = await exchangeAccessCodeForAuthTokens(await exchangeNpssoForAccessCode(npsso))
+    if (!tokens.accessToken) throw new Error('PSN token')
+  } catch (e) {
+    // Hors réseau, un échec ici veut dire que le NPSSO est refusé.
+    throw isNetworkError(e) ? e : new UserError(PSN_AUTH_ERROR)
+  }
+  psnTokens = { ...tokens, obtainedAt: now }
   return psnTokens
 }
 
@@ -98,11 +126,15 @@ export async function connectPsn(): Promise<Account> {
   const { psnNpsso } = getSettings()
   if (!psnNpsso) throw new Error('Colle ton jeton NPSSO PlayStation dans Paramètres.')
   psnTokens = null
-  const auth = await psnAuth(psnNpsso)
-  const me = await getProfileFromAccountId(auth, 'me')
-  const account: Account = { platform: 'psn', id: 'me', name: me.onlineId, avatarUrl: me.avatars.at(-1)?.url }
-  saveAccount(account)
-  return account
+  try {
+    const auth = await psnAuth(psnNpsso)
+    const me = await getProfileFromAccountId(auth, 'me')
+    const account: Account = { platform: 'psn', id: 'me', name: me.onlineId, avatarUrl: me.avatars.at(-1)?.url }
+    saveAccount(account)
+    return account
+  } catch (e) {
+    throw new Error(frenchError(e, 'Connexion à PlayStation impossible pour le moment. Réessaie plus tard.'))
+  }
 }
 
 async function psnFriends(npsso: string): Promise<Friend[]> {
@@ -141,7 +173,7 @@ export async function getAllFriends(): Promise<FriendsResult> {
     try {
       result.friends.push(...(await load()))
     } catch (e) {
-      result.errors[platform] = e instanceof Error ? e.message : String(e)
+      result.errors[platform] = frenchError(e, FALLBACK[platform])
     }
   }
 
@@ -150,7 +182,7 @@ export async function getAllFriends(): Promise<FriendsResult> {
   if (steam) {
     tasks.push(
       collect('steam', () => {
-        if (!settings.steamApiKey) throw new Error('Ajoute ta clé Steam Web API dans Paramètres pour voir tes amis.')
+        if (!settings.steamApiKey) throw new UserError('Ajoute ta clé Steam Web API dans Paramètres pour voir tes amis.')
         return steamFriends(steam, settings.steamApiKey)
       })
     )

@@ -119,11 +119,11 @@ export function Hero({ game, friends, launching, onLaunch, onOpen, onFavorite }:
   )
 }
 
-/** « 2 amis y jouent » avec leurs avatars. Les membres d'un serveur Discord ne sont pas des amis. */
+/** « 2 amis y jouent », « 1 ami et 1 membre Discord y jouent » avec leurs avatars. Les membres d'un serveur Discord ne sont pas des amis. */
 function FriendsChip({ players }: { players: Friend[] }): React.JSX.Element {
   const n = players.length
-  const members = players.every((p) => p.platform === 'discord')
-  const who = members ? (n > 1 ? 'membres' : 'membre') : n > 1 ? 'amis' : 'ami'
+  const pals = players.filter((p) => p.platform !== 'discord').length
+  const members = n - pals
   return (
     <div className="lib-hero-friends" title={players.map((p) => p.name).join(', ')}>
       <span className="lib-hero-avatars">
@@ -133,7 +133,18 @@ function FriendsChip({ players }: { players: Friend[] }): React.JSX.Element {
       </span>
       <span className="lib-hero-friends-dot" aria-hidden="true" />
       <span>
-        <span className="num">{n}</span> {who} {n > 1 ? 'y jouent' : 'y joue'}
+        {pals > 0 && (
+          <>
+            <span className="num">{pals}</span> {pals > 1 ? 'amis' : 'ami'}
+          </>
+        )}
+        {pals > 0 && members > 0 && ' et '}
+        {members > 0 && (
+          <>
+            <span className="num">{members}</span> {members > 1 ? 'membres Discord' : 'membre Discord'}
+          </>
+        )}
+        {n > 1 ? ' y jouent' : ' y joue'}
       </span>
     </div>
   )

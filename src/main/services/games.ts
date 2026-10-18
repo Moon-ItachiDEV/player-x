@@ -367,7 +367,7 @@ export async function launch(game: Game): Promise<void> {
   if (url) return shell.openExternal(url)
   if (game.exePath) {
     const err = await shell.openPath(game.exePath)
-    if (err) throw new Error(err)
+    if (err) throw new Error('Exécutable introuvable : il a peut-être été déplacé ou supprimé.')
     return
   }
   throw new Error(`Impossible de lancer ${game.name}.`)

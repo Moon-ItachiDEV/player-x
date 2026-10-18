@@ -33,7 +33,9 @@ export function timeAgo(ts: number, now = Date.now()): string {
   const days = Math.round(min / 1440)
   if (days < 30) return `il y a ${days} j`
   const months = Math.round(days / 30)
-  return months < 12 ? `il y a ${months} mois` : `il y a ${Math.round(months / 12)} an${months >= 24 ? 's' : ''}`
+  if (months < 12) return `il y a ${months} mois`
+  const years = Math.round(months / 12)
+  return `il y a ${years} an${years > 1 ? 's' : ''}`
 }
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })

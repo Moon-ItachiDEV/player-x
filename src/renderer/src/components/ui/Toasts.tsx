@@ -76,7 +76,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }): R
       ) : (
         <span />
       )}
-      <button className="icon-btn toast-close" onClick={onClose} aria-label="Fermer">
+      <button className="icon-btn toast-close" onClick={onClose} aria-label="Fermer" title="Fermer">
         <Icon name="x" size={14} />
       </button>
     </div>

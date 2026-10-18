@@ -496,7 +496,8 @@ button.prof-last:hover {
   margin-left: 2px;
 }
 .prof-gt:hover .prof-gt-play,
-.prof-gt:focus-within .prof-gt-play {
+.prof-gt:focus-within .prof-gt-play,
+.prof-gt.is-launching .prof-gt-play {
   opacity: 1;
   transform: translateY(-4px);
 }

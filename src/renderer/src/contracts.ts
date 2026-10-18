@@ -83,6 +83,8 @@ export interface FriendsPanelProps {
   accounts: Account[]
   games: Game[]
   demo: boolean
+  /** Un serveur Discord est renseigné (ses membres s'affichent même sans compte). */
+  discordConfigured: boolean
   loading: boolean
   onRefresh: () => void
   onHide: () => void
@@ -94,6 +96,7 @@ export interface ProfileProps {
   games: Game[]
   accounts: Account[]
   friends: FriendsResult
+  launchingId: string | null
   onOpenGame: (g: Game) => void
   onLaunch: (g: Game) => void
   onManageAccounts: () => void
@@ -113,8 +116,8 @@ export interface SettingsProps {
   gamesCount: number
   ui: UiPrefs
   onUiChange: (patch: Partial<UiPrefs>) => void
-  /** Enregistre immédiatement (pas de bouton global). */
-  onSaveSettings: (patch: Partial<Settings>) => Promise<void>
+  /** Enregistre immédiatement (pas de bouton global) et renvoie les paramètres enregistrés. */
+  onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>
   onLogin: (p: LoginPlatform) => void
   onLogout: (p: FriendPlatform) => Promise<void>
   onRescan: () => void

@@ -1,5 +1,5 @@
 // Section « Comptes » : une carte de connexion par plateforme.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { plural } from '@shared/text'
 import type { Account, FriendPlatform, FriendsResult, Settings } from '@shared/types'
 import type { LoginPlatform } from '../../contracts'
@@ -102,8 +102,10 @@ export function AccountsSection({ settings, accounts, friends, loginPending, onL
   const lastConfirm = useRef<FriendPlatform>('steam')
   if (confirm) lastConfirm.current = confirm
   const shown = confirm ?? lastConfirm.current
+  // Bouton « Déconnecter » à l'origine du dialogue, retenu avant l'autoFocus d'« Annuler ».
+  const trigger = useRef<HTMLElement | null>(null)
 
-  useFocusTrap(!!confirm)
+  useFocusTrap(!!confirm, trigger)
 
   const logout = async (): Promise<void> => {
     if (!confirm || busy) return
@@ -136,7 +138,10 @@ export function AccountsSection({ settings, accounts, friends, loginPending, onL
               settings={settings}
               loginPending={loginPending}
               onConnect={() => onLogin(p)}
-              onDisconnect={() => setConfirm(p)}
+              onDisconnect={(el) => {
+                trigger.current = el
+                setConfirm(p)
+              }}
               onConfigure={() => onConfigure(p)}
             />
           )
@@ -172,7 +177,7 @@ interface CardProps {
   settings: Settings
   loginPending: LoginPlatform | null
   onConnect: () => void
-  onDisconnect: () => void
+  onDisconnect: (trigger: HTMLElement) => void
   onConfigure: () => void
 }
 
@@ -264,7 +269,7 @@ function ConnectionCard({ platform, account, state, count, settings, loginPendin
             </button>
           )}
           {account ? (
-            <button className="btn btn-ghost btn-sm set-ghost-danger" onClick={onDisconnect}>
+            <button className="btn btn-ghost btn-sm set-ghost-danger" onClick={(e) => onDisconnect(e.currentTarget)}>
               Déconnecter
             </button>
           ) : (
@@ -282,10 +287,10 @@ function ConnectionCard({ platform, account, state, count, settings, loginPendin
 }
 
 /** Garde le focus clavier dans la boîte de dialogue ouverte, et le rend au déclencheur à la fermeture. */
-function useFocusTrap(active: boolean): void {
+function useFocusTrap(active: boolean, triggerRef: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     if (!active) return
-    const trigger = document.activeElement as HTMLElement | null
+    const trigger = triggerRef.current
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Tab') return
       const dialog = document.querySelector<HTMLElement>('.dialog[role="dialog"]')
@@ -307,5 +312,5 @@ function useFocusTrap(active: boolean): void {
       window.removeEventListener('keydown', onKey)
       if (trigger?.isConnected) trigger.focus()
     }
-  }, [active])
+  }, [active, triggerRef])
 }

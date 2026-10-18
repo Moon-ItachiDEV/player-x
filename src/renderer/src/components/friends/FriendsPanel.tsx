@@ -172,7 +172,7 @@ function useInGamePulse(entries: Entry[]): ReadonlySet<string> {
   return pulsing
 }
 
-export function FriendsPanel({ result, accounts, games, demo, loading, onRefresh, onHide, onOpenAccounts }: FriendsPanelProps): React.JSX.Element {
+export function FriendsPanel({ result, accounts, games, demo, discordConfigured, loading, onRefresh, onHide, onOpenAccounts }: FriendsPanelProps): React.JSX.Element {
   const [filter, setFilter] = useState<Filter>('all')
   const [collapsed, setCollapsed] = useState<Collapsed>(readCollapsed)
 
@@ -204,15 +204,18 @@ export function FriendsPanel({ result, accounts, games, demo, loading, onRefresh
     writeCollapsed(next)
   }
 
-  const noAccount = !hasData && accounts.length === 0 && !demo
-  const firstLoad = !noAccount && !hasData && !settled
+  // Premier chargement d'abord : « aucun compte » seulement une fois la réponse arrivée.
+  const firstLoad = !hasData && !settled
+  const noAccount = !firstLoad && !hasData && accounts.length === 0 && !demo && !discordConfigured
+  // Serveur Discord seul, sans membre en ligne : la légende Discord plutôt que la générique.
+  const captionFilter: Filter = active === 'all' && discordConfigured && platforms.length === 0 ? 'discord' : active
   const allOffline = visible.length > 0 && bySection.offline.length === visible.length
 
   let body: React.ReactNode
-  if (noAccount) {
-    body = <NoAccount onOpenAccounts={onOpenAccounts} />
-  } else if (firstLoad) {
+  if (firstLoad) {
     body = <SkeletonRows />
+  } else if (noAccount) {
+    body = <NoAccount onOpenAccounts={onOpenAccounts} />
   } else {
     body = (
       <>
@@ -228,7 +231,7 @@ export function FriendsPanel({ result, accounts, games, demo, loading, onRefresh
             </div>
           </div>
         ))}
-        {visible.length === 0 && errors.length === 0 && <p className="caption fr-caption">{emptyCaption(active)}</p>}
+        {visible.length === 0 && errors.length === 0 && <p className="caption fr-caption">{emptyCaption(captionFilter)}</p>}
         {allOffline && <p className="caption fr-caption">Tous tes amis sont hors ligne.</p>}
         {SECTIONS.map(({ key, label }) => {
           const list = bySection[key]

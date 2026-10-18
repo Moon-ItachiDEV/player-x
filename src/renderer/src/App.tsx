@@ -27,6 +27,8 @@ function loadUi(): UiPrefs {
 
 export default function App(): React.JSX.Element {
   const [ui, setUi] = useState<UiPrefs>(loadUi)
+  // Remonté ici : les toasts ne laissent la place du panneau d'amis que quand la coque est affichée.
+  const [entered, setEntered] = useState(false)
   const updateUi = useCallback((patch: Partial<UiPrefs>) => {
     setUi((prev) => {
       const next = { ...prev, ...patch }
@@ -47,16 +49,22 @@ export default function App(): React.JSX.Element {
   }, [ui])
 
   return (
-    <ToastProvider right={ui.friendsPanel === 'open' ? 'var(--friends-w)' : '0px'}>
-      <Shell ui={ui} updateUi={updateUi} />
+    <ToastProvider right={entered && ui.friendsPanel === 'open' ? 'var(--friends-w)' : '0px'}>
+      <Shell ui={ui} updateUi={updateUi} entered={entered} setEntered={setEntered} />
     </ToastProvider>
   )
 }
 
-function Shell({ ui, updateUi }: { ui: UiPrefs; updateUi: (p: Partial<UiPrefs>) => void }): React.JSX.Element {
+interface ShellProps {
+  ui: UiPrefs
+  updateUi: (p: Partial<UiPrefs>) => void
+  entered: boolean
+  setEntered: (v: boolean) => void
+}
+
+function Shell({ ui, updateUi, entered, setEntered }: ShellProps): React.JSX.Element {
   const notify = useToast()
   const [ready, setReady] = useState(false)
-  const [entered, setEntered] = useState(false)
   const [view, setView] = useState<View>('library')
   const [section, setSection] = useState<SettingsSection>('accounts')
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -74,6 +82,10 @@ function Shell({ ui, updateUi }: { ui: UiPrefs; updateUi: (p: Partial<UiPrefs>) 
   const [loginPending, setLoginPending] = useState<LoginPlatform | null>(null)
   const [loginError, setLoginError] = useState<string | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  // Seule la dernière connexion lancée met à jour l'état et le toast « login ».
+  const loginSeq = useRef(0)
+  // Jeu en cours de lancement, lu sans attendre le rendu (double clic).
+  const launchingRef = useRef<string | null>(null)
 
   const loadGames = useCallback(
     async (refresh = false) => {
@@ -112,7 +124,7 @@ function Shell({ ui, updateUi }: { ui: UiPrefs; updateUi: (p: Partial<UiPrefs>) 
     })
     loadGames()
     return api.onGamesChanged(() => api.getGames().then(setGames))
-  }, [loadGames])
+  }, [loadGames, setEntered])
 
   useEffect(() => {
     if (!entered) return
@@ -138,10 +150,13 @@ function Shell({ ui, updateUi }: { ui: UiPrefs; updateUi: (p: Partial<UiPrefs>) 
     const next = await api.saveSettings(patch)
     setSettings(next)
     if ('demoMode' in patch) setGames(await api.getGames())
+    return next
   }, [])
 
   const login = useCallback(
     async (platform: LoginPlatform) => {
+      const seq = ++loginSeq.current
+      const latest = (): boolean => seq === loginSeq.current
       setLoginError(null)
       setLoginPending(platform)
       notify(platform === 'psn' ? 'Connexion à PlayStation…' : 'Termine la connexion dans ton navigateur…', { kind: 'loading', id: 'login' })
@@ -149,16 +164,17 @@ function Shell({ ui, updateUi }: { ui: UiPrefs; updateUi: (p: Partial<UiPrefs>) 
         const account = platform === 'psn' ? await api.connectPsn() : await api.login(platform)
         setAccounts(await api.getAccounts())
         setEntered(true)
-        notify(`Connecté en tant que ${account.name}`, { kind: 'success', id: 'login', avatarUrl: account.avatarUrl })
+        if (latest()) notify(`Connecté en tant que ${account.name}`, { kind: 'success', id: 'login', avatarUrl: account.avatarUrl })
       } catch (e) {
+        if (!latest()) return
         const msg = errorMessage(e)
         setLoginError(msg === 'Connexion annulée.' ? null : msg)
         notify(msg, { kind: msg === 'Connexion annulée.' ? 'info' : 'error', id: 'login' })
       } finally {
-        setLoginPending(null)
+        if (latest()) setLoginPending(null)
       }
     },
-    [notify]
+    [notify, setEntered]
   )
 
   const logout = useCallback(
@@ -171,6 +187,9 @@ function Shell({ ui, updateUi }: { ui: UiPrefs; updateUi: (p: Partial<UiPrefs>) 
 
   const launch = useCallback(
     async (game: Game) => {
+      // Déjà en cours de lancement : on ignore le second clic.
+      if (launchingRef.current === game.id) return
+      launchingRef.current = game.id
       setLaunchingId(game.id)
       try {
         await api.launchGame(game.id)
@@ -179,7 +198,10 @@ function Shell({ ui, updateUi }: { ui: UiPrefs; updateUi: (p: Partial<UiPrefs>) 
       } catch (e) {
         notify(`Impossible de lancer ${game.name} : ${errorMessage(e)}`, { kind: 'error' })
       } finally {
-        setTimeout(() => setLaunchingId((id) => (id === game.id ? null : id)), 1500)
+        setTimeout(() => {
+          if (launchingRef.current === game.id) launchingRef.current = null
+          setLaunchingId((id) => (id === game.id ? null : id))
+        }, 1500)
       }
     },
     [notify, settings?.demoMode]
@@ -201,7 +223,7 @@ function Shell({ ui, updateUi }: { ui: UiPrefs; updateUi: (p: Partial<UiPrefs>) 
   const enableDemo = useCallback(async () => {
     await saveSettings({ demoMode: true })
     setEntered(true)
-  }, [saveSettings])
+  }, [saveSettings, setEntered])
 
   const goSettings = (s: SettingsSection): void => {
     setSection(s)
@@ -276,6 +298,7 @@ function Shell({ ui, updateUi }: { ui: UiPrefs; updateUi: (p: Partial<UiPrefs>) 
             games={games}
             accounts={accounts}
             friends={friends}
+            launchingId={launchingId}
             onOpenGame={(g) => setOpenGameId(g.id)}
             onLaunch={launch}
             onManageAccounts={() => goSettings('accounts')}
@@ -309,6 +332,7 @@ function Shell({ ui, updateUi }: { ui: UiPrefs; updateUi: (p: Partial<UiPrefs>) 
           accounts={accounts}
           games={games}
           demo={settings.demoMode}
+          discordConfigured={!!settings.discordGuildId}
           loading={friendsLoading}
           onRefresh={loadFriends}
           onHide={() => updateUi({ friendsPanel: 'hidden' })}

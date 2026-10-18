@@ -676,7 +676,9 @@ kbd {
   width: 24px;
   height: 24px;
 }
-.toast:hover .toast-close {
+.toast:hover .toast-close,
+.toast:focus-within .toast-close,
+.toast-close:focus-visible {
   opacity: 1;
 }
 @keyframes toast-in {

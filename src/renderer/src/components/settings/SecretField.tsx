@@ -7,7 +7,8 @@ interface BaseProps {
   label: string
   /** Valeur enregistrée. */
   value: string
-  onSave: (v: string) => Promise<void>
+  /** Enregistre et renvoie la valeur réellement stockée. */
+  onSave: (v: string) => Promise<string>
   /** Toasts après enregistrement / effacement. */
   savedToast: string
   clearedToast: string
@@ -46,11 +47,12 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
     if (!dirty || error || saving) return
     setSaving(true)
     try {
-      await onSave(next)
-      setDraft(next)
+      // On repart de la valeur stockée : le champ ne reste pas « modifié » si elle diffère de la saisie.
+      const stored = await onSave(next)
+      setDraft(stored)
       setShown(false)
       // Jamais la valeur elle-même dans un toast.
-      notify(next ? savedToast : clearedToast, { kind: 'success', id: `field-${id}` })
+      notify(stored ? savedToast : clearedToast, { kind: 'success', id: `field-${id}` })
     } catch (err) {
       notify(errorMessage(err), { kind: 'error', id: `field-${id}` })
     } finally {
