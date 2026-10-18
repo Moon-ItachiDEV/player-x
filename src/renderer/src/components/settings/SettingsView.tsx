@@ -7,6 +7,7 @@ import { useSystemReducedMotion } from '../../motion'
 import { Icon, type IconName } from '../ui/Icon'
 import { Segmented, Switch } from '../ui/Overlay'
 import { STORE_LONG, StoreTag } from '../ui/StoreTag'
+import { AboutSection } from './AboutSection'
 import { AccountsSection, connState, PLATFORMS } from './AccountsSection'
 import { AdvancedSection } from './AdvancedSection'
 import { Collapse, SectionHead, SettingRow, storeCaption, useNow } from './parts'
@@ -21,7 +22,8 @@ const NAV: { group: string; items: { id: SettingsSection; label: string; icon: I
       { id: 'interface', label: 'Interface', icon: 'sliders' }
     ]
   },
-  { group: 'Avancé', items: [{ id: 'advanced', label: 'Avancé', icon: 'key' }] }
+  { group: 'Avancé', items: [{ id: 'advanced', label: 'Avancé', icon: 'key' }] },
+  { group: 'Player X', items: [{ id: 'about', label: 'À propos', icon: 'info' }] }
 ]
 
 export function SettingsView(props: SettingsProps): React.JSX.Element {
@@ -93,12 +95,14 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
               gamesCount={props.gamesCount}
               demo={settings.demoMode}
               onRescan={props.onRescan}
+              onOpenSetup={props.onOpenSetup}
             />
           )}
           {section === 'interface' && <InterfaceSection ui={props.ui} onUiChange={props.onUiChange} />}
           {section === 'advanced' && (
             <AdvancedSection settings={settings} report={props.report} onSaveSettings={props.onSaveSettings} focusCard={focusCard} onFocused={clearFocus} />
           )}
+          {section === 'about' && <AboutSection />}
         </div>
       </div>
     </div>
@@ -114,9 +118,10 @@ interface LibraryProps {
   gamesCount: number
   demo: boolean
   onRescan: () => void
+  onOpenSetup: () => void
 }
 
-function LibrarySection({ report, scanning, lastScanAt, gamesCount, demo, onRescan }: LibraryProps): React.JSX.Element {
+function LibrarySection({ report, scanning, lastScanAt, gamesCount, demo, onRescan, onOpenSetup }: LibraryProps): React.JSX.Element {
   const now = useNow()
   return (
     <>
@@ -154,6 +159,12 @@ function LibrarySection({ report, scanning, lastScanAt, gamesCount, demo, onResc
           <span className="num">{gamesCount}</span> jeu{gamesCount > 1 ? 'x' : ''} dans ta bibliothèque
         </span>
       </div>
+      <SettingRow label="Jeux favoris" value="Mis en avant en tête de ta bibliothèque">
+        <button className="btn btn-secondary" onClick={onOpenSetup} disabled={gamesCount === 0}>
+          <Icon name="star" size={16} />
+          Choisir mes jeux favoris
+        </button>
+      </SettingRow>
     </>
   )
 }

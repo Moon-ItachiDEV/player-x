@@ -60,10 +60,24 @@ export interface ScanReport {
   error?: string
 }
 
+/** État des mises à jour automatiques (GitHub Releases, via electron-updater). */
+export type UpdateState =
+  /** Version de développement ou non installée : pas de mise à jour automatique. */
+  | { state: 'disabled' }
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'none'; checkedAt: number }
+  | { state: 'downloading'; version: string; percent: number }
+  /** Téléchargée : s'installe au prochain redémarrage (ou tout de suite via installUpdate). */
+  | { state: 'ready'; version: string }
+  | { state: 'error'; message: string }
+
 export interface LauncherApi {
   getGames(refresh?: boolean): Promise<Game[]>
   launchGame(id: string): Promise<void>
   toggleFavorite(id: string): Promise<Game[]>
+  /** Remplace d'un coup la liste des favoris (écran de démarrage). Renvoie la bibliothèque à jour. */
+  setFavorites(ids: string[]): Promise<Game[]>
   getScanReport(): Promise<ScanReport[]>
   /** Prévient quand la bibliothèque change en arrière-plan (jaquettes récupérées…). Renvoie la fonction de désabonnement. */
   onGamesChanged(cb: () => void): () => void
@@ -79,6 +93,13 @@ export interface LauncherApi {
   openGameFolder(id: string): Promise<void>
   /** Abandonne une connexion Steam/Discord en attente (libère le port de retour). */
   cancelLogin(): Promise<void>
+  getUpdateState(): Promise<UpdateState>
+  /** Lance une vérification et renvoie l'état obtenu juste après. */
+  checkForUpdates(): Promise<UpdateState>
+  /** Redémarre l'appli pour installer la mise à jour téléchargée. */
+  installUpdate(): Promise<void>
+  /** Prévient à chaque changement d'état. Renvoie la fonction de désabonnement. */
+  onUpdateState(cb: (s: UpdateState) => void): () => void
   platform: string
   version: string
 }

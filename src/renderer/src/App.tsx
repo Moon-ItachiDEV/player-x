@@ -9,7 +9,9 @@ import { Login } from './components/Login'
 import { Profile } from './components/Profile'
 import { Rail } from './components/Rail'
 import { SettingsView } from './components/settings/SettingsView'
+import { Setup } from './components/setup/Setup'
 import { TopBar } from './components/TopBar'
+import { UpdateNotice } from './components/UpdateNotice'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
 import { COVER_MIN, type LoginPlatform, type SettingsSection, type UiPrefs, type View } from './contracts'
 import { closeTarget, takeMorphSource, useSystemReducedMotion, withViewTransition } from './motion'
@@ -19,6 +21,16 @@ import './styles/transitions.css'
 const api = window.launcher
 
 const DEFAULT_UI: UiPrefs = { friendsPanel: 'open', coverSize: 'M', reduceMotion: false, transparency: true, visualFx: true }
+
+const SETUP_KEY = 'pg.setup'
+
+function setupDone(): boolean {
+  try {
+    return localStorage.getItem(SETUP_KEY) !== null
+  } catch {
+    return true
+  }
+}
 
 function loadUi(): UiPrefs {
   try {
@@ -32,6 +44,8 @@ export default function App(): React.JSX.Element {
   const [ui, setUi] = useState<UiPrefs>(loadUi)
   // Remonté ici : les toasts ne laissent la place du panneau d'amis que quand la coque est affichée.
   const [entered, setEntered] = useState(false)
+  // Écran de démarrage (choix des favoris) : une fois après l'entrée, puis à la demande. `first` = premier passage.
+  const [setup, setSetup] = useState<{ open: boolean; first: boolean }>(() => ({ open: !setupDone(), first: !setupDone() }))
   const systemReduced = useSystemReducedMotion()
   const updateUi = useCallback((patch: Partial<UiPrefs>) => {
     setUi((prev) => {
@@ -55,8 +69,8 @@ export default function App(): React.JSX.Element {
   }, [ui, systemReduced])
 
   return (
-    <ToastProvider right={entered && ui.friendsPanel === 'open' ? 'var(--friends-w)' : '0px'}>
-      <Shell ui={ui} updateUi={updateUi} entered={entered} setEntered={setEntered} />
+    <ToastProvider right={entered && !setup.open && ui.friendsPanel === 'open' ? 'var(--friends-w)' : '0px'}>
+      <Shell ui={ui} updateUi={updateUi} entered={entered} setEntered={setEntered} setup={setup} setSetup={setSetup} />
     </ToastProvider>
   )
 }
@@ -66,9 +80,11 @@ interface ShellProps {
   updateUi: (p: Partial<UiPrefs>) => void
   entered: boolean
   setEntered: (v: boolean) => void
+  setup: { open: boolean; first: boolean }
+  setSetup: (v: { open: boolean; first: boolean }) => void
 }
 
-function Shell({ ui, updateUi, entered, setEntered }: ShellProps): React.JSX.Element {
+function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProps): React.JSX.Element {
   const notify = useToast()
   const [ready, setReady] = useState(false)
   const [view, setView] = useState<View>('library')
@@ -231,6 +247,29 @@ function Shell({ ui, updateUi, entered, setEntered }: ShellProps): React.JSX.Ele
     setEntered(true)
   }, [saveSettings, setEntered])
 
+  const closeSetup = useCallback(() => {
+    try {
+      localStorage.setItem(SETUP_KEY, '1')
+    } catch {
+      /* stockage indisponible : l'écran reviendra au prochain lancement */
+    }
+    setSetup({ open: false, first: false })
+    setView('library')
+  }, [setSetup])
+
+  const finishSetup = useCallback(
+    async (ids: string[]) => {
+      try {
+        setGames(await api.setFavorites(ids))
+        closeSetup()
+        if (ids.length) notify(`${ids.length} favori${ids.length > 1 ? 's' : ''} enregistré${ids.length > 1 ? 's' : ''}`, { kind: 'success' })
+      } catch (e) {
+        notify(errorMessage(e), { kind: 'error' })
+      }
+    },
+    [closeSetup, notify]
+  )
+
   const goSettings = (s: SettingsSection): void => {
     setSection(s)
     setView('settings')
@@ -259,6 +298,22 @@ function Shell({ ui, updateUi, entered, setEntered }: ShellProps): React.JSX.Ele
         onCancel={() => api.cancelLogin()}
         onSkip={() => setEntered(true)}
         onDemo={enableDemo}
+      />
+    )
+  }
+
+  if (setup.open) {
+    return (
+      <Setup
+        firstRun={setup.first}
+        games={games}
+        report={report}
+        scanning={scanning}
+        demo={settings.demoMode}
+        onRescan={() => loadGames(true)}
+        onEnableDemo={enableDemo}
+        onDone={finishSetup}
+        onSkip={closeSetup}
       />
     )
   }
@@ -337,6 +392,7 @@ function Shell({ ui, updateUi, entered, setEntered }: ShellProps): React.JSX.Ele
             onLogin={login}
             onLogout={logout}
             onRescan={() => loadGames(true)}
+            onOpenSetup={() => setSetup({ open: true, first: false })}
             loginPending={loginPending}
           />
         )}
@@ -378,6 +434,7 @@ function Shell({ ui, updateUi, entered, setEntered }: ShellProps): React.JSX.Ele
         onFavorite={toggleFavorite}
         onOpenFolder={openFolder}
       />
+      <UpdateNotice onOpenAbout={() => goSettings('about')} />
     </div>
   )
 }

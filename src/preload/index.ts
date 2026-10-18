@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { LauncherApi } from '@shared/types'
+import type { LauncherApi, UpdateState } from '@shared/types'
 
 declare const __APP_VERSION__: string
 
@@ -7,6 +7,7 @@ const api: LauncherApi = {
   getGames: (refresh) => ipcRenderer.invoke('games:list', refresh),
   launchGame: (id) => ipcRenderer.invoke('games:launch', id),
   toggleFavorite: (id) => ipcRenderer.invoke('games:favorite', id),
+  setFavorites: (ids) => ipcRenderer.invoke('games:set-favorites', ids),
   getScanReport: () => ipcRenderer.invoke('games:report'),
   onGamesChanged: (cb) => {
     const listener = (): void => cb()
@@ -23,6 +24,14 @@ const api: LauncherApi = {
   openExternal: (url) => ipcRenderer.invoke('shell:open', url),
   openGameFolder: (id) => ipcRenderer.invoke('games:open-folder', id),
   cancelLogin: () => ipcRenderer.invoke('accounts:cancel'),
+  getUpdateState: () => ipcRenderer.invoke('update:get'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdateState: (cb) => {
+    const listener = (_e: unknown, s: UpdateState): void => cb(s)
+    ipcRenderer.on('update:state', listener)
+    return () => ipcRenderer.removeListener('update:state', listener)
+  },
   platform: process.platform,
   version: __APP_VERSION__
 }

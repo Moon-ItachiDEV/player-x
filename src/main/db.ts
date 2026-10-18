@@ -119,3 +119,17 @@ export function toggleFavorite(id: string): void {
   db.run('UPDATE games SET favorite = 1 - favorite WHERE id = ?', [id])
   persist()
 }
+
+/** Seuls les jeux listés restent en favoris. */
+export function setFavorites(ids: string[]): void {
+  db.run('BEGIN')
+  try {
+    db.run('UPDATE games SET favorite = 0')
+    for (const id of ids) db.run('UPDATE games SET favorite = 1 WHERE id = ?', [id])
+    db.run('COMMIT')
+  } catch (e) {
+    db.run('ROLLBACK')
+    throw e
+  }
+  persist()
+}

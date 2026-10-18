@@ -120,6 +120,14 @@ function registerIpc(): void {
     } else db.toggleFavorite(id)
     return games()
   })
+  ipcMain.handle('games:set-favorites', async (_e, ids: string[]) => {
+    // Seuls les identifiants de la bibliothèque actuelle sont gardés.
+    const known = new Set((await games()).map((g) => g.id))
+    const favorites = (Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string' && known.has(id))
+    if (getSettings().demoMode) db.setKv('demoState', { ...demoState(), favorites })
+    else db.setFavorites(favorites)
+    return games()
+  })
   ipcMain.handle('friends:list', async () => {
     if (getSettings().demoMode) return { friends: DEMO_FRIENDS, errors: {} }
     return getAllFriends()
