@@ -8,6 +8,7 @@ import { DEMO_FRIENDS, DEMO_GAMES, demoGames } from './services/demo'
 import { connectPsn, getAllFriends } from './services/friends'
 import { getScanReport, launch, scanAllGames } from './services/games'
 import { getAccounts, getSettings, removeAccount, saveSettings } from './services/settings'
+import { getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked } from './services/stats'
 import { initUpdater } from './services/updater'
 
 try {
@@ -152,6 +153,11 @@ function registerIpc(): void {
     }
     return next
   })
+  // Stats Battlefield 6 : vraies données même en mode démo (jamais de stats inventées).
+  ipcMain.handle('bf6:search', (_e, name: unknown) => searchBf6(name))
+  ipcMain.handle('bf6:stats', (_e, account: unknown, refresh?: boolean) => getBf6Stats(account, refresh === true))
+  ipcMain.handle('bf6:tracked', () => getBf6Tracked())
+  ipcMain.handle('bf6:set-tracked', (_e, tracked: unknown) => setBf6Tracked(tracked))
   ipcMain.handle('shell:open', (_e, url: string) => {
     if (url.startsWith('https://')) return shell.openExternal(url)
   })

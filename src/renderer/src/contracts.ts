@@ -2,7 +2,7 @@
 import type { RefObject } from 'react'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings } from '@shared/types'
 
-export type View = 'library' | 'profile' | 'settings'
+export type View = 'library' | 'profile' | 'stats' | 'settings'
 export type SettingsSection = 'accounts' | 'library' | 'interface' | 'advanced' | 'about'
 export type LoginPlatform = 'steam' | 'discord' | 'psn'
 
@@ -103,6 +103,12 @@ export interface ProfileProps {
   onLaunch: (g: Game) => void
   onManageAccounts: () => void
   onShowFriends: () => void
+}
+
+/** components/stats/Stats.tsx → `export function Stats` (stats Battlefield 6 via gametools.network) */
+export interface StatsProps {
+  /** Pour le visuel de Battlefield 6 quand le jeu est dans la bibliothèque. */
+  games: Game[]
 }
 
 /** components/settings/SettingsView.tsx → `export function SettingsView` */
