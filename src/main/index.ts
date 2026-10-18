@@ -9,7 +9,7 @@ import { DEMO_FRIENDS, DEMO_GAMES, demoGames } from './services/demo'
 import { connectPsn, getAllFriends } from './services/friends'
 import { getScanReport, launch, scanAllGames } from './services/games'
 import { getAccounts, getSettings, removeAccount, saveSettings } from './services/settings'
-import { getBf6Art, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked } from './services/stats'
+import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { nudgePlaytime, startPlaytimeTracker, withPlaytime } from './services/playtime'
 import { initUpdater } from './services/updater'
 
@@ -175,6 +175,7 @@ function registerIpc(): void {
   ipcMain.handle('bf6:art', () => getBf6Art())
   ipcMain.handle('bf6:tracked', () => getBf6Tracked())
   ipcMain.handle('bf6:set-tracked', (_e, tracked: unknown) => setBf6Tracked(tracked))
+  ipcMain.handle('bf6:history', (_e, account: unknown) => getBf6History(account))
   ipcMain.handle('shell:open', (_e, url: string) => {
     if (url.startsWith('https://')) return shell.openExternal(url)
   })
@@ -188,6 +189,7 @@ app.whenReady().then(async () => {
   registerIpc()
   initUpdater()
   startPlaytimeTracker(notifyGamesChanged)
+  startBf6Recorder()
   createWindow()
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
   if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())

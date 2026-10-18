@@ -1,5 +1,5 @@
 import { net } from 'electron'
-import type { Bf6Account, Bf6Art, Bf6Match, Bf6Platform, Bf6Row, Bf6Snapshot, Bf6Stats, Bf6Tracked } from '@shared/types'
+import type { Bf6Account, Bf6Art, Bf6Match, Bf6Platform, Bf6Point, Bf6Row, Bf6Snapshot, Bf6Stats, Bf6Tracked } from '@shared/types'
 import { getKv, setKv } from '../db'
 import { fetchAssets } from './artwork'
 import { getSettings } from './settings'
@@ -207,6 +207,7 @@ export async function getBf6Stats(input: unknown, refresh = false): Promise<Bf6S
   try {
     const stats = await fetchStats(account)
     if (!stats) throw new UserError(NOT_FOUND)
+    recordPoint(account, stats)
     return remember(stats, keyOf(account))
   } catch (e) {
     const message = e instanceof UserError ? e.message : SERVICE_ERROR
@@ -248,7 +249,77 @@ export function setBf6Tracked(input: unknown): Bf6Tracked {
     .filter((a): a is Bf6Account => !!a && !seen.has(keyOf(a)) && !!seen.add(keyOf(a)))
     .slice(0, MAX_RIVALS)
   setKv(trackedKey(), { me, rivals })
+  // Premier relevé tout de suite pour un compte qu'on vient de suivre (ses stats sont déjà en cache).
+  const cache = getKv<Cache>('bf6Cache', {})
+  for (const a of [me, ...rivals]) {
+    if (!a || getBf6History(a).length) continue
+    const hit = cache[keyOf(a)]
+    if (hit) recordPoint(a, hit.stats)
+  }
   return { me, rivals }
+}
+
+// ---------- progression (un relevé par jour, gardé sur ce PC) ----------
+
+/** Les relevés suivent le pseudo et la plateforme : un compte enregistré sans personaId garde son historique. */
+const historyKey = (a: Bf6Account): string => `${a.platform}:${a.name.toLowerCase()}`
+const MAX_POINTS = 400
+/** Relevé automatique de ton compte si le dernier a plus de 20 h (Player X ouvert sans passer par la page). */
+const AUTO_AFTER_MS = 20 * 3600_000
+
+type History = Record<string, Bf6Point[]>
+
+const dayOf = (t: number): string => new Date(t).toDateString()
+
+function isTracked(a: Bf6Account): boolean {
+  const k = historyKey(a)
+  return ['bf6Tracked', 'demoBf6Tracked'].some((key) => {
+    const t = getKv<Partial<Bf6Tracked>>(key, {})
+    return [t.me, ...(t.rivals ?? [])].some((x) => x && historyKey(x) === k)
+  })
+}
+
+function recordPoint(account: Bf6Account, s: Bf6Stats): void {
+  if (!isTracked(account)) return
+  const at = Date.now()
+  const point: Bf6Point = {
+    at,
+    kills: s.kills,
+    deaths: s.deaths,
+    wins: s.wins,
+    losses: s.losses,
+    matches: s.matches,
+    secondsPlayed: s.secondsPlayed,
+    killsPerMinute: s.killsPerMinute,
+    accuracy: s.accuracy
+  }
+  const all = getKv<History>('bf6History', {})
+  const list = all[historyKey(account)] ?? []
+  const last = list.at(-1)
+  // Même jour : le relevé du jour est remplacé par le plus récent.
+  if (last && dayOf(last.at) === dayOf(at)) list[list.length - 1] = point
+  else list.push(point)
+  all[historyKey(account)] = list.slice(-MAX_POINTS)
+  setKv('bf6History', all)
+}
+
+export function getBf6History(input: unknown): Bf6Point[] {
+  const account = cleanAccount(input)
+  return account ? (getKv<History>('bf6History', {})[historyKey(account)] ?? []) : []
+}
+
+/** Au démarrage puis toutes les 6 h : un relevé de ton compte, pour que la courbe avance même sans ouvrir la page. */
+export function startBf6Recorder(): void {
+  const run = (): void => {
+    if (getSettings().demoMode) return
+    const me = getKv<Partial<Bf6Tracked>>('bf6Tracked', {}).me
+    if (!me) return
+    const last = getBf6History(me).at(-1)
+    if (last && Date.now() - last.at < AUTO_AFTER_MS) return
+    getBf6Stats(me, true).catch(() => {})
+  }
+  setTimeout(run, 90_000)
+  setInterval(run, 6 * 3600_000)
 }
 
 // ---------- visuels du jeu ----------

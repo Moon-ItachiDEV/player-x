@@ -165,6 +165,19 @@ export interface Bf6Art {
   logoUrl?: string
 }
 
+/** Relevé quotidien des totaux d'un compte, pour la courbe de progression (gardé sur ce PC). */
+export interface Bf6Point {
+  at: number
+  kills: number
+  deaths: number
+  wins: number
+  losses: number
+  matches: number
+  secondsPlayed: number
+  killsPerMinute: number
+  accuracy: number
+}
+
 /** Ton compte et les joueurs que tu suis pour le classement. */
 export interface Bf6Tracked {
   me: Bf6Account | null
@@ -206,6 +219,8 @@ export interface LauncherApi {
   bf6Art(): Promise<Bf6Art>
   bf6GetTracked(): Promise<Bf6Tracked>
   bf6SetTracked(tracked: Bf6Tracked): Promise<Bf6Tracked>
+  /** Relevés quotidiens d'un compte suivi, du plus ancien au plus récent. */
+  bf6History(account: Bf6Account): Promise<Bf6Point[]>
   /** Alertes d'amis à afficher dans la fenêtre (quand elle est au premier plan ; sinon Windows les affiche). */
   onFriendAlert(cb: (alerts: FriendAlert[]) => void): () => void
   /** Clic sur une notification Windows : ouvrir le panneau d'amis. */

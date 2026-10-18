@@ -37,6 +37,7 @@ const api: LauncherApi = {
   bf6Art: () => ipcRenderer.invoke('bf6:art'),
   bf6GetTracked: () => ipcRenderer.invoke('bf6:tracked'),
   bf6SetTracked: (tracked) => ipcRenderer.invoke('bf6:set-tracked', tracked),
+  bf6History: (account) => ipcRenderer.invoke('bf6:history', account),
   onFriendAlert: (cb) => {
     const listener = (_e: unknown, alerts: FriendAlert[]): void => cb(alerts)
     ipcRenderer.on('friends:alert', listener)
