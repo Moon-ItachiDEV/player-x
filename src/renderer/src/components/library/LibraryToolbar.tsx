@@ -88,7 +88,7 @@ export function LibraryToolbar(props: ToolbarProps): React.JSX.Element {
                 className={`chip ${chip === c.id ? 'active' : ''}`}
                 aria-pressed={chip === c.id}
                 // Les jaquettes glissent vers leur nouvelle place (transition de vue).
-                onClick={() => c.id !== chip && withViewTransition(() => onChip(c.id), { kind: 'reorder' })}
+                onClick={() => (c.id === chip ? onChip(c.id) : withViewTransition(() => onChip(c.id), { kind: 'reorder' }))}
               >
                 {c.id === 'fav' && <Icon name="star" size={12} filled className="lib-chip-star" />}
                 {c.id !== 'all' && c.id !== 'fav' && <span className="chip-dot" style={{ background: `var(--store-${c.id})` }} />}

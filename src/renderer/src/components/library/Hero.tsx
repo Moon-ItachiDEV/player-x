@@ -237,7 +237,6 @@ export function Hero({ games, friends, launchingId, onLaunch, onOpen, onFavorite
             className="hero-pause"
             aria-label={paused ? 'Reprendre le défilement' : 'Mettre en pause le défilement'}
             title={paused ? 'Reprendre le défilement' : 'Mettre en pause le défilement'}
-            aria-pressed={paused}
             onClick={() => setPaused((p) => !p)}
           >
             <Icon name={paused ? 'play' : 'pause'} size={14} />

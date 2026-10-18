@@ -346,7 +346,8 @@
 :root[data-fx='on'] .hero-art-img.fx-loop {
   animation: hero-drift 26s var(--ease-drift) infinite alternate;
 }
-:root[data-fx='on'] .hero.is-offscreen .hero-art-img {
+:root[data-fx='on'] .hero.is-offscreen .hero-art-img,
+:root[data-fx='on'] .hero.is-paused .hero-art-img {
   animation-play-state: paused;
 }
 @keyframes hero-drift {

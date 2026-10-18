@@ -1,4 +1,6 @@
-/* Transitions de vue (motion.ts). Toutes ≤ 340 ms : la page ne reçoit pas les clics pendant ce temps. */
+/* Transitions de vue (motion.ts). Toutes ≤ 340 ms. */
+/* Les clics traversent l'animation (double-clic lent sur une jaquette pendant l'ouverture de la fiche). */
+::view-transition { pointer-events: none; }
 ::view-transition-group(root) {
   animation-duration: 220ms;
   animation-timing-function: var(--ease-out);
