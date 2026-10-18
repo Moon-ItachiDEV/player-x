@@ -25,7 +25,8 @@ function primaryAccount(accounts: Account[]): Account | undefined {
 
 const TOP_ITEMS: { view: View; icon: IconName; label: string }[] = [
   { view: 'library', icon: 'grid', label: 'Bibliothèque' },
-  { view: 'profile', icon: 'user', label: 'Profil' }
+  { view: 'profile', icon: 'user', label: 'Profil' },
+  { view: 'stats', icon: 'chart', label: 'Stats de jeu' }
 ]
 
 /** Barre latérale : logo, navigation, mode démo et avatar du compte. */

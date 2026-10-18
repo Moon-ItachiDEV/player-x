@@ -39,8 +39,8 @@ interface StoreItem {
 }
 
 /** Chemins exacts des images pour une liste d'appids (par lots de 50). */
-async function fetchAssets(appIds: string[]): Promise<Map<string, { cover?: string; hero?: string }>> {
-  const out = new Map<string, { cover?: string; hero?: string }>()
+export async function fetchAssets(appIds: string[]): Promise<Map<string, { cover?: string; hero?: string; logo?: string }>> {
+  const out = new Map<string, { cover?: string; hero?: string; logo?: string }>()
   for (let i = 0; i < appIds.length; i += 50) {
     const input = {
       ids: appIds.slice(i, i + 50).map((id) => ({ appid: Number(id) })),
@@ -56,7 +56,8 @@ async function fetchAssets(appIds: string[]): Promise<Map<string, { cover?: stri
       const url = (file?: string): string | undefined => (file ? CDN + a.asset_url_format!.replace('${FILENAME}', file).replace(/\?.*$/, '') : undefined)
       out.set(String(item.appid), {
         cover: url(a.library_capsule_2x ?? a.library_capsule),
-        hero: url(a.library_hero ?? a.library_hero_2x ?? a.page_background ?? a.header)
+        hero: url(a.library_hero ?? a.library_hero_2x ?? a.page_background ?? a.header),
+        logo: url(a.library_logo_2x ?? a.library_logo)
       })
     }
   }

@@ -72,6 +72,86 @@ export type UpdateState =
   | { state: 'ready'; version: string }
   | { state: 'error'; message: string }
 
+// ---------- Statistiques Battlefield 6 (gametools.network, non officiel) ----------
+
+/** Plateforme d'un compte Battlefield, telle que l'attend gametools.network. */
+export type Bf6Platform = 'ea' | 'pc' | 'steam' | 'psn' | 'xbox'
+
+/** Un compte Battlefield 6 (le même pseudo peut exister sur plusieurs plateformes). */
+export interface Bf6Account {
+  name: string
+  platform: Bf6Platform
+  personaId?: string
+  nucleusId?: string
+}
+
+/** Résultat d'une recherche de pseudo : le compte et ses éliminations quand elles ont pu être lues. */
+export interface Bf6Match extends Bf6Account {
+  kills: number | null
+}
+
+/** Une ligne de détail (arme, véhicule, classe, mode, carte). Les champs absents ne sont pas fournis par l'API. */
+export interface Bf6Row {
+  id: string
+  name: string
+  image?: string
+  kills?: number
+  deaths?: number
+  killDeath?: number
+  kpm?: number
+  accuracy?: number
+  headshots?: number
+  matches?: number
+  wins?: number
+  winPercent?: number
+  secondsPlayed?: number
+}
+
+export interface Bf6Stats {
+  account: Bf6Account
+  avatarUrl?: string
+  kills: number
+  deaths: number
+  killDeath: number
+  killsPerMinute: number
+  wins: number
+  losses: number
+  /** En %, 0 à 100. */
+  winPercent: number
+  accuracy: number
+  headshots: number
+  assists: number
+  revives: number
+  matches: number
+  secondsPlayed: number
+  bestClass?: string
+  weapons: Bf6Row[]
+  vehicles: Bf6Row[]
+  classes: Bf6Row[]
+  modes: Bf6Row[]
+  maps: Bf6Row[]
+}
+
+export interface Bf6Snapshot {
+  stats: Bf6Stats
+  fetchedAt: number
+  /** Données gardées d'une lecture précédente (le service n'a pas répondu). */
+  stale?: string
+}
+
+/** Visuels du jeu (catalogue Steam), chargés à l'exécution : rien n'est livré avec l'appli. */
+export interface Bf6Art {
+  heroUrl?: string
+  coverUrl?: string
+  logoUrl?: string
+}
+
+/** Ton compte et les joueurs que tu suis pour le classement. */
+export interface Bf6Tracked {
+  me: Bf6Account | null
+  rivals: Bf6Account[]
+}
+
 export interface LauncherApi {
   getGames(refresh?: boolean): Promise<Game[]>
   launchGame(id: string): Promise<void>
@@ -100,6 +180,13 @@ export interface LauncherApi {
   installUpdate(): Promise<void>
   /** Prévient à chaque changement d'état. Renvoie la fonction de désabonnement. */
   onUpdateState(cb: (s: UpdateState) => void): () => void
+  /** Cherche un pseudo Battlefield 6 sur toutes les plateformes. */
+  bf6Search(name: string): Promise<Bf6Match[]>
+  /** Stats d'un compte : gardées 10 min, sauf `refresh`. */
+  bf6Stats(account: Bf6Account, refresh?: boolean): Promise<Bf6Snapshot>
+  bf6Art(): Promise<Bf6Art>
+  bf6GetTracked(): Promise<Bf6Tracked>
+  bf6SetTracked(tracked: Bf6Tracked): Promise<Bf6Tracked>
   platform: string
   version: string
 }

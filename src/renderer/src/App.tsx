@@ -10,6 +10,7 @@ import { Profile } from './components/Profile'
 import { Rail } from './components/Rail'
 import { SettingsView } from './components/settings/SettingsView'
 import { Setup } from './components/setup/Setup'
+import { Stats } from './components/stats/Stats'
 import { TopBar } from './components/TopBar'
 import { UpdateNotice } from './components/UpdateNotice'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
@@ -403,6 +404,7 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
             onShowFriends={() => updateUi({ friendsPanel: 'open' })}
           />
         )}
+        {view === 'stats' && <Stats games={games} />}
         {view === 'settings' && (
           <SettingsView
             section={section}

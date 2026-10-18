@@ -32,6 +32,11 @@ const api: LauncherApi = {
     ipcRenderer.on('update:state', listener)
     return () => ipcRenderer.removeListener('update:state', listener)
   },
+  bf6Search: (name) => ipcRenderer.invoke('bf6:search', name),
+  bf6Stats: (account, refresh) => ipcRenderer.invoke('bf6:stats', account, refresh),
+  bf6Art: () => ipcRenderer.invoke('bf6:art'),
+  bf6GetTracked: () => ipcRenderer.invoke('bf6:tracked'),
+  bf6SetTracked: (tracked) => ipcRenderer.invoke('bf6:set-tracked', tracked),
   platform: process.platform,
   version: __APP_VERSION__
 }
