@@ -15,7 +15,7 @@ import './styles/shell.css'
 
 const api = window.launcher
 
-const DEFAULT_UI: UiPrefs = { friendsPanel: 'open', coverSize: 'M', reduceMotion: false, transparency: true }
+const DEFAULT_UI: UiPrefs = { friendsPanel: 'open', coverSize: 'M', reduceMotion: false, transparency: true, visualFx: true }
 
 function loadUi(): UiPrefs {
   try {

@@ -90,6 +90,11 @@
   --d-2: 180ms;
   --d-3: 260ms;
   --d-4: 420ms;
+  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1); /* entrée de survol, morphing, glissements */
+  --ease-drift: cubic-bezier(0.37, 0, 0.63, 1); /* boucles d'ambiance (sinus) */
+  --d-in: 220ms; /* réponse au survol */
+  --d-out: 320ms; /* retour au repos */
+  --d-5: 700ms; /* fondus d'ambiance (fond, carrousel) */
   /* Mise en page */
   --rail-w: 72px;
   --topbar-h: 48px;

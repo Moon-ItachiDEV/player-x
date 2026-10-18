@@ -12,6 +12,8 @@ export interface UiPrefs {
   coverSize: 'S' | 'M' | 'L'
   reduceMotion: boolean
   transparency: boolean
+  /** « Effets visuels » : relief des jaquettes, reflets, fond aux couleurs du jeu, parallaxe. */
+  visualFx: boolean
 }
 
 export const COVER_MIN: Record<UiPrefs['coverSize'], number> = { S: 136, M: 164, L: 200 }
