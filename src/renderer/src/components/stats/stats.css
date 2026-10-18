@@ -106,7 +106,7 @@
   flex-shrink: 0;
   padding: 3px;
   border-radius: 50%;
-  background: var(--brand-gradient);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-solid) 100%);
   box-shadow: 0 10px 30px -8px rgba(124, 58, 237, 0.7);
 }
 .bf-id-avatar .avatar {
@@ -186,6 +186,7 @@
   .bf-hero {
     flex-direction: column;
     align-items: flex-start;
+    justify-content: flex-end;
   }
 }
 
@@ -600,7 +601,7 @@
   background: var(--line-3);
 }
 .bf-step.is-1 .bf-step-avatar {
-  background: var(--brand-gradient);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-solid) 100%);
   box-shadow: 0 10px 30px -10px rgba(124, 58, 237, 0.8);
 }
 .bf-step-avatar .avatar {
@@ -760,6 +761,10 @@
 .bf-board-foot .bf-search {
   padding-top: 8px;
 }
+.bf-board-cancel {
+  margin-top: 10px;
+  font-size: 13px;
+}
 
 .bf-source {
   max-width: 720px;
@@ -817,10 +822,8 @@
   color: var(--text-2);
 }
 .bf-class.is-first .bf-class-icon {
-  background:
-    linear-gradient(var(--surface-1), var(--surface-1)) padding-box,
-    var(--brand-gradient) border-box;
-  border: 1px solid transparent;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
   color: var(--accent-text);
   box-shadow: 0 8px 22px -10px rgba(124, 58, 237, 0.8);
 }
