@@ -1,0 +1,54 @@
+# Publie une version de Player X : installeur NSIS + latest.yml + .blockmap sur GitHub Releases.
+# Déclenché par un tag vX.Y.Z (git tag v0.4.1 && git push --tags) ou à la main depuis l'onglet Actions.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      # Le tag doit correspondre à "version" dans package.json : electron-builder publie sous v<version>.
+      - name: Vérifier le tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::Le tag ${GITHUB_REF_NAME} ne correspond pas à la version de package.json (${version}). Mets à jour \"version\" puis recrée le tag."
+            exit 1
+          fi
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérifier les types
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Compiler
+        run: npx electron-vite build
+
+      # releaseType "release" (package.json › build.publish) : la release est publiée directement, pas en brouillon.
+      - name: Construire et publier l'installeur
+        run: npx electron-builder --win --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

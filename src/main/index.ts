@@ -8,6 +8,7 @@ import { DEMO_FRIENDS, DEMO_GAMES, demoGames } from './services/demo'
 import { connectPsn, getAllFriends } from './services/friends'
 import { getScanReport, launch, scanAllGames } from './services/games'
 import { getAccounts, getSettings, removeAccount, saveSettings } from './services/settings'
+import { initUpdater } from './services/updater'
 
 try {
   process.loadEnvFile(join(app.getAppPath(), '.env'))
@@ -157,6 +158,7 @@ function registerIpc(): void {
 app.whenReady().then(async () => {
   await db.initDb()
   registerIpc()
+  initUpdater()
   createWindow()
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
   if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())

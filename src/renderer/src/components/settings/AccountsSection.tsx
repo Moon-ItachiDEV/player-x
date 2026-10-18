@@ -19,6 +19,8 @@ const USES: Record<FriendPlatform, string[]> = {
   discord: ["Membres en ligne d'un serveur"],
   psn: ['Amis', 'Présence', 'Console']
 }
+/** Discord connecté sans serveur : le compte ne sert qu'au profil. */
+const DISCORD_PROFILE_ONLY = ['Profil']
 
 const CONNECT_LABEL: Record<FriendPlatform, string> = { steam: 'Connecter Steam', discord: 'Connecter Discord', psn: 'Connecter' }
 
@@ -41,6 +43,8 @@ export interface ConnState {
   message?: string
   fixes?: Fix[]
   canConnect?: boolean
+  /** Connecté, avec une option facultative à proposer (pas une alerte). */
+  tip?: { message: string; fix: Fix }
 }
 
 const CONNECTED: ConnState = { label: 'Connecté', tone: 'success' }
@@ -62,7 +66,12 @@ export function connState(p: FriendPlatform, account: Account | undefined, s: Se
   if (p === 'discord') {
     if (account) {
       if (err) return { label: 'Erreur', tone: 'danger', message: err, fixes: [configure()] }
-      if (!s.discordGuildId) return { label: 'Action requise', tone: 'warning', message: 'Indique un serveur dont le widget est activé.', fixes: [configure()] }
+      // Le serveur est facultatif : le compte seul est bien connecté.
+      if (!s.discordGuildId)
+        return {
+          ...CONNECTED,
+          tip: { message: "En option : choisis un serveur Discord dont le widget est activé pour voir ses membres en ligne.", fix: configure('Ajouter un serveur') }
+        }
       return CONNECTED
     }
     if (!s.discordClientId || !s.discordClientSecret)
@@ -194,7 +203,9 @@ function ConnectionCard({ platform, account, state, count, settings, loginPendin
     : account
       ? state.label === 'Connecté'
         ? platform === 'discord'
-          ? plural(count, 'membre en ligne', 'membres en ligne')
+          ? settings.discordGuildId
+            ? plural(count, 'membre en ligne', 'membres en ligne')
+            : 'Aucun serveur choisi'
           : plural(count, 'ami', 'amis')
         : 'Amis indisponibles pour le moment'
       : platform === 'psn'
@@ -228,12 +239,21 @@ function ConnectionCard({ platform, account, state, count, settings, loginPendin
         <div className="set-conn-uses">
           <span className="overline">Utilisé pour</span>
           <div className="set-conn-chips">
-            {USES[platform].map((u) => (
+            {(platform === 'discord' && !settings.discordGuildId ? DISCORD_PROFILE_ONLY : USES[platform]).map((u) => (
               <span key={u} className="set-use">
                 {u}
               </span>
             ))}
           </div>
+          {state.tip && (
+            <div className="set-tip">
+              <Icon name="info" size={16} />
+              <p>{state.tip.message}</p>
+              <button className="btn btn-secondary btn-sm" onClick={onConfigure}>
+                {state.tip.fix.label}
+              </button>
+            </div>
+          )}
         </div>
       ) : state.fixes ? (
         <div className={`set-alert ${state.tone}`}>

@@ -206,7 +206,8 @@ export function FriendsPanel({ result, accounts, games, demo, discordConfigured,
 
   // Premier chargement d'abord : « aucun compte » seulement une fois la réponse arrivée.
   const firstLoad = !hasData && !settled
-  const noAccount = !firstLoad && !hasData && accounts.length === 0 && !demo && !discordConfigured
+  // Un compte Discord seul n'apporte personne (il faut un serveur) : on propose les sources d'amis.
+  const noAccount = !firstLoad && !hasData && !accounts.some((a) => a.platform !== 'discord') && !demo && !discordConfigured
   // Serveur Discord seul, sans membre en ligne : la légende Discord plutôt que la générique.
   const captionFilter: Filter = active === 'all' && discordConfigured && platforms.length === 0 ? 'discord' : active
   const allOffline = visible.length > 0 && bySection.offline.length === visible.length

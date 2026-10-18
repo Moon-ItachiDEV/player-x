@@ -18,6 +18,20 @@ Sur l’écran d’accueil, **Essayer le mode démo** remplit l’interface avec
 
 Pour fabriquer l’installeur Windows : `npm run dist` (sortie dans `dist/`). Depuis Linux, il faut `wine64` et `wine32:i386`.
 
+## Mises à jour
+
+Player X vérifie les [GitHub Releases](https://github.com/Moon-ItachiDEV/player-x/releases) au démarrage puis toutes les 6 heures. Une nouvelle version se télécharge en arrière-plan et s’installe au prochain redémarrage (bouton **Redémarrer** du bandeau, ou **Paramètres › À propos**). Seule la version installée se met à jour, pas `npm run dev`.
+
+**Les versions 0.3.0 et plus anciennes n’ont pas de mise à jour automatique** : installe la 0.4.0 à la main une fois, les suivantes arriveront toutes seules.
+
+Pour publier une version :
+
+1. Monte la version : `npm version 0.4.1 --no-git-tag-version` (met à jour `version` dans `package.json` et `package-lock.json`).
+2. Commit et pousse sur `main`.
+3. `git tag v0.4.1 && git push --tags`
+
+L’action GitHub [`release.yml`](.github/workflows/release.yml) construit l’installeur sous Windows et publie la release avec `Player-X-Setup-<version>.exe`, son `.blockmap` et `latest.yml` (le fichier que lit l’appli). Le tag doit correspondre à `version`, sinon l’action s’arrête.
+
 ## Ce qui marche
 
 | Fonction | Comment |
@@ -58,7 +72,7 @@ Direction « Nuit Néon » : fond graphite, violet comme seule couleur de marque
 ```
 src/
   main/          processus Electron : base SQLite, scan des jeux, logins, amis
-    services/    games.ts, artwork.ts, auth.ts, friends.ts, settings.ts, demo.ts
+    services/    games.ts, artwork.ts, auth.ts, friends.ts, settings.ts, demo.ts, updater.ts
   preload/       pont sécurisé main ↔ interface
   renderer/src/
     components/  library/, friends/, settings/, ui/, GameSheet, Profile, Login, Rail, TopBar

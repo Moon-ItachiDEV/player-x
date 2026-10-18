@@ -1,7 +1,6 @@
-// Section « Avancé » : clés et applications développeur, mode démo, diagnostic, à propos.
+// Section « Avancé » : clés et applications développeur, mode démo, diagnostic.
 import { useEffect, useRef, useState } from 'react'
 import type { FriendPlatform, ScanReport, Settings } from '@shared/types'
-import { BrandMark } from '../ui/Brand'
 import { Icon } from '../ui/Icon'
 import { Switch } from '../ui/Overlay'
 import { StoreTag } from '../ui/StoreTag'
@@ -224,19 +223,6 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
             )}
           </div>
         </Collapse>
-      </div>
-
-      <h3 className="set-block-title">À propos</h3>
-      <div className="set-about">
-        <BrandMark height={22} />
-        <div>
-          <div className="set-about-name">
-            Player X · version <span className="num">{window.launcher.version}</span> (prototype)
-          </div>
-          <p className="caption">
-            L'application n'a pas de serveur : tes données restent sur ce PC et ne sont échangées qu'avec Steam, Discord et PlayStation.
-          </p>
-        </div>
       </div>
     </>
   )
