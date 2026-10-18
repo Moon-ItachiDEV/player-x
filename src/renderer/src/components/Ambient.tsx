@@ -19,8 +19,8 @@ function paint(canvas: HTMLCanvasElement, img: HTMLImageElement): void {
 const clamp = (v: number, max: number): number => (v < -max ? -max : v > max ? max : v)
 
 /**
- * Fond de page aux couleurs du jeu survolé, plus deux comportements globaux :
- * <html data-window> (pause des boucles quand la fenêtre n'a pas le focus) et les boutons magnétiques.
+ * Fond de page aux couleurs du jeu survolé, plus les boutons magnétiques (comportement global).
+ * <html data-window> est tenu par useWindowActivity (App), pour que la pause des boucles vaille aussi hors de la coque.
  */
 export function Ambient(): React.JSX.Element {
   const a = useRef<HTMLCanvasElement>(null)
@@ -96,23 +96,6 @@ export function Ambient(): React.JSX.Element {
       mo.disconnect()
       clearTimeout(timer)
       token++
-    }
-  }, [])
-
-  // Fenêtre inactive (masquée ou sans focus) : base.css met les boucles .fx-loop en pause.
-  useEffect(() => {
-    const root = document.documentElement
-    const set = (): void => {
-      root.dataset.window = document.hasFocus() && document.visibilityState === 'visible' ? 'active' : 'idle'
-    }
-    set()
-    window.addEventListener('focus', set)
-    window.addEventListener('blur', set)
-    document.addEventListener('visibilitychange', set)
-    return () => {
-      window.removeEventListener('focus', set)
-      window.removeEventListener('blur', set)
-      document.removeEventListener('visibilitychange', set)
     }
   }, [])
 

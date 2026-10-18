@@ -28,7 +28,7 @@ const FALLBACK: Record<FriendPlatform, string> = {
 
 const isNetworkError = (e: unknown): boolean =>
   (e instanceof TypeError && /fetch failed|network/i.test(e.message)) ||
-  (e instanceof Error && /net::ERR_(INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|NETWORK_CHANGED|CONNECTION_|TIMED_OUT|ADDRESS_UNREACHABLE)/.test(e.message))
+  (e instanceof Error && /net::ERR_(INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|NAME_RESOLUTION_FAILED|NETWORK_CHANGED|NETWORK_IO_SUSPENDED|NETWORK_ACCESS_DENIED|CONNECTION_|TIMED_OUT|ADDRESS_UNREACHABLE|PROXY_|TUNNEL_)/.test(e.message))
 
 function frenchError(e: unknown, fallback: string): string {
   if (e instanceof UserError) return e.message

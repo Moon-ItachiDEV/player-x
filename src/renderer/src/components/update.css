@@ -13,6 +13,16 @@
 .upd-dock > * {
   pointer-events: auto;
 }
+/* Place réservée en bas des pages, pour que le bandeau ne cache jamais la fin du contenu. */
+.shell:has(.upd-dock) > .content {
+  padding-bottom: 76px;
+}
+/* Fenêtre étroite : les toasts (à droite) passeraient sur le bandeau, on les monte au-dessus. */
+@media (max-width: 1260px) {
+  #root:has(.upd-dock) .toasts {
+    bottom: 96px;
+  }
+}
 
 /* ---------- prête ---------- */
 
@@ -46,7 +56,8 @@
   bottom: 10px;
   width: 2px;
   border-radius: 0 2px 2px 0;
-  background: var(--brand-gradient);
+  /* Violet seul : le cyan est réservé à « en jeu » */
+  background: linear-gradient(180deg, var(--accent), var(--accent-solid));
   opacity: 0.9;
 }
 
@@ -126,6 +137,13 @@
     color var(--d-1) var(--ease-out);
 }
 .upd-chip:hover {
+  border-color: var(--line-3);
+  color: var(--text-1);
+}
+.upd-chip:focus-visible {
+  box-shadow:
+    var(--sh-1),
+    var(--focus);
   border-color: var(--line-3);
   color: var(--text-1);
 }

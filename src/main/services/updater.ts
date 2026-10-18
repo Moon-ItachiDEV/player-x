@@ -47,12 +47,15 @@ const NO_RELEASE = new Set(['ERR_UPDATER_NO_PUBLISHED_VERSIONS', 'ERR_UPDATER_CH
 export function describeUpdateError(err: unknown): string | null {
   const e = (err ?? {}) as { code?: unknown; statusCode?: unknown }
   const code = typeof e.code === 'string' ? e.code : ''
-  const text = `${code} ${err instanceof Error ? err.stack || err.message : String(err)}`
+  // Sans le flux XML qu'electron-updater colle parfois au message (il peut contenir n'importe quel texte de version).
+  const raw = err instanceof Error ? err.stack || err.message : String(err)
+  const text = `${code} ${raw.split('\nXML:\n')[0]}`
   // Les erreurs HTTP sont parfois emballées : le statut reste lisible dans le texte (« HttpError: 404 … »).
   const status = typeof e.statusCode === 'number' ? e.statusCode : Number(/HttpError: (\d{3})/.exec(text)?.[1] ?? 0)
 
   if (NO_RELEASE.has(code) || /No published versions on GitHub/i.test(text)) return null
-  if (code === 'ERR_UPDATER_LATEST_VERSION_NOT_FOUND' && status === 404) return null
+  // Que des préversions sur GitHub : /releases/latest répond 404, ce n'est pas une panne.
+  if ((code === 'ERR_UPDATER_LATEST_VERSION_NOT_FOUND' || /Unable to find latest version on GitHub/i.test(text)) && status === 404) return null
   if (/ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_NAME_RESOLUTION_FAILED|ERR_NETWORK_CHANGED|ERR_ADDRESS_UNREACHABLE|ENOTFOUND|EAI_AGAIN|ENETUNREACH|EHOSTUNREACH/.test(text))
     return 'Pas de connexion à Internet. Player X réessaiera plus tard.'
   if (status === 429 || status === 403 || /rate limit/i.test(text))

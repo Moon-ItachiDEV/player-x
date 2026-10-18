@@ -85,6 +85,8 @@ async function games(refresh = false): Promise<Game[]> {
       db.replaceGames(applyArtwork(db.listGames()))
       notifyGamesChanged()
     })
+    // Le mode démo a pu s'activer pendant le scan : on rend alors la bibliothèque de démo.
+    if (getSettings().demoMode) return games()
   }
   return db.listGames()
 }

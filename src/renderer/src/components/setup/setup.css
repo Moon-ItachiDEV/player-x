@@ -530,6 +530,16 @@ button.setup-step-btn:hover {
     inset 0 1px 0 rgb(255 255 255 / 0.18),
     0 12px 32px -12px rgb(124 58 237 / 0.85);
 }
+.setup-cta:focus-visible,
+.setup-go:focus-visible {
+  box-shadow:
+    var(--focus),
+    0 12px 32px -12px rgb(124 58 237 / 0.85);
+}
+/* Le pied de page couvre le bas de la fenêtre : les toasts passent au-dessus. */
+#root:has(.setup-foot) .toasts {
+  bottom: 96px;
+}
 .setup-cta svg,
 .setup-go svg {
   margin-right: -4px;
@@ -1084,8 +1094,11 @@ button.setup-step-btn:hover {
 }
 /* Entrée en cascade au premier affichage (30 ms par jaquette, plafonnée à la 15e) */
 :root[data-fx='on'] .picks.is-entering .pick {
-  animation: pick-in 560ms var(--ease-glide) backwards;
-  animation-delay: calc(min(sibling-index() - 1, 14) * 30ms + 120ms);
+  /* setup-fade reste dans la liste : en retirant la classe, seule pick-in disparaît, rien ne rejoue (sinon toute la grille reclignote). */
+  animation:
+    setup-fade var(--d-3) var(--ease-out) backwards,
+    pick-in 560ms var(--ease-glide) backwards;
+  animation-delay: 0s, calc(min(sibling-index() - 1, 14) * 30ms + 120ms);
 }
 @keyframes pick-in {
   from {

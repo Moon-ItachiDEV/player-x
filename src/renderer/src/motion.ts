@@ -27,6 +27,25 @@ export function useSystemReducedMotion(): boolean {
   return reduced
 }
 
+/** Fenêtre inactive (masquée ou sans focus) : `<html data-window='idle'>`, base.css met alors les boucles .fx-loop en pause. Sur tous les écrans. */
+export function useWindowActivity(): void {
+  useEffect(() => {
+    const root = document.documentElement
+    const set = (): void => {
+      root.dataset.window = document.hasFocus() && document.visibilityState === 'visible' ? 'active' : 'idle'
+    }
+    set()
+    window.addEventListener('focus', set)
+    window.addEventListener('blur', set)
+    document.addEventListener('visibilitychange', set)
+    return () => {
+      window.removeEventListener('focus', set)
+      window.removeEventListener('blur', set)
+      document.removeEventListener('visibilitychange', set)
+    }
+  }, [])
+}
+
 // ---------- lissage ----------
 
 export interface Follower {

@@ -14,7 +14,7 @@ import { TopBar } from './components/TopBar'
 import { UpdateNotice } from './components/UpdateNotice'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
 import { COVER_MIN, type LoginPlatform, type SettingsSection, type UiPrefs, type View } from './contracts'
-import { closeTarget, takeMorphSource, useSystemReducedMotion, withViewTransition } from './motion'
+import { closeTarget, takeMorphSource, useSystemReducedMotion, useWindowActivity, withViewTransition } from './motion'
 import './styles/shell.css'
 import './styles/transitions.css'
 
@@ -47,6 +47,7 @@ export default function App(): React.JSX.Element {
   // Écran de démarrage (choix des favoris) : une fois après l'entrée, puis à la demande. `first` = premier passage.
   const [setup, setSetup] = useState<{ open: boolean; first: boolean }>(() => ({ open: !setupDone(), first: !setupDone() }))
   const systemReduced = useSystemReducedMotion()
+  useWindowActivity()
   const updateUi = useCallback((patch: Partial<UiPrefs>) => {
     setUi((prev) => {
       const next = { ...prev, ...patch }
@@ -108,12 +109,16 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
   const loginSeq = useRef(0)
   // Jeu en cours de lancement, lu sans attendre le rendu (double clic).
   const launchingRef = useRef<string | null>(null)
+  // Change à chaque bascule du mode démo : un scan lancé avant ne doit pas remplacer la nouvelle bibliothèque.
+  const libraryEpoch = useRef(0)
 
   const loadGames = useCallback(
     async (refresh = false) => {
+      const epoch = libraryEpoch.current
       setScanning(true)
       try {
         const list = await api.getGames(refresh)
+        if (epoch !== libraryEpoch.current) return
         setGames(list)
         if (refresh) notify(`Bibliothèque à jour · ${list.length} jeu${list.length > 1 ? 'x' : ''}`, { kind: 'success', id: 'scan' })
       } catch (e) {
@@ -174,7 +179,10 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
   const saveSettings = useCallback(async (patch: Partial<Settings>) => {
     const next = await api.saveSettings(patch)
     setSettings(next)
-    if ('demoMode' in patch) setGames(await api.getGames())
+    if ('demoMode' in patch) {
+      libraryEpoch.current++
+      setGames(await api.getGames())
+    }
     return next
   }, [])
 
@@ -250,22 +258,29 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     setEntered(true)
   }, [saveSettings, setEntered])
 
-  const closeSetup = useCallback(() => {
-    try {
-      localStorage.setItem(SETUP_KEY, '1')
-    } catch {
-      /* stockage indisponible : l'écran reviendra au prochain lancement */
-    }
-    setSetup({ open: false, first: false })
-    setView('library')
-  }, [setSetup])
+  /** Ferme l'écran de démarrage : vers la bibliothèque après un choix ou au premier passage, sinon on reste où on était (Paramètres). */
+  const closeSetup = useCallback(
+    (toLibrary: boolean) => {
+      try {
+        localStorage.setItem(SETUP_KEY, '1')
+      } catch {
+        /* stockage indisponible : l'écran reviendra au prochain lancement */
+      }
+      setSetup({ open: false, first: false })
+      if (toLibrary) setView('library')
+    },
+    [setSetup]
+  )
 
   const finishSetup = useCallback(
     async (ids: string[]) => {
       try {
-        setGames(await api.setFavorites(ids))
-        closeSetup()
-        if (ids.length) notify(`${ids.length} favori${ids.length > 1 ? 's' : ''} enregistré${ids.length > 1 ? 's' : ''}`, { kind: 'success' })
+        const list = await api.setFavorites(ids)
+        setGames(list)
+        closeSetup(true)
+        // Compté sur ce qui a vraiment été enregistré (des jeux ont pu disparaître entre-temps).
+        const saved = list.filter((g) => g.favorite).length
+        if (saved) notify(`${saved} favori${saved > 1 ? 's' : ''} enregistré${saved > 1 ? 's' : ''}`, { kind: 'success' })
       } catch (e) {
         notify(errorMessage(e), { kind: 'error' })
       }
@@ -316,7 +331,7 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
         onRescan={() => loadGames(true)}
         onEnableDemo={enableDemo}
         onDone={finishSetup}
-        onSkip={closeSetup}
+        onSkip={() => closeSetup(setup.first)}
       />
     )
   }
