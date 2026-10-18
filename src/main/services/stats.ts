@@ -2,6 +2,7 @@ import { net } from 'electron'
 import type { Bf6Account, Bf6Art, Bf6Match, Bf6Platform, Bf6Row, Bf6Snapshot, Bf6Stats, Bf6Tracked } from '@shared/types'
 import { getKv, setKv } from '../db'
 import { fetchAssets } from './artwork'
+import { getSettings } from './settings'
 
 // Statistiques Battlefield 6 via gametools.network : EA n'a pas d'API publique, ce service communautaire
 // lit le service de stats du jeu et le rend en JSON, sans clé. Tout passe par le processus principal (pas de CORS).
@@ -71,7 +72,7 @@ function rows(list: unknown, nameKeys: string[]): Bf6Row[] {
   if (!Array.isArray(list)) return []
   return list.filter(isObj).map((r, i) => ({
     id: str(r.id) ?? String(i),
-    name: nameKeys.map((k) => str(r[k])).find(Boolean) ?? '—',
+    name: nameKeys.map((k) => str(r[k])).find(Boolean) ?? 'Sans nom',
     image: str(r.image)?.startsWith('https://') ? str(r.image) : undefined,
     kills: num(r.kills),
     deaths: num(r.deaths),
@@ -184,10 +185,12 @@ const keyOf = (a: Bf6Account): string => `${a.platform}:${a.personaId ?? a.name.
 
 type Cache = Record<string, { stats: Bf6Stats; fetchedAt: number }>
 
-function remember(stats: Bf6Stats): Bf6Snapshot {
+/** `alias` : clé demandée, quand elle diffère de celle du profil renvoyé (compte enregistré sans personaId). */
+function remember(stats: Bf6Stats, alias?: string): Bf6Snapshot {
   const fetchedAt = Date.now()
   const cache = getKv<Cache>('bf6Cache', {})
   cache[keyOf(stats.account)] = { stats, fetchedAt }
+  if (alias && alias !== keyOf(stats.account)) cache[alias] = { stats, fetchedAt }
   // On ne garde que les plus récents.
   const kept = Object.entries(cache)
     .sort((a, b) => b[1].fetchedAt - a[1].fetchedAt)
@@ -204,7 +207,7 @@ export async function getBf6Stats(input: unknown, refresh = false): Promise<Bf6S
   try {
     const stats = await fetchStats(account)
     if (!stats) throw new UserError(NOT_FOUND)
-    return remember(stats)
+    return remember(stats, keyOf(account))
   } catch (e) {
     const message = e instanceof UserError ? e.message : SERVICE_ERROR
     // Hors ligne ou service en panne : on garde la dernière lecture, en le disant.
@@ -227,8 +230,13 @@ function cleanAccount(v: unknown): Bf6Account | null {
   }
 }
 
+/** En mode démo, les joueurs suivis vivent à part : la démo ne touche jamais aux vraies données. */
+function trackedKey(): string {
+  return getSettings().demoMode ? 'demoBf6Tracked' : 'bf6Tracked'
+}
+
 export function getBf6Tracked(): Bf6Tracked {
-  return { me: null, rivals: [], ...getKv<Partial<Bf6Tracked>>('bf6Tracked', {}) }
+  return { me: null, rivals: [], ...getKv<Partial<Bf6Tracked>>(trackedKey(), {}) }
 }
 
 export function setBf6Tracked(input: unknown): Bf6Tracked {
@@ -239,7 +247,7 @@ export function setBf6Tracked(input: unknown): Bf6Tracked {
     .map(cleanAccount)
     .filter((a): a is Bf6Account => !!a && !seen.has(keyOf(a)) && !!seen.add(keyOf(a)))
     .slice(0, MAX_RIVALS)
-  setKv('bf6Tracked', { me, rivals })
+  setKv(trackedKey(), { me, rivals })
   return { me, rivals }
 }
 
