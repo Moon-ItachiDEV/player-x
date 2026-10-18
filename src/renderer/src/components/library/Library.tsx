@@ -50,7 +50,9 @@ function sortGames(list: Game[], sort: LibSort): Game[] {
       ? byName
       : sort === 'launches'
         ? (a: Game, b: Game) => (b.launches ?? 0) - (a.launches ?? 0) || byRecent(a, b) || byName(a, b)
-        : (a: Game, b: Game) => byRecent(a, b) || byName(a, b)
+        : sort === 'playtime'
+          ? (a: Game, b: Game) => (b.playtime ?? 0) - (a.playtime ?? 0) || byRecent(a, b) || byName(a, b)
+          : (a: Game, b: Game) => byRecent(a, b) || byName(a, b)
   return [...list].sort(cmp)
 }
 

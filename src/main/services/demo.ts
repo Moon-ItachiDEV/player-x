@@ -28,20 +28,21 @@ const BASE_GAMES: Game[] = [
   { id: 'ea:bf6', store: 'ea', storeId: 'Origin.OFR.50.0005577', name: 'Battlefield™ 6', installDir: 'C:\\Program Files\\EA Games\\Battlefield 6' }
 ]
 
-// Historique fictif : [id, il y a combien d'heures, nombre de lancements, favori]
-const HISTORY: [string, number, number, boolean][] = [
-  ['steam:1245620', 2, 23, true],
-  ['ea:bf6', 26, 12, true],
-  ['steam:730', 50, 41, false],
-  ['steam:1086940', 120, 9, true],
-  ['epic:RocketLeague', 200, 15, false],
-  ['steam:413150', 500, 4, false]
+// Historique fictif : [id, il y a combien d'heures, nombre de lancements, favori, minutes jouées]
+const HISTORY: [string, number, number, boolean, number][] = [
+  ['steam:1245620', 2, 23, true, 7_390],
+  ['ea:bf6', 26, 12, true, 2_745],
+  ['steam:730', 50, 41, false, 11_820],
+  ['steam:1086940', 120, 9, true, 1_960],
+  ['epic:RocketLeague', 200, 15, false, 1_310],
+  ['steam:413150', 500, 4, false, 385]
 ]
 
 export function demoGames(now = Date.now()): Game[] {
   return BASE_GAMES.map((g) => {
     const h = HISTORY.find(([id]) => id === g.id)
-    return h ? { ...g, lastPlayed: now - h[1] * 3600_000, launches: h[2], favorite: h[3] } : { ...g, launches: 0 }
+    if (!h) return { ...g, launches: 0 }
+    return { ...g, lastPlayed: now - h[1] * 3600_000, launches: h[2], favorite: h[3], playtime: h[4], playtimeSource: g.store === 'steam' ? 'steam' : 'local' }
   })
 }
 

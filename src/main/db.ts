@@ -20,6 +20,7 @@ export async function initDb(): Promise<void> {
       install_dir TEXT, cover_url TEXT, hero_url TEXT, last_played INTEGER, favorite INTEGER DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS launches (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, started INTEGER NOT NULL, ended INTEGER NOT NULL);
   `)
   // Migration : colonne ajoutée après la première version.
   try {
@@ -97,7 +98,18 @@ export function replaceGames(games: Game[]): void {
       const old = keep.get(g.id)
       db.run(
         'INSERT OR REPLACE INTO games (id, store, store_id, name, install_dir, cover_url, hero_url, last_played, favorite, exe_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [g.id, g.store, g.storeId, g.name, g.installDir ?? null, g.coverUrl ?? null, g.heroUrl ?? null, old?.lastPlayed ?? g.lastPlayed ?? null, (old ? old.favorite : g.favorite) ? 1 : 0, g.exePath ?? null]
+        [
+          g.id,
+          g.store,
+          g.storeId,
+          g.name,
+          g.installDir ?? null,
+          g.coverUrl ?? null,
+          g.heroUrl ?? null,
+          old?.lastPlayed ?? g.lastPlayed ?? null,
+          (old ? old.favorite : g.favorite) ? 1 : 0,
+          g.exePath ?? null
+        ]
       )
     }
     db.run('COMMIT')
@@ -132,4 +144,27 @@ export function setFavorites(ids: string[]): void {
     throw e
   }
   persist()
+}
+
+// --- sessions de jeu (temps de jeu mesuré par Player X) ---
+
+/** Ouvre une session et renvoie son identifiant. */
+export function openSession(gameId: string, at: number): number {
+  db.run('INSERT INTO sessions (game_id, started, ended) VALUES (?, ?, ?)', [gameId, at, at])
+  const id = db.exec('SELECT last_insert_rowid()')[0].values[0][0] as number
+  persist()
+  return id
+}
+
+/** Prolonge les sessions en cours : `ended` est la dernière fois où le jeu a été vu, même si Player X se ferme ensuite. */
+export function touchSessions(ids: number[], at: number): void {
+  if (!ids.length) return
+  for (const id of ids) db.run('UPDATE sessions SET ended = ? WHERE id = ?', [at, id])
+  persist()
+}
+
+/** Minutes jouées par jeu, toutes sessions confondues. */
+export function playtimeByGame(): Map<string, number> {
+  const res = db.exec('SELECT game_id, SUM(ended - started) FROM sessions GROUP BY game_id')
+  return new Map((res[0]?.values ?? []).map((r) => [r[0] as string, (r[1] as number) / 60_000]))
 }

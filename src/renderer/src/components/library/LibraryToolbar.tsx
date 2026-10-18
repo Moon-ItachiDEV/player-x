@@ -7,9 +7,9 @@ import { Menu } from '../ui/Overlay'
 import { KIND_LABEL } from '../ui/StoreTag'
 
 export type LibChip = 'all' | 'fav' | Store
-export type LibSort = 'recent' | 'name' | 'launches'
+export type LibSort = 'recent' | 'name' | 'launches' | 'playtime'
 
-export const SORT_LABEL: Record<LibSort, string> = { recent: 'Récents', name: 'Nom (A–Z)', launches: 'Plus lancés' }
+export const SORT_LABEL: Record<LibSort, string> = { recent: 'Récents', name: 'Nom (A–Z)', launches: 'Plus lancés', playtime: 'Plus joués' }
 export const STORES: Store[] = ['steam', 'epic', 'ea']
 
 interface ToolbarProps {
@@ -40,10 +40,7 @@ export function LibraryToolbar(props: ToolbarProps): React.JSX.Element {
     const el = sentinel.current
     if (!el) return
     const root = el.closest('.content')
-    const io = new IntersectionObserver(
-      ([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.top < (e.rootBounds?.top ?? 0)),
-      { root }
-    )
+    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.top < (e.rootBounds?.top ?? 0)), { root })
     io.observe(el)
     return () => io.disconnect()
   }, [])

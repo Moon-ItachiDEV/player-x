@@ -14,6 +14,11 @@ export interface Game {
   /** Nombre de lancements depuis Plateforme Gaming. */
   launches?: number
   favorite?: boolean
+  /** Temps de jeu en minutes : compteur Steam pour les jeux Steam, sinon mesuré par Player X. */
+  playtime?: number
+  playtimeSource?: 'steam' | 'local'
+  /** Le jeu tourne en ce moment sur ce PC. */
+  running?: boolean
 }
 
 export type FriendPlatform = 'steam' | 'discord' | 'psn'

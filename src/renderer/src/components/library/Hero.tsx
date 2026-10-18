@@ -49,7 +49,10 @@ export function Hero({ games, friends, launchingId, onLaunch, onOpen, onFavorite
   const done = (u: string): void => setLoaded((prev) => new Set(prev).add(u))
 
   const n = games.length
-  const i = Math.max(0, games.findIndex((g) => g.id === currentId))
+  const i = Math.max(
+    0,
+    games.findIndex((g) => g.id === currentId)
+  )
   const game = games[i] as Game | undefined
   const art = game ? resolveArt(game, failed) : {}
   const shownUrl = art.hero ?? art.cover ?? null
@@ -174,7 +177,9 @@ export function Hero({ games, friends, launchingId, onLaunch, onOpen, onFavorite
       aria-label={carousel ? 'Jeux à la une' : `${kicker} : ${name}`}
     >
       <div className="hero-stage" aria-hidden="true">
-        {outgoing && outgoing.id !== game.id && <HeroArt key={outgoing.id} game={outgoing} state="out" failed={failed} loaded={loaded} onFail={fail} onLoad={done} />}
+        {outgoing && outgoing.id !== game.id && (
+          <HeroArt key={outgoing.id} game={outgoing} state="out" failed={failed} loaded={loaded} onFail={fail} onLoad={done} />
+        )}
         <HeroArt key={game.id} game={game} state="in" failed={failed} loaded={loaded} onFail={fail} onLoad={done} />
       </div>
       <div className="hero-scrim" aria-hidden="true" />
@@ -307,12 +312,7 @@ function HeroBody({ game, kicker, slide, launching, onLaunch, onOpen, onFavorite
         {!!game.launches && <span className="num">{plural(game.launches, 'lancement', 'lancements')}</span>}
       </div>
       <div className="hero-actions">
-        <button
-          className={`btn btn-primary btn-play ${launching ? 'is-launching' : ''}`}
-          data-magnetic=""
-          disabled={launching}
-          onClick={() => onLaunch(game)}
-        >
+        <button className={`btn btn-primary btn-play ${launching ? 'is-launching' : ''}`} data-magnetic="" disabled={launching} onClick={() => onLaunch(game)}>
           {launching ? (
             <>
               <span className="spinner" />

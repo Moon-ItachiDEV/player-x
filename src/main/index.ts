@@ -9,6 +9,7 @@ import { connectPsn, getAllFriends } from './services/friends'
 import { getScanReport, launch, scanAllGames } from './services/games'
 import { getAccounts, getSettings, removeAccount, saveSettings } from './services/settings'
 import { getBf6Art, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked } from './services/stats'
+import { nudgePlaytime, startPlaytimeTracker, withPlaytime } from './services/playtime'
 import { initUpdater } from './services/updater'
 
 try {
@@ -89,7 +90,7 @@ async function games(refresh = false): Promise<Game[]> {
     // Le mode démo a pu s'activer pendant le scan : on rend alors la bibliothèque de démo.
     if (getSettings().demoMode) return games()
   }
-  return db.listGames()
+  return withPlaytime(db.listGames())
 }
 
 function registerIpc(): void {
@@ -106,6 +107,7 @@ function registerIpc(): void {
     // La session n'est comptée qu'une fois le jeu vraiment lancé.
     await launch(game)
     db.recordLaunch(id)
+    nudgePlaytime()
   })
   ipcMain.handle('games:report', () => getScanReport())
   ipcMain.handle('games:open-folder', async (_e, id: string) => {
@@ -168,6 +170,7 @@ app.whenReady().then(async () => {
   await db.initDb()
   registerIpc()
   initUpdater()
+  startPlaytimeTracker(notifyGamesChanged)
   createWindow()
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
   if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())

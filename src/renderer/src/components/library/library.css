@@ -576,3 +576,20 @@
 .lib-report-none {
   margin-top: 12px;
 }
+
+/* Jeu en cours sur ce PC : pastille cyan et filet cyan autour de la jaquette */
+.lib-card-live {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+}
+.lib-card.is-running .lib-card-box {
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--st-ingame) 60%, transparent),
+    0 10px 28px -12px color-mix(in srgb, var(--st-ingame) 45%, transparent);
+}
+.lib-card.is-running:is(:hover, :focus-visible) .lib-card-live {
+  opacity: 0;
+  transition: opacity var(--d-in) var(--ease-glide);
+}

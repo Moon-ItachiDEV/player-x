@@ -35,7 +35,8 @@ export function RecentShelf({ games, launchingId, onOpen, onLaunch, onSeeAll }: 
     const onTransitionEnd = (e: TransitionEvent): void => {
       if (e.propertyName !== 'flex-basis' || !(e.target instanceof HTMLElement)) return
       update()
-      if (e.target.matches(':has(:focus-visible)')) e.target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: motionReduced() ? 'auto' : 'smooth' })
+      if (e.target.matches(':has(:focus-visible)'))
+        e.target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: motionReduced() ? 'auto' : 'smooth' })
     }
     update()
     const ro = new ResizeObserver(update)
@@ -155,7 +156,13 @@ function ShelfTile({ game, launching, track, onOpen, onLaunch }: TileProps): Rea
       </div>
       {/* Toute la tuile ouvre la fiche ; le bouton rond lance le jeu. */}
       <button className="shelf-tile-open" aria-label={`${name}, ${meta}`} title={name} onClick={open} />
-      <button className="shelf-tile-play" aria-label={`Jouer à ${name}`} title={launching ? 'Lancement…' : 'Jouer'} disabled={launching} onClick={() => onLaunch(game)}>
+      <button
+        className="shelf-tile-play"
+        aria-label={`Jouer à ${name}`}
+        title={launching ? 'Lancement…' : 'Jouer'}
+        disabled={launching}
+        onClick={() => onLaunch(game)}
+      >
         {launching ? <span className="spinner" /> : <Icon name="play" size={16} />}
       </button>
     </div>
