@@ -1,5 +1,6 @@
 // Section « Avancé » : clés et applications développeur, mode démo, diagnostic.
 import { useEffect, useRef, useState } from 'react'
+import { discordGuildIdFrom } from '@shared/text'
 import type { FriendPlatform, ScanReport, Settings } from '@shared/types'
 import { Icon } from '../ui/Icon'
 import { Switch } from '../ui/Overlay'
@@ -15,6 +16,8 @@ const PREFS_KEY = 'pg.settings'
 
 const steamKey = (v: string): string | null => (/^[0-9a-f]{32}$/i.test(v) ? null : 'Une clé Steam Web API fait 32 caractères (chiffres et lettres de A à F).')
 const discordId = (v: string): string | null => (/^\d{15,22}$/.test(v) ? null : 'Un identifiant Discord ne contient que des chiffres (17 à 20 en général).')
+// Serveur : l'ID seul ou le lien « JSON API » copié depuis les réglages du widget.
+const guildId = (v: string): string | null => discordId(discordGuildIdFrom(v))
 
 interface Props {
   settings: Settings
@@ -151,10 +154,12 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
             savedToast="Serveur enregistré"
             clearedToast="Serveur retiré"
             placeholder="Identifiant numérique du serveur"
-            validate={discordId}
+            validate={guildId}
             masculine
           />
-          <p className="set-help">Le widget doit être activé : Paramètres du serveur › Widget. L'ID du serveur s'affiche sur la même page.</p>
+          <p className="set-help">
+            Dans les paramètres du serveur Discord, active « Activer le widget du serveur » et enregistre. Copie ensuite l'« Identifiant du serveur » affiché juste en dessous (le lien « JSON API » marche aussi).
+          </p>
         </section>
 
         <section className="set-adv-card" ref={(el) => void (cards.current.psn = el)} aria-labelledby="set-adv-psn">

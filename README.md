@@ -55,7 +55,7 @@ Tout se règle dans **Paramètres** de l’appli (ou dans un fichier `.env`, voi
 
 - **Clé Steam Web API** : https://steamcommunity.com/dev/apikey
 - **Discord** : crée une appli sur https://discord.com/developers/applications, copie Client ID et Client Secret, et ajoute la redirection `http://127.0.0.1:47823/discord/callback` dans OAuth2.
-- **Serveur Discord** : ID du serveur (clic droit > Copier l’identifiant, en mode développeur) avec le widget activé.
+- **Serveur Discord** : dans les paramètres du serveur, active « Activer le widget du serveur » et enregistre, puis copie l’« Identifiant du serveur » affiché en dessous (le lien « JSON API » marche aussi).
 - **PlayStation** : connecte-toi sur playstation.com puis ouvre https://ca.account.sony.com/api/v1/ssocookie et copie la valeur `npsso`.
 
 ## Design

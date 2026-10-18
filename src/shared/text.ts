@@ -53,3 +53,9 @@ export function capitalize(s: string): string {
 export function plural(n: number, one: string, many: string): string {
   return `${n} ${n > 1 ? many : one}`
 }
+
+/** Identifiant d'un serveur Discord, retrouvé dans ce qui a été collé (ID seul, lien « JSON API » ou lien du widget). */
+export function discordGuildIdFrom(input: string): string {
+  const t = input.trim()
+  return (t.match(/guilds\/(\d{15,22})/) ?? t.match(/[?&]id=(\d{15,22})/) ?? t.match(/^(\d{15,22})$/))?.[1] ?? t
+}

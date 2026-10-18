@@ -7,7 +7,9 @@ import {
   getUserFriendsAccountIds,
   type AuthTokensResponse
 } from 'psn-api'
+import { net } from 'electron'
 import type { Account, Friend, FriendPlatform, FriendsResult, FriendStatus } from '@shared/types'
+import { discordGuildIdFrom } from '@shared/text'
 import { getAccounts, getSettings, saveAccount } from './settings'
 
 // ---------- Messages d'erreur ----------
@@ -24,7 +26,9 @@ const FALLBACK: Record<FriendPlatform, string> = {
   psn: 'Impossible de récupérer tes amis PlayStation pour le moment.'
 }
 
-const isNetworkError = (e: unknown): boolean => e instanceof TypeError && /fetch failed|network/i.test(e.message)
+const isNetworkError = (e: unknown): boolean =>
+  (e instanceof TypeError && /fetch failed|network/i.test(e.message)) ||
+  (e instanceof Error && /net::ERR_(INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|NETWORK_CHANGED|CONNECTION_|TIMED_OUT|ADDRESS_UNREACHABLE)/.test(e.message))
 
 function frenchError(e: unknown, fallback: string): string {
   if (e instanceof UserError) return e.message
@@ -74,18 +78,38 @@ async function steamFriends(account: Account, key: string): Promise<Friend[]> {
 
 // ---------- Discord ----------
 // L'API OAuth de Discord ne donne pas accès à la liste d'amis. À la place on lit le widget
-// public d'un serveur (Paramètres du serveur > Widget > Activer) : membres en ligne et jeu en cours.
+// public d'un serveur (paramètres du serveur, « Activer le widget du serveur ») : membres en ligne et jeu en cours.
 
 interface DiscordWidget {
   members: { id: string; username: string; avatar_url: string; status: string; activity?: { name: string } }[]
 }
 
-async function discordServerMembers(guildId: string): Promise<Friend[]> {
-  const res = await fetch(`https://discord.com/api/guilds/${guildId}/widget.json`)
-  if (res.status === 403) throw new UserError('Le widget de ce serveur Discord est désactivé (Paramètres du serveur > Widget).')
-  if (!res.ok) throw new Error(`Discord ${res.status}`)
+const DISCORD_WIDGET_OFF =
+  'Le widget de ce serveur est désactivé. Dans les paramètres du serveur Discord, active « Activer le widget du serveur » puis enregistre les modifications.'
+
+async function discordServerMembers(rawId: string): Promise<Friend[]> {
+  const guildId = discordGuildIdFrom(rawId)
+  if (!/^\d{15,22}$/.test(guildId)) throw new UserError('Identifiant de serveur Discord invalide : colle l’« Identifiant du serveur » affiché à côté du widget.')
+  // Pile réseau de Chromium (comme un navigateur) et sans cache : Discord refuse parfois les clients « node », et un ancien refus ne doit pas rester.
+  const res = await net.fetch(`https://discord.com/api/guilds/${guildId}/widget.json`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+  if (!res.ok) {
+    // Discord précise la cause dans le corps : 50004 = widget désactivé, 10004 = serveur inconnu, 40333 = requête bloquée.
+    let body: { code?: number; message?: string } = {}
+    try {
+      body = (await res.json()) as typeof body
+    } catch {
+      /* page HTML (protection anti-robot) */
+    }
+    if (body.code === 50004 || /widget/i.test(body.message ?? '')) throw new UserError(DISCORD_WIDGET_OFF)
+    if (res.status === 404 || body.code === 10004)
+      throw new UserError('Serveur Discord introuvable : vérifie que c’est bien l’identifiant du serveur, pas ton ID ni celui d’un salon.')
+    if (res.status === 429) throw new UserError('Discord limite les requêtes : réessaie dans une minute.')
+    if (res.status === 403 || res.status === 401)
+      throw new UserError(`Discord a refusé la requête (code ${body.code ?? res.status}). Réessaie dans quelques minutes.`)
+    throw new Error(`Discord ${res.status}`)
+  }
   const widget = (await res.json()) as DiscordWidget
-  return widget.members.map((m) => ({
+  return (widget.members ?? []).map((m) => ({
     id: `discord:${m.id}`,
     platform: 'discord',
     name: m.username,

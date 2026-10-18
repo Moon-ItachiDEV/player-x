@@ -1,3 +1,4 @@
+import { discordGuildIdFrom } from '@shared/text'
 import type { Account, FriendPlatform, Settings } from '@shared/types'
 import { deleteKv, getKv, setKv } from '../db'
 
@@ -22,6 +23,7 @@ export function getSettings(): Settings {
 }
 
 export function saveSettings(patch: Partial<Settings>): Settings {
+  if (typeof patch.discordGuildId === 'string') patch = { ...patch, discordGuildId: discordGuildIdFrom(patch.discordGuildId) }
   const next = { ...getKv<Partial<Settings>>('settings', {}), ...patch }
   setKv('settings', next, true)
   return getSettings()
