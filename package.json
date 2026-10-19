@@ -19,6 +19,7 @@
     "productName": "Player X",
     "files": [
       "out/**/*",
+      "!out/main/updateSim-*.js",
       "resources/icon.png"
     ],
     "directories": {

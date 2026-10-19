@@ -1,6 +1,6 @@
 // Chiffres des mises à jour, à la française : espace insécable avant l'unité, virgule décimale.
 
-const NB = ' '
+const NB = '\u00a0'
 const MiB = 1024 * 1024
 const one = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 const int = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
