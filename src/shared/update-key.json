@@ -1,0 +1,4 @@
+{
+  "comment": "Clé publique Ed25519 des mises à jour : Player X refuse toute mise à jour dont la signature ne correspond pas. La clé privée ne va jamais sur GitHub.",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAHDPemYIcoD+dEt5IV/nTqoBRFsSjmnEmsDsIiycegoY=\n-----END PUBLIC KEY-----\n"
+}

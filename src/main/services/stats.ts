@@ -68,9 +68,12 @@ function toPlatform(p: unknown): Bf6Platform {
   return (PLATFORMS as string[]).includes(s) ? (s as Bf6Platform) : 'ea'
 }
 
+const MAX_ROWS = 300
+
 function rows(list: unknown, nameKeys: string[]): Bf6Row[] {
   if (!Array.isArray(list)) return []
-  return list.filter(isObj).map((r, i) => ({
+  // Taille bornée : ces listes sont gardées en cache dans la base.
+  return list.filter(isObj).slice(0, MAX_ROWS).map((r, i) => ({
     id: str(r.id) ?? String(i),
     name: nameKeys.map((k) => str(r[k])).find(Boolean) ?? 'Sans nom',
     image: str(r.image)?.startsWith('https://') ? str(r.image) : undefined,
@@ -226,8 +229,8 @@ function cleanAccount(v: unknown): Bf6Account | null {
   return {
     name,
     platform: v.platform as Bf6Platform,
-    ...(personaId && /^\d+$/.test(personaId) ? { personaId } : {}),
-    ...(nucleusId && /^\d+$/.test(nucleusId) ? { nucleusId } : {})
+    ...(personaId && /^\d{1,20}$/.test(personaId) ? { personaId } : {}),
+    ...(nucleusId && /^\d{1,20}$/.test(nucleusId) ? { nucleusId } : {})
   }
 }
 

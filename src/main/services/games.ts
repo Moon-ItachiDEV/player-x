@@ -138,8 +138,12 @@ export async function scanSteam(report: ScanReport): Promise<Game[]> {
         const acf = await readFile(join(appsDir, file), 'utf8')
         const appId = vdfValue(acf, 'appid')
         const name = vdfValue(acf, 'name')
-        if (!appId || !name || STEAM_NOT_GAMES.has(appId) || /redistributable|proton|steam linux runtime/i.test(name)) continue
-        games.set(appId, steamGame(appId, name, join(appsDir, 'common', vdfValue(acf, 'installdir') ?? '')))
+        const installdir = vdfValue(acf, 'installdir') ?? ''
+        if (!appId || !/^\d+$/.test(appId) || !name || STEAM_NOT_GAMES.has(appId) || /redistributable|proton|steam linux runtime/i.test(name)) continue
+        // Un simple nom de dossier sous steamapps\common : jamais de chemin qui en sort.
+        if (/[\\/:]|^\.{1,2}$/.test(installdir)) continue
+        // La première bibliothèque gagne (celle du registre Steam d'abord) : un manifeste en double ne remplace pas le vrai jeu.
+        if (!games.has(appId)) games.set(appId, steamGame(appId, name, join(appsDir, 'common', installdir)))
       } catch {
         /* manifeste illisible, on l'ignore */
       }
@@ -177,7 +181,12 @@ export async function scanEpic(report: ScanReport): Promise<Game[]> {
   for (const file of await safeReaddir(dir)) {
     if (!file.endsWith('.item')) continue
     try {
-      const m = JSON.parse((await readFile(join(dir, file), 'utf8')).replace(/^\uFEFF/, '')) as EpicManifest
+      const raw = JSON.parse((await readFile(join(dir, file), 'utf8')).replace(/^\uFEFF/, '')) as Partial<EpicManifest>
+      // Un manifeste incomplet ou d'un autre format est ignoré, sans faire échouer tout le scan.
+      if (![raw.DisplayName, raw.AppName, raw.CatalogNamespace, raw.CatalogItemId].every((v) => typeof v === 'string' && v)) continue
+      if (raw.InstallLocation !== undefined && typeof raw.InstallLocation !== 'string') continue
+      if (raw.AppCategories !== undefined && !Array.isArray(raw.AppCategories)) continue
+      const m = raw as EpicManifest
       if (m.bIsIncompleteInstall) continue
       if (m.AppCategories && !m.AppCategories.includes('games')) continue
       games.push({
@@ -217,7 +226,11 @@ async function guessExe(dir: string): Promise<string | undefined> {
   return best?.path
 }
 
-async function readEaGame(installDir: string, fallbackName: string, exePath?: string): Promise<Game | null> {
+/**
+ * `allowGuess` : sans contentID, lancer le plus gros .exe du dossier. Réservé aux dossiers de sources sûres (EA app, registre,
+ * Program Files) : à la racine d'un disque, n'importe qui peut créer un dossier « EA Games ».
+ */
+async function readEaGame(installDir: string, fallbackName: string, exePath?: string, allowGuess = true): Promise<Game | null> {
   try {
     const xml = await readFile(join(installDir, '__Installer', 'installerdata.xml'), 'utf8')
     const contentId = xml.match(/<contentID>([^<]+)<\/contentID>/)?.[1]
@@ -227,6 +240,7 @@ async function readEaGame(installDir: string, fallbackName: string, exePath?: st
     /* pas de fichier d'installation EA */
   }
   // Sans contentID on lancera l'exécutable directement (l'EA app s'ouvrira si le jeu l'exige).
+  if (!allowGuess) return null
   const exe = exePath ?? (await guessExe(installDir))
   if (exe) return { id: `ea:${fallbackName.toLowerCase()}`, store: 'ea', storeId: '', name: fallbackName, installDir, exePath: exe }
   return null
@@ -285,10 +299,12 @@ export async function scanEa(report: ScanReport): Promise<Game[]> {
   ].filter((r, i, all) => existsSync(r) && all.findIndex((x) => x.toLowerCase() === r.toLowerCase()) === i)
   report.checked.push(appDirs.length ? `Dossier choisi dans l'EA app : ${appDirs.join(', ')}` : "Réglages de l'EA app : introuvables")
   report.checked.push(roots.length ? `Dossiers EA : ${roots.join(', ')}` : 'Aucun dossier EA Games trouvé')
+  const trusted = (root: string): boolean =>
+    appDirs.some((d) => d.toLowerCase() === root.toLowerCase()) || /^c:\\program files( \(x86\))?\\/i.test(root)
   for (const root of roots) {
     for (const folder of await safeReaddir(root)) {
       if (folder.startsWith('.') || /^(_|EA app|EA Desktop)/i.test(folder)) continue
-      add(await readEaGame(join(root, folder), folder))
+      add(await readEaGame(join(root, folder), folder, undefined, trusted(root)))
     }
   }
 
@@ -345,7 +361,7 @@ export async function scanAllGames(): Promise<Game[]> {
   )
   lastReport = results.map((r) => r.report)
   console.log('[scan]', JSON.stringify(lastReport, null, 2))
-  return results.flatMap((r) => r.games).sort((a, b) => a.name.localeCompare(b.name))
+  return results.flatMap((r) => r.games).sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')))
 }
 
 // ---------- Lancement ----------
@@ -354,7 +370,7 @@ export async function scanAllGames(): Promise<Game[]> {
 export function launchUrl(game: Game): string | null {
   switch (game.store) {
     case 'steam':
-      return `steam://rungameid/${game.storeId}`
+      return /^\d+$/.test(game.storeId) ? `steam://rungameid/${game.storeId}` : null
     case 'epic':
       return `com.epicgames.launcher://apps/${encodeURIComponent(game.storeId)}?action=launch&silent=true`
     case 'ea':

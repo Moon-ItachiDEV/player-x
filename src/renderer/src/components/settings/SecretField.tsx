@@ -1,11 +1,12 @@
 // Champs de clé / identifiant : chacun s'enregistre seul (bouton « Enregistrer » tant qu'il y a une modification, ou Entrée).
+// Les secrets sont en écriture seule : l'interface ne reçoit que « •••• » et leurs 4 derniers caractères, on peut les remplacer ou les effacer.
 import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from 'react'
 import { Icon } from '../ui/Icon'
 import { errorMessage, useToast } from '../ui/Toasts'
 
 interface BaseProps {
   label: string
-  /** Valeur enregistrée. */
+  /** Valeur enregistrée (masquée pour un secret). */
   value: string
   /** Enregistre et renvoie la valeur réellement stockée. */
   onSave: (v: string) => Promise<string>
@@ -31,25 +32,28 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
   const id = useId()
   const input = useRef<HTMLInputElement>(null)
   useImperativeHandle(ref, () => input.current as HTMLInputElement)
-  const [draft, setDraft] = useState(value)
+  // Un secret n'est jamais renvoyé à l'interface : le champ part vide et sert seulement à le remplacer.
+  const base = secret ? '' : value
+  const [draft, setDraft] = useState(base)
   const [shown, setShown] = useState(false)
   const [saving, setSaving] = useState(false)
 
   // La valeur enregistrée a changé (sauvegarde, autre écran) : on repart d'elle.
-  useEffect(() => setDraft(value), [value])
+  useEffect(() => setDraft(base), [base])
 
   const next = draft.trim()
-  const dirty = next !== value
+  const dirty = next !== base
   const error = dirty && next && validate ? validate(next) : null
   const e = masculine ? '' : 'e'
 
-  const save = async (): Promise<void> => {
-    if (!dirty || error || saving) return
+  /** `clear` : efface la valeur enregistrée (bouton « Effacer » d'un secret) ; sinon enregistre la saisie. */
+  const save = async (clear = false): Promise<void> => {
+    if ((!clear && (!dirty || error)) || saving) return
     setSaving(true)
     try {
       // On repart de la valeur stockée : le champ ne reste pas « modifié » si elle diffère de la saisie.
-      const stored = await onSave(next)
-      setDraft(stored)
+      const stored = await onSave(clear ? '' : next)
+      setDraft(secret ? '' : stored)
       setShown(false)
       // Jamais la valeur elle-même dans un toast.
       notify(stored ? savedToast : clearedToast, { kind: 'success', id: `field-${id}` })
@@ -76,8 +80,10 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
   if (error) caption = error
   else if (dirty) caption = 'Modification non enregistrée · Entrée pour enregistrer, Échap pour annuler'
   else if (!value) caption = `Non renseigné${e}`
-  else if (secret) caption = value.length >= 12 ? `Enregistré${e} · se termine par ${value.slice(-4)}` : `Enregistré${e}`
-  else caption = `Enregistré${e}`
+  else if (secret) {
+    const end = value.replace(/•/g, '')
+    caption = end ? `Enregistré${e} · se termine par ${end}` : `Enregistré${e}`
+  } else caption = `Enregistré${e}`
 
   return (
     <div className="set-field">
@@ -91,7 +97,7 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
             id={id}
             type={secret && !shown ? 'password' : 'text'}
             value={draft}
-            placeholder={placeholder}
+            placeholder={secret && value ? 'Colle une nouvelle valeur pour la remplacer' : placeholder}
             readOnly={saving}
             autoComplete="off"
             spellCheck={false}
@@ -104,7 +110,7 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
                 save()
               } else if (ev.key === 'Escape' && dirty) {
                 ev.stopPropagation()
-                setDraft(value)
+                setDraft(base)
               }
             }}
           />
@@ -125,9 +131,15 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
           </button>
         </div>
         {dirty && (
-          <button type="button" className="btn btn-primary btn-sm set-field-save" onClick={save} disabled={!!error || saving}>
+          <button type="button" className="btn btn-primary btn-sm set-field-save" onClick={() => save()} disabled={!!error || saving}>
             {saving && <span className="spinner" />}
             Enregistrer
+          </button>
+        )}
+        {secret && !dirty && value && (
+          <button type="button" className="btn btn-secondary btn-sm set-field-save" onClick={() => save(true)} disabled={saving}>
+            {saving && <span className="spinner" />}
+            Effacer
           </button>
         )}
       </div>
@@ -139,7 +151,7 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
   )
 })
 
-/** Clé ou jeton masqué, avec boutons Afficher / Coller. */
+/** Clé ou jeton en écriture seule, avec boutons Afficher (la saisie) / Coller / Effacer. */
 export const SecretField = forwardRef<HTMLInputElement, BaseProps>(function SecretField(props, ref) {
   return <Field ref={ref} {...props} secret />
 })

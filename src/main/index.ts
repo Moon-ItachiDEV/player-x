@@ -1,23 +1,31 @@
+import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, Menu, session, shell } from 'electron'
 import type { Friend, FriendPlatform, Game, Settings } from '@shared/types'
 import * as db from './db'
+import { handle } from './ipc'
 import { checkFriends, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
 import { DEMO_FRIENDS, DEMO_GAMES, demoGames } from './services/demo'
-import { connectPsn, getAllFriends } from './services/friends'
+import { connectPsn, getAllFriends, resetPsn } from './services/friends'
 import { getScanReport, launch, scanAllGames } from './services/games'
-import { getAccounts, getSettings, removeAccount, saveSettings } from './services/settings'
+import { getAccounts, getSettings, publicSettings, removeAccount, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { nudgePlaytime, startPlaytimeTracker, withPlaytime } from './services/playtime'
 import { initUpdater } from './services/updater'
 
-try {
-  process.loadEnvFile(join(app.getAppPath(), '.env'))
-} catch {
-  /* .env facultatif */
+// .env : clés de développement seulement, jamais lu par la version installée.
+if (!app.isPackaged) {
+  try {
+    process.loadEnvFile(join(app.getAppPath(), '.env'))
+  } catch {
+    /* .env facultatif */
+  }
 }
+
+/** Serveur Vite de `npm run dev` : ignoré par la version installée. */
+const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -36,7 +44,8 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
-      contextIsolation: true
+      contextIsolation: true,
+      devTools: !app.isPackaged
     }
   })
   // Les liens externes s'ouvrent dans le navigateur, pas dans l'appli.
@@ -44,7 +53,7 @@ function createWindow(): void {
     if (url.startsWith('https://')) shell.openExternal(url)
     return { action: 'deny' }
   })
-  if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
+  if (devUrl) win.loadURL(devUrl)
   else win.loadFile(join(__dirname, '../renderer/index.html'))
 }
 
@@ -97,8 +106,8 @@ async function games(refresh = false): Promise<Game[]> {
 }
 
 function registerIpc(): void {
-  ipcMain.handle('games:list', (_e, refresh?: boolean) => games(refresh))
-  ipcMain.handle('games:launch', async (_e, id: string) => {
+  handle('games:list', (_e, refresh?: boolean) => games(refresh))
+  handle('games:launch', async (_e, id: string) => {
     const game = (await games()).find((g) => g.id === id)
     if (!game) throw new Error('Jeu introuvable.')
     if (getSettings().demoMode) {
@@ -112,16 +121,19 @@ function registerIpc(): void {
     db.recordLaunch(id)
     nudgePlaytime()
   })
-  ipcMain.handle('games:report', () => getScanReport())
-  ipcMain.handle('games:open-folder', async (_e, id: string) => {
+  handle('games:report', () => getScanReport())
+  handle('games:open-folder', async (_e, id: string) => {
     if (getSettings().demoMode) throw new Error('Mode démo : ce dossier n’existe pas sur ton PC.')
     // Le chemin vient de la base, jamais du renderer.
     const dir = (await games()).find((g) => g.id === id)?.installDir
     if (!dir) throw new Error('Dossier d’installation inconnu.')
+    // shell.openPath exécute un fichier : on n'ouvre qu'un vrai dossier local (le chemin vient d'un manifeste).
+    const isDir = await stat(dir).then((s) => s.isDirectory(), () => false)
+    if (!isDir || /^[\\/]{2}/.test(dir)) throw new Error('Impossible d’ouvrir le dossier : il a peut-être été déplacé ou supprimé.')
     const err = await shell.openPath(dir)
     if (err) throw new Error('Impossible d’ouvrir le dossier : il a peut-être été déplacé ou supprimé.')
   })
-  ipcMain.handle('games:favorite', async (_e, id: string) => {
+  handle('games:favorite', async (_e, id: string) => {
     if (getSettings().demoMode) {
       const current = (await games()).filter((g) => g.favorite).map((g) => g.id)
       const favorites = current.includes(id) ? current.filter((f) => f !== id) : [...current, id]
@@ -129,7 +141,7 @@ function registerIpc(): void {
     } else db.toggleFavorite(id)
     return games()
   })
-  ipcMain.handle('games:set-favorites', async (_e, ids: string[]) => {
+  handle('games:set-favorites', async (_e, ids: string[]) => {
     // Seuls les identifiants de la bibliothèque actuelle sont gardés.
     const known = new Set((await games()).map((g) => g.id))
     const favorites = (Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string' && known.has(id))
@@ -137,7 +149,7 @@ function registerIpc(): void {
     else db.setFavorites(favorites)
     return games()
   })
-  ipcMain.handle('friends:list', async () => {
+  handle('friends:list', async () => {
     if (getSettings().demoMode) {
       demoFriendAlert(DEMO_FRIENDS)
       return { friends: DEMO_FRIENDS, errors: {} }
@@ -147,27 +159,35 @@ function registerIpc(): void {
     lastFriends = result.friends
     return result
   })
-  ipcMain.handle('friends:test-alert', () => testFriendAlert(getSettings().demoMode ? DEMO_FRIENDS : lastFriends))
-  ipcMain.handle('accounts:list', () => getAccounts())
-  ipcMain.handle('accounts:login', async (_e, platform: 'steam' | 'discord') => {
+  handle('friends:test-alert', () => testFriendAlert(getSettings().demoMode ? DEMO_FRIENDS : lastFriends))
+  handle('accounts:list', () => getAccounts())
+  handle('accounts:login', async (_e, platform: 'steam' | 'discord') => {
     const account = await (platform === 'steam' ? loginSteam() : loginDiscord())
     resetFriendAlerts(platform)
     return account
   })
-  ipcMain.handle('accounts:psn', async () => {
+  handle('accounts:psn', async () => {
     const account = await connectPsn()
     resetFriendAlerts('psn')
     return account
   })
-  ipcMain.handle('accounts:cancel', () => cancelLogin())
-  ipcMain.handle('accounts:logout', (_e, platform: FriendPlatform) => {
+  handle('accounts:cancel', () => cancelLogin())
+  handle('accounts:logout', (_e, platform: FriendPlatform) => {
     resetFriendAlerts()
+    // Le jeton NPSSO sert seulement à ce compte : on l'efface avec lui.
+    if (platform === 'psn') {
+      saveSettings({ psnNpsso: '' })
+      resetPsn()
+    }
     return removeAccount(platform)
   })
-  ipcMain.handle('settings:get', () => getSettings())
-  ipcMain.handle('settings:save', (_e, patch: Partial<Settings>) => {
-    const wasDemo = getSettings().demoMode
+  // Les clés et jetons ne quittent jamais le processus principal : l'interface ne voit que leurs 4 derniers caractères.
+  handle('settings:get', () => publicSettings(getSettings()))
+  handle('settings:save', (_e, patch: Partial<Settings>) => {
+    const before = getSettings()
+    const wasDemo = before.demoMode
     const next = saveSettings(patch)
+    if (next.psnNpsso !== before.psnNpsso) resetPsn()
     if (next.demoMode !== wasDemo) {
       resetFriendAlerts()
       // Au retour du mode démo, on rescanne la vraie bibliothèque.
@@ -175,19 +195,36 @@ function registerIpc(): void {
       // Jaquettes des jeux fictifs, aussi quand la démo s'active en cours de session.
       if (next.demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())
     }
-    return next
+    return publicSettings(next)
   })
   // Stats Battlefield 6 : vraies données même en mode démo (jamais de stats inventées).
-  ipcMain.handle('bf6:search', (_e, name: unknown) => searchBf6(name))
-  ipcMain.handle('bf6:stats', (_e, account: unknown, refresh?: boolean) => getBf6Stats(account, refresh === true))
-  ipcMain.handle('bf6:art', () => getBf6Art())
-  ipcMain.handle('bf6:tracked', () => getBf6Tracked())
-  ipcMain.handle('bf6:set-tracked', (_e, tracked: unknown) => setBf6Tracked(tracked))
-  ipcMain.handle('bf6:history', (_e, account: unknown) => getBf6History(account))
-  ipcMain.handle('shell:open', (_e, url: string) => {
-    if (url.startsWith('https://')) return shell.openExternal(url)
+  handle('bf6:search', (_e, name: unknown) => searchBf6(name))
+  handle('bf6:stats', (_e, account: unknown, refresh?: boolean) => getBf6Stats(account, refresh === true))
+  handle('bf6:art', () => getBf6Art())
+  handle('bf6:tracked', () => getBf6Tracked())
+  handle('bf6:set-tracked', (_e, tracked: unknown) => setBf6Tracked(tracked))
+  handle('bf6:history', (_e, account: unknown) => getBf6History(account))
+  handle('shell:open', (_e, url: unknown) => {
+    if (typeof url === 'string' && url.startsWith('https://')) return shell.openExternal(url)
   })
 }
+
+/** Électron accorde par défaut caméra, micro, position… à la page : seul le presse-papiers sert à Player X. */
+const ALLOWED_PERMISSIONS = new Set(['clipboard-read', 'clipboard-sanitized-write'])
+
+function lockDown(): void {
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(ALLOWED_PERMISSIONS.has(permission)))
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission))
+  // Pas de menu dans la version installée : il apporte « Recharger » et les outils de développement.
+  if (app.isPackaged) Menu.setApplicationMenu(null)
+}
+
+// L'interface ne navigue jamais : aucune fenêtre ne doit quitter la page de Player X (lien, glisser-déposer, redirection).
+app.on('web-contents-created', (_e, contents) => {
+  contents.on('will-navigate', (e) => e.preventDefault())
+  contents.on('will-redirect', (e) => e.preventDefault())
+  contents.on('will-attach-webview', (e) => e.preventDefault())
+})
 
 // Notifications Windows : même identifiant que l'installeur, sinon elles ne s'affichent pas.
 if (process.platform === 'win32') app.setAppUserModelId('dev.breezy.playerx')
@@ -206,6 +243,7 @@ app.on('second-instance', () => {
 app.whenReady().then(async () => {
   if (!firstInstance) return
   await db.initDb()
+  lockDown()
   registerIpc()
   initUpdater()
   startPlaytimeTracker(notifyGamesChanged)

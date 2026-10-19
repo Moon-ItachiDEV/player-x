@@ -38,6 +38,13 @@ function frenchError(e: unknown, fallback: string): string {
   return isNetworkError(e) ? NETWORK_ERROR : fallback
 }
 
+// ---------- Données reçues ----------
+// Les réponses des API ne sont pas fiables : on ne garde que des textes courts et des images en https.
+
+const TIMEOUT = 15_000
+const text = (v: unknown, max = 128): string | undefined => (typeof v === 'string' && v ? v.slice(0, max) : undefined)
+const httpsUrl = (v: unknown): string | undefined => (typeof v === 'string' && v.startsWith('https://') && v.length <= 2048 ? v : undefined)
+
 // ---------- Steam Web API ----------
 
 interface SteamPlayer {
@@ -51,10 +58,22 @@ interface SteamPlayer {
 export async function getSteamProfiles(key: string, ids: string[]): Promise<SteamPlayer[]> {
   const players: SteamPlayer[] = []
   for (let i = 0; i < ids.length; i += 100) {
-    const url = `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${key}&steamids=${ids.slice(i, i + 100).join(',')}`
-    const res = await fetch(url)
+    const url = `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${encodeURIComponent(key)}&steamids=${ids.slice(i, i + 100).join(',')}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT) })
     if (!res.ok) throw new Error(`Steam API ${res.status}`)
-    players.push(...((await res.json()) as { response: { players: SteamPlayer[] } }).response.players)
+    const list = ((await res.json()) as { response?: { players?: unknown } }).response?.players
+    for (const p of Array.isArray(list) ? (list as Record<string, unknown>[]) : []) {
+      const steamid = text(p?.steamid, 32)
+      const personaname = text(p?.personaname)
+      if (!steamid || !personaname) continue
+      players.push({
+        steamid,
+        personaname,
+        avatarfull: httpsUrl(p.avatarfull) ?? '',
+        personastate: typeof p.personastate === 'number' ? p.personastate : 0,
+        gameextrainfo: text(p.gameextrainfo)
+      })
+    }
   }
   return players
 }
@@ -63,11 +82,13 @@ export async function getSteamProfiles(key: string, ids: string[]): Promise<Stea
 function refreshOwnSteamProfile(account: Account, me: SteamPlayer | undefined): void {
   if (!me || (me.personaname === account.name && me.avatarfull === account.avatarUrl)) return
   // Seulement si ce compte est toujours connecté (pas de retour d'un compte déconnecté entre-temps).
-  if (getAccounts().some((a) => a.platform === 'steam' && a.id === account.id)) saveAccount({ ...account, name: me.personaname, avatarUrl: me.avatarfull })
+  if (getAccounts().some((a) => a.platform === 'steam' && a.id === account.id)) saveAccount({ ...account, name: me.personaname, avatarUrl: me.avatarfull || undefined })
 }
 
 async function steamFriends(account: Account, key: string): Promise<Friend[]> {
-  const res = await fetch(`https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${key}&steamid=${account.id}&relationship=friend`)
+  const res = await fetch(`https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${encodeURIComponent(key)}&steamid=${account.id}&relationship=friend`, {
+    signal: AbortSignal.timeout(TIMEOUT)
+  })
   if (res.status === 401) {
     // Liste d'amis privée : le profil, lui, reste lisible.
     await getSteamProfiles(key, [account.id])
@@ -76,9 +97,10 @@ async function steamFriends(account: Account, key: string): Promise<Friend[]> {
     throw new UserError('Ta liste d’amis Steam est privée : passe-la en public dans ton profil Steam.')
   }
   if (!res.ok) throw new Error(`Steam API ${res.status}`)
-  const list = ((await res.json()) as { friendslist?: { friends: { steamid: string }[] } }).friendslist?.friends ?? []
+  const list = ((await res.json()) as { friendslist?: { friends?: unknown } }).friendslist?.friends
+  const ids = (Array.isArray(list) ? list : []).map((f) => (f as { steamid?: unknown })?.steamid).filter((id): id is string => typeof id === 'string' && /^\d{17}$/.test(id))
   // Son propre profil dans la même requête.
-  const players = await getSteamProfiles(key, [account.id, ...list.map((f) => f.steamid)])
+  const players = await getSteamProfiles(key, [account.id, ...ids])
   refreshOwnSteamProfile(
     account,
     players.find((p) => p.steamid === account.id)
@@ -93,7 +115,7 @@ async function steamFriends(account: Account, key: string): Promise<Friend[]> {
           : p.personastate === 3 || p.personastate === 4
             ? 'away'
             : 'online'
-      return { id: `steam:${p.steamid}`, platform: 'steam', name: p.personaname, avatarUrl: p.avatarfull, status, game: p.gameextrainfo }
+      return { id: `steam:${p.steamid}`, platform: 'steam', name: p.personaname, avatarUrl: p.avatarfull || undefined, status, game: p.gameextrainfo }
     })
 }
 
@@ -113,7 +135,11 @@ async function discordServerMembers(rawId: string): Promise<Friend[]> {
   if (!/^\d{15,22}$/.test(guildId))
     throw new UserError('Identifiant de serveur Discord invalide : colle l’« Identifiant du serveur » affiché à côté du widget.')
   // Pile réseau de Chromium (comme un navigateur) et sans cache : Discord refuse parfois les clients « node », et un ancien refus ne doit pas rester.
-  const res = await net.fetch(`https://discord.com/api/guilds/${guildId}/widget.json`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+  const res = await net.fetch(`https://discord.com/api/guilds/${guildId}/widget.json`, {
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(TIMEOUT)
+  })
   if (!res.ok) {
     // Discord précise la cause dans le corps : 50004 = widget désactivé, 10004 = serveur inconnu, 40333 = requête bloquée.
     let body: { code?: number; message?: string } = {}
@@ -130,20 +156,33 @@ async function discordServerMembers(rawId: string): Promise<Friend[]> {
       throw new UserError(`Discord a refusé la requête (code ${body.code ?? res.status}). Réessaie dans quelques minutes.`)
     throw new Error(`Discord ${res.status}`)
   }
-  const widget = (await res.json()) as DiscordWidget
-  return (widget.members ?? []).map((m) => ({
-    id: `discord:${m.id}`,
-    platform: 'discord',
-    name: m.username,
-    avatarUrl: m.avatar_url,
-    status: m.activity ? 'in-game' : m.status === 'idle' ? 'away' : 'online',
-    game: m.activity?.name
-  }))
+  const widget = (await res.json()) as Partial<DiscordWidget>
+  const friends: Friend[] = []
+  for (const m of Array.isArray(widget.members) ? widget.members : []) {
+    const id = text(m?.id, 32)
+    const name = text(m?.username)
+    if (!id || !name) continue
+    const game = text(m.activity?.name)
+    friends.push({
+      id: `discord:${id}`,
+      platform: 'discord',
+      name,
+      avatarUrl: httpsUrl(m.avatar_url),
+      status: game ? 'in-game' : m.status === 'idle' ? 'away' : 'online',
+      game
+    })
+  }
+  return friends
 }
 
 // ---------- PlayStation (non officiel, via psn-api) ----------
 
 let psnTokens: (AuthTokensResponse & { obtainedAt: number }) | null = null
+
+/** Oublie la session PlayStation en mémoire (déconnexion ou nouveau jeton NPSSO). */
+export function resetPsn(): void {
+  psnTokens = null
+}
 
 async function psnAuth(npsso: string): Promise<{ accessToken: string }> {
   const now = Date.now()
@@ -175,7 +214,7 @@ export async function connectPsn(): Promise<Account> {
   try {
     const auth = await psnAuth(psnNpsso)
     const me = await getProfileFromAccountId(auth, 'me')
-    const account: Account = { platform: 'psn', id: 'me', name: me.onlineId, avatarUrl: me.avatars.at(-1)?.url }
+    const account: Account = { platform: 'psn', id: 'me', name: text(me.onlineId) ?? 'PlayStation', avatarUrl: httpsUrl(me.avatars?.at(-1)?.url) }
     saveAccount(account)
     return account
   } catch (e) {
@@ -190,16 +229,16 @@ async function psnFriends(npsso: string): Promise<Friend[]> {
     friends.map(async (accountId): Promise<Friend> => {
       const [profile, presence] = await Promise.all([getProfileFromAccountId(auth, accountId), getBasicPresence(auth, accountId).catch(() => null)])
       const p = presence?.basicPresence
-      const game = p?.gameTitleInfoList?.[0]?.titleName
+      const game = text(p?.gameTitleInfoList?.[0]?.titleName)
       const online = p?.primaryPlatformInfo?.onlineStatus === 'online'
       return {
         id: `psn:${accountId}`,
         platform: 'psn',
-        name: profile.onlineId,
-        avatarUrl: profile.avatars.at(-1)?.url,
+        name: text(profile.onlineId) ?? 'Joueur PlayStation',
+        avatarUrl: httpsUrl(profile.avatars?.at(-1)?.url),
         status: game ? 'in-game' : online ? 'online' : 'offline',
         game,
-        device: p?.primaryPlatformInfo?.platform,
+        device: text(p?.primaryPlatformInfo?.platform, 32),
         ...(presence ? {} : { presenceUnknown: true })
       }
     })

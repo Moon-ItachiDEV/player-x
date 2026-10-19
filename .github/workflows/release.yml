@@ -1,6 +1,8 @@
-# Publie une version de Player X : installeur NSIS + latest.yml + .blockmap sur GitHub Releases.
+# Prépare une version de Player X : installeur NSIS + latest.yml + .blockmap dans une release en BROUILLON sur GitHub.
 # Déclenché par un tag vX.Y.Z (git tag v0.4.1 && git push --tags) ou à la main depuis l'onglet Actions (le tag v<version> est alors créé).
 # Notes de version : docs/release-notes/<version>.md si le fichier existe, sinon générées par GitHub.
+# La release reste en brouillon : elle est publiée par le workflow « Publish » avec la signature de l'installeur,
+# faite hors de GitHub avec la clé privée (node scripts/update-signature.mjs sign …). Player X refuse les mises à jour non signées.
 name: Release
 
 on:
@@ -21,9 +23,12 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v5
+      # Actions épinglées sur un commit (v5.1.0 et v5.0.0), sans jeton git laissé sur le disque pour les scripts npm.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 22
           cache: npm
@@ -60,8 +65,7 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           tag="v${version}"
           if ! git ls-remote --exit-code --tags origin "refs/tags/${tag}" > /dev/null; then
-            git tag "${tag}" "${GITHUB_SHA}"
-            git push origin "refs/tags/${tag}"
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${tag}" -f sha="${GITHUB_SHA}" > /dev/null
           fi
           if gh release view "${tag}" > /dev/null 2>&1; then
             echo "La release ${tag} existe déjà : electron-builder y ajoute les fichiers."
@@ -79,8 +83,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Publiée seulement si les trois fichiers attendus par electron-updater sont là.
-      - name: Publier la release
+      # Les trois fichiers attendus par electron-updater doivent être là. La release reste en brouillon :
+      # le workflow « Publish » la publie une fois l'installeur signé (empreinte affichée ci-dessous).
+      - name: Vérifier la release et afficher l'empreinte à signer
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -94,4 +99,12 @@ jobs:
               exit 1
             fi
           done
-          gh release edit "${tag}" --draft=false --latest
+          sha="$(node scripts/update-signature.mjs hash "dist/Player-X-Setup-${version}.exe")"
+          echo "UPDATE_TO_SIGN version=${version} sha512=${sha}"
+          {
+            echo "### Release ${tag} prête en brouillon"
+            echo ""
+            echo "Signer (hors de GitHub) : \`node scripts/update-signature.mjs sign ${version} ${sha} <clé-privée.pem>\`"
+            echo ""
+            echo "Puis lancer le workflow **Publish** avec la signature obtenue."
+          } >> "${GITHUB_STEP_SUMMARY}"

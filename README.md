@@ -68,6 +68,8 @@ Player X vérifie les [GitHub Releases](https://github.com/Moon-ItachiDEV/player
 
    ![Quoi de neuf](docs/screenshots/nouveautes.png)
 
+**Mises à jour signées** (depuis la 0.5.1) : chaque installeur publié est signé avec une clé privée qui n’est jamais sur GitHub. Avant de proposer une mise à jour, Player X télécharge sa signature (`Player-X-Setup-<version>.exe.sig`) et la vérifie avec la clé publique livrée dans l’appli (`src/shared/update-key.json`). Une version non signée ou modifiée est refusée et n’est jamais installée, même si quelqu’un publie une release à la place du propriétaire du dépôt.
+
 **Les versions 0.3.0 et plus anciennes n’ont pas de mise à jour automatique** : installe une version 0.4 à la main une fois, les suivantes arriveront toutes seules. L’animation et le redémarrage automatique arrivent avec la 0.4.2 : ils s’affichent pour les mises à jour faites depuis cette version.
 
 Pour publier une version :
@@ -75,9 +77,11 @@ Pour publier une version :
 1. Monte la version : `npm version 0.5.0 --no-git-tag-version` (met à jour `package.json` et `package-lock.json`).
 2. Écris les notes dans `docs/release-notes/<version>.md` : elles servent à la fois pour la release GitHub et pour la fenêtre « Quoi de neuf ».
 3. Commit et pousse sur `main`.
-4. Lance l’action [`release.yml`](.github/workflows/release.yml) depuis l’onglet **Actions › Release › Run workflow** (elle crée le tag `v<version>`), ou pousse le tag toi-même : `git tag v0.5.0 && git push --tags`.
+4. Lance l’action [`release.yml`](.github/workflows/release.yml) depuis l’onglet **Actions › Release › Run workflow** (elle crée le tag `v<version>`), ou pousse le tag toi-même : `git tag v0.5.0 && git push --tags`. Elle construit l’installeur sous Windows et prépare une release **en brouillon** avec `Player-X-Setup-<version>.exe`, son `.blockmap` et `latest.yml` (le fichier que lit l’appli). Un tag poussé à la main doit correspondre à `version`, sinon l’action s’arrête. Le résumé de l’action affiche l’empreinte SHA-512 à signer.
+5. Signe l’installeur **hors de GitHub**, avec la clé privée : `node scripts/update-signature.mjs sign <version> <sha512> <clé-privée.pem>`. Le script refuse une clé qui ne correspond pas à la clé publique de l’appli.
+6. Lance l’action [`publish.yml`](.github/workflows/publish.yml) (**Actions › Publish › Run workflow**) avec cette signature. Elle retélécharge l’installeur du brouillon, vérifie la signature, ajoute `Player-X-Setup-<version>.exe.sig` et publie la release. Une signature fausse arrête tout avant la publication.
 
-L’action construit l’installeur sous Windows et publie la release avec `Player-X-Setup-<version>.exe`, son `.blockmap` et `latest.yml` (le fichier que lit l’appli). Un tag poussé à la main doit correspondre à `version`, sinon l’action s’arrête.
+Si la clé privée est perdue, les versions installées ne peuvent plus se mettre à jour toutes seules : il faut réinstaller Player X à la main. Garde-en une copie de sauvegarde.
 
 ## Ce qui marche
 
@@ -102,7 +106,7 @@ L’action construit l’installeur sous Windows et publie la release avec `Play
 
 ## Configuration
 
-Tout se règle dans **Paramètres** de l’appli (ou dans un fichier `.env`, voir `.env.example`) :
+Tout se règle dans **Paramètres** de l’appli (ou, en développement seulement, dans un fichier `.env`, voir `.env.example`). Les clés et jetons restent dans le processus principal, chiffrés par Windows : l’interface n’en voit que les 4 derniers caractères, et on peut les remplacer ou les effacer.
 
 - **Clé Steam Web API** : https://steamcommunity.com/dev/apikey
 - **Discord** : crée une appli sur https://discord.com/developers/applications, copie Client ID et Client Secret, et ajoute la redirection `http://127.0.0.1:47823/discord/callback` dans OAuth2.
