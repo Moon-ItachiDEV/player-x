@@ -35,8 +35,7 @@
   z-index: -1;
   background:
     radial-gradient(80% 120% at 85% 0%, color-mix(in srgb, var(--brand-violet) 38%, transparent) 0%, transparent 60%),
-    radial-gradient(60% 90% at 10% 10%, color-mix(in srgb, #4f7cff 18%, transparent) 0%, transparent 70%),
-    var(--bg-1);
+    radial-gradient(60% 90% at 10% 10%, color-mix(in srgb, #4f7cff 18%, transparent) 0%, transparent 70%), var(--bg-1);
   mask-image: linear-gradient(180deg, #000 60%, transparent 100%);
 }
 .bf-hero-art img {
@@ -65,9 +64,7 @@
 .bf-hero-grid {
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(70% 90% at 70% 20%, #000 0%, transparent 75%);
 }
@@ -262,9 +259,7 @@
 .bf-link {
   max-width: 720px;
   padding: 28px;
-  background:
-    radial-gradient(120% 140% at 0% 0%, var(--accent-soft) 0%, transparent 55%),
-    var(--surface-1);
+  background: radial-gradient(120% 140% at 0% 0%, var(--accent-soft) 0%, transparent 55%), var(--surface-1);
 }
 .bf-link-icon {
   display: grid;
@@ -422,9 +417,7 @@
 }
 .bf-weapon.is-first {
   border-color: var(--accent-line);
-  background:
-    radial-gradient(120% 90% at 50% 0%, var(--accent-soft) 0%, transparent 70%),
-    var(--bg-0);
+  background: radial-gradient(120% 90% at 50% 0%, var(--accent-soft) 0%, transparent 70%), var(--bg-0);
 }
 .bf-weapon-rank {
   position: absolute;
@@ -930,6 +923,66 @@
 .bf-map-stats .num {
   color: var(--text-1);
   font-weight: 600;
+}
+
+/* Carte « Toutes les cartes » : mosaïque en lames obliques des cartes les plus jouées. */
+.bf-mosaic {
+  position: absolute;
+  inset: 0 -14%;
+  z-index: -2;
+  display: flex;
+  gap: 3px;
+  transform: skewX(-14deg);
+  background: var(--bg-0, #08090e);
+}
+.bf-mosaic-slice {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  transition: flex-grow var(--d-out) var(--ease-glide);
+}
+.bf-mosaic-slice img {
+  position: absolute;
+  inset: 0 -40%;
+  width: 180%;
+  height: 100%;
+  object-fit: cover;
+  transform: skewX(14deg);
+  filter: saturate(0.85) brightness(0.8);
+}
+/* Voile de marque : la mosaïque se lit comme une seule carte, pas comme quatre. */
+.bf-map.is-total .bf-map-shade {
+  background:
+    linear-gradient(0deg, rgba(8, 9, 14, 0.92) 0%, rgba(8, 9, 14, 0.25) 65%, transparent 100%),
+    linear-gradient(120deg, color-mix(in srgb, var(--accent) 35%, transparent), transparent 60%);
+}
+.bf-map-all {
+  background: var(--accent-solid);
+  color: var(--text-1);
+}
+.bf-map.is-total > :not(.bf-mosaic) {
+  pointer-events: none;
+}
+.bf-map.is-total {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line-1));
+}
+:root[data-fx='on'] .bf-mosaic-slice {
+  animation: bf-slice-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+:root[data-fx='on'] .bf-map.is-total:hover .bf-mosaic-slice:hover {
+  flex-grow: 2.2;
+  transition-duration: var(--d-in);
+}
+:root[data-fx='on'] .bf-map.is-total:hover .bf-mosaic-slice:hover img {
+  filter: none;
+}
+@keyframes bf-slice-in {
+  from {
+    opacity: 0;
+    translate: 0 18%;
+  }
 }
 
 /* Vignettes des cartes, modes et véhicules dans le tableau */
