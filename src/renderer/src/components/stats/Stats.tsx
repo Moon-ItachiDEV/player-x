@@ -24,6 +24,14 @@ const pct = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
 const keyOf = (a: Bf6Account): string => `${a.platform}:${a.personaId ?? a.name.toLowerCase()}`
 const percent = (n: number): string => `${pct.format(n)} %`
 
+/** Ligne « All » que l'API glisse dans les cartes, modes et classes : c'est le total, pas une entrée. */
+const isTotal = (r: Bf6Row): boolean => /^(all|tous|toutes|total)$/i.test(r.name.trim())
+const entries = (list: Bf6Row[]): Bf6Row[] => list.filter((r) => !isTotal(r))
+
+/** Au-delà de 100 %, la précision est faussée (chaque plomb d'un fusil à pompe compte comme un tir touché). */
+const ACC_BROKEN = 'Faussé par l’API : chaque plomb compte comme un tir touché'
+const accuracyOf = (r: Bf6Row): number | undefined => (r.accuracy !== undefined && r.accuracy <= 100 ? r.accuracy : undefined)
+
 /** « 312 h », « 45 min » */
 function duration(seconds: number): string {
   if (seconds < 3600) return `${int.format(Math.round(seconds / 60))} min`
@@ -244,7 +252,9 @@ function PlayerSearch({ action, onPick, exclude = [] }: { action: string; onPick
               <li key={keyOf(r)} className="bf-result">
                 <span className="bf-result-name">{r.name}</span>
                 <span className="bf-plat">{PLATFORM_LABEL[r.platform]}</span>
-                <span className="caption num bf-result-kills">{r.kills === null ? 'Stats indisponibles' : `${int.format(r.kills)} ${r.kills > 1 ? 'éliminations' : 'élimination'}`}</span>
+                <span className="caption num bf-result-kills">
+                  {r.kills === null ? 'Stats indisponibles' : `${int.format(r.kills)} ${r.kills > 1 ? 'éliminations' : 'élimination'}`}
+                </span>
                 <button
                   className="btn btn-secondary btn-sm"
                   disabled={taken}
@@ -378,7 +388,7 @@ function WeaponArt({ image, name }: { image?: string; name: string }): React.JSX
 }
 
 function Arsenal({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
-  const top = snap.stats.weapons
+  const top = entries(snap.stats.weapons)
     .filter((w) => (w.kills ?? 0) > 0)
     .sort((a, b) => (b.kills ?? 0) - (a.kills ?? 0))
     .slice(0, 3)
@@ -408,9 +418,9 @@ function Arsenal({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
                   <span className="num">{dec.format(w.kpm)}</span> /min
                 </span>
               )}
-              {w.accuracy !== undefined && (
+              {accuracyOf(w) !== undefined && (
                 <span>
-                  <span className="num">{percent(w.accuracy)}</span> préc.
+                  <span className="num">{percent(accuracyOf(w)!)}</span> préc.
                 </span>
               )}
             </span>
@@ -422,7 +432,9 @@ function Arsenal({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
 }
 
 function Classes({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
-  const list = snap.stats.classes.filter((c) => (c.kills ?? 0) > 0).sort((a, b) => (b.kills ?? 0) - (a.kills ?? 0))
+  const list = entries(snap.stats.classes)
+    .filter((c) => (c.kills ?? 0) > 0)
+    .sort((a, b) => (b.kills ?? 0) - (a.kills ?? 0))
   if (!list.length) return null
   const total = list.reduce((n, c) => n + (c.kills ?? 0), 0)
   return (
@@ -465,10 +477,14 @@ function Classes({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
 
 /** Cartes les plus jouées, avec leur visuel quand l'API le fournit. */
 function Maps({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
-  const top = snap.stats.maps
+  const played = entries(snap.stats.maps)
     .filter((m) => (m.matches ?? 0) > 0)
     .sort((a, b) => (b.matches ?? 0) - (a.matches ?? 0))
-    .slice(0, 4)
+  const total = snap.stats.maps.find((m) => isTotal(m) && (m.matches ?? 0) > 0)
+  // Le total ouvre la ligne avec une mosaïque des cartes les plus jouées, s'il y a de quoi la composer.
+  const mosaic = played.filter((m) => m.image).slice(0, 4)
+  const withTotal = total && mosaic.length >= 2
+  const top = played.slice(0, withTotal ? 3 : 4)
   if (!top.length) return null
   return (
     <section className="bf-maps" aria-labelledby="bf-maps-title">
@@ -476,27 +492,49 @@ function Maps({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
         Tes cartes
       </h2>
       <ol className="bf-maps-list">
+        {withTotal && (
+          <li className="bf-map is-total">
+            <span className="bf-mosaic" aria-hidden="true">
+              {mosaic.map((m, i) => (
+                <span key={m.id} className="bf-mosaic-slice" style={{ '--i': i } as React.CSSProperties}>
+                  <img src={m.image} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />
+                </span>
+              ))}
+            </span>
+            <span className="bf-map-shade" aria-hidden="true" />
+            <span className="bf-map-rank bf-map-all">
+              <Icon name="grid" size={12} />
+            </span>
+            <MapText name="Toutes les cartes" row={total} />
+          </li>
+        )}
         {top.map((m, i) => (
           <li key={m.id} className="bf-map">
             {m.image && <img key={m.image} src={m.image} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}
             <span className="bf-map-shade" aria-hidden="true" />
             <span className="bf-map-rank num">{i + 1}</span>
-            <span className="bf-map-text">
-              <span className="bf-map-name">{m.name}</span>
-              <span className="bf-map-stats">
-                <span className="num">{int.format(m.matches ?? 0)}</span> {(m.matches ?? 0) > 1 ? 'matchs' : 'match'}
-                {m.winPercent !== undefined && (
-                  <>
-                    {' · '}
-                    <span className="num">{percent(m.winPercent)}</span> de victoires
-                  </>
-                )}
-              </span>
-            </span>
+            <MapText name={m.name} row={m} />
           </li>
         ))}
       </ol>
     </section>
+  )
+}
+
+function MapText({ name, row }: { name: string; row: Bf6Row }): React.JSX.Element {
+  return (
+    <span className="bf-map-text">
+      <span className="bf-map-name">{name}</span>
+      <span className="bf-map-stats">
+        <span className="num">{int.format(row.matches ?? 0)}</span> {(row.matches ?? 0) > 1 ? 'matchs' : 'match'}
+        {row.winPercent !== undefined && (
+          <>
+            {' · '}
+            <span className="num">{percent(row.winPercent)}</span> de victoires
+          </>
+        )}
+      </span>
+    </span>
   )
 }
 
@@ -514,7 +552,7 @@ const COL = {
   kills: { label: 'Élim.', get: (r) => r.kills, fmt: int.format },
   kd: { label: 'K/D', get: (r) => r.killDeath, fmt: dec.format },
   kpm: { label: 'Élim./min', get: (r) => r.kpm, fmt: dec.format },
-  acc: { label: 'Précision', get: (r) => r.accuracy, fmt: percent },
+  acc: { label: 'Précision', get: accuracyOf, fmt: percent },
   hs: { label: 'Tête', get: (r) => r.headshots, fmt: percent },
   matches: { label: 'Matchs', get: (r) => r.matches, fmt: int.format },
   win: { label: 'Victoires', get: (r) => r.winPercent, fmt: percent },
@@ -533,7 +571,10 @@ function Details({ snap }: { snap: Bf6Snapshot }): React.JSX.Element {
   const [all, setAll] = useState(false)
   const def = TABS.find((t) => t.id === tab)!
   const list = useMemo(
-    () => snap.stats[tab].filter((r) => (def.sort.get(r) ?? 0) > 0).sort((a, b) => (def.sort.get(b) ?? 0) - (def.sort.get(a) ?? 0)),
+    () =>
+      entries(snap.stats[tab])
+        .filter((r) => (def.sort.get(r) ?? 0) > 0)
+        .sort((a, b) => (def.sort.get(b) ?? 0) - (def.sort.get(a) ?? 0)),
     [snap, tab, def]
   )
   // Une colonne que l'API ne remplit pour aucune ligne est masquée.
@@ -585,14 +626,16 @@ function Details({ snap }: { snap: Bf6Snapshot }): React.JSX.Element {
                 <td>
                   <span className={`bf-row-name ${tab === 'weapons' ? '' : 'has-thumb'}`}>
                     {/* Image en échec : la place reste, pour que les noms restent alignés */}
-                    {r.image && <img key={r.image} src={r.image} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />}
+                    {r.image && (
+                      <img key={r.image} src={r.image} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+                    )}
                     {r.name}
                   </span>
                 </td>
                 {cols.map((c) => {
                   const v = c.get(r)
                   return (
-                    <td key={c.label} className="bf-n num">
+                    <td key={c.label} className="bf-n num" title={c === COL.acc && v === undefined && r.accuracy !== undefined ? ACC_BROKEN : undefined}>
                       {v === undefined ? '–' : c.fmt(v)}
                     </td>
                   )
@@ -686,7 +729,9 @@ function Leaderboard({ tracked, meSnap, meError, meLoading, onChange }: Leaderbo
 
   const def = METRICS.find((m) => m.id === metric)!
   const entries: Entry[] = [
-    ...(tracked.me ? [{ account: tracked.me, snap: meSnap ?? undefined, error: meLoading ? undefined : (meError ?? (meSnap ? undefined : 'Stats indisponibles')), me: true }] : []),
+    ...(tracked.me
+      ? [{ account: tracked.me, snap: meSnap ?? undefined, error: meLoading ? undefined : (meError ?? (meSnap ? undefined : 'Stats indisponibles')), me: true }]
+      : []),
     ...tracked.rivals.map((a) => ({ account: a, ...rivals[keyOf(a)], me: false }))
   ]
   const value = (e: Entry): number | undefined => e.snap?.stats[metric]
