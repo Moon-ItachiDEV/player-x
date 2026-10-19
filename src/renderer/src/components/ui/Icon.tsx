@@ -37,7 +37,11 @@ const PATHS = {
   library: 'M4 19V5M9 19V5M14 19l-1-14M19.5 19L16 5.5',
   plus: 'M12 5v14M5 12h14',
   pause: 'M9 5v14M15 5v14',
-  chart: 'M3 3v18h18M7 16v-4M12 16V8M17 16v-7'
+  chart: 'M3 3v18h18M7 16v-4M12 16V8M17 16v-7',
+  shield: 'M12 2.5l8 3v6c0 5.2-3.4 9-8 10.5C7.4 20.5 4 16.7 4 11.5v-6z',
+  'shield-check': 'M12 2.5l8 3v6c0 5.2-3.4 9-8 10.5C7.4 20.5 4 16.7 4 11.5v-6zM8.5 12l2.5 2.5 4.5-5',
+  'shield-x': 'M12 2.5l8 3v6c0 5.2-3.4 9-8 10.5C7.4 20.5 4 16.7 4 11.5v-6zM9.5 9.5l5 5M14.5 9.5l-5 5',
+  download: 'M12 3v12M7 10l5 5 5-5M5 21h14'
 } as const
 
 export type IconName = keyof typeof PATHS | 'play'

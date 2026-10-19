@@ -13,6 +13,10 @@ import { SettingsView } from './components/settings/SettingsView'
 import { Setup } from './components/setup/Setup'
 import { Stats } from './components/stats/Stats'
 import { TopBar } from './components/TopBar'
+// Avant WhatsNew : lit pg.lastVersion et prépare le retour d'une mise à jour avant le premier rendu.
+import './update/session'
+import './update/stage'
+import { UpdateStage } from './update/UpdateStage'
 import { UpdateNotice } from './components/UpdateNotice'
 import { WhatsNew } from './components/WhatsNew'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
@@ -75,6 +79,7 @@ export default function App(): React.JSX.Element {
   return (
     <ToastProvider right={entered && !setup.open && ui.friendsPanel === 'open' ? 'var(--friends-w)' : '0px'}>
       <Shell ui={ui} updateUi={updateUi} entered={entered} setEntered={setEntered} setup={setup} setSetup={setSetup} />
+      <UpdateStage />
     </ToastProvider>
   )
 }
@@ -472,7 +477,7 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
         onOpenFolder={openFolder}
       />
       <FriendAlerts games={games} onShowFriends={() => updateUi({ friendsPanel: 'open' })} />
-      <UpdateNotice onOpenAbout={() => goSettings('about')} />
+      <UpdateNotice onOpenAbout={() => goSettings('about')} inGame={games.some((g) => g.running)} />
       <WhatsNew />
     </div>
   )

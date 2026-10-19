@@ -135,6 +135,20 @@ function UpdateStatus({ update, now }: { update: UpdateState | null; now: number
       )
       detail = ' · elle s’installera aussi à la fermeture de Player X'
       break
+    case 'verifying':
+      phrase = (
+        <>
+          Vérification de <span className="num">{update.version}</span>…
+        </>
+      )
+      break
+    case 'installing':
+      phrase = (
+        <>
+          Redémarrage pour installer la <span className="num">{update.version}</span>…
+        </>
+      )
+      break
     case 'error':
       tone = 'err'
       phrase = update.message

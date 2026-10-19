@@ -1,29 +1,12 @@
 // Bandeau de mise à jour, en bas à gauche du contenu : progression 0 → 100 %, puis redémarrage après un compte à rebours.
 // « Plus tard » laisse la mise à jour s'installer à la fermeture.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { UpdateState } from '@shared/types'
+import { useUpdateState } from '../update/session'
 import type { UpdateNoticeProps } from '../contracts'
 import { Icon } from './ui/Icon'
 import './update.css'
 
-/** État des mises à jour (processus principal), tenu à jour par l'événement `update:state`. `null` tant qu'il n'est pas connu. */
-export function useUpdateState(): [UpdateState | null, (s: UpdateState) => void] {
-  const [state, setState] = useState<UpdateState | null>(null)
-  useEffect(() => {
-    let alive = true
-    const off = window.launcher.onUpdateState((s) => alive && setState(s))
-    // Un événement arrivé entre-temps est plus récent : on le garde.
-    window.launcher
-      .getUpdateState()
-      .then((s) => alive && setState((cur) => cur ?? s))
-      .catch(() => {})
-    return () => {
-      alive = false
-      off()
-    }
-  }, [])
-  return [state, setState]
-}
+export { useUpdateState } from '../update/session'
 
 /** Avant le redémarrage automatique, compté seulement quand la fenêtre est au premier plan (jamais en pleine partie). */
 const RESTART_DELAY = 10

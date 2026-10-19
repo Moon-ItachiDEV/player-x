@@ -26,7 +26,8 @@ const api: LauncherApi = {
   cancelLogin: () => ipcRenderer.invoke('accounts:cancel'),
   getUpdateState: () => ipcRenderer.invoke('update:get'),
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
-  installUpdate: () => ipcRenderer.invoke('update:install'),
+  installUpdate: (opts) => ipcRenderer.invoke('update:install', opts),
+  getLastUpdate: () => ipcRenderer.invoke('update:last'),
   onUpdateState: (cb) => {
     const listener = (_e: unknown, s: UpdateState): void => cb(s)
     ipcRenderer.on('update:state', listener)
