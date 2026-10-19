@@ -1,0 +1,252 @@
+/* Scène plein écran des mises à jour (UpdateStage.tsx) : le saut (redémarrage) et le retour (allumage).
+   Exception documentée : la scène se règle sur .stage[data-tier] et non sur :root[data-fx], car elle s'affiche
+   au premier rendu d'App, avant l'effet qui pose data-fx. Tous les mouvements sont en WAAPI (keyframes.ts, via anim()),
+   sauf les fondus du saut sobre ci-dessous. */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-warp);
+  pointer-events: none;
+}
+/* Le saut avale les clics ; le retour jamais. */
+.stage[data-mode='warp'] {
+  pointer-events: auto;
+}
+.stage-veil {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-0);
+}
+/* Opaque dans new(root) ; sans transition de vue, WAAPI le fait monter. */
+.stage[data-mode='warp'][data-phase='run'] .stage-veil {
+  opacity: 1;
+}
+
+.stage-fx {
+  position: fixed;
+  inset: 0;
+  contain: layout paint;
+  pointer-events: none;
+}
+/* Nommée seulement pendant le saut : capturée comme une couche vivante au-dessus de l'instantané. */
+.stage[data-mode='warp'] .stage-fx {
+  view-transition-name: px-warp;
+}
+/* Saut, pendant la capture de la transition : rien au-dessus du voile avant que la chronologie ne démarre. */
+.stage[data-mode='warp'][data-phase='hold'] .stage-fx > * {
+  opacity: 0;
+}
+
+.stage-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.stage-flash {
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  margin: -210px 0 0 -210px;
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(closest-side, rgb(233 227 255 / 0.9), rgb(155 108 255 / 0.5) 40%, rgb(124 58 237 / 0));
+}
+/* M : centre de la marque à (50 %, 50 % − 40 px), le même au saut et au retour (raccord). */
+.stage-mark,
+.stage-ring,
+.stage-shock {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 40px);
+  translate: -50% -50%;
+}
+.stage-mark {
+  height: 40px;
+  width: auto;
+}
+.stage-ring {
+  width: 160px;
+  height: 160px;
+  opacity: 0;
+  overflow: visible;
+}
+.stage-shock {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent-line);
+  opacity: 0;
+}
+
+.stage-text {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% + 56px);
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+  padding: 0 16px;
+}
+.stage-kicker {
+  font: 600 11px/14px var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.stage-line {
+  font: 600 18px/24px var(--font-display);
+  color: var(--text-1);
+}
+.stage-caption {
+  font: 400 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.stage-versions {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+.stage-from {
+  font-weight: 500;
+  font-size: 20px;
+  color: var(--text-3);
+}
+.stage-arrow {
+  font-size: 20px;
+  color: var(--text-3);
+}
+.stage-to {
+  font-weight: 700;
+  font-size: 44px;
+  line-height: 52px;
+  color: var(--text-1);
+}
+.stage-to > span {
+  display: inline-block;
+}
+.stage-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.stage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.stage-chip svg {
+  color: var(--accent-text);
+}
+.stage-chip .num-mono {
+  font-family: var(--font-mono);
+}
+.stage-skip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 32px;
+  margin: 0;
+  text-align: center;
+  font: 400 12px/16px var(--font-ui);
+  color: var(--text-3);
+  opacity: 0;
+}
+.stage-badge {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  translate: -50% 0;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: 600 11px/24px var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Le vrai logo du rail se cache pendant le retour : la marque volante s'y pose (§8.4). */
+html.px-revealing .rail-logo .brand-mark {
+  opacity: 0;
+}
+
+/* Retour : caché pendant l'attente ; les entrées WAAPI ont fill 'both', donc une animation refusée (anim() → null) montre l'élément. */
+.stage[data-mode='reveal'][data-phase='hold'] :is(.stage-text, .stage-skip, .stage-ring) {
+  opacity: 0;
+}
+.stage[data-mode='reveal'][data-tier='full']:not([data-phase='hold']) .stage-ring {
+  opacity: 1;
+}
+/* Les 8 groupes s'allument un à un. */
+.stage[data-mode='reveal'][data-tier='full'] .stage-ring g {
+  opacity: 0;
+}
+.stage[data-mode='warp'] .stage-ring g {
+  opacity: 1;
+}
+
+/* Sobre et réduit : pas de canvas, d'éclair ni de couronne. */
+.stage:is([data-tier='sober'], [data-tier='reduced']) :is(.stage-ring, .stage-canvas, .stage-flash, .stage-shock) {
+  display: none;
+}
+
+/* Saut sobre (450 ms jusqu'à la fermeture) : l'interface ne bouge pas, voile puis marque puis texte. */
+.stage[data-mode='warp'][data-tier='sober'][data-phase='run'] .stage-veil {
+  animation: stage-fade-in 240ms var(--ease-out) both;
+}
+.stage[data-mode='warp'][data-tier='sober'][data-phase='run'] .stage-mark {
+  animation: stage-mark-in 240ms var(--ease-glide) 60ms both;
+}
+.stage[data-mode='warp'][data-tier='sober'][data-phase='run'] :is(.stage-text, .stage-badge) {
+  animation: stage-fade-in 180ms var(--ease-out) 120ms both;
+}
+
+@keyframes stage-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes stage-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* ---------- transition de vue du saut (html.vt-warp, posée par stage.ts) ---------- */
+/* L'instantané reste au-dessus du voile pendant qu'il se rétracte (WAAPI sur ::view-transition-old(root)). */
+html.vt-warp::view-transition-group(root) {
+  animation: none;
+}
+html.vt-warp::view-transition-old(root),
+html.vt-warp::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.vt-warp::view-transition-old(root) {
+  z-index: 1;
+}
+html.vt-warp::view-transition-group(px-warp) {
+  animation: none;
+  z-index: 2;
+}
+html.vt-warp::view-transition-new(px-warp) {
+  animation: none;
+}
