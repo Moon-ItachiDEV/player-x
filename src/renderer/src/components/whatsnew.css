@@ -26,6 +26,15 @@
 .wn-head .brand-mark {
   margin-bottom: 6px;
 }
+/* Reflet unique à l'ouverture (WAAPI, effets riches seulement) : au repos, invisible. */
+.wn-sheen {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.07) 50%, transparent 65%);
+}
 .wn-kicker {
   color: var(--accent-text);
 }
@@ -34,6 +43,32 @@
   font: 700 22px/28px var(--font-display);
   letter-spacing: -0.01em;
   color: var(--text-1);
+}
+/* Chiffres de l'installation (même style que les pastilles du retour) : seulement ceux qui sont connus. */
+.wn-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.wn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.wn-chip > svg {
+  flex-shrink: 0;
+  color: var(--accent-text);
+}
+.wn-mono {
+  font-family: var(--font-mono);
 }
 .wn-body {
   display: flex;
