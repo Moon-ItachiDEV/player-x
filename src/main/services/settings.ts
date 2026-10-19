@@ -15,20 +15,46 @@ function defaults(): Settings {
   }
 }
 
+const TEXT_KEYS = ['steamApiKey', 'discordClientId', 'discordClientSecret', 'discordGuildId', 'psnNpsso'] as const
+/** Clés et jetons : jamais envoyés à l'interface (voir publicSettings). */
+const SECRET_KEYS = ['steamApiKey', 'discordClientSecret', 'psnNpsso'] as const
+const ALERT_MODES = ['all', 'games', 'off']
+/** Bien au-delà des vraies valeurs (clé Steam 32, NPSSO 64, secret Discord 32 caractères). */
+const MAX_TEXT = 256
+
+/** Ne garde que les réglages connus, avec le bon type (le reste vient de l'interface et n'est pas fiable). */
+function cleanPatch(patch: unknown): Partial<Settings> {
+  const p = (patch && typeof patch === 'object' ? patch : {}) as Record<string, unknown>
+  const clean: Partial<Settings> = {}
+  for (const k of TEXT_KEYS) {
+    const v = p[k]
+    // Une valeur masquée renvoyée par erreur ne doit jamais remplacer le vrai secret.
+    if (typeof v === 'string' && v.length <= MAX_TEXT && !v.startsWith('•')) clean[k] = v.trim()
+  }
+  if (typeof clean.discordGuildId === 'string') clean.discordGuildId = discordGuildIdFrom(clean.discordGuildId)
+  if (typeof p.demoMode === 'boolean') clean.demoMode = p.demoMode
+  if (typeof p.friendAlerts === 'string' && ALERT_MODES.includes(p.friendAlerts)) clean.friendAlerts = p.friendAlerts as Settings['friendAlerts']
+  return clean
+}
+
 export function getSettings(): Settings {
-  const saved = getKv<Partial<Settings>>('settings', {})
+  const saved = cleanPatch(getKv<Partial<Settings>>('settings', {}))
   // Une valeur enregistrée (même vide) l'emporte sur le .env
-  const merged = { ...defaults() }
-  for (const [k, v] of Object.entries(saved)) if (v !== undefined && v !== null) (merged as Record<string, unknown>)[k] = v
-  return merged
+  return { ...defaults(), ...saved }
 }
 
 export function saveSettings(patch: Partial<Settings>): Settings {
-  if (typeof patch.discordGuildId === 'string') patch = { ...patch, discordGuildId: discordGuildIdFrom(patch.discordGuildId) }
-  if ('friendAlerts' in patch && !['all', 'games', 'off'].includes(patch.friendAlerts as string)) delete patch.friendAlerts
-  const next = { ...getKv<Partial<Settings>>('settings', {}), ...patch }
+  if (TEXT_KEYS.some((k) => typeof patch?.[k] === 'string' && patch[k].length > MAX_TEXT)) throw new Error('Valeur trop longue.')
+  const next = { ...cleanPatch(getKv<Partial<Settings>>('settings', {})), ...cleanPatch(patch) }
   setKv('settings', next, true)
   return getSettings()
+}
+
+/** Ce que voit l'interface : les secrets sont remplacés par « •••• » et leurs 4 derniers caractères (vide s'ils ne sont pas renseignés). */
+export function publicSettings(s: Settings): Settings {
+  const masked = { ...s }
+  for (const k of SECRET_KEYS) masked[k] = s[k] ? `••••••••${s[k].length >= 12 ? s[k].slice(-4) : ''}` : ''
+  return masked
 }
 
 export function getAccounts(): Account[] {

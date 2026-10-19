@@ -17,7 +17,8 @@ export function cancelLogin(): void {
   cancelPending?.()
 }
 
-function waitForCallback(path: string): Promise<URL> {
+/** Attend le retour du navigateur sur `path`. Seule une réponse qui porte le jeton de cette tentative (`accept`) est prise : les autres requêtes sont ignorées. */
+function waitForCallback(path: string, accept: (url: URL) => boolean): Promise<URL> {
   cancelPending?.()
   return new Promise((resolve, reject) => {
     const done = (): void => {
@@ -31,7 +32,7 @@ function waitForCallback(path: string): Promise<URL> {
     }
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', BASE)
-      if (url.pathname !== path) {
+      if (url.pathname !== path || !accept(url)) {
         res.writeHead(404).end()
         return
       }
@@ -57,8 +58,14 @@ function waitForCallback(path: string): Promise<URL> {
 
 // ---------- Steam (OpenID 2.0) ----------
 
+const STEAM_OPENID = 'https://steamcommunity.com/openid/login'
+/** Champs que Steam doit avoir signés pour que la réponse soit prise en compte. */
+const STEAM_SIGNED = ['claimed_id', 'identity', 'return_to', 'response_nonce', 'op_endpoint']
+
 export async function loginSteam(): Promise<Account> {
-  const returnTo = `${BASE}/steam/callback`
+  // Jeton propre à cette tentative : une réponse préparée ailleurs (un autre compte Steam) n'est pas acceptée.
+  const nonce = randomBytes(16).toString('hex')
+  const returnTo = `${BASE}/steam/callback?n=${nonce}`
   const params = new URLSearchParams({
     'openid.ns': 'http://specs.openid.net/auth/2.0',
     'openid.mode': 'checkid_setup',
@@ -67,24 +74,32 @@ export async function loginSteam(): Promise<Account> {
     'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
     'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select'
   })
-  const pending = waitForCallback('/steam/callback')
-  await shell.openExternal(`https://steamcommunity.com/openid/login?${params}`)
+  const pending = waitForCallback('/steam/callback', (url) => url.searchParams.get('n') === nonce)
+  await shell.openExternal(`${STEAM_OPENID}?${params}`)
   const cb = await pending
+  const q = (k: string): string | null => cb.searchParams.get(`openid.${k}`)
+
+  // La réponse doit venir de Steam, pour cette tentative, avec les champs importants signés.
+  const signed = (q('signed') ?? '').split(',')
+  if (q('mode') !== 'id_res' || q('op_endpoint') !== STEAM_OPENID || q('return_to') !== returnTo || !STEAM_SIGNED.every((f) => signed.includes(f)))
+    throw new Error('Steam n’a pas validé la connexion.')
 
   // Vérifie la signature auprès de Steam pour ne pas faire confiance à l'URL de retour.
-  const verify = new URLSearchParams(cb.searchParams)
+  const verify = new URLSearchParams()
+  for (const [k, v] of cb.searchParams) if (k.startsWith('openid.')) verify.set(k, v)
   verify.set('openid.mode', 'check_authentication')
-  const check = await fetch('https://steamcommunity.com/openid/login', { method: 'POST', body: verify })
-  if (!(await check.text()).includes('is_valid:true')) throw new Error('Steam n’a pas validé la connexion.')
+  const check = await fetch(STEAM_OPENID, { method: 'POST', body: verify, signal: AbortSignal.timeout(15_000) })
+  if (!/^is_valid:true$/m.test(await check.text())) throw new Error('Steam n’a pas validé la connexion.')
 
-  const steamId = cb.searchParams.get('openid.claimed_id')?.match(/\/id\/(\d{17})$/)?.[1]
-  if (!steamId) throw new Error('Identifiant Steam introuvable.')
+  const claimed = q('claimed_id')
+  const steamId = claimed?.match(/^https?:\/\/steamcommunity\.com\/openid\/id\/(\d{17})$/)?.[1]
+  if (!steamId || q('identity') !== claimed) throw new Error('Identifiant Steam introuvable.')
 
   let account: Account = { platform: 'steam', id: steamId, name: `Steam ${steamId}` }
   const { steamApiKey } = getSettings()
   if (steamApiKey) {
     const [profile] = await getSteamProfiles(steamApiKey, [steamId]).catch(() => [])
-    if (profile) account = { ...account, name: profile.personaname, avatarUrl: profile.avatarfull }
+    if (profile) account = { ...account, name: profile.personaname, avatarUrl: profile.avatarfull || undefined }
   }
   saveAccount(account)
   return account
@@ -106,10 +121,9 @@ export async function loginDiscord(): Promise<Account> {
     scope: 'identify',
     state
   })
-  const pending = waitForCallback('/discord/callback')
+  const pending = waitForCallback('/discord/callback', (url) => url.searchParams.get('state') === state)
   await shell.openExternal(`https://discord.com/oauth2/authorize?${params}`)
   const cb = await pending
-  if (cb.searchParams.get('state') !== state) throw new Error('Réponse Discord invalide.')
   const code = cb.searchParams.get('code')
   if (!code) throw new Error(cb.searchParams.get('error_description') ?? 'Connexion Discord annulée.')
 
@@ -128,12 +142,15 @@ export async function loginDiscord(): Promise<Account> {
   const { access_token } = (await tokenRes.json()) as { access_token: string }
 
   const meRes = await fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${access_token}` } })
-  const me = (await meRes.json()) as { id: string; username: string; global_name?: string; avatar?: string }
+  const me = (await meRes.json()) as { id?: unknown; username?: unknown; global_name?: unknown; avatar?: unknown }
+  const id = typeof me.id === 'string' && /^\d{15,22}$/.test(me.id) ? me.id : null
+  const name = [me.global_name, me.username].find((n): n is string => typeof n === 'string' && !!n)
+  if (!meRes.ok || !id || !name) throw new Error('Profil Discord illisible, réessaie.')
   const account: Account = {
     platform: 'discord',
-    id: me.id,
-    name: me.global_name ?? me.username,
-    avatarUrl: me.avatar ? `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.png?size=128` : undefined
+    id,
+    name: name.slice(0, 128),
+    avatarUrl: typeof me.avatar === 'string' && /^(a_)?[0-9a-f]{32}$/.test(me.avatar) ? `https://cdn.discordapp.com/avatars/${id}/${me.avatar}.png?size=128` : undefined
   }
   saveAccount(account)
   return account

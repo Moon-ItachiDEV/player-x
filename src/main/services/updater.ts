@@ -1,14 +1,18 @@
 // Mises à jour automatiques : GitHub Releases via electron-updater, seulement dans la version installée.
 // La source (owner/repo) vient de app-update.yml, écrit par electron-builder à partir de `build.publish`.
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, net } from 'electron'
 // Import par défaut : marche que le main soit bundlé en CJS (le cas ici, dépendance externe → require) ou en ESM.
-import updaterPkg, { type AppUpdater, type Logger } from 'electron-updater'
+import updaterPkg, { type AppUpdater, type Logger, type UpdateDownloadedEvent } from 'electron-updater'
 import type { UpdateState } from '@shared/types'
+import { handle } from '../ipc'
+import { isVersion, sha512File, verifyUpdateSignature } from './updateSignature'
 
 const FIRST_CHECK_DELAY = 10_000
 const CHECK_INTERVAL = 6 * 60 * 60 * 1000
 /** Après une erreur (hors ligne, GitHub indisponible…), on retente plus tôt que la vérification suivante. */
 const RETRY_DELAY = 30 * 60 * 1000
+/** Signatures publiées à côté de l'installeur (même dépôt que `build.publish` dans package.json). */
+const RELEASES = 'https://github.com/Moon-ItachiDEV/player-x/releases/download'
 
 let state: UpdateState = { state: 'idle' }
 let updater: AppUpdater | null = null
@@ -97,10 +101,61 @@ function install(): void {
   setImmediate(() => u.quitAndInstall(true, true))
 }
 
+// ---------- signature ----------
+
+/** Message affiché quand la version téléchargée n'est pas signée par Player X : elle n'est jamais installée. */
+const UNSIGNED = 'Mise à jour refusée : elle n’est pas signée par Player X. Elle ne sera pas installée.'
+
+async function fetchSignature(version: string, file: string): Promise<string | null> {
+  try {
+    const res = await net.fetch(`${RELEASES}/v${version}/${file}.sig`, { cache: 'no-store', signal: AbortSignal.timeout(20_000) })
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error(`HttpError: ${res.status}`)
+    const text = await res.text()
+    return text.length <= 512 ? text : null
+  } catch (e) {
+    logger.warn(e)
+    throw e
+  }
+}
+
+/** Vérifie l'installeur téléchargé avant de le proposer : sans signature valide, il reste en attente et n'est jamais lancé. */
+async function verifyDownloaded(u: AppUpdater, info: UpdateDownloadedEvent): Promise<void> {
+  const file = info.files.find((f) => f.url.toLowerCase().endsWith('.exe'))?.url ?? info.path
+  if (!isVersion(info.version) || !/^[\w.-]+\.exe$/i.test(file ?? '')) return refuse(UNSIGNED)
+  let signature: string | null
+  try {
+    signature = await fetchSignature(info.version, file)
+  } catch {
+    return refuse('Impossible de vérifier la mise à jour pour le moment. Player X réessaiera plus tard.')
+  }
+  if (!signature || !verifyUpdateSignature(info.version, await sha512File(info.downloadedFile), signature)) return refuse(UNSIGNED)
+  u.autoInstallOnAppQuit = true
+  // electron-updater n'arme l'installation en quittant qu'au téléchargement, quand elle était encore désactivée : on l'arme maintenant.
+  // Méthode interne : si elle disparaît un jour, seul « installer en quittant » manque, « Redémarrer » marche toujours.
+  ;(u as unknown as { addQuitHandler?: () => void }).addQuitHandler?.()
+  setState({ state: 'ready', version: info.version })
+}
+
+function refuse(message: string): void {
+  logger.warn(message)
+  setState({ state: 'error', message })
+  scheduleRetry()
+}
+
+function scheduleRetry(): void {
+  if (retry) clearTimeout(retry)
+  retry = setTimeout(() => {
+    retry = null
+    void check()
+  }, RETRY_DELAY)
+}
+
 function wire(u: AppUpdater): void {
   u.logger = logger
   u.autoDownload = true
-  u.autoInstallOnAppQuit = true
+  // Installée en quittant seulement une fois la signature vérifiée (voir verifyDownloaded).
+  u.autoInstallOnAppQuit = false
   u.on('checking-for-update', () => setState({ state: 'checking' }))
   u.on('update-not-available', () => setState({ state: 'none', checkedAt: Date.now() }))
   u.on('update-available', (info) => setState({ state: 'downloading', version: info.version, percent: 0 }))
@@ -110,26 +165,30 @@ function wire(u: AppUpdater): void {
     // Un message par point de pourcentage, pas à chaque paquet reçu.
     if (percent !== state.percent) setState({ ...state, percent })
   })
-  u.on('update-downloaded', (info) => setState({ state: 'ready', version: info.version }))
+  u.on('update-downloaded', (info) => {
+    // Même pendant la vérification, rien ne s'installe en quittant.
+    u.autoInstallOnAppQuit = false
+    setState({ state: 'downloading', version: info.version, percent: 100 })
+    verifyDownloaded(u, info).catch((e) => {
+      logger.error(e)
+      refuse('Impossible de vérifier la mise à jour pour le moment. Player X réessaiera plus tard.')
+    })
+  })
   u.on('error', (err) => {
     const message = describeUpdateError(err)
     // Une erreur après coup ne doit pas masquer une mise à jour déjà prête.
     if (state.state === 'ready') return
     if (message === null) return setState({ state: 'none', checkedAt: Date.now() })
     setState({ state: 'error', message })
-    if (retry) clearTimeout(retry)
-    retry = setTimeout(() => {
-      retry = null
-      void check()
-    }, RETRY_DELAY)
+    scheduleRetry()
   })
 }
 
 /** À appeler une fois, après `app.whenReady()` : enregistre l'IPC et planifie les vérifications. */
 export function initUpdater(): void {
-  ipcMain.handle('update:get', () => state)
-  ipcMain.handle('update:check', () => check())
-  ipcMain.handle('update:install', () => install())
+  handle('update:get', () => state)
+  handle('update:check', () => check())
+  handle('update:install', () => install())
 
   if (!app.isPackaged) {
     state = { state: 'disabled' }

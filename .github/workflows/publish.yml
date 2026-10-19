@@ -1,0 +1,59 @@
+# Publie la release en brouillon préparée par « Release », avec la signature de l'installeur.
+# La signature est faite hors de GitHub avec la clé privée : node scripts/update-signature.mjs sign <version> <sha512> <clé.pem>.
+# Elle est vérifiée ici avec la clé publique livrée dans l'appli avant toute publication : une mauvaise signature ne part jamais.
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      signature:
+        description: Signature de l'installeur (base64), faite hors de GitHub
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+
+      - name: Vérifier la signature et publier
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          SIGNATURE: ${{ inputs.signature }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          tag="v${version}"
+          exe="Player-X-Setup-${version}.exe"
+          mkdir -p "${RUNNER_TEMP}/release"
+          # L'installeur tel qu'il est dans la release : c'est lui que Player X téléchargera.
+          gh release download "${tag}" --pattern "${exe}" --dir "${RUNNER_TEMP}/release" --clobber
+          sha="$(node scripts/update-signature.mjs hash "${RUNNER_TEMP}/release/${exe}")"
+          node scripts/update-signature.mjs verify "${version}" "${sha}" "${SIGNATURE}"
+          printf '%s' "${SIGNATURE}" > "${RUNNER_TEMP}/release/${exe}.sig"
+          gh release upload "${tag}" "${RUNNER_TEMP}/release/${exe}.sig" --clobber
+          assets="$(gh release view "${tag}" --json assets --jq '.assets[].name')"
+          for f in latest.yml "${exe}" "${exe}.blockmap" "${exe}.sig"; do
+            if ! grep -qxF "${f}" <<< "${assets}"; then
+              echo "::error::Fichier manquant dans la release ${tag} : ${f}"
+              exit 1
+            fi
+          done
+          gh release edit "${tag}" --draft=false --latest
+          echo "Release ${tag} publiée avec sa signature."
