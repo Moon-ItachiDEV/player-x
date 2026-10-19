@@ -296,6 +296,8 @@ function createWarp(o: RestartRequest, t: Tier | 'hidden', delayMs: number): War
   const C = centerOf(o.origin) ?? { x: innerWidth / 2, y: innerHeight / 2 }
   const base: StageState = { mode: 'warp', phase: 'run', tier: t === 'hidden' ? 'full' : t, origin: C, version: o.version, preview }
   let over = false
+  /** L'image finale est posée : une transition de vue prête trop tard ne relance plus la chronologie. */
+  let final = false
   let accepted = false
   let installing = false
   let transition: ViewTransition | null = null
@@ -320,6 +322,7 @@ function createWarp(o: RestartRequest, t: Tier | 'hidden', delayMs: number): War
 
     finalFrame() {
       if (over) return
+      final = true
       run.settle('finish')
       for (const a of stageAnimations()) {
         try {
@@ -346,6 +349,8 @@ function createWarp(o: RestartRequest, t: Tier | 'hidden', delayMs: number): War
       if (warp === self) warp = null
       run.dispose()
       const el = stage.get().mode === 'warp' ? stageEl() : null
+      // Annuler les entrées ramène marque et texte à leur état CSS (visibles) : on les cache d'abord, seul le voile s'efface.
+      el?.querySelector<HTMLElement>('.stage-fx')?.style.setProperty('visibility', 'hidden')
       run.settle('cancel')
       for (const a of stageAnimations()) a.cancel()
       try {
@@ -371,6 +376,8 @@ function createWarp(o: RestartRequest, t: Tier | 'hidden', delayMs: number): War
         if (closed) return
         closed = true
         if (!warp && stage.get().mode === 'warp') stage.set(STAGE_IDLE)
+        // Un nouveau saut a repris le même élément entre-temps : son contenu doit se voir.
+        else el?.querySelector<HTMLElement>('.stage-fx')?.style.removeProperty('visibility')
         requestAnimationFrame(refocus)
       }
       const fade = el ? anim(el, KF.fadeOut(220).frames, { ...KF.fadeOut(220).opts, level: 'sober', whenIdle: true }) : null
@@ -424,16 +431,16 @@ function createWarp(o: RestartRequest, t: Tier | 'hidden', delayMs: number): War
   function startFull(): void {
     const canVT = typeof document.startViewTransition === 'function' && !root.classList.contains('vt-active') && !document.hidden
     const go = (viaVT: boolean): void => {
-      if (over) return
+      if (over || final) return
       void show(base).then((el) => {
-        if (el && !over) timeline(el, viaVT)
+        if (el && !over && !final) timeline(el, viaVT)
       })
     }
     if (canVT) {
       try {
         root.classList.add('vt-warp')
         transition = document.startViewTransition(() => {
-          if (over) return
+          if (over || final) return
           setShellInert(true)
           // Monté en « hold » : rien au-dessus du voile tant que la chronologie n'a pas démarré.
           return show({ ...base, phase: 'hold' }).then(() => {})
@@ -584,6 +591,25 @@ function swallowClick(): void {
   setTimeout(() => removeEventListener('click', eat, true), 800)
 }
 
+/** Passé avec un modificateur (Ctrl+K…) : la touche du raccourci qui suit n'atteint pas Shell non plus. */
+function swallowChord(mod: string): void {
+  const eat = (e: KeyboardEvent): void => {
+    if (!(e.ctrlKey || e.metaKey || e.altKey || e.shiftKey)) return
+    e.stopPropagation()
+    e.preventDefault()
+  }
+  const off = (): void => {
+    removeEventListener('keydown', eat, true)
+    removeEventListener('keyup', up, true)
+  }
+  const up = (e: KeyboardEvent): void => {
+    if (e.key === mod) off()
+  }
+  addEventListener('keydown', eat, true)
+  addEventListener('keyup', up, true)
+  setTimeout(off, 800)
+}
+
 /** §8.6 : la première touche ou le premier clic passe le retour, et n'atteint jamais les raccourcis de Shell. */
 function armSkip(r: Reveal): void {
   const onSkip = (e: Event): void => {
@@ -591,6 +617,7 @@ function armSkip(r: Reveal): void {
     e.preventDefault()
     r.disarm()
     if (e.type === 'pointerdown') swallowClick()
+    else if (e instanceof KeyboardEvent && /^(Control|Shift|Alt|Meta|AltGraph)$/.test(e.key)) swallowChord(e.key)
     if (r.phase === 'hold') {
       r.skipped = true
       r.holdCheck?.()
@@ -622,13 +649,18 @@ function hold(r: Reveal): Promise<void> {
       // La première image peinte de l'interface existe sous le voile.
       void twoFrames().then(resolve)
     }
+    // Le minuteur du minimum le constate lui-même : setTimeout arrondit, since() peut y lire 399,8 ms pour 400.
+    let minOk = false
     const check = (): void => {
-      if (uiUp() && (r.skipped || since() >= min)) end()
+      if (uiUp() && (r.skipped || minOk || since() >= min)) end()
     }
     const mo = new MutationObserver(check)
     if (rootEl) mo.observe(rootEl, { childList: true, subtree: true })
     r.holdCheck = check
-    r.run.later(min - since(), check)
+    r.run.later(min - since(), () => {
+      minOk = true
+      check()
+    })
     r.run.later(1500 - since(), end)
     r.run.on(() => {
       over = true

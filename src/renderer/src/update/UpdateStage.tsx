@@ -44,8 +44,9 @@ function RevealText({ info }: { info: RevealInfo }): React.JSX.Element {
             </span>
           </>
         )}
-        {/* Un span par vrai caractère, dans l'ordre : ils montent l'un après l'autre (stage.ts). */}
-        <span className="stage-to" aria-label={info.to}>
+        {/* Un span par vrai caractère, dans l'ordre : ils montent l'un après l'autre (stage.ts). La version lue reste à côté. */}
+        <span className="sr-only">{info.to}</span>
+        <span className="stage-to">
           {[...info.to].slice(0, 16).map((ch, i) => (
             <span key={i} aria-hidden="true">
               {ch}

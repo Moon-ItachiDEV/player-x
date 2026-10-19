@@ -1,6 +1,6 @@
 // « Voir l'aperçu » : rejoue toute la séquence (carte, bouclier, compte à rebours, saut, retour, Quoi de neuf) sans rien télécharger ni installer.
 // CONTRAT partagé par la carte, Quoi de neuf et À propos. Règles d'honnêteté : aucune version, taille, vitesse ni empreinte inventée.
-import { createStore, isIdle, isRealUpdateBusy } from './session'
+import { createStore, gameRunning, isIdle, isRealUpdateBusy } from './session'
 import { announceStage, playPreviewReveal, resetStage, revealDone, setPreviewDriver, stage } from './stage'
 
 export type PreviewFrame =
@@ -58,7 +58,8 @@ function until<T>(p: Promise<T>, signal: AbortSignal): Promise<T> {
 }
 
 export async function startPreview(o: { from: 'about' | 'whatsnew'; trigger?: HTMLElement | null }): Promise<void> {
-  if (current || preview.get().active) return
+  // Rien n'anime pendant une partie : pas d'aperçu non plus.
+  if (current || preview.get().active || gameRunning.get()) return
   // Un saut ou un retour à l'écran passe avant.
   if (stage.get().mode !== 'idle' || !revealDone.get()) return
   const session: Session = { ctl: new AbortController(), trigger: o.trigger ?? null, started: false, ended: false }
@@ -100,7 +101,13 @@ function end(s: Session): void {
   revealDone.set(true)
   if (!s.started) return
   announceStage('Aperçu terminé.')
-  if (s.trigger?.isConnected) s.trigger.focus()
+  // Après le rendu qui réactive le bouton (désactivé pendant l'aperçu), et sans voler un focus déplacé entre-temps.
+  const t = s.trigger
+  if (t)
+    requestAnimationFrame(() => {
+      const a = document.activeElement
+      if (t.isConnected && !(t as HTMLButtonElement).disabled && (!a || a === document.body)) t.focus()
+    })
 }
 
 /** §11.2, les visuels du palier courant. */
@@ -136,6 +143,8 @@ async function runPreview(s: Session): Promise<void> {
     removeEventListener('blur', onIdle)
     document.removeEventListener('visibilitychange', onIdle)
   })
+  // Une partie qui démarre arrête l'aperçu (rien n'anime en jeu).
+  offs.push(gameRunning.subscribe(() => gameRunning.get() && stopPreview()))
   // Un vrai téléchargement, une vraie vérification, une vraie mise à jour prête ou en cours d'installation gagne toujours.
   try {
     offs.push(window.launcher.onUpdateState((u) => isRealUpdateBusy(u) && stopPreview()))

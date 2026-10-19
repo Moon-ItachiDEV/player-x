@@ -108,6 +108,9 @@ export function useStore<T>(s: Store<T>): T {
   return useSyncExternalStore(s.subscribe, s.get)
 }
 
+/** Un jeu lancé depuis Player X tourne (tenu à jour par App) : l'aperçu n'est alors ni proposé ni joué. */
+export const gameRunning = createStore(false)
+
 // ---------- dernière mise à jour connue du processus principal ----------
 
 /** loaded passe à true à l'arrivée de la réponse, ou après 400 ms (valeur null en attendant). */

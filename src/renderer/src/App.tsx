@@ -14,7 +14,7 @@ import { Setup } from './components/setup/Setup'
 import { Stats } from './components/stats/Stats'
 import { TopBar } from './components/TopBar'
 // Avant WhatsNew : lit pg.lastVersion et prépare le retour d'une mise à jour avant le premier rendu.
-import './update/session'
+import { gameRunning } from './update/session'
 import './update/stage'
 import { UpdateStage } from './update/UpdateStage'
 import { UpdateNotice } from './components/UpdateNotice'
@@ -166,6 +166,9 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     loadGames()
     return api.onGamesChanged(() => api.getGames().then(setGames))
   }, [loadGames, setEntered])
+
+  // Un jeu en cours coupe l'aperçu de l'animation de mise à jour (rien n'anime pendant une partie).
+  useEffect(() => gameRunning.set(games.some((g) => g.running)), [games])
 
   // Les comptes comptent par identité : un pseudo ou un avatar mis à jour ne relance pas toute la récupération.
   const accountsKey = accounts.map((a) => `${a.platform}:${a.id}`).join('|')

@@ -32,6 +32,8 @@ function createWindow(): void {
   const b = takeRelaunchBounds()
   const win = new BrowserWindow({
     ...(b ? { x: b.x, y: b.y, width: b.width, height: b.height } : { width: 1440, height: 900 }),
+    // Agrandie avant la mise à jour : montrée directement agrandie, sans passer par sa taille normale.
+    show: !b?.maximized,
     minWidth: 1024,
     minHeight: 640,
     backgroundColor: '#0b0d14',
@@ -49,7 +51,10 @@ function createWindow(): void {
       devTools: !app.isPackaged
     }
   })
-  if (b?.maximized) win.maximize()
+  if (b?.maximized) {
+    win.maximize()
+    win.focus()
+  }
   // Les liens externes s'ouvrent dans le navigateur, pas dans l'appli.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) shell.openExternal(url)

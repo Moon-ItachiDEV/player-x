@@ -6,7 +6,7 @@ import type { LastUpdate } from '@shared/types'
 import { useEscape } from './ui/Overlay'
 import { BrandMark } from './ui/Brand'
 import { Icon } from './ui/Icon'
-import { anim, lastUpdate, PREVIOUS_VERSION, thisBootUpdate, useStore, VERSION } from '../update/session'
+import { anim, gameRunning, isRealUpdateBusy, lastUpdate, PREVIOUS_VERSION, thisBootUpdate, useStore, useUpdateState, VERSION } from '../update/session'
 import { revealDone } from '../update/stage'
 import { preview, PREVIEW_INTRO, startPreview, stopPreview } from '../update/preview'
 import { duration } from '../update/format'
@@ -124,6 +124,10 @@ export function WhatsNew(): React.JSX.Element | null {
   const revealed = useStore(revealDone)
   const last = useStore(lastUpdate)
   const pv = useStore(preview)
+  // « Voir l'aperçu » n'a rien à rejouer pendant une vraie mise à jour ou une partie (startPreview refuserait).
+  const [upd] = useUpdateState()
+  const inGame = useStore(gameRunning)
+  const previewBlocked = isRealUpdateBusy(upd) || inGame
   // Aperçu : la fin de la séquence rejouée ouvre cette fenêtre, et la fermer termine l'aperçu.
   const inPreview = pv.active && pv.part === 'whatsnew'
   const shown = inPreview || (open && revealed && last.loaded)
@@ -190,7 +194,14 @@ export function WhatsNew(): React.JSX.Element | null {
           {version === PREVIEW_INTRO && !inPreview && (
             <button
               className="btn btn-ghost"
-              title="Rejoue l'animation de mise à jour, sans rien installer"
+              disabled={previewBlocked}
+              title={
+                isRealUpdateBusy(upd)
+                  ? 'Indisponible pendant une vraie mise à jour'
+                  : inGame
+                    ? 'Indisponible pendant une partie'
+                    : "Rejoue l'animation de mise à jour, sans rien installer"
+              }
               onClick={() => {
                 setOpen(false)
                 void startPreview({ from: 'whatsnew' })

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { flushSync } from 'react-dom'
 import type { UpdateErrorCode, UpdateState } from '@shared/types'
 import { useToast } from '../components/ui/Toasts'
-import { anim, fx, isIdle, isRealUpdateBusy, lastUpdate, thisBootUpdate, tier, useStore, VERSION, type AnimOpts, type Tier } from './session'
+import { anim, createStore, fx, isIdle, isRealUpdateBusy, lastUpdate, tier, useStore, VERSION, type AnimOpts, type Tier } from './session'
 import { EASE, KF, type KeyframeSet } from './keyframes'
 import { rate as rateOf, type Rate } from './format'
 import { requestRestart, restartBlocked } from './stage'
@@ -84,6 +84,9 @@ const PACKETS: Record<Rate, { n: number; ms: number }> = { slow: { n: 1, ms: 100
  * délai + 10 s), la carte se débloque d'elle-même, sans relancer le compte à rebours pour cette version.
  */
 const RESTART_SAFETY_MS = 12_000
+
+/** Clé masquée par « Plus tard » ou × : au niveau du module, elle survit au démontage de la coque (choix des favoris). */
+const dismissedKey = createStore<string | null>(null)
 
 // ---------- ce que la carte doit montrer ----------
 
@@ -340,12 +343,14 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
   const active = useWindowActive()
   const pv = useStore(preview)
   const blockedVersion = useStore(restartBlocked)
-  useStore(lastUpdate) // l'empreinte de la version qui tourne peut arriver après le premier rendu
-  const ownFingerprint = thisBootUpdate()?.fingerprint
+  // Empreinte de la version qui tourne : même règle que le retour et Quoi de neuf (dernière mise à jour vers VERSION).
+  const lu = useStore(lastUpdate).value
+  const ownFingerprint = lu && lu.to === VERSION ? lu.fingerprint : undefined
 
   // ----- source : la vraie mise à jour gagne toujours sur l'aperçu -----
   const realBusy = isRealUpdateBusy(real)
-  const fromPv = pv.active && pv.part === 'card' && !!pv.frame && !realBusy
+  // Pendant le saut de l'aperçu, la carte garde sa dernière image : elle est aspirée avec l'interface, comme une vraie.
+  const fromPv = pv.active && (pv.part === 'card' || pv.part === 'warp') && !!pv.frame && !realBusy
   // Une séance d'aperçu = une carte (entrée, verrouillage, compte à rebours à elle).
   const session = useRef({ active: false, n: 0 })
   if (pv.active !== session.current.active) session.current = { active: pv.active, n: session.current.n + (pv.active ? 1 : 0) }
@@ -379,8 +384,10 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
       viewRef.current = next
       setView(next)
       // Prête juste après une vérification visible : verrouillage, une fois par version (§6.5).
-      if (next.kind === 'ready' && prev.kind === 'verify' && prev.id === next.id && !locked.current.has(next.key)) {
-        locked.current.add(next.key)
+      // Clé par carte : chaque séance d'aperçu a le sien, une vraie version une seule fois.
+      const lk = `${next.id}|${next.key}`
+      if (next.kind === 'ready' && prev.kind === 'verify' && prev.id === next.id && !locked.current.has(lk)) {
+        locked.current.add(lk)
         const t = tier()
         if (inGameRef.current || isIdle()) accentFor.current = t === 'reduced' ? null : next.key
         else if (t !== 'reduced') setLock({ key: next.key, tier: t, swapped: false, ...LOCK[t] })
@@ -413,7 +420,7 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
   const stalled = view.kind === 'download' && !view.preview && stalledSeq === view.seq
 
   // ----- masquage, redémarrage, compte à rebours -----
-  const [dismissed, setDismissed] = useState<string | null>(null)
+  const dismissed = useStore(dismissedKey)
   const [leaving, setLeaving] = useState(false)
   const [hovered, setHoveredState] = useState(false)
   const [focusWithin, setFocusWithinState] = useState(false)
@@ -423,7 +430,9 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
   const D = view.preview ? PREVIEW_COUNTDOWN : RESTART_DELAY
   const readyKey = view.kind === 'ready' ? `${view.id}|${view.key}` : ''
   const [cd, setCd] = useState({ key: '', left: RESTART_DELAY })
-  const left = cd.key === readyKey ? cd.left : D
+  // Le compte garde sa valeur pendant le redémarrage : ni « 10 », ni cellules rallumées sous l'instantané du saut.
+  const cdKey = view.kind === 'ready' || view.kind === 'installing' ? `${view.id}|ready:${view.version}:` : ''
+  const left = cd.key === cdKey ? cd.left : D
 
   const hidden = view.kind === 'hidden' || (!view.preview && dismissed === view.key)
   const blocked = view.kind === 'ready' && ((!view.preview && blockedVersion === view.version) || selfBlocked === readyKey)
@@ -518,12 +527,12 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
     const v = viewRef.current
     if (v.preview) return leave(stopPreview)
     notify(`La ${v.version} s’installera quand tu fermeras Player X`, { kind: 'info', id: 'update' })
-    leave(() => setDismissed(v.key))
+    leave(() => dismissedKey.set(v.key))
   }, [leave, notify])
 
   const close = useCallback(() => {
     const v = viewRef.current
-    leave(v.preview ? stopPreview : () => setDismissed(v.key))
+    leave(v.preview ? stopPreview : () => dismissedKey.set(v.key))
   }, [leave])
 
   // ----- chorégraphie (après chaque rendu, avant l'affichage) -----
@@ -562,7 +571,8 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
       if (arrived.current.has(view.id)) return
       arrived.current.add(view.id)
       let played = false
-      if (t === 'full') {
+      // En jeu, la carte apparaît sans entrée (§5.6) ; l'accent d'armement attend la fin de la partie.
+      if (t === 'full' && !inGame) {
         played = !!play(card, KF.cardIn)
         if (played && (phase === 'download' || phase === 'armed')) {
           play(q('.upd-sheen'), KF.sheen, { delay: 260 })
@@ -571,7 +581,7 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
           play(q('.upd-swap > .upd-text'), KF.textIn, { delay: 380 })
         }
         if (played && phase === 'verify') play(q('.rx-shield-svg'), KF.shieldIn)
-      } else if (t === 'sober') played = !!play(card, KF.cardInSober, { level: 'sober' })
+      } else if (t === 'sober' && !inGame) played = !!play(card, KF.cardInSober, { level: 'sober' })
       if (played && phase === 'refused') refusedCore(q, t, true)
       // Prête dès l'arrivée (état lu au lancement) sans entrée visible : l'accent attend le premier plan.
       if (phase === 'armed' && !played && t === 'full' && (isIdle() || inGame)) accentFor.current = view.key

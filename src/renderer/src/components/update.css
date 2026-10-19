@@ -25,8 +25,8 @@
 .shell:has(.upd-dock[data-mode='mini']) > .content {
   padding-bottom: 68px;
 }
-/* Fenêtre étroite : les toasts (à droite) passeraient sur la carte, on les monte au-dessus. */
-@media (max-width: 1259px) {
+/* Fenêtre étroite : les toasts (à droite, 420 px au plus) passeraient sur la carte, on les monte au-dessus. */
+@media (max-width: 1299px) {
   #root:has(.upd-dock[data-mode='card']) .toasts {
     bottom: 108px;
   }
@@ -183,7 +183,8 @@
   display: inline-block;
 }
 .upd-fp-label {
-  color: var(--text-3);
+  /* --text-3 tombe sous 4,5:1 sur la carte (et au survol) : petit texte, donc --text-2. */
+  color: var(--text-2);
   margin-right: 6px;
 }
 

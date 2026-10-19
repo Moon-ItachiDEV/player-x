@@ -252,6 +252,15 @@ function revert(): void {
 }
 
 function onBeforeQuit(): void {
+  // Simulateur (dev) : il n'installe jamais en quittant, et sa base est celle de l'appli de dev ; aucun faux relais.
+  if (sim) {
+    try {
+      db.deleteKv(PENDING_KEY)
+    } catch {
+      /* rien à effacer */
+    }
+    return
+  }
   // Fermeture normale avec une mise à jour prête (ou pendant le délai de « Redémarrer », avant quitAndInstall) :
   // electron-updater l'installe en quittant, sans relancer. Après quitAndInstall, le relais du redémarrage est déjà écrit.
   const r = state.state === 'ready' ? state : state.state === 'installing' && !installStarted ? readyState : null

@@ -6,7 +6,7 @@ import { BrandMark } from '../ui/Brand'
 import { Icon } from '../ui/Icon'
 import { errorMessage, useToast } from '../ui/Toasts'
 import { useUpdateState } from '../UpdateNotice'
-import { isRealUpdateBusy, lastUpdate, useStore } from '../../update/session'
+import { gameRunning, isRealUpdateBusy, lastUpdate, useStore } from '../../update/session'
 import { requestRestart, warpActive } from '../../update/stage'
 import { preview, startPreview } from '../../update/preview'
 import { fpGroups, mo, pair, pct } from '../../update/format'
@@ -21,6 +21,7 @@ export function AboutSection(): React.JSX.Element {
   const [checkBusy, setCheckBusy] = useState(false)
   const last = useStore(lastUpdate).value
   const previewing = useStore(preview).active
+  const inGame = useStore(gameRunning)
 
   const check = async (): Promise<void> => {
     if (checkBusy) return
@@ -125,8 +126,8 @@ export function AboutSection(): React.JSX.Element {
           <button
             className="btn btn-secondary"
             onClick={(e) => void startPreview({ from: 'about', trigger: e.currentTarget })}
-            disabled={busyForPreview || previewing}
-            title={busyForPreview ? 'Indisponible pendant une vraie mise à jour' : undefined}
+            disabled={busyForPreview || previewing || inGame}
+            title={busyForPreview ? 'Indisponible pendant une vraie mise à jour' : inGame ? 'Indisponible pendant une partie' : undefined}
           >
             Voir l'aperçu
           </button>
