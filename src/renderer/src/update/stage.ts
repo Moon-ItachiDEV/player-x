@@ -376,8 +376,11 @@ function createWarp(o: RestartRequest, t: Tier | 'hidden', delayMs: number): War
         if (closed) return
         closed = true
         if (!warp && stage.get().mode === 'warp') stage.set(STAGE_IDLE)
-        // Un nouveau saut a repris le même élément entre-temps : son contenu doit se voir.
-        else el?.querySelector<HTMLElement>('.stage-fx')?.style.removeProperty('visibility')
+        // Un nouveau saut a repris le même élément entre-temps : ni fondu (fill both, opacité 0) ni contenu caché.
+        else {
+          fade?.cancel()
+          el?.querySelector<HTMLElement>('.stage-fx')?.style.removeProperty('visibility')
+        }
         requestAnimationFrame(refocus)
       }
       const fade = el ? anim(el, KF.fadeOut(220).frames, { ...KF.fadeOut(220).opts, level: 'sober', whenIdle: true }) : null

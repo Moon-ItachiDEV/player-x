@@ -72,7 +72,8 @@ export async function startPreview(o: { from: 'about' | 'whatsnew'; trigger?: HT
         .catch(() => null),
       session.ctl.signal
     )
-    if (isRealUpdateBusy(real)) return
+    // Une partie a pu démarrer pendant l'attente : même règle qu'au départ.
+    if (isRealUpdateBusy(real) || gameRunning.get()) return
     await runPreview(session)
   } catch {
     /* arrêté : Échap, ×, « Plus tard », fenêtre en arrière-plan, vraie mise à jour, Quoi de neuf fermé */

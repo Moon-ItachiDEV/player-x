@@ -500,7 +500,11 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
       restartRef.current()
       return
     }
-    const t = setTimeout(() => setCd((c) => ({ key: readyKey, left: (c.key === readyKey ? c.left : D) - 1 })), 1000)
+    const t = setTimeout(() => {
+      setCd({ key: readyKey, left: left - 1 })
+      // Dernière seconde : le redémarrage part dans le même rendu, sans image « Redémarrage dans 0 s ».
+      if (left - 1 <= 0) restartRef.current()
+    }, 1000)
     return () => clearTimeout(t)
   }, [counting, left, readyKey, D])
 

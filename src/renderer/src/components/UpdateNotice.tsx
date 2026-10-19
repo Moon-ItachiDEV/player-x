@@ -313,7 +313,9 @@ function useAnnouncement(m: CardModel): string {
   const [text, setText] = useState('')
   const last = useRef('')
   const v = m.version
-  const group = m.preview ? '' : m.phase === 'lock' || m.phase === 'armed' ? 'ready' : m.phase === 'installing' || m.phase === 'hidden' ? '' : m.phase
+  // Prête pendant une partie : le compte attend la fin de la partie, l'annonce le dit (puis annonce le compte à la reprise).
+  const ready = m.phase === 'armed' && m.hold === 'game' ? 'ready-game' : 'ready'
+  const group = m.preview ? '' : m.phase === 'lock' || m.phase === 'armed' ? ready : m.phase === 'installing' || m.phase === 'hidden' ? '' : m.phase
   useEffect(() => {
     if (!group || `${group}:${v}` === last.current) return
     last.current = `${group}:${v}`
@@ -322,11 +324,13 @@ function useAnnouncement(m: CardModel): string {
         ? `Téléchargement de Player X ${v} en arrière-plan.`
         : group === 'verify'
           ? `Vérification de la mise à jour ${v}.`
-          : group === 'ready'
-            ? `Player X ${v} est prête et signée. Redémarrage automatique dans 10 secondes, ou choisis Plus tard.`
-            : group === 'refused'
-              ? `Mise à jour ${v} refusée : elle n’est pas signée par Player X. Rien n’est installé.`
-              : `Mise à jour ${v} interrompue. Nouvel essai dans 30 minutes.`
+          : group === 'ready-game'
+            ? `Player X ${v} est prête et signée. Le redémarrage attendra la fin de ta partie, ou choisis Plus tard.`
+            : group === 'ready'
+              ? `Player X ${v} est prête et signée. Redémarrage automatique dans 10 secondes, ou choisis Plus tard.`
+              : group === 'refused'
+                ? `Mise à jour ${v} refusée : elle n’est pas signée par Player X. Rien n’est installé.`
+                : `Mise à jour ${v} interrompue. Nouvel essai dans 30 minutes.`
     )
   }, [group, v])
   return text

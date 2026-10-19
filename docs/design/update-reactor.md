@@ -869,7 +869,7 @@ The longest ready sub is « En pause jusqu'à ton retour » (27 chars ≈ 176 px
 .upd-dock[data-mode='mini'] { width: auto; }
 .shell:has(.upd-dock[data-mode='card']) > .content { padding-bottom: 104px; }
 .shell:has(.upd-dock[data-mode='mini']) > .content { padding-bottom: 68px; }
-@media (max-width: 1299px) {
+@media (max-width: 1311px) {
   #root:has(.upd-dock[data-mode='card']) .toasts { bottom: 108px; }
   #root:has(.upd-dock[data-mode='mini']) .toasts { bottom: 72px; }
 }
@@ -1914,9 +1914,9 @@ Release note bullet (`docs/release-notes/0.6.0.md`, under the first section):
 2. **Timing (WCAG 2.2.1).** The countdown pauses on hover, focus-within, an unfocused window and a running game. « Plus tard » turns it off for this version. A restart is always available from À propos. A failed restart never retries on its own.
 3. **Motion (WCAG 2.2.2, 2.3.1).** During the download there are no infinite animations. The only loop is the signature spinner, an activity indicator, `.fx-loop`, which pauses when idle. There is one flash, 200 ms, under 3 per second.
 4. **Vestibular.** Full-window radial motion is limited to ≤ 1.0 s (warp) and ≤ 0.6 s (arrival). Alpha ≤ .7, the snapshot shrinks only to .92, and there is no camera zoom in the reveal. Turning off « Effets visuels » removes the streaks (Sober). « Réduire les animations », or Windows' animation setting, gives Reduced: nothing moves and every value stays (card text, WhatsNew chips).
-5. **Focus.** Nothing in the card auto-focuses, which would pause the countdown. During the warp the shell is `inert`, and focus goes back to the trigger on abort. The reveal never takes focus. Its skip swallows exactly one event. WhatsNew keeps `autoFocus` on « C'est parti ».
+5. **Focus.** Nothing in the card auto-focuses, which would pause the countdown. During the warp the shell is `inert`, and focus goes back to the trigger on abort. The reveal never takes focus. Its skip swallows the skip event and, when it is a modifier (Ctrl+K…), the chord key that follows. WhatsNew keeps `autoFocus` on « C'est parti ».
 6. **Not colour alone.** Refused is a crossed shield plus « Refusée » plus danger. Interrupted is an alert icon plus text. Critical seconds keep the number.
-7. **Contrast.** Data lines use `--text-2` on `--surface-3` (`--text-3` is 4.498:1 there, just under 4.5, and 3.99:1 on hover, so it is used only for the separator; the fingerprint label uses `--text-2`). The fingerprint is 11 px mono in `--text-2`, not 10.5 px in `--text-3`.
+7. **Contrast.** Data lines use `--text-2` on `--surface-3` (`--text-3` is 4.498:1 there, just under 4.5, and about 3.97:1 on hover, so no small text uses it; the fingerprint label uses `--text-2`). The fingerprint is 11 px mono in `--text-2`, not 10.5 px in `--text-3`.
 8. **Keyboard.** The download and verify card is one button (Enter opens À propos). Ready has two buttons. Refused and interrupted have « Détails » and ×. The mini pill is a button. In preview, Esc stops at any phase.
 
 ---
@@ -2035,7 +2035,7 @@ Helpers in `update-anim.mjs`:
 | S16 | Reveal variants | `relaunch:false`; unfocused; Reduced; no record; skip by key (with a `keydown` spy on `document`); reload after reveal | Sober ≈ 1.06 s; quiet 260 ms; Reduced: no `.stage`, WhatsNew at once; no record: versions only, no chips; skip: exit ≤ 300 ms and the spy is **not** called; reload: no reveal (`pg.update.revealed`) | screencasts |
 | S17 | Preview | À propos › « Voir l'aperçu »; let it run; repeat with Esc in each phase; repeat with a real `downloading` mid-way | `calls` stays empty; every card kicker starts with « Aperçu »; the only version text is `VERSION`; Esc cleans up (no `inert`, no `vt-warp`, no `.stage`, no `px-revealing`); a real event stops it | full video; screenshots per phase |
 | S18 | À propos | each state; copy the fingerprint (grant `clipboard-write`) | phrases per §13.8; `canCheck` false in verifying and installing; clipboard = 128 hex; toast « Empreinte copiée »; the preview button is disabled during real states | screenshots |
-| S19 | Layout | every phase × 3 contexts | `overflow()` empty; dock does not cover `.content` text (padding 104 / 68); toasts at 108 / 72 px under 1300 px | screenshot matrix |
+| S19 | Layout | every phase × 3 contexts | `overflow()` empty; dock does not cover `.content` text (padding 104 / 68); toasts at 108 / 72 px under 1312 px | screenshot matrix |
 
 ### 16.4 Frames to keep (attach to the PR)
 

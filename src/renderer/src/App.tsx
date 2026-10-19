@@ -186,6 +186,8 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'k')) {
+        // Une fenêtre modale ouverte (Quoi de neuf…) garde le focus : la recherche est derrière son voile.
+        if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
         e.preventDefault()
         searchRef.current?.focus()
         searchRef.current?.select()
