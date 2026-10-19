@@ -215,13 +215,19 @@ const ALLOWED_PERMISSIONS = new Set(['clipboard-read', 'clipboard-sanitized-writ
 function lockDown(): void {
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(ALLOWED_PERMISSIONS.has(permission)))
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission))
-  // Pas de menu dans la version installée : il apporte « Recharger » et les outils de développement.
-  if (app.isPackaged) Menu.setApplicationMenu(null)
+  // Version installée : plus de « Recharger » ni d'outils de développement, mais le zoom (Ctrl +, Ctrl -, Ctrl 0) et F11 restent.
+  if (app.isPackaged)
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([{ label: 'Affichage', submenu: [{ role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { role: 'togglefullscreen' }] }])
+    )
 }
 
 // L'interface ne navigue jamais : aucune fenêtre ne doit quitter la page de Player X (lien, glisser-déposer, redirection).
+// Seul le rechargement de la page elle-même passe (bouton « Recharger » après une erreur).
 app.on('web-contents-created', (_e, contents) => {
-  contents.on('will-navigate', (e) => e.preventDefault())
+  contents.on('will-navigate', (e) => {
+    if (e.url !== contents.getURL()) e.preventDefault()
+  })
   contents.on('will-redirect', (e) => e.preventDefault())
   contents.on('will-attach-webview', (e) => e.preventDefault())
 })

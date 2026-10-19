@@ -227,6 +227,8 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
   const logout = useCallback(
     async (platform: FriendPlatform) => {
       setAccounts(await api.logout(platform))
+      // Le jeton NPSSO est effacé avec le compte PlayStation : Avancé doit l'afficher vide.
+      if (platform === 'psn') setSettings(await api.getSettings())
       notify(`${platform === 'psn' ? 'PlayStation' : platform === 'steam' ? 'Steam' : 'Discord'} déconnecté`, { kind: 'success' })
     },
     [notify]

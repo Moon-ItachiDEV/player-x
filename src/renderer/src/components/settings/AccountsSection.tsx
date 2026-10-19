@@ -27,7 +27,7 @@ const CONNECT_LABEL: Record<FriendPlatform, string> = { steam: 'Connecter Steam'
 const DISCONNECT_BODY: Record<FriendPlatform, string> = {
   steam: "Tes amis Steam n'apparaîtront plus dans Player X. Tu pourras te reconnecter à tout moment.",
   discord: "Ton compte Discord sera retiré de Player X. Les membres du serveur restent affichés tant que l'ID du serveur est renseigné dans Avancé.",
-  psn: "Tes amis PlayStation n'apparaîtront plus dans Player X. Tu pourras te reconnecter à tout moment."
+  psn: "Tes amis PlayStation n'apparaîtront plus dans Player X, et ton jeton NPSSO sera effacé. Pour te reconnecter, colle un nouveau jeton dans Avancé."
 }
 
 const PRIVACY_URL = 'https://steamcommunity.com/my/edit/settings'

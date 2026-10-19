@@ -179,18 +179,27 @@ async function discordServerMembers(rawId: string): Promise<Friend[]> {
 
 let psnTokens: (AuthTokensResponse & { obtainedAt: number }) | null = null
 
+/** Change à chaque oubli : une connexion commencée avant ne remet pas l'ancienne session en cache. */
+let psnGeneration = 0
+
 /** Oublie la session PlayStation en mémoire (déconnexion ou nouveau jeton NPSSO). */
 export function resetPsn(): void {
   psnTokens = null
+  psnGeneration++
 }
 
 async function psnAuth(npsso: string): Promise<{ accessToken: string }> {
   const now = Date.now()
+  const generation = psnGeneration
+  const keep = (tokens: AuthTokensResponse): AuthTokensResponse & { obtainedAt: number } => {
+    const session = { ...tokens, obtainedAt: now }
+    if (generation === psnGeneration) psnTokens = session
+    return session
+  }
   if (psnTokens && now < psnTokens.obtainedAt + (psnTokens.expiresIn - 60) * 1000) return psnTokens
   if (psnTokens?.refreshToken) {
     try {
-      psnTokens = { ...(await exchangeRefreshTokenForAuthTokens(psnTokens.refreshToken)), obtainedAt: now }
-      return psnTokens
+      return keep(await exchangeRefreshTokenForAuthTokens(psnTokens.refreshToken))
     } catch {
       /* on retombe sur le NPSSO */
     }
@@ -203,14 +212,13 @@ async function psnAuth(npsso: string): Promise<{ accessToken: string }> {
     // Hors réseau, un échec ici veut dire que le NPSSO est refusé.
     throw isNetworkError(e) ? e : new UserError(PSN_AUTH_ERROR)
   }
-  psnTokens = { ...tokens, obtainedAt: now }
-  return psnTokens
+  return keep(tokens)
 }
 
 export async function connectPsn(): Promise<Account> {
   const { psnNpsso } = getSettings()
   if (!psnNpsso) throw new Error('Colle ton jeton NPSSO PlayStation dans Paramètres.')
-  psnTokens = null
+  resetPsn()
   try {
     const auth = await psnAuth(psnNpsso)
     const me = await getProfileFromAccountId(auth, 'me')
