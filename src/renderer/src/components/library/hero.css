@@ -147,7 +147,7 @@
   display: inline-flex;
   align-items: center;
 }
-.hero-meta > * + span::before {
+.hero-meta > * + span:not(.live-badge)::before {
   content: '';
   width: 3px;
   height: 3px;
@@ -408,4 +408,8 @@
   from {
     scale: 0 1;
   }
+}
+
+.hero-meta > .live-badge {
+  margin-left: 10px;
 }

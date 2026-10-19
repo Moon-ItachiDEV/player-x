@@ -64,10 +64,18 @@ function niceTicks(min: number, max: number, count = 4): number[] {
   const mag = Math.pow(10, Math.floor(Math.log10(raw)))
   const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? raw
   const start = Math.floor(min / step) * step
+  // La dernière graduation est toujours au-dessus du maximum : la courbe ne sort jamais du cadre.
+  const end = Math.ceil(max / step) * step
   const ticks: number[] = []
-  for (let v = start; v <= max + step * 0.5; v += step) ticks.push(Math.round(v / step) * step)
+  for (let i = 0; start + i * step <= end + step * 1e-6; i++) ticks.push(Math.round((start + i * step) / step) * step)
   return ticks
 }
+
+/** Décimales utiles pour un pas de graduation (0,05 → 2, 0,5 → 1, 5 → 0). */
+const stepDecimals = (step: number): number => Math.min(2, Math.max(0, Math.ceil(-Math.log10(step) - 1e-9)))
+
+/** « 1er août », « 12 sept. » */
+const dayLabel = (t: number): string => dayFmt.format(t).replace(/^1 /, '1er ')
 
 export function Progress({ account, fetchedAt }: { account: Bf6Account; fetchedAt: number }): React.JSX.Element | null {
   const [history, setHistory] = useState<Bf6Point[] | null>(null)
@@ -92,8 +100,9 @@ export function Progress({ account, fetchedAt }: { account: Bf6Account; fetchedA
     if (!Number.isFinite(days)) return history
     const since = Date.now() - days * 86_400_000
     const inRange = history.filter((p) => p.at >= since)
-    // On garde le relevé juste avant la période : il sert de point de départ.
-    const before = history.filter((p) => p.at < since).at(-1)
+    // Le relevé juste avant la période sert de point de départ, s'il n'est pas trop ancien
+    // (sinon « 7 j » afficherait des mois après une longue pause).
+    const before = history.filter((p) => p.at < since && p.at >= since - Math.max(2, days / 2) * 86_400_000).at(-1)
     return before ? [before, ...inRange] : inRange
   }, [history, range])
 
@@ -152,7 +161,7 @@ export function Progress({ account, fetchedAt }: { account: Bf6Account; fetchedA
                 <span className="pg-arrow" aria-hidden="true">
                   {change > 0 ? '↗' : change < 0 ? '↘' : '→'}
                 </span>
-                <span className="num">{m.signed(change)}</span> depuis le {dayFmt.format(first.at)}
+                <span className="num">{m.signed(change)}</span> depuis le {dayLabel(first.at)}
               </span>
             </div>
             <dl className="pg-tiles">
@@ -210,7 +219,10 @@ function Chart({ points, metric }: { points: Bf6Point[]; metric: Metric }): Reac
   useLayoutEffect(() => {
     const el = box.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) => setW(Math.max(280, Math.round(e.contentRect.width))))
+    const fit = (width: number): void => setW(Math.max(280, Math.round(width)))
+    // Largeur réelle dès le premier rendu : la courbe ne se dessine pas d'abord à 640 px.
+    fit(el.getBoundingClientRect().width)
+    const ro = new ResizeObserver(([e]) => fit(e.contentRect.width))
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
@@ -227,9 +239,23 @@ function Chart({ points, metric }: { points: Bf6Point[]; metric: Metric }): Reac
   const line = xy.map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)} ${py.toFixed(1)}`).join(' ')
   const area = `${line} L${xy.at(-1)![0].toFixed(1)} ${H - PAD.bottom} L${xy[0][0].toFixed(1)} ${H - PAD.bottom} Z`
 
-  // Dates en bas : au plus 5, réparties.
+  // Dates en bas : réparties dans le temps, jamais à moins de 80 px l'une de l'autre.
   const labelCount = Math.min(points.length, w < 480 ? 3 : 5)
-  const labelIdx = [...new Set(Array.from({ length: labelCount }, (_, i) => Math.round((i * (points.length - 1)) / Math.max(1, labelCount - 1))))]
+  const labelIdx: number[] = []
+  for (let i = 0; i < labelCount; i++) {
+    const target = t0 + ((t1 - t0) * i) / Math.max(1, labelCount - 1)
+    let best = 0
+    for (let j = 1; j < points.length; j++) if (Math.abs(points[j].at - target) < Math.abs(points[best].at - target)) best = j
+    const prevIdx = labelIdx.at(-1)
+    if (prevIdx === undefined || xy[best][0] - xy[prevIdx][0] >= 80) labelIdx.push(best)
+    // La dernière date gagne sur l'avant-dernière quand elles se gênent.
+    else if (i === labelCount - 1 && labelIdx.length > 1) labelIdx[labelIdx.length - 1] = best
+  }
+  const tickDecimals = stepDecimals(ticks.length > 1 ? ticks[1] - ticks[0] : 1)
+  const tickText = (t: number): string => {
+    const n = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: tickDecimals, maximumFractionDigits: tickDecimals }).format(t)
+    return metric === 'win' ? `${n} %` : n
+  }
 
   const nearest = (clientX: number): number => {
     const rect = box.current!.getBoundingClientRect()
@@ -256,7 +282,7 @@ function Chart({ points, metric }: { points: Bf6Point[]; metric: Metric }): Reac
       className="pg-chart"
       tabIndex={0}
       role="img"
-      aria-label={`${m.label} : de ${m.format(values[0])} le ${dayFmt.format(t0)} à ${m.format(values.at(-1)!)} le ${dayFmt.format(t1)}. Flèches gauche et droite pour parcourir les jours.`}
+      aria-label={`${m.label} : de ${m.format(values[0])} le ${dayLabel(t0)} à ${m.format(values.at(-1)!)} le ${dayLabel(t1)}. Flèches gauche et droite pour parcourir les jours.`}
       onPointerMove={(e) => setActive(nearest(e.clientX))}
       onPointerLeave={() => setActive(null)}
       onKeyDown={onKey}
@@ -274,13 +300,13 @@ function Chart({ points, metric }: { points: Bf6Point[]; metric: Metric }): Reac
             <g key={t}>
               <line x1={PAD.left} x2={w - PAD.right} y1={y(t)} y2={y(t)} />
               <text x={PAD.left - 10} y={y(t)} dy="0.32em" textAnchor="end">
-                {m.format(t)}
+                {tickText(t)}
               </text>
             </g>
           ))}
           {labelIdx.map((i) => (
             <text key={i} x={xy[i][0]} y={H - 8} textAnchor={i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle'}>
-              {dayFmt.format(points[i].at)}
+              {dayLabel(points[i].at)}
             </text>
           ))}
         </g>
@@ -305,8 +331,9 @@ function Chart({ points, metric }: { points: Bf6Point[]; metric: Metric }): Reac
           </span>
           {prev && (
             <span className="caption pg-tip-delta">
-              Depuis la veille : <span className="num">+{int.format(a.kills - prev.kills)}</span> élim.,{' '}
-              <span className="num">{int.format(a.matches - prev.matches)}</span> partie{a.matches - prev.matches > 1 ? 's' : ''}
+              {a.at - prev.at < 1.5 * 86_400_000 ? 'Depuis la veille' : `Depuis le ${dayLabel(prev.at)}`} :{' '}
+              <span className="num">+{int.format(a.kills - prev.kills)}</span> élim., <span className="num">{int.format(a.matches - prev.matches)}</span> partie
+              {a.matches - prev.matches > 1 ? 's' : ''}
             </span>
           )}
         </div>

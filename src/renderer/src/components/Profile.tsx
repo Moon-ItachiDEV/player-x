@@ -329,8 +329,10 @@ function TopPlayed({ games, onOpenGame }: { games: Game[]; onOpenGame: (g: Game)
                   <Cover key={g.id} game={g} variant="letter" />
                 </span>
                 <span className="prof-top-main">
-                  <span className="prof-top-name" title={name}>
-                    {name}
+                  <span className="prof-top-line">
+                    <span className="prof-top-name" title={name}>
+                      {name}
+                    </span>
                     {g.running && <LiveBadge className="prof-top-live" />}
                   </span>
                   <span className="prof-bar prof-bar-grow" aria-hidden="true">

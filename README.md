@@ -96,7 +96,7 @@ L’action construit l’installeur sous Windows et publie la release avec `Play
 | Temps de jeu | Processus en cours rattachés au dossier d’installation (Windows, PowerShell `Get-Process`), compteur Steam via `IPlayerService/GetOwnedGames`. |
 | Alertes d’amis | Différence entre deux lectures de la liste d’amis ; carte dans l’appli ou notification Windows. |
 | Stats Battlefield 6 | Non officiel, via [gametools.network](https://gametools.network). Recherche multi-plateforme, rivaux suivis, cache local, relevé quotidien pour la progression. |
-| Profil | Jeux par plateforme, jeux les plus lancés et derniers lancements depuis Player X. |
+| Profil | Temps de jeu total, jeux les plus joués (ou les plus lancés sans temps de jeu), jeux par plateforme et derniers lancements. |
 | Mises à jour | `electron-updater` et GitHub Releases : progression, redémarrage après 10 s, fenêtre « Quoi de neuf ». |
 | Favoris, historique | Stockés en local. |
 

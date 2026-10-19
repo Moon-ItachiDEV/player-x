@@ -470,9 +470,7 @@ button.prof-last:hover {
   transform: translateY(-4px);
 }
 .prof-gt-open:focus-visible .prof-gt-box {
-  box-shadow:
-    var(--focus),
-    var(--sh-1);
+  box-shadow: var(--focus), var(--sh-1);
 }
 .prof-gt:hover .prof-gt-box .cover {
   transform: scale(1.04);
@@ -624,9 +622,14 @@ button.prof-last:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.prof-top-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 .prof-top-live {
-  margin-left: 8px;
-  vertical-align: middle;
+  flex: none;
   height: 18px;
   font-size: 10px;
 }

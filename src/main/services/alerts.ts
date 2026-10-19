@@ -43,18 +43,49 @@ export function checkFriends(result: FriendsResult): void {
   const mode = getSettings().friendAlerts
   const alerts: FriendAlert[] = []
   for (const p of PLATFORMS) {
+    // Plateforme pas interrogée (aucun compte relié) : pas de référence. Sinon, en reliant le compte plus tard,
+    // tous les amis déjà en ligne déclencheraient « est en ligne ».
+    if (!result.queried?.includes(p)) {
+      known.delete(p)
+      continue
+    }
     // Plateforme en erreur : on garde l'ancienne référence, sinon tout le monde « se reconnecterait » au retour.
     if (result.errors[p]) continue
-    const list = result.friends.filter((f) => f.platform === p)
-    alerts.push(...diffFriends(known.get(p), list, mode, now))
+    const prev = known.get(p)
+    // Présence illisible : on garde l'état connu, pour ne pas croire à une déconnexion puis une reconnexion.
+    const list = result.friends.filter((f) => f.platform === p).map((f) => (f.presenceUnknown ? (prev?.get(f.id) ?? f) : f))
+    alerts.push(
+      ...diffFriends(
+        prev,
+        list.filter((f) => !f.presenceUnknown),
+        mode,
+        now
+      )
+    )
     known.set(p, new Map(list.map((f) => [f.id, f])))
   }
   if (alerts.length) void deliver(alerts)
 }
 
-/** Repart de zéro (compte déconnecté, bascule du mode démo). */
-export function resetFriendAlerts(): void {
-  known.clear()
+/** Repart de zéro (compte relié ou déconnecté, bascule du mode démo). */
+export function resetFriendAlerts(platform?: FriendPlatform): void {
+  if (platform) known.delete(platform)
+  else known.clear()
+}
+
+/** Notifications affichées : gardées tant qu'elles vivent, sinon le clic est perdu si l'objet est collecté. */
+const live = new Set<Notification>()
+
+function show(n: Notification): void {
+  live.add(n)
+  const drop = (): boolean => live.delete(n)
+  n.on('click', () => {
+    drop()
+    showWindow()
+  })
+  n.on('close', drop)
+  n.on('failed', drop)
+  n.show()
 }
 
 function focusedWindow(): BrowserWindow | undefined {
@@ -98,8 +129,7 @@ async function native(alerts: FriendAlert[]): Promise<void> {
       icon: (await avatarImage(a.friend.avatarUrl)) ?? appIcon(),
       silent: false
     })
-    n.on('click', showWindow)
-    n.show()
+    show(n)
   }
   if (!shown.length) {
     const names = alerts.slice(0, 2).map((a) => a.friend.name)
@@ -108,8 +138,7 @@ async function native(alerts: FriendAlert[]): Promise<void> {
       body: 'Ouvre Player X pour voir qui joue à quoi.',
       icon: appIcon()
     })
-    n.on('click', showWindow)
-    n.show()
+    show(n)
   }
 }
 

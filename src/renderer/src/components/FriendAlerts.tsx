@@ -20,7 +20,7 @@ interface Shown extends FriendAlert {
   leaving?: boolean
 }
 
-export function FriendAlerts({ games, onShowFriends }: { games: Game[]; onShowFriends: () => void }): React.JSX.Element | null {
+export function FriendAlerts({ games, onShowFriends }: { games: Game[]; onShowFriends: () => void }): React.JSX.Element {
   const [items, setItems] = useState<Shown[]>([])
 
   const dismiss = useCallback((key: string) => {
@@ -37,7 +37,7 @@ export function FriendAlerts({ games, onShowFriends }: { games: Game[]; onShowFr
     []
   )
 
-  if (!items.length) return null
+  // La zone reste montée même vide : un lecteur d'écran n'annonce une zone « live » que si elle existait déjà.
   const visible = items.slice(0, MAX_SHOWN)
   const hidden = items.length - visible.length
 
@@ -80,10 +80,18 @@ function AlertCard({ alert, index, game, onOpen, onClose }: CardProps): React.JS
   const closeRef = useRef(onClose)
   closeRef.current = onClose
 
+  // Temps restant, gelé au survol comme le filet (animation CSS en pause) : les deux finissent ensemble.
+  const remaining = useRef(LIFETIME_MS)
+  const startedAt = useRef(0)
   const start = useCallback(() => {
     clearTimeout(timer.current)
-    timer.current = setTimeout(() => closeRef.current(), LIFETIME_MS)
+    startedAt.current = performance.now()
+    timer.current = setTimeout(() => closeRef.current(), remaining.current)
   }, [])
+  const pause = (): void => {
+    clearTimeout(timer.current)
+    remaining.current = Math.max(0, remaining.current - (performance.now() - startedAt.current))
+  }
   useEffect(() => {
     start()
     return () => clearTimeout(timer.current)
@@ -95,7 +103,7 @@ function AlertCard({ alert, index, game, onOpen, onClose }: CardProps): React.JS
       className={`fa-card ${inGame ? 'is-ingame' : 'is-online'} ${alert.leaving ? 'is-leaving' : ''} ${paused ? 'is-paused' : ''}`}
       style={{ '--i': index, '--life': `${LIFETIME_MS}ms` } as React.CSSProperties}
       onMouseEnter={() => {
-        clearTimeout(timer.current)
+        pause()
         setPaused(true)
       }}
       onMouseLeave={() => {

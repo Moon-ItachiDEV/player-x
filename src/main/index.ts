@@ -149,8 +149,16 @@ function registerIpc(): void {
   })
   ipcMain.handle('friends:test-alert', () => testFriendAlert(getSettings().demoMode ? DEMO_FRIENDS : lastFriends))
   ipcMain.handle('accounts:list', () => getAccounts())
-  ipcMain.handle('accounts:login', (_e, platform: 'steam' | 'discord') => (platform === 'steam' ? loginSteam() : loginDiscord()))
-  ipcMain.handle('accounts:psn', () => connectPsn())
+  ipcMain.handle('accounts:login', async (_e, platform: 'steam' | 'discord') => {
+    const account = await (platform === 'steam' ? loginSteam() : loginDiscord())
+    resetFriendAlerts(platform)
+    return account
+  })
+  ipcMain.handle('accounts:psn', async () => {
+    const account = await connectPsn()
+    resetFriendAlerts('psn')
+    return account
+  })
   ipcMain.handle('accounts:cancel', () => cancelLogin())
   ipcMain.handle('accounts:logout', (_e, platform: FriendPlatform) => {
     resetFriendAlerts()
@@ -184,7 +192,19 @@ function registerIpc(): void {
 // Notifications Windows : même identifiant que l'installeur, sinon elles ne s'affichent pas.
 if (process.platform === 'win32') app.setAppUserModelId('dev.breezy.playerx')
 
+// Une seule instance : deux Player X ouverts écraseraient chacun la base de l'autre (temps de jeu relevé chaque minute).
+const firstInstance = app.requestSingleInstanceLock()
+if (!firstInstance) app.quit()
+app.on('second-instance', () => {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (!win) return
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+})
+
 app.whenReady().then(async () => {
+  if (!firstInstance) return
   await db.initDb()
   registerIpc()
   initUpdater()

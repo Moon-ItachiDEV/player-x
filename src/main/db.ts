@@ -1,5 +1,5 @@
 import { app, safeStorage } from 'electron'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import initSqlJs, { type Database } from 'sql.js'
 import type { Game } from '@shared/types'
@@ -12,7 +12,18 @@ let dbPath: string
 export async function initDb(): Promise<void> {
   const SQL = await initSqlJs({ locateFile: () => require.resolve('sql.js/dist/sql-wasm.wasm') })
   dbPath = join(app.getPath('userData'), 'launcher.db')
-  db = existsSync(dbPath) ? new SQL.Database(readFileSync(dbPath)) : new SQL.Database()
+  // Base illisible (coupure pendant une écriture d'une ancienne version) : on repart de la copie de secours.
+  const open = (file: string): Database | null => {
+    if (!existsSync(file)) return null
+    try {
+      const d = new SQL.Database(readFileSync(file))
+      d.exec('SELECT count(*) FROM sqlite_master')
+      return d
+    } catch {
+      return null
+    }
+  }
+  db = open(dbPath) ?? open(`${dbPath}.bak`) ?? new SQL.Database()
   db.run(`
     CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS games (
@@ -31,8 +42,25 @@ export async function initDb(): Promise<void> {
   persist()
 }
 
+/** Une copie de secours au plus toutes les 10 minutes. */
+const BACKUP_EVERY_MS = 10 * 60_000
+
 function persist(): void {
-  writeFileSync(dbPath, Buffer.from(db.export()))
+  // Écriture atomique : fichier temporaire puis renommage. Une coupure en pleine écriture laisse l'ancienne base intacte.
+  const tmp = `${dbPath}.tmp`
+  writeFileSync(tmp, Buffer.from(db.export()))
+  try {
+    const bak = `${dbPath}.bak`
+    if (existsSync(dbPath) && (!existsSync(bak) || Date.now() - statSync(bak).mtimeMs > BACKUP_EVERY_MS)) copyFileSync(dbPath, bak)
+  } catch {
+    /* la copie de secours est un plus, pas une condition */
+  }
+  try {
+    renameSync(tmp, dbPath)
+  } catch {
+    // Fichier verrouillé un instant (antivirus, indexation) : écriture directe, comme avant.
+    writeFileSync(dbPath, readFileSync(tmp))
+  }
 }
 
 // --- clé/valeur (paramètres, comptes). Les valeurs secrètes sont chiffrées par l'OS. ---

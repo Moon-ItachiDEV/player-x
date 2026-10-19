@@ -32,6 +32,8 @@ export interface Friend {
   status: FriendStatus
   game?: string
   device?: string
+  /** Présence illisible cette fois-ci (PSN) : le statut affiché n'est pas fiable. */
+  presenceUnknown?: boolean
 }
 
 export interface Account {
@@ -69,6 +71,8 @@ export interface FriendAlert {
 export interface FriendsResult {
   friends: Friend[]
   errors: Partial<Record<FriendPlatform, string>>
+  /** Plateformes interrogées (compte relié ou serveur configuré). */
+  queried?: FriendPlatform[]
 }
 
 export interface ScanReport {

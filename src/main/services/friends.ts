@@ -28,7 +28,10 @@ const FALLBACK: Record<FriendPlatform, string> = {
 
 const isNetworkError = (e: unknown): boolean =>
   (e instanceof TypeError && /fetch failed|network/i.test(e.message)) ||
-  (e instanceof Error && /net::ERR_(INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|NAME_RESOLUTION_FAILED|NETWORK_CHANGED|NETWORK_IO_SUSPENDED|NETWORK_ACCESS_DENIED|CONNECTION_|TIMED_OUT|ADDRESS_UNREACHABLE|PROXY_|TUNNEL_)/.test(e.message))
+  (e instanceof Error &&
+    /net::ERR_(INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|NAME_RESOLUTION_FAILED|NETWORK_CHANGED|NETWORK_IO_SUSPENDED|NETWORK_ACCESS_DENIED|CONNECTION_|TIMED_OUT|ADDRESS_UNREACHABLE|PROXY_|TUNNEL_)/.test(
+      e.message
+    ))
 
 function frenchError(e: unknown, fallback: string): string {
   if (e instanceof UserError) return e.message
@@ -64,9 +67,7 @@ function refreshOwnSteamProfile(account: Account, me: SteamPlayer | undefined): 
 }
 
 async function steamFriends(account: Account, key: string): Promise<Friend[]> {
-  const res = await fetch(
-    `https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${key}&steamid=${account.id}&relationship=friend`
-  )
+  const res = await fetch(`https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${key}&steamid=${account.id}&relationship=friend`)
   if (res.status === 401) {
     // Liste d'amis privée : le profil, lui, reste lisible.
     await getSteamProfiles(key, [account.id])
@@ -78,17 +79,22 @@ async function steamFriends(account: Account, key: string): Promise<Friend[]> {
   const list = ((await res.json()) as { friendslist?: { friends: { steamid: string }[] } }).friendslist?.friends ?? []
   // Son propre profil dans la même requête.
   const players = await getSteamProfiles(key, [account.id, ...list.map((f) => f.steamid)])
-  refreshOwnSteamProfile(account, players.find((p) => p.steamid === account.id))
-  return players.filter((p) => p.steamid !== account.id).map((p) => {
-    const status: FriendStatus = p.gameextrainfo
-      ? 'in-game'
-      : p.personastate === 0
-        ? 'offline'
-        : p.personastate === 3 || p.personastate === 4
-          ? 'away'
-          : 'online'
-    return { id: `steam:${p.steamid}`, platform: 'steam', name: p.personaname, avatarUrl: p.avatarfull, status, game: p.gameextrainfo }
-  })
+  refreshOwnSteamProfile(
+    account,
+    players.find((p) => p.steamid === account.id)
+  )
+  return players
+    .filter((p) => p.steamid !== account.id)
+    .map((p) => {
+      const status: FriendStatus = p.gameextrainfo
+        ? 'in-game'
+        : p.personastate === 0
+          ? 'offline'
+          : p.personastate === 3 || p.personastate === 4
+            ? 'away'
+            : 'online'
+      return { id: `steam:${p.steamid}`, platform: 'steam', name: p.personaname, avatarUrl: p.avatarfull, status, game: p.gameextrainfo }
+    })
 }
 
 // ---------- Discord ----------
@@ -104,7 +110,8 @@ const DISCORD_WIDGET_OFF =
 
 async function discordServerMembers(rawId: string): Promise<Friend[]> {
   const guildId = discordGuildIdFrom(rawId)
-  if (!/^\d{15,22}$/.test(guildId)) throw new UserError('Identifiant de serveur Discord invalide : colle l’« Identifiant du serveur » affiché à côté du widget.')
+  if (!/^\d{15,22}$/.test(guildId))
+    throw new UserError('Identifiant de serveur Discord invalide : colle l’« Identifiant du serveur » affiché à côté du widget.')
   // Pile réseau de Chromium (comme un navigateur) et sans cache : Discord refuse parfois les clients « node », et un ancien refus ne doit pas rester.
   const res = await net.fetch(`https://discord.com/api/guilds/${guildId}/widget.json`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
   if (!res.ok) {
@@ -181,10 +188,7 @@ async function psnFriends(npsso: string): Promise<Friend[]> {
   const { friends } = await getUserFriendsAccountIds(auth, 'me', { limit: 50 })
   return Promise.all(
     friends.map(async (accountId): Promise<Friend> => {
-      const [profile, presence] = await Promise.all([
-        getProfileFromAccountId(auth, accountId),
-        getBasicPresence(auth, accountId).catch(() => null)
-      ])
+      const [profile, presence] = await Promise.all([getProfileFromAccountId(auth, accountId), getBasicPresence(auth, accountId).catch(() => null)])
       const p = presence?.basicPresence
       const game = p?.gameTitleInfoList?.[0]?.titleName
       const online = p?.primaryPlatformInfo?.onlineStatus === 'online'
@@ -195,7 +199,8 @@ async function psnFriends(npsso: string): Promise<Friend[]> {
         avatarUrl: profile.avatars.at(-1)?.url,
         status: game ? 'in-game' : online ? 'online' : 'offline',
         game,
-        device: p?.primaryPlatformInfo?.platform
+        device: p?.primaryPlatformInfo?.platform,
+        ...(presence ? {} : { presenceUnknown: true })
       }
     })
   )
@@ -208,7 +213,9 @@ export async function getAllFriends(): Promise<FriendsResult> {
   const accounts = getAccounts()
   const result: FriendsResult = { friends: [], errors: {} }
 
+  const queried: FriendPlatform[] = []
   const collect = async (platform: Friend['platform'], load: () => Promise<Friend[]>): Promise<void> => {
+    queried.push(platform)
     try {
       result.friends.push(...(await load()))
     } catch (e) {
@@ -231,5 +238,5 @@ export async function getAllFriends(): Promise<FriendsResult> {
     tasks.push(collect('psn', () => psnFriends(settings.psnNpsso)))
   }
   await Promise.all(tasks)
-  return result
+  return { ...result, queried }
 }

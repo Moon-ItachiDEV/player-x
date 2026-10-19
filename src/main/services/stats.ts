@@ -271,12 +271,15 @@ type History = Record<string, Bf6Point[]>
 
 const dayOf = (t: number): string => new Date(t).toDateString()
 
+/** Comme les joueurs suivis, les relevés du mode démo vivent à part. */
+function historyStore(): string {
+  return getSettings().demoMode ? 'demoBf6History' : 'bf6History'
+}
+
 function isTracked(a: Bf6Account): boolean {
   const k = historyKey(a)
-  return ['bf6Tracked', 'demoBf6Tracked'].some((key) => {
-    const t = getKv<Partial<Bf6Tracked>>(key, {})
-    return [t.me, ...(t.rivals ?? [])].some((x) => x && historyKey(x) === k)
-  })
+  const t = getBf6Tracked()
+  return [t.me, ...t.rivals].some((x) => x && historyKey(x) === k)
 }
 
 function recordPoint(account: Bf6Account, s: Bf6Stats): void {
@@ -293,19 +296,19 @@ function recordPoint(account: Bf6Account, s: Bf6Stats): void {
     killsPerMinute: s.killsPerMinute,
     accuracy: s.accuracy
   }
-  const all = getKv<History>('bf6History', {})
+  const all = getKv<History>(historyStore(), {})
   const list = all[historyKey(account)] ?? []
   const last = list.at(-1)
   // Même jour : le relevé du jour est remplacé par le plus récent.
   if (last && dayOf(last.at) === dayOf(at)) list[list.length - 1] = point
   else list.push(point)
   all[historyKey(account)] = list.slice(-MAX_POINTS)
-  setKv('bf6History', all)
+  setKv(historyStore(), all)
 }
 
 export function getBf6History(input: unknown): Bf6Point[] {
   const account = cleanAccount(input)
-  return account ? (getKv<History>('bf6History', {})[historyKey(account)] ?? []) : []
+  return account ? (getKv<History>(historyStore(), {})[historyKey(account)] ?? []) : []
 }
 
 /** Au démarrage puis toutes les 6 h : un relevé de ton compte, pour que la courbe avance même sans ouvrir la page. */
