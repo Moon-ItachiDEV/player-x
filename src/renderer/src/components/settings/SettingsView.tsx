@@ -1,12 +1,13 @@
 // Paramètres : navigation latérale + une section à la fois. Pas de bouton « Enregistrer » global : chaque réglage s'applique seul.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { timeAgo } from '@shared/text'
-import type { FriendPlatform, ScanReport } from '@shared/types'
+import type { FriendAlertMode, FriendPlatform, ScanReport, Settings } from '@shared/types'
 import { COVER_MIN, type SettingsProps, type SettingsSection, type UiPrefs } from '../../contracts'
 import { useSystemReducedMotion } from '../../motion'
 import { Icon, type IconName } from '../ui/Icon'
 import { Segmented, Switch } from '../ui/Overlay'
 import { STORE_LONG, StoreTag } from '../ui/StoreTag'
+import { errorMessage, useToast } from '../ui/Toasts'
 import { AboutSection } from './AboutSection'
 import { AccountsSection, connState, PLATFORMS } from './AccountsSection'
 import { AdvancedSection } from './AdvancedSection'
@@ -45,7 +46,12 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
   const clearFocus = useCallback(() => setFocusCard(null), [])
 
   const attention = PLATFORMS.filter((p) => {
-    const tone = connState(p, accounts.find((a) => a.platform === p), settings, friends.errors).tone
+    const tone = connState(
+      p,
+      accounts.find((a) => a.platform === p),
+      settings,
+      friends.errors
+    ).tone
     return tone === 'danger' || (tone === 'warning' && accounts.some((a) => a.platform === p))
   }).length
 
@@ -98,7 +104,9 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
               onOpenSetup={props.onOpenSetup}
             />
           )}
-          {section === 'interface' && <InterfaceSection ui={props.ui} onUiChange={props.onUiChange} />}
+          {section === 'interface' && (
+            <InterfaceSection ui={props.ui} onUiChange={props.onUiChange} settings={settings} onSaveSettings={props.onSaveSettings} />
+          )}
           {section === 'advanced' && (
             <AdvancedSection settings={settings} report={props.report} onSaveSettings={props.onSaveSettings} focusCard={focusCard} onFocused={clearFocus} />
           )}
@@ -133,20 +141,20 @@ function LibrarySection({ report, scanning, lastScanAt, gamesCount, demo, onResc
         </div>
       )}
       <div className="set-stores" aria-busy={scanning && !report.length}>
-        {report.length
-          ? report.map((r) => <StoreRow key={r.store} report={r} />)
-          : scanning
-            ? [0, 1, 2].map((i) => (
-                <div className="set-store" key={i}>
-                  <div className="set-store-main">
-                    <span className="skel set-skel-tag" />
-                    <span className="skel set-skel-line" />
-                  </div>
-                </div>
-              ))
-            : (
-                <p className="set-store-empty">Aucun rapport de scan pour le moment. Relance un scan pour voir ce qui est détecté.</p>
-              )}
+        {report.length ? (
+          report.map((r) => <StoreRow key={r.store} report={r} />)
+        ) : scanning ? (
+          [0, 1, 2].map((i) => (
+            <div className="set-store" key={i}>
+              <div className="set-store-main">
+                <span className="skel set-skel-tag" />
+                <span className="skel set-skel-line" />
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="set-store-empty">Aucun rapport de scan pour le moment. Relance un scan pour voir ce qui est détecté.</p>
+        )}
       </div>
       <div className="set-scan">
         <button className="btn btn-secondary" onClick={onRescan} disabled={scanning}>
@@ -207,8 +215,22 @@ function StoreRow({ report: r }: { report: ScanReport }): React.JSX.Element {
 
 const SIZE_LABEL: Record<UiPrefs['coverSize'], string> = { S: 'Petite', M: 'Moyenne', L: 'Grande' }
 
-function InterfaceSection({ ui, onUiChange }: { ui: UiPrefs; onUiChange: (patch: Partial<UiPrefs>) => void }): React.JSX.Element {
+const ALERT_LABEL: Record<FriendAlertMode, string> = {
+  all: 'Connexions et jeux lancés · amis Steam et PlayStation',
+  games: 'Seulement quand un ami lance un jeu',
+  off: 'Désactivées'
+}
+
+interface InterfaceProps {
+  ui: UiPrefs
+  onUiChange: (patch: Partial<UiPrefs>) => void
+  settings: Settings
+  onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>
+}
+
+function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: InterfaceProps): React.JSX.Element {
   const systemReduced = useSystemReducedMotion()
+  const notify = useToast()
   return (
     <>
       <SectionHead title="Interface">Ces préférences s'appliquent tout de suite et restent sur ce PC.</SectionHead>
@@ -248,8 +270,8 @@ function InterfaceSection({ ui, onUiChange }: { ui: UiPrefs; onUiChange: (patch:
             ui.reduceMotion
               ? 'Activé · mouvements réduits au minimum'
               : systemReduced
-                ? 'Désactivé · Windows demande déjà moins d\'animations, c\'est respecté'
-                : 'Désactivé · suit aussi le réglage d\'accessibilité de Windows'
+                ? "Désactivé · Windows demande déjà moins d'animations, c'est respecté"
+                : "Désactivé · suit aussi le réglage d'accessibilité de Windows"
           }
         >
           <Switch checked={ui.reduceMotion} onChange={(reduceMotion) => onUiChange({ reduceMotion })} label="Réduire les animations" />
@@ -271,6 +293,27 @@ function InterfaceSection({ ui, onUiChange }: { ui: UiPrefs; onUiChange: (patch:
           value={ui.transparency ? 'Activés · flou derrière les barres et les notifications' : 'Désactivés · couleurs pleines, sans flou'}
         >
           <Switch checked={ui.transparency} onChange={(transparency) => onUiChange({ transparency })} label="Effets de transparence" />
+        </SettingRow>
+        <SettingRow label="Alertes d'amis" value={ALERT_LABEL[settings.friendAlerts]}>
+          <div className="set-inline">
+            <Segmented
+              label="Alertes d'amis"
+              value={settings.friendAlerts}
+              options={[
+                { value: 'all', label: 'Tout' },
+                { value: 'games', label: 'Jeux' },
+                { value: 'off', label: 'Aucune' }
+              ]}
+              onChange={(friendAlerts) => onSaveSettings({ friendAlerts }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+            />
+            <button
+              className="btn btn-secondary btn-sm"
+              disabled={settings.friendAlerts === 'off'}
+              onClick={() => window.launcher.testFriendAlert().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+            >
+              Tester
+            </button>
+          </div>
         </SettingRow>
       </div>
     </>

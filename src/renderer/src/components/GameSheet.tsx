@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { capitalize, cleanName, formatDate, norm, timeAgo } from '@shared/text'
+import { capitalize, cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
 import type { Friend, Game } from '@shared/types'
 import type { GameSheetProps } from '../contracts'
 import { Avatar } from './ui/Avatar'
+import { CountUp } from './ui/CountUp'
 import { Cover } from './ui/Cover'
 import { Icon } from './ui/Icon'
+import { LiveBadge } from './ui/LiveBadge'
 import { useEscape } from './ui/Overlay'
 import { STORE_LONG, StoreTag } from './ui/StoreTag'
 import { errorMessage, useToast } from './ui/Toasts'
@@ -129,7 +131,10 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
             <h2 id={titleId} className="display-l sheet-title">
               {title}
             </h2>
-            <StoreTag kind={game.store} long />
+            <span className="sheet-tags">
+              <StoreTag kind={game.store} long />
+              {game.running && <LiveBadge />}
+            </span>
           </div>
         </header>
 
@@ -182,7 +187,12 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
             <StatTile label="Dernier lancement" value="Jamais" caption="depuis Player X" />
           )}
           <StatTile label="Lancements" value={String(game.launches ?? 0)} caption="depuis Player X" />
-          <StatTile label="Plateforme" value={STORE_LONG[game.store]} caption={game.store === 'steam' ? `App ${game.storeId}` : undefined} />
+          <StatTile
+            label="Temps de jeu"
+            value={game.playtime ? formatPlaytime(game.playtime) : '0 min'}
+            countTo={game.playtime}
+            caption={game.running ? 'Partie en cours' : game.playtimeSource === 'steam' ? 'selon Steam' : 'mesuré par Player X'}
+          />
         </div>
 
         <section className="sheet-section">
@@ -226,12 +236,12 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
   )
 }
 
-function StatTile({ label, value, caption }: { label: string; value: string; caption?: string }): React.JSX.Element {
+function StatTile({ label, value, caption, countTo }: { label: string; value: string; caption?: string; countTo?: number }): React.JSX.Element {
   return (
     <div className="sheet-tile">
       <span className="overline">{label}</span>
       <span className="sheet-tile-value num" title={value}>
-        {value}
+        {countTo ? <CountUp value={countTo} format={formatPlaytime} /> : value}
       </span>
       <span className="caption sheet-tile-caption" title={caption}>
         {caption}

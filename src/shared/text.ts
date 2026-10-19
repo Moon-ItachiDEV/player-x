@@ -59,3 +59,15 @@ export function discordGuildIdFrom(input: string): string {
   const t = input.trim()
   return (t.match(/guilds\/(\d{15,22})/) ?? t.match(/[?&]id=(\d{15,22})/) ?? t.match(/^(\d{15,22})$/))?.[1] ?? t
 }
+
+const hoursFmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
+
+/** « 42 min », « 3 h 05 », « 128 h » */
+export function formatPlaytime(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes))
+  if (m < 60) return `${m} min`
+  const h = Math.floor(m / 60)
+  if (h >= 100) return `${hoursFmt.format(h)} h`
+  const rest = m % 60
+  return rest ? `${h} h ${String(rest).padStart(2, '0')}` : `${h} h`
+}

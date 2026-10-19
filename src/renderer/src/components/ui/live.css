@@ -1,0 +1,48 @@
+/* Pastille « En jeu » : cyan = jeu lancé, seule exception au violet de marque. */
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px 0 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--st-ingame) 45%, transparent);
+  background: color-mix(in srgb, var(--bg-0) 72%, transparent);
+  color: var(--st-ingame);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+.no-blur .live-badge {
+  backdrop-filter: none;
+  background: var(--bg-0);
+}
+.live-dot {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--st-ingame);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--st-ingame) 70%, transparent);
+}
+/* Onde lente autour du point, seulement avec les effets riches (en pause quand la fenêtre est inactive). */
+:root[data-fx='on'] .live-dot::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  border: 1.5px solid var(--st-ingame);
+  animation: live-wave 2.4s cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
+}
+@keyframes live-wave {
+  from {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(3);
+    opacity: 0;
+  }
+}

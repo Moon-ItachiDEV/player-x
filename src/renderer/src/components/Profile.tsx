@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { capitalize, cleanName, formatDate, plural, timeAgo } from '@shared/text'
+import { capitalize, cleanName, formatDate, formatPlaytime, plural, timeAgo } from '@shared/text'
 import type { Account, FriendPlatform, FriendsResult, Game, Store } from '@shared/types'
 import type { ProfileProps } from '../contracts'
 import { setArtFocus, setMorphSource } from '../motion'
 import { Avatar } from './ui/Avatar'
+import { CountUp } from './ui/CountUp'
 import { Cover } from './ui/Cover'
 import { Icon } from './ui/Icon'
+import { LiveBadge } from './ui/LiveBadge'
 import { KIND_LABEL, StoreTag } from './ui/StoreTag'
 import './profile.css'
 
@@ -19,6 +21,7 @@ const fmt = new Intl.NumberFormat('fr-FR')
 
 const byName = (a: Game, b: Game): number => cleanName(a.name).localeCompare(cleanName(b.name), 'fr', { sensitivity: 'base' })
 const launchesOf = (g: Game): number => g.launches ?? 0
+const playtimeOf = (g: Game): number => g.playtime ?? 0
 
 function primaryAccount(accounts: Account[]): Account | undefined {
   for (const p of PLATFORMS) {
@@ -34,8 +37,12 @@ export function Profile({ games, accounts, friends, launchingId, onOpenGame, onL
       .filter((g) => launchesOf(g) > 0)
       .sort((a, b) => launchesOf(b) - launchesOf(a) || (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0) || byName(a, b))
     const recent = games.filter((g) => g.lastPlayed).sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0))
+    const played = games.filter((g) => playtimeOf(g) > 0).sort((a, b) => playtimeOf(b) - playtimeOf(a) || byName(a, b))
     return {
       top: launched.slice(0, 5),
+      topPlayed: played.slice(0, 5),
+      totalPlaytime: games.reduce((n, g) => n + playtimeOf(g), 0),
+      running: games.find((g) => g.running),
       recent: recent.slice(0, 6),
       last: recent[0] as Game | undefined,
       mostLaunched: launched[0] as Game | undefined,
@@ -80,8 +87,19 @@ export function Profile({ games, accounts, friends, launchingId, onOpenGame, onL
           <span className="prof-stat num">{fmt.format(games.length)}</span>
         </StatTile>
 
-        <StatTile label="Lancements" foot={<p className="caption">depuis Player X</p>}>
-          <span className="prof-stat num">{fmt.format(stats.totalLaunches)}</span>
+        <StatTile
+          label="Temps de jeu"
+          foot={
+            stats.running ? (
+              <LiveBadge label={`En jeu · ${cleanName(stats.running.name)}`} className="prof-live" />
+            ) : (
+              <p className="caption">{plural(stats.totalLaunches, 'lancement', 'lancements')} depuis Player X</p>
+            )
+          }
+        >
+          <span className="prof-stat num">
+            <CountUp value={stats.totalPlaytime} format={formatHours} />
+          </span>
         </StatTile>
 
         <StatTile
@@ -119,7 +137,11 @@ export function Profile({ games, accounts, friends, launchingId, onOpenGame, onL
 
       <div className="prof-cols">
         <div className="prof-main">
-          <TopLaunched games={stats.top} onOpenGame={onOpenGame} />
+          {stats.topPlayed.length > 0 ? (
+            <TopPlayed games={stats.topPlayed} onOpenGame={onOpenGame} />
+          ) : (
+            <TopLaunched games={stats.top} onOpenGame={onOpenGame} />
+          )}
 
           {stats.recent.length > 0 && (
             <section className="prof-section" aria-labelledby="prof-recent-title">
@@ -128,7 +150,14 @@ export function Profile({ games, accounts, friends, launchingId, onOpenGame, onL
               </h2>
               <div className="prof-recent">
                 {stats.recent.map((g) => (
-                  <GameTile key={g.id} game={g} meta={capitalize(timeAgo(g.lastPlayed!))} launching={launchingId === g.id} onOpen={onOpenGame} onLaunch={onLaunch} />
+                  <GameTile
+                    key={g.id}
+                    game={g}
+                    meta={capitalize(timeAgo(g.lastPlayed!))}
+                    launching={launchingId === g.id}
+                    onOpen={onOpenGame}
+                    onLaunch={onLaunch}
+                  />
                 ))}
               </div>
             </section>
@@ -175,16 +204,7 @@ function Banner({ urls }: { urls: string[] }): React.JSX.Element {
 
 function BannerImage({ url, onFail }: { url: string; onFail: () => void }): React.JSX.Element {
   const [loaded, setLoaded] = useState(false)
-  return (
-    <img
-      className={`prof-banner-img ${loaded ? 'is-loaded' : ''}`}
-      src={url}
-      alt=""
-      draggable={false}
-      onLoad={() => setLoaded(true)}
-      onError={onFail}
-    />
-  )
+  return <img className={`prof-banner-img ${loaded ? 'is-loaded' : ''}`} src={url} alt="" draggable={false} onLoad={() => setLoaded(true)} onError={onFail} />
 }
 
 /* ---------- identité ---------- */
@@ -280,6 +300,54 @@ function TopLaunched({ games, onOpenGame }: { games: Game[]; onOpenGame: (g: Gam
       ) : (
         <p className="prof-empty">Lance un jeu depuis Player X pour voir tes statistiques ici.</p>
       )}
+    </section>
+  )
+}
+
+/** Total en heures entières (le détail des minutes est sur chaque jeu). */
+const formatHours = (minutes: number): string => (minutes < 60 ? formatPlaytime(minutes) : `${fmt.format(Math.floor(minutes / 60))} h`)
+
+function TopPlayed({ games, onOpenGame }: { games: Game[]; onOpenGame: (g: Game) => void }): React.JSX.Element {
+  const max = playtimeOf(games[0]) || 1
+  return (
+    <section className="card-surface prof-card" aria-labelledby="prof-top-title">
+      <header className="prof-card-head">
+        <h2 id="prof-top-title" className="prof-card-title">
+          Les plus joués
+        </h2>
+        <span className="caption">Top 5 · temps de jeu</span>
+      </header>
+      <ol className="prof-top">
+        {games.map((g, i) => {
+          const t = playtimeOf(g)
+          const name = cleanName(g.name)
+          return (
+            <li key={g.id} style={{ '--i': i } as React.CSSProperties}>
+              <button className="prof-top-row" onClick={() => onOpenGame(g)} aria-label={`${i + 1}. ${name}, ${formatPlaytime(t)}`}>
+                <span className="prof-rank num">{i + 1}</span>
+                <span className="prof-thumb">
+                  <Cover key={g.id} game={g} variant="letter" />
+                </span>
+                <span className="prof-top-main">
+                  <span className="prof-top-line">
+                    <span className="prof-top-name" title={name}>
+                      {name}
+                    </span>
+                    {g.running && <LiveBadge className="prof-top-live" />}
+                  </span>
+                  <span className="prof-bar prof-bar-grow" aria-hidden="true">
+                    <span style={{ width: `${Math.max(4, (t / max) * 100)}%` }} />
+                  </span>
+                </span>
+                <span className="prof-top-count">
+                  <span className="num">{formatPlaytime(t)}</span>
+                  <span className="caption">{g.playtimeSource === 'steam' ? 'selon Steam' : 'mesuré ici'}</span>
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
     </section>
   )
 }

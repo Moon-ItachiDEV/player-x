@@ -1,6 +1,6 @@
 # Player X (prototype)
 
-Launcher de bureau qui regroupe tes jeux **Steam, Epic Games et EA**, montre **quels amis sont en ligne** (Steam, PlayStation, serveur Discord) et affiche tes **stats Battlefield 6**.
+Launcher de bureau qui regroupe tes jeux **Steam, Epic Games et EA**, compte ton **temps de jeu**, te prévient quand **tes amis se connectent** (Steam, PlayStation, serveur Discord) et suit ta **progression Battlefield 6**.
 
 ![Bibliothèque](docs/screenshots/bibliotheque.png)
 
@@ -20,6 +20,18 @@ Sur l’écran d’accueil, **Essayer le mode démo** remplit l’interface avec
 
 Pour fabriquer l’installeur Windows : `npm run dist` (sortie dans `dist/`). Depuis Linux, il faut `wine64` et `wine32:i386`.
 
+## Temps de jeu
+
+![Fiche d'un jeu en cours](docs/screenshots/fiche-en-jeu.png)
+
+Toutes les minutes, Player X regarde quels programmes tournent et les rattache au dossier d'installation de tes jeux : le temps compte aussi pour un jeu lancé hors du launcher, tant que Player X est ouvert (même réduit). Pour les jeux Steam, Player X reprend le compteur de Steam (tout ton historique) dès que ta clé Steam Web API est renseignée et que les détails de jeu de ton profil sont publics. Le jeu qui tourne porte une pastille cyan **En jeu**, et la bibliothèque se trie par **Plus joués**.
+
+## Alertes d'amis
+
+![Alertes d'amis](docs/screenshots/alertes-amis.png)
+
+Quand un ami Steam ou PlayStation se connecte ou lance un jeu, une carte apparaît en haut à droite de Player X. Si la fenêtre est en arrière-plan, c'est une notification Windows (Windows les met de côté pendant un jeu en plein écran). Les membres d'un serveur Discord ne déclenchent pas d'alerte : ce ne sont pas des amis. Règle-les dans **Paramètres › Interface** : tout, seulement les jeux lancés, ou aucune, avec un bouton **Tester**.
+
 ## Stats de jeu : Battlefield 6
 
 ![Stats Battlefield 6](docs/screenshots/stats-bf6.png)
@@ -28,13 +40,17 @@ Cherche ton pseudo EA, Steam, PlayStation ou Xbox : la page montre ratio K/D, ki
 
 ![Détail par arme](docs/screenshots/stats-bf6-armes.png)
 
+**Progression** : Player X garde un relevé de tes stats par jour (à chaque visite de la page, et en arrière-plan si le dernier date de plus de 20 heures) et trace ta courbe de K/D, d'éliminations par minute ou de victoires, sur 7 jours, 30 jours ou depuis le début, avec tes éliminations, tes parties et ton temps de jeu sur la période. Les relevés restent sur ton PC.
+
+![Progression Battlefield 6](docs/screenshots/progression-bf6.png)
+
 EA ne propose pas d’API publique pour Battlefield 6. Les chiffres viennent de [gametools.network](https://gametools.network), un service communautaire non officiel, sans clé : il peut être lent ou indisponible, et la recherche est limitée à environ une requête toutes les 30 secondes. Les stats sont gardées en cache 10 minutes, et la dernière lecture reste affichée hors ligne. Les visuels du jeu viennent de la page Steam de Battlefield 6.
 
 ## Profil
 
 ![Profil](docs/screenshots/profil.png)
 
-Tes jeux par plateforme, les plus lancés et les derniers lancements depuis Player X.
+Ton temps de jeu total, tes jeux les plus joués, tes jeux par plateforme et tes derniers lancements depuis Player X.
 
 ## Mises à jour
 
@@ -56,10 +72,10 @@ Player X vérifie les [GitHub Releases](https://github.com/Moon-ItachiDEV/player
 
 Pour publier une version :
 
-1. Monte la version : `npm version 0.4.2 --no-git-tag-version` (met à jour `package.json` et `package-lock.json`).
+1. Monte la version : `npm version 0.5.0 --no-git-tag-version` (met à jour `package.json` et `package-lock.json`).
 2. Écris les notes dans `docs/release-notes/<version>.md` : elles servent à la fois pour la release GitHub et pour la fenêtre « Quoi de neuf ».
 3. Commit et pousse sur `main`.
-4. Lance l’action [`release.yml`](.github/workflows/release.yml) depuis l’onglet **Actions › Release › Run workflow** (elle crée le tag `v<version>`), ou pousse le tag toi-même : `git tag v0.4.2 && git push --tags`.
+4. Lance l’action [`release.yml`](.github/workflows/release.yml) depuis l’onglet **Actions › Release › Run workflow** (elle crée le tag `v<version>`), ou pousse le tag toi-même : `git tag v0.5.0 && git push --tags`.
 
 L’action construit l’installeur sous Windows et publie la release avec `Player-X-Setup-<version>.exe`, son `.blockmap` et `latest.yml` (le fichier que lit l’appli). Un tag poussé à la main doit correspondre à `version`, sinon l’action s’arrête.
 
@@ -77,8 +93,10 @@ L’action construit l’installeur sous Windows et publie la release avec `Play
 | Amis Steam | Steam Web API (clé gratuite, liste d’amis publique requise). |
 | Amis PlayStation | Non officiel, via [`psn-api`](https://github.com/achievements-app/psn-api) et ton jeton NPSSO. Peut casser sans prévenir. |
 | Discord | Discord ne donne pas la liste d’amis aux applis tierces. On affiche à la place les membres en ligne d’un serveur dont le **widget** est activé. |
-| Stats Battlefield 6 | Non officiel, via [gametools.network](https://gametools.network). Recherche multi-plateforme, rivaux suivis, cache local. |
-| Profil | Jeux par plateforme, jeux les plus lancés et derniers lancements depuis Player X. |
+| Temps de jeu | Processus en cours rattachés au dossier d’installation (Windows, PowerShell `Get-Process`), compteur Steam via `IPlayerService/GetOwnedGames`. |
+| Alertes d’amis | Différence entre deux lectures de la liste d’amis ; carte dans l’appli ou notification Windows. |
+| Stats Battlefield 6 | Non officiel, via [gametools.network](https://gametools.network). Recherche multi-plateforme, rivaux suivis, cache local, relevé quotidien pour la progression. |
+| Profil | Temps de jeu total, jeux les plus joués (ou les plus lancés sans temps de jeu), jeux par plateforme et derniers lancements. |
 | Mises à jour | `electron-updater` et GitHub Releases : progression, redémarrage après 10 s, fenêtre « Quoi de neuf ». |
 | Favoris, historique | Stockés en local. |
 
@@ -107,11 +125,11 @@ Direction « Nuit Néon » : fond graphite, violet comme seule couleur de marque
 ```
 src/
   main/          processus Electron : base SQLite, scan des jeux, logins, amis, stats
-    services/    games.ts, artwork.ts, auth.ts, friends.ts, stats.ts, settings.ts, demo.ts, updater.ts
+    services/    games.ts, artwork.ts, auth.ts, friends.ts, alerts.ts, playtime.ts, stats.ts, settings.ts, demo.ts, updater.ts
   preload/       pont sécurisé main ↔ interface
   renderer/src/
     components/  library/, friends/, stats/, settings/, setup/, ui/, GameSheet, Profile, Login, Rail, TopBar,
-                 UpdateNotice (bandeau de mise à jour), WhatsNew (fenêtre « Quoi de neuf »)
+                 UpdateNotice (bandeau de mise à jour), WhatsNew (fenêtre « Quoi de neuf »), FriendAlerts (alertes d’amis)
     styles/      tokens.css, base.css, shell.css
   shared/        types et fonctions de texte communs
 docs/

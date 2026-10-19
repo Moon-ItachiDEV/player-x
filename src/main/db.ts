@@ -1,5 +1,5 @@
 import { app, safeStorage } from 'electron'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import initSqlJs, { type Database } from 'sql.js'
 import type { Game } from '@shared/types'
@@ -12,7 +12,18 @@ let dbPath: string
 export async function initDb(): Promise<void> {
   const SQL = await initSqlJs({ locateFile: () => require.resolve('sql.js/dist/sql-wasm.wasm') })
   dbPath = join(app.getPath('userData'), 'launcher.db')
-  db = existsSync(dbPath) ? new SQL.Database(readFileSync(dbPath)) : new SQL.Database()
+  // Base illisible (coupure pendant une écriture d'une ancienne version) : on repart de la copie de secours.
+  const open = (file: string): Database | null => {
+    if (!existsSync(file)) return null
+    try {
+      const d = new SQL.Database(readFileSync(file))
+      d.exec('SELECT count(*) FROM sqlite_master')
+      return d
+    } catch {
+      return null
+    }
+  }
+  db = open(dbPath) ?? open(`${dbPath}.bak`) ?? new SQL.Database()
   db.run(`
     CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS games (
@@ -20,6 +31,7 @@ export async function initDb(): Promise<void> {
       install_dir TEXT, cover_url TEXT, hero_url TEXT, last_played INTEGER, favorite INTEGER DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS launches (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, started INTEGER NOT NULL, ended INTEGER NOT NULL);
   `)
   // Migration : colonne ajoutée après la première version.
   try {
@@ -30,8 +42,25 @@ export async function initDb(): Promise<void> {
   persist()
 }
 
+/** Une copie de secours au plus toutes les 10 minutes. */
+const BACKUP_EVERY_MS = 10 * 60_000
+
 function persist(): void {
-  writeFileSync(dbPath, Buffer.from(db.export()))
+  // Écriture atomique : fichier temporaire puis renommage. Une coupure en pleine écriture laisse l'ancienne base intacte.
+  const tmp = `${dbPath}.tmp`
+  writeFileSync(tmp, Buffer.from(db.export()))
+  try {
+    const bak = `${dbPath}.bak`
+    if (existsSync(dbPath) && (!existsSync(bak) || Date.now() - statSync(bak).mtimeMs > BACKUP_EVERY_MS)) copyFileSync(dbPath, bak)
+  } catch {
+    /* la copie de secours est un plus, pas une condition */
+  }
+  try {
+    renameSync(tmp, dbPath)
+  } catch {
+    // Fichier verrouillé un instant (antivirus, indexation) : écriture directe, comme avant.
+    writeFileSync(dbPath, readFileSync(tmp))
+  }
 }
 
 // --- clé/valeur (paramètres, comptes). Les valeurs secrètes sont chiffrées par l'OS. ---
@@ -97,7 +126,18 @@ export function replaceGames(games: Game[]): void {
       const old = keep.get(g.id)
       db.run(
         'INSERT OR REPLACE INTO games (id, store, store_id, name, install_dir, cover_url, hero_url, last_played, favorite, exe_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [g.id, g.store, g.storeId, g.name, g.installDir ?? null, g.coverUrl ?? null, g.heroUrl ?? null, old?.lastPlayed ?? g.lastPlayed ?? null, (old ? old.favorite : g.favorite) ? 1 : 0, g.exePath ?? null]
+        [
+          g.id,
+          g.store,
+          g.storeId,
+          g.name,
+          g.installDir ?? null,
+          g.coverUrl ?? null,
+          g.heroUrl ?? null,
+          old?.lastPlayed ?? g.lastPlayed ?? null,
+          (old ? old.favorite : g.favorite) ? 1 : 0,
+          g.exePath ?? null
+        ]
       )
     }
     db.run('COMMIT')
@@ -132,4 +172,27 @@ export function setFavorites(ids: string[]): void {
     throw e
   }
   persist()
+}
+
+// --- sessions de jeu (temps de jeu mesuré par Player X) ---
+
+/** Ouvre une session et renvoie son identifiant. */
+export function openSession(gameId: string, at: number): number {
+  db.run('INSERT INTO sessions (game_id, started, ended) VALUES (?, ?, ?)', [gameId, at, at])
+  const id = db.exec('SELECT last_insert_rowid()')[0].values[0][0] as number
+  persist()
+  return id
+}
+
+/** Prolonge les sessions en cours : `ended` est la dernière fois où le jeu a été vu, même si Player X se ferme ensuite. */
+export function touchSessions(ids: number[], at: number): void {
+  if (!ids.length) return
+  for (const id of ids) db.run('UPDATE sessions SET ended = ? WHERE id = ?', [at, id])
+  persist()
+}
+
+/** Minutes jouées par jeu, toutes sessions confondues. */
+export function playtimeByGame(): Map<string, number> {
+  const res = db.exec('SELECT game_id, SUM(ended - started) FROM sessions GROUP BY game_id')
+  return new Map((res[0]?.values ?? []).map((r) => [r[0] as string, (r[1] as number) / 60_000]))
 }

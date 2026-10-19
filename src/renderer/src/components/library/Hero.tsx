@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { cleanName, norm, plural, timeAgo } from '@shared/text'
+import { cleanName, formatPlaytime, norm, plural, timeAgo } from '@shared/text'
 import type { Friend, Game } from '@shared/types'
 import { follow, fxOn, setArtBase } from '../../motion'
 import { Avatar } from '../ui/Avatar'
 import { generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
+import { LiveBadge } from '../ui/LiveBadge'
 import { StoreTag } from '../ui/StoreTag'
 import { FavStar, usePop } from './GameCard'
 import './hero.css'
@@ -49,7 +50,10 @@ export function Hero({ games, friends, launchingId, onLaunch, onOpen, onFavorite
   const done = (u: string): void => setLoaded((prev) => new Set(prev).add(u))
 
   const n = games.length
-  const i = Math.max(0, games.findIndex((g) => g.id === currentId))
+  const i = Math.max(
+    0,
+    games.findIndex((g) => g.id === currentId)
+  )
   const game = games[i] as Game | undefined
   const art = game ? resolveArt(game, failed) : {}
   const shownUrl = art.hero ?? art.cover ?? null
@@ -174,7 +178,9 @@ export function Hero({ games, friends, launchingId, onLaunch, onOpen, onFavorite
       aria-label={carousel ? 'Jeux à la une' : `${kicker} : ${name}`}
     >
       <div className="hero-stage" aria-hidden="true">
-        {outgoing && outgoing.id !== game.id && <HeroArt key={outgoing.id} game={outgoing} state="out" failed={failed} loaded={loaded} onFail={fail} onLoad={done} />}
+        {outgoing && outgoing.id !== game.id && (
+          <HeroArt key={outgoing.id} game={outgoing} state="out" failed={failed} loaded={loaded} onFail={fail} onLoad={done} />
+        )}
         <HeroArt key={game.id} game={game} state="in" failed={failed} loaded={loaded} onFail={fail} onLoad={done} />
       </div>
       <div className="hero-scrim" aria-hidden="true" />
@@ -304,15 +310,15 @@ function HeroBody({ game, kicker, slide, launching, onLaunch, onOpen, onFavorite
       <div className="hero-meta">
         <StoreTag kind={game.store} long />
         <span>{game.lastPlayed ? `Lancé ${timeAgo(game.lastPlayed)}` : 'Jamais lancé depuis Player X'}</span>
-        {!!game.launches && <span className="num">{plural(game.launches, 'lancement', 'lancements')}</span>}
+        {game.playtime ? (
+          <span className="num">{formatPlaytime(game.playtime)} de jeu</span>
+        ) : (
+          !!game.launches && <span className="num">{plural(game.launches, 'lancement', 'lancements')}</span>
+        )}
+        {game.running && <LiveBadge />}
       </div>
       <div className="hero-actions">
-        <button
-          className={`btn btn-primary btn-play ${launching ? 'is-launching' : ''}`}
-          data-magnetic=""
-          disabled={launching}
-          onClick={() => onLaunch(game)}
-        >
+        <button className={`btn btn-primary btn-play ${launching ? 'is-launching' : ''}`} data-magnetic="" disabled={launching} onClick={() => onLaunch(game)}>
           {launching ? (
             <>
               <span className="spinner" />

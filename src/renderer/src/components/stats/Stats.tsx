@@ -6,6 +6,7 @@ import { Avatar } from '../ui/Avatar'
 import { Icon } from '../ui/Icon'
 import { errorMessage } from '../ui/Toasts'
 import { ClassIcon, classKind } from './ClassIcon'
+import { Progress } from './Progress'
 import './stats.css'
 
 export type { StatsProps }
@@ -164,6 +165,7 @@ export function Stats({ games }: StatsProps): React.JSX.Element {
           {me.snap && (
             <>
               <Overview snap={me.snap} />
+              <Progress account={tracked.me} fetchedAt={me.snap.fetchedAt} />
               <div className="bf-cols">
                 <Arsenal snap={me.snap} />
                 <Classes snap={me.snap} />

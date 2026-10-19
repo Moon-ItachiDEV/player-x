@@ -10,7 +10,8 @@ function defaults(): Settings {
     discordClientSecret: process.env.DISCORD_CLIENT_SECRET ?? '',
     discordGuildId: '',
     psnNpsso: '',
-    demoMode: false
+    demoMode: false,
+    friendAlerts: 'all'
   }
 }
 
@@ -24,6 +25,7 @@ export function getSettings(): Settings {
 
 export function saveSettings(patch: Partial<Settings>): Settings {
   if (typeof patch.discordGuildId === 'string') patch = { ...patch, discordGuildId: discordGuildIdFrom(patch.discordGuildId) }
+  if ('friendAlerts' in patch && !['all', 'games', 'off'].includes(patch.friendAlerts as string)) delete patch.friendAlerts
   const next = { ...getKv<Partial<Settings>>('settings', {}), ...patch }
   setKv('settings', next, true)
   return getSettings()

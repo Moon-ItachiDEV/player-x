@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { capitalize, cleanName, timeAgo } from '@shared/text'
+import { capitalize, cleanName, formatPlaytime, timeAgo } from '@shared/text'
 import type { Game } from '@shared/types'
 import { setArtFocus, setMorphSource } from '../../motion'
 import { Cover, generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
+import { LiveBadge } from '../ui/LiveBadge'
 import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
 import { useTilt } from './useTilt'
 
@@ -34,7 +35,10 @@ export function FavStar({ on, pop, size }: { on: boolean; pop: number; size: num
 
 /** Méta courte : « Steam · Il y a 2 j » ou « Epic · Jamais lancé ». */
 export function cardMeta(game: Game): string {
-  return `${KIND_LABEL[game.store]} · ${game.lastPlayed ? capitalize(timeAgo(game.lastPlayed)) : 'Jamais lancé'}`
+  if (game.running) return `En jeu · ${game.playtime ? formatPlaytime(game.playtime) : KIND_LABEL[game.store]}`
+  // La plateforme est déjà sur la jaquette : le temps de jeu prend sa place quand on le connaît.
+  const lead = game.playtime ? formatPlaytime(game.playtime) : KIND_LABEL[game.store]
+  return `${lead} · ${game.lastPlayed ? capitalize(timeAgo(game.lastPlayed)) : 'Jamais lancé'}`
 }
 
 interface GameCardProps {
@@ -115,7 +119,7 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
   return (
     <article
       ref={card}
-      className={`lib-card ${entering ? 'is-entering' : ''} ${launching ? 'is-launching' : ''} ${fav ? 'is-fav' : ''}`}
+      className={`lib-card ${game.running ? 'is-running' : ''} ${entering ? 'is-entering' : ''} ${launching ? 'is-launching' : ''} ${fav ? 'is-fav' : ''}`}
       tabIndex={0}
       aria-label={`${name}, ${cardMeta(game)}`}
       aria-busy={launching || undefined}
@@ -134,6 +138,7 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
         <div ref={box} className="lib-card-box">
           <Cover key={game.id} game={game} />
           <StoreTag kind={game.store} size={22} className="lib-card-tag" />
+          {game.running && <LiveBadge className="lib-card-live" />}
           <div className="lib-card-overlay" aria-hidden="true" />
           <div className="lib-card-glare" aria-hidden="true" />
           <div className="lib-card-ring fx-loop" aria-hidden="true" />

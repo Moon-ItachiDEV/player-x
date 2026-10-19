@@ -1,0 +1,280 @@
+/* Progression Battlefield 6 : une seule courbe violette (pas de légende : le titre la nomme). */
+.pg-skel {
+  height: 320px;
+  border-radius: var(--r-lg, 14px);
+}
+.pg-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pg-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pg-summary {
+  display: grid;
+  grid-template-columns: minmax(200px, auto) 1fr;
+  gap: 20px;
+  align-items: end;
+}
+@media (max-width: 1100px) {
+  .pg-summary {
+    grid-template-columns: 1fr;
+  }
+}
+.pg-now {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pg-now-value {
+  font: 700 40px/44px var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+.pg-change {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.pg-change .num {
+  color: var(--text-1);
+  font-weight: 600;
+}
+.pg-arrow {
+  color: var(--accent);
+  font-weight: 700;
+}
+.pg-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+.pg-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  border: 1px solid var(--line-1);
+}
+.pg-tile dd {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font: 600 18px/24px var(--font-display);
+  color: var(--text-1);
+}
+.pg-tile-sub {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Courbe */
+.pg-chart {
+  position: relative;
+  border-radius: 10px;
+  outline: none;
+  touch-action: pan-y;
+}
+.pg-chart:focus-visible {
+  box-shadow: var(--focus);
+}
+.pg-chart svg {
+  display: block;
+  overflow: visible;
+}
+.pg-grid line {
+  stroke: var(--line-1);
+  stroke-width: 1;
+}
+.pg-grid text {
+  fill: var(--text-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.pg-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pg-cross line {
+  stroke: var(--line-3);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.pg-dot {
+  fill: var(--accent);
+  stroke: var(--bg-1);
+  stroke-width: 2;
+}
+.pg-last-halo {
+  fill: var(--accent);
+  opacity: 0.16;
+}
+
+.pg-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 170px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--bg-0);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--sh-3);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+.pg-tip-day {
+  font-size: 12px;
+  color: var(--text-2);
+}
+.pg-tip-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.pg-tip-value strong {
+  color: var(--text-1);
+}
+.pg-tip-swatch {
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+/* Pas encore deux relevés */
+.pg-empty {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 0;
+}
+.pg-empty-art {
+  flex: none;
+  width: 180px;
+  height: 48px;
+}
+.pg-empty-line {
+  fill: none;
+  stroke: var(--line-3);
+  stroke-width: 2;
+  stroke-dasharray: 4 6;
+  stroke-linecap: round;
+}
+.pg-empty-dot {
+  fill: var(--accent);
+}
+
+/* ---- effets riches ---- */
+/* La courbe se dessine, la zone se remplit derrière, le dernier point s'allume. */
+:root[data-fx='on'] .pg-line {
+  stroke-dasharray: 1;
+  animation: pg-draw 1100ms cubic-bezier(0.65, 0, 0.35, 1) both;
+  transition: d 520ms var(--ease-glide);
+}
+:root[data-fx='on'] .pg-area {
+  animation: pg-fill 900ms 500ms var(--ease-glide) both;
+  transition: d 520ms var(--ease-glide);
+}
+:root[data-fx='on'] .pg-dot,
+:root[data-fx='on'] .pg-last-halo {
+  transition:
+    cx 520ms var(--ease-glide),
+    cy 520ms var(--ease-glide);
+}
+:root[data-fx='on'] .pg-dot.is-last {
+  animation: pg-pop 420ms 1000ms var(--ease-glide) both;
+}
+:root[data-fx='on'] .pg-last-halo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pg-halo 2.8s 1.1s ease-out infinite;
+}
+:root[data-window='idle'] .pg-last-halo {
+  animation-play-state: paused;
+}
+:root[data-fx='on'] .pg-tip {
+  animation: pg-tip 160ms var(--ease-glide) both;
+}
+:root[data-fx='on'] .pg-tile {
+  animation: pg-rise 520ms var(--ease-glide) both;
+}
+:root[data-fx='on'] .pg-tile:nth-child(2) {
+  animation-delay: 60ms;
+}
+:root[data-fx='on'] .pg-tile:nth-child(3) {
+  animation-delay: 120ms;
+}
+:root[data-fx='on'] .pg-tile:nth-child(4) {
+  animation-delay: 180ms;
+}
+:root[data-fx='on'] .pg-empty-line {
+  animation: pg-march 1.6s linear infinite;
+}
+:root[data-window='idle'] .pg-empty-line {
+  animation-play-state: paused;
+}
+@keyframes pg-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes pg-fill {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pg-pop {
+  from {
+    r: 0;
+  }
+}
+@keyframes pg-halo {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.35;
+  }
+  70%,
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+@keyframes pg-tip {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+@keyframes pg-rise {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+@keyframes pg-march {
+  to {
+    stroke-dashoffset: -20;
+  }
+}

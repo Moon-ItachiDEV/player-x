@@ -14,6 +14,11 @@ export interface Game {
   /** Nombre de lancements depuis Plateforme Gaming. */
   launches?: number
   favorite?: boolean
+  /** Temps de jeu en minutes : compteur Steam pour les jeux Steam, sinon mesuré par Player X. */
+  playtime?: number
+  playtimeSource?: 'steam' | 'local'
+  /** Le jeu tourne en ce moment sur ce PC. */
+  running?: boolean
 }
 
 export type FriendPlatform = 'steam' | 'discord' | 'psn'
@@ -27,6 +32,8 @@ export interface Friend {
   status: FriendStatus
   game?: string
   device?: string
+  /** Présence illisible cette fois-ci (PSN) : le statut affiché n'est pas fiable. */
+  presenceUnknown?: boolean
 }
 
 export interface Account {
@@ -45,11 +52,27 @@ export interface Settings {
   /** Jeton NPSSO PlayStation (non officiel). */
   psnNpsso: string
   demoMode: boolean
+  /** Alertes quand un ami Steam ou PlayStation se connecte (`all`) ou seulement quand il lance un jeu (`games`). */
+  friendAlerts: FriendAlertMode
+}
+
+export type FriendAlertMode = 'all' | 'games' | 'off'
+
+/** Un ami vient de se connecter ou de lancer un jeu. */
+export interface FriendAlert {
+  key: string
+  friend: Friend
+  kind: 'online' | 'in-game'
+  at: number
+  /** Alerte d'essai (Paramètres) ou du mode démo. */
+  sample?: boolean
 }
 
 export interface FriendsResult {
   friends: Friend[]
   errors: Partial<Record<FriendPlatform, string>>
+  /** Plateformes interrogées (compte relié ou serveur configuré). */
+  queried?: FriendPlatform[]
 }
 
 export interface ScanReport {
@@ -146,6 +169,19 @@ export interface Bf6Art {
   logoUrl?: string
 }
 
+/** Relevé quotidien des totaux d'un compte, pour la courbe de progression (gardé sur ce PC). */
+export interface Bf6Point {
+  at: number
+  kills: number
+  deaths: number
+  wins: number
+  losses: number
+  matches: number
+  secondsPlayed: number
+  killsPerMinute: number
+  accuracy: number
+}
+
 /** Ton compte et les joueurs que tu suis pour le classement. */
 export interface Bf6Tracked {
   me: Bf6Account | null
@@ -187,6 +223,14 @@ export interface LauncherApi {
   bf6Art(): Promise<Bf6Art>
   bf6GetTracked(): Promise<Bf6Tracked>
   bf6SetTracked(tracked: Bf6Tracked): Promise<Bf6Tracked>
+  /** Relevés quotidiens d'un compte suivi, du plus ancien au plus récent. */
+  bf6History(account: Bf6Account): Promise<Bf6Point[]>
+  /** Alertes d'amis à afficher dans la fenêtre (quand elle est au premier plan ; sinon Windows les affiche). */
+  onFriendAlert(cb: (alerts: FriendAlert[]) => void): () => void
+  /** Clic sur une notification Windows : ouvrir le panneau d'amis. */
+  onShowFriends(cb: () => void): () => void
+  /** Envoie une alerte d'essai, dans la fenêtre et en notification Windows. */
+  testFriendAlert(): Promise<void>
   platform: string
   version: string
 }

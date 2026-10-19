@@ -1,14 +1,16 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
-import type { FriendPlatform, Game, Settings } from '@shared/types'
+import type { Friend, FriendPlatform, Game, Settings } from '@shared/types'
 import * as db from './db'
+import { checkFriends, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
 import { DEMO_FRIENDS, DEMO_GAMES, demoGames } from './services/demo'
 import { connectPsn, getAllFriends } from './services/friends'
 import { getScanReport, launch, scanAllGames } from './services/games'
 import { getAccounts, getSettings, removeAccount, saveSettings } from './services/settings'
-import { getBf6Art, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked } from './services/stats'
+import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
+import { nudgePlaytime, startPlaytimeTracker, withPlaytime } from './services/playtime'
 import { initUpdater } from './services/updater'
 
 try {
@@ -47,6 +49,8 @@ function createWindow(): void {
 }
 
 let scanned = false
+/** Dernière liste d'amis réelle, pour l'alerte d'essai. */
+let lastFriends: Friend[] = []
 
 function notifyGamesChanged(): void {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send('games:changed')
@@ -89,7 +93,7 @@ async function games(refresh = false): Promise<Game[]> {
     // Le mode démo a pu s'activer pendant le scan : on rend alors la bibliothèque de démo.
     if (getSettings().demoMode) return games()
   }
-  return db.listGames()
+  return withPlaytime(db.listGames())
 }
 
 function registerIpc(): void {
@@ -106,6 +110,7 @@ function registerIpc(): void {
     // La session n'est comptée qu'une fois le jeu vraiment lancé.
     await launch(game)
     db.recordLaunch(id)
+    nudgePlaytime()
   })
   ipcMain.handle('games:report', () => getScanReport())
   ipcMain.handle('games:open-folder', async (_e, id: string) => {
@@ -133,19 +138,38 @@ function registerIpc(): void {
     return games()
   })
   ipcMain.handle('friends:list', async () => {
-    if (getSettings().demoMode) return { friends: DEMO_FRIENDS, errors: {} }
-    return getAllFriends()
+    if (getSettings().demoMode) {
+      demoFriendAlert(DEMO_FRIENDS)
+      return { friends: DEMO_FRIENDS, errors: {} }
+    }
+    const result = await getAllFriends()
+    checkFriends(result)
+    lastFriends = result.friends
+    return result
   })
+  ipcMain.handle('friends:test-alert', () => testFriendAlert(getSettings().demoMode ? DEMO_FRIENDS : lastFriends))
   ipcMain.handle('accounts:list', () => getAccounts())
-  ipcMain.handle('accounts:login', (_e, platform: 'steam' | 'discord') => (platform === 'steam' ? loginSteam() : loginDiscord()))
-  ipcMain.handle('accounts:psn', () => connectPsn())
+  ipcMain.handle('accounts:login', async (_e, platform: 'steam' | 'discord') => {
+    const account = await (platform === 'steam' ? loginSteam() : loginDiscord())
+    resetFriendAlerts(platform)
+    return account
+  })
+  ipcMain.handle('accounts:psn', async () => {
+    const account = await connectPsn()
+    resetFriendAlerts('psn')
+    return account
+  })
   ipcMain.handle('accounts:cancel', () => cancelLogin())
-  ipcMain.handle('accounts:logout', (_e, platform: FriendPlatform) => removeAccount(platform))
+  ipcMain.handle('accounts:logout', (_e, platform: FriendPlatform) => {
+    resetFriendAlerts()
+    return removeAccount(platform)
+  })
   ipcMain.handle('settings:get', () => getSettings())
   ipcMain.handle('settings:save', (_e, patch: Partial<Settings>) => {
     const wasDemo = getSettings().demoMode
     const next = saveSettings(patch)
     if (next.demoMode !== wasDemo) {
+      resetFriendAlerts()
       // Au retour du mode démo, on rescanne la vraie bibliothèque.
       scanned = false
       // Jaquettes des jeux fictifs, aussi quand la démo s'active en cours de session.
@@ -159,15 +183,33 @@ function registerIpc(): void {
   ipcMain.handle('bf6:art', () => getBf6Art())
   ipcMain.handle('bf6:tracked', () => getBf6Tracked())
   ipcMain.handle('bf6:set-tracked', (_e, tracked: unknown) => setBf6Tracked(tracked))
+  ipcMain.handle('bf6:history', (_e, account: unknown) => getBf6History(account))
   ipcMain.handle('shell:open', (_e, url: string) => {
     if (url.startsWith('https://')) return shell.openExternal(url)
   })
 }
 
+// Notifications Windows : même identifiant que l'installeur, sinon elles ne s'affichent pas.
+if (process.platform === 'win32') app.setAppUserModelId('dev.breezy.playerx')
+
+// Une seule instance : deux Player X ouverts écraseraient chacun la base de l'autre (temps de jeu relevé chaque minute).
+const firstInstance = app.requestSingleInstanceLock()
+if (!firstInstance) app.quit()
+app.on('second-instance', () => {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (!win) return
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+})
+
 app.whenReady().then(async () => {
+  if (!firstInstance) return
   await db.initDb()
   registerIpc()
   initUpdater()
+  startPlaytimeTracker(notifyGamesChanged)
+  startBf6Recorder()
   createWindow()
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
   if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())
