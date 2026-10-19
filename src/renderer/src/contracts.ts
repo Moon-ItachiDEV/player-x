@@ -170,4 +170,6 @@ export interface SetupProps {
 /** components/UpdateNotice.tsx → `export function UpdateNotice` (bandeau discret quand une mise à jour est prête ; se rend `null` sinon) */
 export interface UpdateNoticeProps {
   onOpenAbout: () => void
+  /** Un jeu tourne : la carte devient une pastille immobile et le compte à rebours se met en pause. */
+  inGame: boolean
 }

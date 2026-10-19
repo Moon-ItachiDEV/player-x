@@ -83,6 +83,9 @@ export interface ScanReport {
   error?: string
 }
 
+/** Pourquoi une mise à jour a échoué. Absent sur les erreurs de vérification de version (« Rechercher une mise à jour »). */
+export type UpdateErrorCode = 'unsigned' | 'verify' | 'network' | 'other'
+
 /** État des mises à jour automatiques (GitHub Releases, via electron-updater). */
 export type UpdateState =
   /** Version de développement ou non installée : pas de mise à jour automatique. */
@@ -90,10 +93,59 @@ export type UpdateState =
   | { state: 'idle' }
   | { state: 'checking' }
   | { state: 'none'; checkedAt: number }
-  | { state: 'downloading'; version: string; percent: number }
-  /** Téléchargée : s'installe au prochain redémarrage (ou tout de suite via installUpdate). */
-  | { state: 'ready'; version: string }
-  | { state: 'error'; message: string }
+  | {
+      state: 'downloading'
+      version: string
+      percent: number
+      /** Octets reçus / à recevoir (en téléchargement différentiel : seulement ce qui change). */
+      transferred?: number
+      total?: number
+      /** Moyenne d'electron-updater depuis le début du téléchargement. */
+      bytesPerSecond?: number
+    }
+  /** Téléchargée, signature en cours de vérification : rien ne s'installe, même à la fermeture. */
+  | {
+      state: 'verifying'
+      version: string
+      step: 'signature' | 'hash' | 'check'
+      hashed?: number
+      total?: number
+      /** SHA-512 de l'installeur, 128 caractères hexadécimaux. Présent à partir de l'étape « check ». */
+      fingerprint?: string
+    }
+  /** Téléchargée et signée : s'installe au prochain redémarrage (ou tout de suite via installUpdate). */
+  | {
+      state: 'ready'
+      version: string
+      fingerprint?: string
+      size?: number
+      downloadMs?: number
+    }
+  /** installUpdate accepté : Player X se ferme à quitAt (Date.now() du processus principal). */
+  | { state: 'installing'; version: string; quitAt: number }
+  | { state: 'error'; message: string; code?: UpdateErrorCode; version?: string }
+
+export interface InstallResult {
+  ok: boolean
+  /** Si ok : le moment où le processus principal appelle quitAndInstall. */
+  quitAt?: number
+}
+
+/** Dernière mise à jour installée sur ce PC, écrite par le processus principal au premier démarrage de la nouvelle version. */
+export interface LastUpdate {
+  from: string
+  to: string
+  fingerprint?: string
+  size?: number
+  downloadMs?: number
+  installedAt: number
+  /** true : redémarrage depuis Player X (« Redémarrer ») ; false : installée à la fermeture de Player X. */
+  relaunch: boolean
+  /** installedAt − quitAt, seulement après un redémarrage et si ≤ 180 s. */
+  backMs?: number
+  /** true seulement au lancement qui l'a installée. */
+  thisBoot: boolean
+}
 
 // ---------- Statistiques Battlefield 6 (gametools.network, non officiel) ----------
 
@@ -212,8 +264,10 @@ export interface LauncherApi {
   getUpdateState(): Promise<UpdateState>
   /** Lance une vérification et renvoie l'état obtenu juste après. */
   checkForUpdates(): Promise<UpdateState>
-  /** Redémarre l'appli pour installer la mise à jour téléchargée. */
-  installUpdate(): Promise<void>
+  /** Redémarre l'appli pour installer la mise à jour téléchargée. `delayMs` (0 à 1500) laisse jouer l'animation ; sans argument : tout de suite. */
+  installUpdate(opts?: { delayMs?: number }): Promise<InstallResult>
+  /** Dernière mise à jour installée sur ce PC (null si aucune connue). */
+  getLastUpdate(): Promise<LastUpdate | null>
   /** Prévient à chaque changement d'état. Renvoie la fonction de désabonnement. */
   onUpdateState(cb: (s: UpdateState) => void): () => void
   /** Cherche un pseudo Battlefield 6 sur toutes les plateformes. */

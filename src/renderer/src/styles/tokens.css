@@ -95,6 +95,12 @@
   --d-in: 220ms; /* réponse au survol */
   --d-out: 320ms; /* retour au repos */
   --d-5: 700ms; /* fondus d'ambiance (fond, carrousel) */
+  /* Mises à jour */
+  --ease-warp: cubic-bezier(0.7, 0, 0.84, 0); /* aspiration : tient, puis plonge */
+  --ease-arrive: cubic-bezier(0.16, 1, 0.3, 1); /* sortie d'hyperespace : très rapide puis se pose */
+  --upd-w: 480px;
+  --upd-h: 76px;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   /* Mise en page */
   --rail-w: 72px;
   --topbar-h: 48px;
@@ -109,4 +115,5 @@
   --z-popover: 60;
   --z-modal: 70;
   --z-toast: 80;
+  --z-warp: 100; /* au-dessus des toasts : redémarrage et retour d'une mise à jour */
 }

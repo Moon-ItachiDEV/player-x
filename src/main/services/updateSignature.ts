@@ -10,11 +10,17 @@ export function signedMessage(version: string, sha512: string): Buffer {
   return Buffer.from(`Player X update\n${version}\n${sha512}`, 'utf8')
 }
 
-export function sha512File(path: string): Promise<string> {
+/** SHA-512 (base64). `onProgress` reçoit le nombre d'octets lus ; lecture par blocs de 1 Mio. */
+export function sha512File(path: string, onProgress?: (hashed: number) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     const hash = createHash('sha512')
-    createReadStream(path)
-      .on('data', (chunk) => hash.update(chunk))
+    let hashed = 0
+    createReadStream(path, { highWaterMark: 1 << 20 })
+      .on('data', (chunk) => {
+        hash.update(chunk)
+        hashed += chunk.length
+        onProgress?.(hashed)
+      })
       .on('error', reject)
       .on('end', () => resolve(hash.digest('base64')))
   })

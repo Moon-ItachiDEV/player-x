@@ -13,7 +13,7 @@ import { getScanReport, launch, scanAllGames } from './services/games'
 import { getAccounts, getSettings, publicSettings, removeAccount, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { nudgePlaytime, startPlaytimeTracker, withPlaytime } from './services/playtime'
-import { initUpdater } from './services/updater'
+import { initUpdater, takeRelaunchBounds } from './services/updater'
 
 // .env : clés de développement seulement, jamais lu par la version installée.
 if (!app.isPackaged) {
@@ -28,9 +28,12 @@ if (!app.isPackaged) {
 const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
 
 function createWindow(): void {
+  // Après « Redémarrer » pour une mise à jour, la fenêtre revient où elle était (si elle tient encore sur un écran).
+  const b = takeRelaunchBounds()
   const win = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    ...(b ? { x: b.x, y: b.y, width: b.width, height: b.height } : { width: 1440, height: 900 }),
+    // Agrandie avant la mise à jour : montrée directement agrandie, sans passer par sa taille normale.
+    show: !b?.maximized,
     minWidth: 1024,
     minHeight: 640,
     backgroundColor: '#0b0d14',
@@ -48,6 +51,10 @@ function createWindow(): void {
       devTools: !app.isPackaged
     }
   })
+  if (b?.maximized) {
+    win.maximize()
+    win.focus()
+  }
   // Les liens externes s'ouvrent dans le navigateur, pas dans l'appli.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) shell.openExternal(url)

@@ -1,202 +1,337 @@
-// Bandeau de mise à jour, en bas à gauche du contenu : progression 0 → 100 %, puis redémarrage après un compte à rebours.
-// « Plus tard » laisse la mise à jour s'installer à la fermeture.
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { UpdateState } from '@shared/types'
+// Carte de mise à jour, en bas à gauche du contenu (spec Séquence Réacteur §5–§6) : téléchargement, vérification de la
+// signature, compte à rebours puis redémarrage ; refusée ou interrompue sinon. Pendant une partie, le téléchargement et la
+// vérification deviennent une pastille immobile. Taille fixe dans toutes les phases : rien ne se redimensionne.
+// Les phases, la file des étapes et toutes les images clés sont dans update/useCardPhase.ts.
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { UpdateNoticeProps } from '../contracts'
+import { tier, useUpdateState, VERSION } from '../update/session'
+import { useCardPhase, play, type CardModel } from '../update/useCardPhase'
+import { Reactor, type ReactorCenter } from '../update/Reactor'
+import { TextSwap, useInSwapOut } from '../update/TextSwap'
+import { KF } from '../update/keyframes'
+import { fpShort, pair, pct, speed } from '../update/format'
 import { Icon } from './ui/Icon'
 import './update.css'
 
-/** État des mises à jour (processus principal), tenu à jour par l'événement `update:state`. `null` tant qu'il n'est pas connu. */
-export function useUpdateState(): [UpdateState | null, (s: UpdateState) => void] {
-  const [state, setState] = useState<UpdateState | null>(null)
-  useEffect(() => {
-    let alive = true
-    const off = window.launcher.onUpdateState((s) => alive && setState(s))
-    // Un événement arrivé entre-temps est plus récent : on le garde.
-    window.launcher
-      .getUpdateState()
-      .then((s) => alive && setState((cur) => cur ?? s))
-      .catch(() => {})
-    return () => {
-      alive = false
-      off()
-    }
-  }, [])
-  return [state, setState]
-}
+export { useUpdateState } from '../update/session'
 
-/** Avant le redémarrage automatique, compté seulement quand la fenêtre est au premier plan (jamais en pleine partie). */
-const RESTART_DELAY = 10
-const RING_R = 17
-const RING_C = 2 * Math.PI * RING_R
+const NB = ' '
+const ABOUT_TITLE = 'Voir les détails dans Paramètres › À propos'
+/** Nouvel essai du processus principal après une erreur (updater.ts, RETRY_DELAY = 30 min). */
+const RETRY_LABEL = `nouvel essai dans 30${NB}min`
 
-/** Fenêtre au premier plan : visible et avec le focus. */
-function useWindowActive(): boolean {
-  const [active, setActive] = useState(() => document.visibilityState === 'visible' && document.hasFocus())
-  useEffect(() => {
-    const update = (): void => setActive(document.visibilityState === 'visible' && document.hasFocus())
-    window.addEventListener('focus', update)
-    window.addEventListener('blur', update)
-    document.addEventListener('visibilitychange', update)
-    return () => {
-      window.removeEventListener('focus', update)
-      window.removeEventListener('blur', update)
-      document.removeEventListener('visibilitychange', update)
-    }
-  }, [])
-  return active
-}
+const INTERRUPTED_TITLE = {
+  network: 'Connexion perdue',
+  verify: 'Vérification impossible',
+  other: 'Téléchargement interrompu',
+  unsigned: 'Téléchargement interrompu'
+} as const
 
-/** Pourcentage affiché : rattrape la valeur réelle en douceur au lieu de sauter d'un palier à l'autre. */
-function useSmoothPercent(target: number): number {
-  const [shown, setShown] = useState(target)
-  const current = useRef(target)
-  useEffect(() => {
-    if (document.documentElement.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      current.current = target
-      setShown(target)
-      return
-    }
-    let raf = 0
-    const step = (): void => {
-      const diff = target - current.current
-      current.current = Math.abs(diff) < 0.5 ? target : current.current + diff * 0.12
-      setShown(current.current)
-      if (current.current !== target) raf = requestAnimationFrame(step)
-    }
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  }, [target])
-  return shown
-}
+const HOLD_SUB = {
+  unfocused: 'En pause jusqu’à ton retour',
+  hover: 'Redémarrage en pause',
+  game: 'En pause pendant ta partie',
+  blocked: 'Redémarre quand tu veux'
+} as const
 
-/** Anneau de progression (0 à 100) autour d'une icône ou du pourcentage. */
-function Ring({ value, children, done }: { value: number; children: React.ReactNode; done?: boolean }): React.JSX.Element {
+export function UpdateNotice({ onOpenAbout, inGame }: UpdateNoticeProps): React.JSX.Element {
+  const [state] = useUpdateState()
+  const cardRef = useRef<HTMLDivElement>(null)
+  const api = useCardPhase(state, { inGame, cardRef })
+  const m = api.model
+  const announce = useAnnouncement(m)
+  const mode = m.phase === 'hidden' ? 'none' : m.mini ? 'mini' : 'card'
+
   return (
-    <span className={`upd-ring ${done ? 'is-done' : ''}`} aria-hidden="true">
-      <svg viewBox="0 0 40 40" width="40" height="40">
-        <defs>
-          <linearGradient id="upd-ring-grad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#7c3aed" />
-            <stop offset="55%" stopColor="#4f7cff" />
-            <stop offset="100%" stopColor="#22d3ee" />
-          </linearGradient>
-        </defs>
-        <circle className="upd-ring-track" cx="20" cy="20" r={RING_R} />
-        <circle
-          className="upd-ring-fill"
-          cx="20"
-          cy="20"
-          r={RING_R}
-          strokeDasharray={RING_C}
-          strokeDashoffset={RING_C * (1 - Math.max(0, Math.min(100, value)) / 100)}
-        />
-      </svg>
-      <span className="upd-ring-center">{children}</span>
+    <div className="upd-dock" data-mode={mode}>
+      {/* Une seule zone annoncée, toujours montée, écrite seulement aux changements de phase (§14.1). */}
+      <span className="sr-only" role="status" aria-live="polite">
+        {announce}
+      </span>
+      {mode === 'mini' && <MiniPill m={m} onOpen={onOpenAbout} />}
+      {mode === 'card' && <Card key={m.id} m={m} api={api} cardRef={cardRef} onOpenAbout={onOpenAbout} />}
+    </div>
+  )
+}
+
+interface CardProps {
+  m: CardModel
+  api: ReturnType<typeof useCardPhase>
+  cardRef: React.RefObject<HTMLDivElement | null>
+  onOpenAbout: () => void
+}
+
+function Card({ m, api, cardRef, onOpenAbout }: CardProps): React.JSX.Element {
+  const { phase, version: v, preview } = m
+  const hasHit = !preview && (phase === 'download' || phase === 'verify')
+  const ready = phase === 'lock' || phase === 'armed' || phase === 'installing'
+  const busy = phase === 'installing' || m.leaving
+  const rows = rowsFor(m)
+
+  let center: ReactorCenter = 'none'
+  if (phase === 'download' || phase === 'verify') center = 'pct'
+  else if (phase === 'lock') center = 'sec'
+  else if (phase === 'armed') center = m.hold === 'unfocused' || m.hold === 'game' ? 'pause' : m.hold === 'blocked' ? 'check' : 'sec'
+  else if (phase === 'installing') center = 'check'
+  else if (phase === 'interrupted') center = 'alert'
+
+  const stop = (
+    <button className="icon-btn icon-btn-sm upd-x" onClick={api.close} disabled={m.leaving} aria-label="Arrêter l’aperçu" title="Arrêter l’aperçu">
+      <Icon name="x" size={14} />
+    </button>
+  )
+  // Aperçu : × « Arrêter l'aperçu » partout sauf quand il est prêt, où « Plus tard » l'arrête (un × de plus ne laisserait
+  // que 157 px au texte, « Redémarrage simulé dans 5 s » en fait 168).
+  let actions: React.ReactNode = null
+  if (ready) {
+    actions = (
+      <>
+        <button
+          className="btn btn-primary btn-sm upd-go"
+          onClick={api.restart}
+          disabled={busy}
+          title={preview ? undefined : `Installer la ${v} maintenant`}
+        >
+          {/* Remplissage du compte à rebours : position statique ici, animée par useCardPhase quand c'est permis. */}
+          <span className="upd-charge" aria-hidden="true" style={{ transform: `translateX(${(-(m.left / m.countdown) * 100).toFixed(2)}%)` }} />
+          Redémarrer
+        </button>
+        <button
+          className="btn btn-ghost btn-sm upd-later"
+          onClick={api.later}
+          disabled={busy}
+          title={preview ? undefined : 'Elle s’installera quand tu fermeras Player X'}
+        >
+          Plus tard
+        </button>
+      </>
+    )
+  } else if (phase === 'refused' || phase === 'interrupted') {
+    actions = preview ? (
+      stop
+    ) : (
+      <>
+        <button className="btn btn-ghost btn-sm" onClick={onOpenAbout} disabled={m.leaving} title={ABOUT_TITLE}>
+          Détails
+        </button>
+        <button className="icon-btn icon-btn-sm upd-x" onClick={api.close} disabled={m.leaving} aria-label="Fermer" title="Fermer">
+          <Icon name="x" size={14} />
+        </button>
+      </>
+    )
+  } else if (preview) actions = stop
+
+  const cls = ['upd-card', actions ? 'has-actions' : '', m.critical ? 'is-critical' : '', m.locking ? 'is-locking' : '', m.hold === 'hover' ? 'is-held' : '', m.leaving ? 'is-leaving' : '']
+  const hitLabel =
+    phase === 'download' ? `Téléchargement de Player X ${v} : ${m.percent}${NB}%. Voir les détails` : `Vérification de Player X ${v}. Voir les détails`
+
+  return (
+    <div
+      ref={cardRef}
+      className={cls.filter(Boolean).join(' ')}
+      data-phase={phase}
+      data-step={phase === 'verify' ? m.step : undefined}
+      data-rate={m.rate}
+      style={{ '--p': m.p.toFixed(3) } as React.CSSProperties}
+      role="group"
+      aria-label="Mise à jour de Player X"
+      onPointerEnter={() => api.setHovered(true)}
+      onPointerLeave={() => api.setHovered(false)}
+      onFocus={() => api.setFocusWithin(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) api.setFocusWithin(false)
+      }}
+    >
+      <span className="upd-sheen" aria-hidden="true" />
+      <span className="upd-hover" aria-hidden="true" />
+      <Reactor lit={m.lit} cellsOn={m.cellsOn} hashP={m.hashP} center={center} percent={m.percent} seconds={m.left} />
+      <TextSwap swapKey={m.textKey} hidden={hasHit}>
+        <span className="upd-kicker" title={rows.kicker}>
+          {rows.kickerIcon && <Icon name={rows.kickerIcon} size={12} />}
+          <span>{rows.kicker}</span>
+        </span>
+        <span className="upd-title" title={rows.title}>
+          {rows.title}
+        </span>
+        <span className="upd-sub" title={rows.subTitle}>
+          {rows.sub}
+        </span>
+      </TextSwap>
+      {actions && <div className="upd-actions">{actions}</div>}
+      {phase === 'download' && <Stream />}
+      {hasHit && <button className="upd-hit" onClick={onOpenAbout} aria-label={hitLabel} title={ABOUT_TITLE} />}
+    </div>
+  )
+}
+
+interface Rows {
+  kicker: string
+  kickerIcon?: 'shield-check' | 'shield-x'
+  title: string
+  sub: React.ReactNode
+  subTitle: string
+}
+
+/** Les trois lignes de la carte, phase par phase (copie §13.1–§13.4, aperçu §13.7). */
+function rowsFor(m: CardModel): Rows {
+  const { phase, version: v, preview } = m
+  const product = preview ? 'Exemple de mise à jour' : `Player X ${v}`
+  // Pendant le verrouillage, les lignes de la vérification restent jusqu'au fondu (300 ms).
+  const showVerify = phase === 'verify' || (phase === 'lock' && m.textKey === 'verify')
+
+  if (phase === 'download') {
+    let sub = 'Téléchargement en arrière-plan'
+    if (preview) sub = 'Aucun téléchargement réel'
+    else if (m.bytes) {
+      // Figé : la vitesse disparaît (c'est une moyenne, elle mentirait).
+      const tail = m.stalled ? 'en attente du réseau' : m.bytes.bps ? speed(m.bytes.bps) : ''
+      sub = tail ? `${pair(m.bytes.done, m.bytes.total)} · ${tail}` : pair(m.bytes.done, m.bytes.total)
+    } else if (m.stalled) sub = `${sub} · en attente du réseau`
+    return { kicker: preview ? 'Aperçu · téléchargement' : 'Téléchargement', title: product, sub, subTitle: sub }
+  }
+
+  if (showVerify) {
+    const step = m.step ?? 'check'
+    const n = step === 'signature' ? 1 : step === 'hash' ? 2 : 3
+    const kicker = preview ? `Aperçu · vérification · ${n}/3` : `Vérification · ${n}/3`
+    let sub: React.ReactNode
+    let subTitle: string
+    if (preview) {
+      if (step === 'check' && m.fingerprint) {
+        subTitle = `Empreinte de ta version${NB}: ${fpShort(m.fingerprint)}`
+        sub = <Fingerprint label={`Empreinte de ta version${NB}:`} hex={m.fingerprint} />
+      } else sub = subTitle = 'Aucune vérification réelle'
+    } else if (step === 'signature') sub = subTitle = 'Récupération de la signature…'
+    else if (step === 'hash') sub = subTitle = `Empreinte SHA-512 · ${pct(Math.floor(m.hashP * 100))}`
+    else if (m.fingerprint) {
+      subTitle = `SHA-512 ${fpShort(m.fingerprint)}`
+      sub = <Fingerprint label="SHA-512" hex={m.fingerprint} />
+    } else sub = subTitle = 'SHA-512'
+    return { kicker, title: product, sub, subTitle }
+  }
+
+  if (phase === 'lock' || phase === 'armed' || phase === 'installing') {
+    let sub: string
+    if (phase === 'installing') sub = 'Redémarrage…'
+    else if (m.hold) sub = preview ? 'Aperçu en pause' : HOLD_SUB[m.hold]
+    else sub = `${preview ? 'Redémarrage simulé dans' : 'Redémarrage dans'} ${m.left}${NB}s`
+    return {
+      kicker: preview ? 'Aperçu · prête' : 'Signée et prête',
+      kickerIcon: preview ? undefined : 'shield-check',
+      title: preview ? product : `${VERSION} → ${v}`,
+      sub,
+      subTitle: sub
+    }
+  }
+
+  if (phase === 'refused') {
+    const sub = 'Non signée · rien n’est installé'
+    return { kicker: 'Refusée', kickerIcon: 'shield-x', title: product, sub, subTitle: sub }
+  }
+
+  // Interrompue
+  const sub = `${v} · ${RETRY_LABEL}`
+  return { kicker: 'Interrompue', title: INTERRUPTED_TITLE[m.errorCode ?? 'other'], sub, subTitle: sub }
+}
+
+/** « 3f9a1c0e…a77d8b21 » : les vrais caractères, dans l'ordre, qui entrent un par un (rien n'est brouillé). */
+function Fingerprint({ label, hex }: { label: string; hex: string }): React.JSX.Element {
+  const ref = useRef<HTMLSpanElement>(null)
+  const still = useInSwapOut()
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (still || !el) return
+    const played: Array<Animation | null> = []
+    if (tier() === 'full') el.querySelectorAll(':scope > span').forEach((ch, i) => played.push(play(ch, KF.fpChar(i))))
+    else played.push(play(el, KF.fade(160), { level: 'sober' }))
+    return () => played.forEach((a) => a?.cancel())
+  }, [hex, still])
+  return (
+    <>
+      <span className="upd-fp-label">{label}</span>
+      <span className="upd-fp" ref={ref} title={hex}>
+        {[...fpShort(hex)].map((ch, i) => (
+          <span key={i}>{ch}</span>
+        ))}
+      </span>
+    </>
+  )
+}
+
+/** Barre de flux : le dégradé reste épinglé à la barre (fenêtre et remplissage se déplacent en sens inverse). */
+function Stream(): React.JSX.Element {
+  return (
+    <span className="upd-stream" aria-hidden="true">
+      <span className="upd-stream-win">
+        <span className="upd-stream-fill" />
+      </span>
+      <span className="upd-stream-head">
+        <i />
+      </span>
+      <span className="upd-pk">
+        <i />
+      </span>
+      <span className="upd-pk">
+        <i />
+      </span>
+      <span className="upd-pk">
+        <i />
+      </span>
     </span>
   )
 }
 
-export function UpdateNotice({ onOpenAbout }: UpdateNoticeProps): React.JSX.Element | null {
-  const [state] = useUpdateState()
-  // « Plus tard » masque le bandeau jusqu'au prochain changement d'état (autre version, nouvelle étape).
-  const [dismissed, setDismissed] = useState<string | null>(null)
-  const [installing, setInstalling] = useState(false)
-  const [left, setLeft] = useState(RESTART_DELAY)
-  const active = useWindowActive()
-  const percent = useSmoothPercent(state?.state === 'downloading' ? state.percent : state?.state === 'ready' ? 100 : 0)
-
-  const key = !state ? '' : state.state === 'ready' || state.state === 'downloading' ? `${state.state}:${state.version}` : state.state
-  const counting = state?.state === 'ready' && dismissed !== key && !installing
-
-  const restart = useCallback(async (): Promise<void> => {
-    setInstalling(true)
-    try {
-      await window.launcher.installUpdate()
-      // L'appli se ferme dans la foulée ; si rien ne se passe, le bouton redevient utilisable.
-      setTimeout(() => setInstalling(false), 15_000)
-    } catch {
-      setInstalling(false)
-    }
-  }, [])
-
-  // Compte à rebours : il repart de zéro pour chaque nouvelle version, et se met en pause quand la fenêtre passe en arrière-plan.
-  useEffect(() => setLeft(RESTART_DELAY), [key])
-  useEffect(() => {
-    if (!counting || !active) return
-    if (left <= 0) {
-      void restart()
-      return
-    }
-    const t = setTimeout(() => setLeft((n) => n - 1), 1000)
-    return () => clearTimeout(t)
-  }, [counting, active, left, restart])
-
-  if (!state || dismissed === key) return null
-
-  if (state.state === 'downloading') {
-    const pct = Math.floor(percent)
-    return (
-      <div className="upd-dock">
-        <button
-          className="upd-card upd-progress"
-          onClick={onOpenAbout}
-          title="Voir les détails dans Paramètres › À propos"
-          aria-label={`Téléchargement de Player X ${state.version} : ${state.percent} %. Voir les détails`}
-        >
-          <Ring value={percent}>
-            <span className="num">{pct}</span>
-          </Ring>
-          <span className="upd-text">
-            <span className="upd-title">
-              Mise à jour <span className="num">{state.version}</span>
-            </span>
-            <span className="upd-sub">Téléchargement en arrière-plan</span>
-            <span className="upd-bar" aria-hidden="true">
-              <span className="upd-bar-fill" style={{ transform: `scaleX(${percent / 100})` }} />
-            </span>
-          </span>
-          <span className="upd-pct num" aria-hidden="true">
-            {pct} %
-          </span>
-        </button>
-      </div>
-    )
-  }
-
-  if (state.state !== 'ready') return null
-
+/** Pastille pendant une partie (§5.8) : 188 × 40, aucune animation ni transition, un bouton vers À propos. */
+function MiniPill({ m, onOpen }: { m: CardModel; onOpen: () => void }): React.JSX.Element {
+  const verify = m.phase === 'verify'
+  const value = verify ? 100 : m.percent
+  const label = verify ? `Mise à jour ${m.version} : vérification. Voir les détails` : `Mise à jour ${m.version} : ${m.percent}${NB}%. Voir les détails`
   return (
-    <div className="upd-dock">
-      <div className="upd-card upd-ready" role="status">
-        <Ring value={installing ? 100 : (left / RESTART_DELAY) * 100} done>
-          {installing ? <span className="spinner" /> : <Icon name="check" size={16} />}
-        </Ring>
-        <div className="upd-text">
-          <div className="upd-title">
-            Player X <span className="num">{state.version}</span> est prête
-          </div>
-          <div className="upd-sub">
-            {installing ? (
-              'Redémarrage…'
-            ) : active ? (
-              <>
-                Redémarrage dans <span className="num">{left}</span> s
-              </>
-            ) : (
-              'Redémarrage dès que tu reviens sur Player X'
-            )}
-          </div>
-        </div>
-        <div className="upd-actions">
-          <button className="btn btn-primary btn-sm" onClick={restart} disabled={installing}>
-            Redémarrer
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setDismissed(key)} disabled={installing} title="S'installera à la fermeture de Player X">
-            Plus tard
-          </button>
-        </div>
-      </div>
-    </div>
+    <button className="upd-mini" onClick={onOpen} aria-label={label} title={ABOUT_TITLE}>
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+        <circle className="upd-mini-track" cx="12" cy="12" r="10" />
+        <circle
+          className="upd-mini-val"
+          cx="12"
+          cy="12"
+          r="10"
+          pathLength="100"
+          strokeDasharray="100"
+          strokeDashoffset={100 - value}
+          transform="rotate(-90 12 12)"
+        />
+      </svg>
+      <span className="upd-mini-text num">
+        {m.version} · {verify ? 'vérification' : pct(m.percent)}
+      </span>
+    </button>
   )
+}
+
+/** Annonces polies (§13.9), une par changement de phase et par version. L'aperçu a les siennes (preview.ts). */
+function useAnnouncement(m: CardModel): string {
+  const [text, setText] = useState('')
+  const last = useRef('')
+  const v = m.version
+  // Prête pendant une partie : le compte attend la fin de la partie, l'annonce le dit (puis annonce le compte à la reprise).
+  const ready = m.phase === 'armed' && m.hold === 'game' ? 'ready-game' : 'ready'
+  const group = m.preview ? '' : m.phase === 'lock' || m.phase === 'armed' ? ready : m.phase === 'installing' || m.phase === 'hidden' ? '' : m.phase
+  useEffect(() => {
+    if (!group || `${group}:${v}` === last.current) return
+    last.current = `${group}:${v}`
+    setText(
+      group === 'download'
+        ? `Téléchargement de Player X ${v} en arrière-plan.`
+        : group === 'verify'
+          ? `Vérification de la mise à jour ${v}.`
+          : group === 'ready-game'
+            ? `Player X ${v} est prête et signée. Le redémarrage attendra la fin de ta partie, ou choisis Plus tard.`
+            : group === 'ready'
+              ? `Player X ${v} est prête et signée. Redémarrage automatique dans 10 secondes, ou choisis Plus tard.`
+              : group === 'refused'
+                ? `Mise à jour ${v} refusée : elle n’est pas signée par Player X. Rien n’est installé.`
+                : `Mise à jour ${v} interrompue. Nouvel essai dans 30 minutes.`
+    )
+  }, [group, v])
+  return text
 }

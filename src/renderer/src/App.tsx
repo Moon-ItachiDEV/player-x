@@ -13,6 +13,10 @@ import { SettingsView } from './components/settings/SettingsView'
 import { Setup } from './components/setup/Setup'
 import { Stats } from './components/stats/Stats'
 import { TopBar } from './components/TopBar'
+// Avant WhatsNew : lit pg.lastVersion et prépare le retour d'une mise à jour avant le premier rendu.
+import { gameRunning } from './update/session'
+import './update/stage'
+import { UpdateStage } from './update/UpdateStage'
 import { UpdateNotice } from './components/UpdateNotice'
 import { WhatsNew } from './components/WhatsNew'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
@@ -75,6 +79,7 @@ export default function App(): React.JSX.Element {
   return (
     <ToastProvider right={entered && !setup.open && ui.friendsPanel === 'open' ? 'var(--friends-w)' : '0px'}>
       <Shell ui={ui} updateUi={updateUi} entered={entered} setEntered={setEntered} setup={setup} setSetup={setSetup} />
+      <UpdateStage />
     </ToastProvider>
   )
 }
@@ -162,6 +167,9 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     return api.onGamesChanged(() => api.getGames().then(setGames))
   }, [loadGames, setEntered])
 
+  // Un jeu en cours coupe l'aperçu de l'animation de mise à jour (rien n'anime pendant une partie).
+  useEffect(() => gameRunning.set(games.some((g) => g.running)), [games])
+
   // Les comptes comptent par identité : un pseudo ou un avatar mis à jour ne relance pas toute la récupération.
   const accountsKey = accounts.map((a) => `${a.platform}:${a.id}`).join('|')
   useEffect(() => {
@@ -178,6 +186,8 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'k')) {
+        // Une fenêtre modale ouverte (Quoi de neuf…) garde le focus : la recherche est derrière son voile.
+        if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
         e.preventDefault()
         searchRef.current?.focus()
         searchRef.current?.select()
@@ -472,7 +482,7 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
         onOpenFolder={openFolder}
       />
       <FriendAlerts games={games} onShowFriends={() => updateUi({ friendsPanel: 'open' })} />
-      <UpdateNotice onOpenAbout={() => goSettings('about')} />
+      <UpdateNotice onOpenAbout={() => goSettings('about')} inGame={games.some((g) => g.running)} />
       <WhatsNew />
     </div>
   )

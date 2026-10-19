@@ -1,51 +1,69 @@
-/* Bandeau de mise à jour (UpdateNotice.tsx) : ancré en bas à gauche du contenu, à côté de la barre latérale.
-   Sous le voile du tiroir de jeu et des dialogues (il ne doit jamais leur passer devant), au-dessus du contenu. */
+/* Carte de mise à jour (UpdateNotice.tsx, update/Reactor.tsx, update/TextSwap.tsx), spec Séquence Réacteur §5.
+   Ancrée en bas à gauche du contenu, sous le voile du tiroir de jeu et des dialogues, au-dessus du contenu.
+   Taille fixe dans toutes les phases. Tout ce qui bouge est transform ou opacity ; rien n'anime filter, box-shadow,
+   width, height ni les traits SVG. Les images clés WAAPI sont dans update/keyframes.ts (via anim()). */
 
 .upd-dock {
   position: fixed;
   left: calc(var(--rail-w) + 20px);
   bottom: 20px;
   z-index: calc(var(--z-scrim) - 5);
-  display: flex;
-  max-width: min(460px, calc(100vw - var(--rail-w) - 40px));
+  width: min(var(--upd-w), calc(100vw - var(--rail-w) - 40px));
   pointer-events: none;
 }
-.upd-dock > * {
+.upd-dock[data-mode='mini'] {
+  width: auto;
+}
+.upd-dock > .upd-card,
+.upd-dock > .upd-mini {
   pointer-events: auto;
 }
-/* Place réservée en bas des pages, pour que le bandeau ne cache jamais la fin du contenu. */
-.shell:has(.upd-dock) > .content {
-  padding-bottom: 76px;
+/* Place réservée en bas des pages, pour que la carte ne cache jamais la fin du contenu. */
+.shell:has(.upd-dock[data-mode='card']) > .content {
+  padding-bottom: 104px;
 }
-/* Fenêtre étroite : les toasts (à droite) passeraient sur le bandeau, on les monte au-dessus. */
-@media (max-width: 1260px) {
-  #root:has(.upd-dock) .toasts {
-    bottom: 96px;
+.shell:has(.upd-dock[data-mode='mini']) > .content {
+  padding-bottom: 68px;
+}
+/* Fenêtre étroite : les toasts (à droite, 420 px au plus) passeraient sur la carte (ou la frôleraient), on les monte au-dessus. */
+@media (max-width: 1311px) {
+  #root:has(.upd-dock[data-mode='card']) .toasts {
+    bottom: 108px;
+  }
+  #root:has(.upd-dock[data-mode='mini']) .toasts {
+    bottom: 72px;
   }
 }
 
-/* ---------- prête ---------- */
+/* ---------- carte ---------- */
 
 .upd-card {
+  --p: 0;
   position: relative;
-  overflow: hidden;
-  isolation: isolate;
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  padding: 10px 8px 10px 10px;
-  border-radius: var(--r-lg);
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.035), transparent 60%), rgba(37, 42, 60, 0.96);
-  backdrop-filter: blur(12px);
+  column-gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--upd-h);
+  padding: 11px 12px 11px 14px;
+  /* Opaque, sans flou d'arrière-plan. L'ombre est statique, jamais animée. */
+  background: var(--surface-3);
   border: 1px solid var(--line-2);
-  box-shadow:
-    var(--sh-2),
-    inset 0 1px 0 rgb(255 255 255 / 0.05);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-2);
+  overflow: hidden;
   font: 400 13px/18px var(--font-ui);
-  animation: upd-in var(--d-3) var(--ease-out) both;
 }
-/* Filet violet à gauche : la marque, sans crier */
+/* Sans boutons (téléchargement, vérification) : une seule gouttière, colonne de texte de 388 px. */
+.upd-card:not(.has-actions) {
+  grid-template-columns: 52px minmax(0, 1fr);
+}
+.upd-card.is-leaving {
+  pointer-events: none;
+}
+/* Filet de 2 px à gauche : la marque, sans crier ; sa couleur dit la phase. */
 .upd-card::before {
   content: '';
   position: absolute;
@@ -54,209 +72,601 @@
   bottom: 10px;
   width: 2px;
   border-radius: 0 2px 2px 0;
-  /* Violet seul : le cyan est réservé à « en jeu » */
-  background: linear-gradient(180deg, var(--accent), var(--accent-solid));
+  background: var(--accent);
   opacity: 0.9;
 }
+.upd-card[data-phase='refused']::before {
+  background: var(--danger);
+}
+.upd-card[data-phase='interrupted']::before {
+  background: var(--text-3);
+}
 
+/* Reflet : un vrai span, rejoué par WAAPI (arrivée, verrouillage, accent). */
+.upd-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.07) 50%, transparent 65%);
+}
+
+/* Toute la carte ouvre À propos pendant le téléchargement et la vérification : un bouton transparent par-dessus. */
+.upd-hit {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+/* Survol = opacité d'un calque, jamais une transition de couleur de fond. */
+.upd-hover {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(255 255 255 / 0.04);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--d-in) var(--ease-out);
+}
+.upd-card:has(.upd-hit:hover) .upd-hover {
+  opacity: 1;
+}
+/* Anneau de focus à l'intérieur (la carte coupe ce qui déborde), jamais animé. */
+.upd-hit:focus-visible {
+  box-shadow:
+    inset 0 0 0 2px var(--accent),
+    inset 0 0 0 4px var(--bg-1);
+}
+
+/* Trois lignes : surtitre 11/14, titre 13,5/18, détail 12/16. */
+.upd-swap {
+  position: relative;
+  min-width: 0;
+  grid-column: 2;
+}
 .upd-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  display: grid;
+  grid-template-rows: 14px 18px 16px;
+  row-gap: 2px;
   min-width: 0;
 }
-.upd-title {
-  font: 600 13.5px/18px var(--font-ui);
-  color: var(--text-1);
+.upd-text.is-out {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.upd-text > * {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.upd-kicker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: 600 11px/14px var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.upd-kicker > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.upd-kicker > svg {
+  flex-shrink: 0;
+}
+.upd-card[data-phase='refused'] .upd-kicker {
+  color: var(--danger-text);
+}
+.upd-card[data-phase='interrupted'] .upd-kicker {
+  color: var(--text-2);
+}
+.upd-title {
+  font: 600 13.5px/18px var(--font-ui);
+  color: var(--text-1);
+}
 .upd-sub {
   font: 400 12px/16px var(--font-ui);
-  color: var(--text-3);
-  white-space: nowrap;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
 }
-.link-btn.upd-link {
-  font-size: inherit;
-  line-height: inherit;
-  border-radius: var(--r-xs);
+/* Empreinte : 11 px mono en --text-2 (contraste), étiquette en --text-2 aussi (--text-3 passe sous 4,5:1). */
+.upd-fp {
+  font: 500 11px/16px var(--font-mono);
+  color: var(--text-2);
+}
+.upd-fp > span {
+  display: inline-block;
+}
+.upd-fp-label {
+  /* --text-3 tombe sous 4,5:1 sur la carte (et au survol) : petit texte, donc --text-2. */
+  color: var(--text-2);
+  margin-right: 6px;
 }
 
 .upd-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
+  grid-column: 3;
 }
-.upd-actions .btn {
-  margin-right: 4px;
-}
-.upd-close {
+.upd-x {
   color: var(--text-3);
 }
 
-@keyframes upd-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-
-/* ---------- téléchargement 0 → 100 % ---------- */
-
-.upd-card {
-  grid-template-columns: 40px minmax(0, 1fr) auto;
-}
-button.upd-progress {
-  width: 340px;
-  max-width: 100%;
-  padding: 10px 14px 10px 10px;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-  transition: border-color var(--d-1) var(--ease-out);
-}
-button.upd-progress:hover {
-  border-color: var(--line-3);
-}
-button.upd-progress:focus-visible {
-  box-shadow: var(--sh-2), var(--focus);
-}
-.upd-progress .upd-text {
-  gap: 3px;
-}
-.upd-pct {
-  align-self: start;
-  font: 700 13px/18px var(--font-display);
-  color: var(--text-1);
-}
-.upd-bar {
+/* « Redémarrer » se remplit pendant le compte à rebours (WAAPI piloté par currentTime, effets riches seulement). */
+.upd-go {
   position: relative;
-  height: 3px;
-  margin-top: 4px;
-  border-radius: 2px;
   overflow: hidden;
-  background: var(--line-2);
+  isolation: isolate;
 }
-.upd-bar-fill {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--brand-gradient);
-  transform-origin: left center;
-}
-
-/* Anneau : la progression du téléchargement, puis le compte à rebours du redémarrage. */
-.upd-ring {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-}
-.upd-ring > svg {
-  position: absolute;
-  inset: 0;
-  rotate: -90deg;
-}
-.upd-ring-track {
-  fill: none;
-  stroke: var(--line-2);
-  stroke-width: 3;
-}
-.upd-ring-fill {
-  fill: none;
-  stroke: url(#upd-ring-grad);
-  stroke-width: 3;
-  stroke-linecap: round;
-  transition: stroke-dashoffset 1s linear;
-}
-/* Le téléchargement est déjà lissé par le pourcentage affiché. */
-.upd-progress .upd-ring-fill {
-  transition: none;
-}
-.upd-ring-center {
-  position: relative;
-  display: grid;
-  place-items: center;
-  font: 700 11px/1 var(--font-display);
-  color: var(--text-1);
-}
-.upd-ring.is-done .upd-ring-center {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-.upd-ring .spinner {
-  width: 14px;
-  height: 14px;
-}
-
-/* Prête : le bouton Redémarrer reste visible, « Plus tard » est secondaire. */
-.upd-ready .upd-actions {
-  gap: 4px;
-}
-.upd-ready .upd-actions .btn {
-  margin-right: 0;
-}
-.upd-ready .upd-sub .num {
-  color: var(--text-1);
-  font-weight: 600;
-}
-
-/* ---------- effets riches (Effets visuels activés) ---------- */
-
-:root[data-fx='on'] .upd-card {
-  animation: upd-in-rich var(--d-4) var(--ease-glide) both;
-}
-/* Un seul reflet au moment où le bandeau arrive */
-:root[data-fx='on'] .upd-card::after {
-  content: '';
+.upd-charge {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(105deg, transparent 35%, rgb(155 108 255 / 0.16) 50%, transparent 65%);
-  translate: -130% 0;
+  background: rgb(255 255 255 / 0.14);
+  transform: translateX(-100%);
   pointer-events: none;
-  animation: upd-sheen 1100ms var(--ease-in-out) 260ms both;
 }
-:root[data-fx='on'] .upd-ring.is-done .upd-ring-center {
-  animation: upd-pop 420ms var(--ease-pop) both;
-}
-/* Reflet qui balaie la barre pendant le téléchargement (en pause quand la fenêtre est en arrière-plan). */
-:root[data-fx='on'] .upd-bar-fill::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.45) 50%, transparent 100%);
-  translate: -100% 0;
-  animation: upd-sweep 1.6s var(--ease-in-out) infinite;
-}
-:root[data-window='idle'] .upd-bar-fill::after {
-  animation-play-state: paused;
+:root:not([data-fx='on']) .upd-charge {
+  display: none;
 }
 
-@keyframes upd-in-rich {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.96);
-  }
+/* ---------- réacteur 52 × 52 ---------- */
+
+.rx {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  /* Une seule case de 52 px : le halo (72 px) déborde sans agrandir la case, sinon tout le cœur se décale. */
+  grid-template: 52px / 52px;
+  place-items: center;
 }
-@keyframes upd-pop {
-  from {
-    scale: 0.4;
-    opacity: 0;
-  }
+.rx > * {
+  grid-area: 1 / 1;
 }
-@keyframes upd-sweep {
+/* Halo violet : une lumière dans l'indicateur (max .6 au repos), jamais une lueur de la carte. */
+.rx-glow {
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgb(124 58 237 / 0.55), rgb(124 58 237 / 0));
+  opacity: calc(0.15 + var(--p) * 0.45);
+  scale: calc(0.75 + var(--p) * 0.25);
+  transition:
+    opacity 900ms var(--ease-out),
+    scale 900ms var(--ease-out);
+}
+.rx-svg,
+.rx-shield-svg,
+.rx-mark-svg,
+.rx-orbit,
+.rx-orbit > svg,
+.rx-l {
+  width: 52px;
+  height: 52px;
+  overflow: visible;
+}
+.rx-l {
+  display: grid;
+}
+.rx-l > svg {
+  grid-area: 1 / 1;
+}
+.rx-ticks,
+.rx-cells,
+.rx-inner,
+.rx-shield,
+.rx-mark,
+.rx-orbit,
+.rx-head,
+.rx-center {
+  opacity: 0;
+  transition: opacity 240ms var(--ease-out);
+}
+.rx-tick-track {
+  stroke: var(--line-2);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.rx-tick-lit {
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 240ms var(--ease-out);
+}
+.rx-tick-lit.on {
+  opacity: 1;
+}
+.rx-cell-track {
+  fill: none;
+  stroke: var(--line-2);
+  stroke-width: 4;
+}
+.rx-cell-lit {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+  opacity: 0;
+  transition: opacity 240ms var(--ease-out);
+}
+.rx-cell-lit.on {
+  opacity: 1;
+}
+/* Dernières secondes : la couleur change d'un coup, jamais animée. */
+.upd-card.is-critical .rx-cell-lit {
+  stroke: var(--accent-text);
+}
+/* Allumage en balayage au verrouillage (effets riches). */
+:root[data-fx='on'] .upd-card.is-locking .rx-cell-lit {
+  transition-duration: 120ms;
+  transition-delay: calc(200ms + var(--j) * 30ms);
+}
+.rx-inner-track {
+  fill: none;
+  stroke: var(--line-1);
+  stroke-width: 2;
+}
+.rx-inner-val {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.rx-shield-fill {
+  fill: var(--accent-solid);
+  opacity: 0;
+}
+.rx-shield-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.upd-card[data-phase='refused'] .rx-shield-line {
+  stroke: var(--danger);
+}
+/* Tampons : échelle autour du centre du bouclier (WAAPI). */
+.rx-shield-fill,
+.rx-check,
+.rx-cross {
+  transform-box: view-box;
+  transform-origin: 26px 25px;
+}
+.rx-check {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+}
+.rx-cross {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0;
+}
+.upd-card[data-phase='refused'] .rx-cross {
+  opacity: 1;
+}
+.rx-orbit path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+/* La SEULE animation infinie : l'orbite de l'étape « signature », effets riches, à l'arrêt quand la fenêtre est inactive. */
+:root[data-fx='on'] .upd-card[data-phase='verify'][data-step='signature'] .rx-orbit {
+  animation: rx-orbit 1100ms linear infinite;
+}
+:root[data-window='idle'] .upd-dock .rx-orbit {
+  animation: none !important;
+}
+@keyframes rx-orbit {
   to {
-    translate: 100% 0;
+    rotate: 1turn;
   }
 }
-@keyframes upd-sheen {
-  to {
-    translate: 130% 0;
-  }
+.rx-head {
+  position: absolute;
+  inset: 0;
+  rotate: calc(var(--p) * 1turn);
+  transition:
+    rotate 900ms var(--ease-out),
+    opacity 240ms var(--ease-out);
+}
+.rx-head > i {
+  position: absolute;
+  left: 23.5px;
+  top: 1px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  opacity: 0.6;
+  background: radial-gradient(circle, #fff 0, #e9e3ff 45%, rgb(196 181 253 / 0) 70%);
+}
+.rx-ping {
+  width: 52px;
+  height: 52px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent-line);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Centre : pourcentage, secondes, pause, coche ou alerte, en fondu de 120 ms de l'un à l'autre. */
+.rx-center {
+  position: relative;
+  display: grid;
+  place-items: center;
+  font: 700 13px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+}
+.rx-c {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: baseline;
+  opacity: 0;
+  transition: opacity 120ms var(--ease-out);
+}
+.rx-c > svg {
+  display: block;
+}
+.rx-center[data-c='pct'] .rx-c-pct,
+.rx-center[data-c='sec'] .rx-c-sec,
+.rx-center[data-c='pause'] .rx-c-pause,
+.rx-center[data-c='check'] .rx-c-check,
+.rx-center[data-c='alert'] .rx-c-alert {
+  opacity: 1;
+}
+.rx-c-pct small {
+  font-size: 9px;
+  margin-left: 1px;
+  color: var(--text-2);
+}
+.rx-c-pause,
+.rx-c-check {
+  color: var(--accent-text);
+}
+.rx-c-alert {
+  color: var(--text-2);
+  transition-duration: 180ms;
+}
+.rx-sec {
+  display: inline-block;
+  font-size: 16px;
+}
+.upd-card.is-critical .rx-sec {
+  color: #fff;
+}
+/* Survol ou focus dans la carte : le chiffre pâlit, rien ne compte. */
+.upd-card.is-held .rx-c-sec {
+  opacity: 0.5;
+}
+
+/* ---------- matrice de visibilité, par phase (opacité seulement) ---------- */
+
+.upd-card[data-phase='download'] .rx-ticks,
+.upd-card[data-phase='download'] .rx-head,
+.upd-card[data-phase='download'] .rx-center {
+  opacity: 1;
+}
+
+.upd-card[data-phase='verify'] .rx-ticks {
+  opacity: 0.35;
+}
+.upd-card[data-phase='verify'] .rx-shield,
+.upd-card[data-phase='verify'][data-step='hash'] .rx-inner,
+.upd-card[data-phase='verify'][data-step='signature'] .rx-orbit {
+  opacity: 1;
+}
+.upd-card[data-phase='verify'] .rx-glow {
+  opacity: 0.3;
+}
+
+.upd-card[data-phase='lock'] .rx-cells,
+.upd-card[data-phase='lock'] .rx-shield,
+.upd-card[data-phase='lock'] .rx-mark,
+.upd-card[data-phase='lock'] .rx-center,
+.upd-card[data-phase='armed'] .rx-cells,
+.upd-card[data-phase='armed'] .rx-center,
+.upd-card[data-phase='installing'] .rx-cells,
+.upd-card[data-phase='installing'] .rx-center {
+  opacity: 1;
+}
+.upd-card[data-phase='lock'] .rx-glow,
+.upd-card[data-phase='armed'] .rx-glow,
+.upd-card[data-phase='installing'] .rx-glow {
+  opacity: 0.6;
+}
+/* Les graduations s'effacent après l'éclat du bouclier ; le halo part de l'éclat (WAAPI), sans transition CSS dessous. */
+.upd-card.is-locking .rx-ticks {
+  transition-delay: 200ms;
+}
+.upd-card.is-locking .rx-glow {
+  transition: none;
+}
+/* Fin du verrouillage : bouclier et coche sont déjà sortis par WAAPI, la couche se ferme sans fondu (pas de retour visible). */
+.upd-card[data-phase='armed'] .rx-shield,
+.upd-card[data-phase='armed'] .rx-mark {
+  transition: none;
+}
+
+.upd-card[data-phase='refused'] .rx-ticks {
+  opacity: 0.25;
+}
+.upd-card[data-phase='refused'] .rx-shield,
+.upd-card[data-phase='refused'] .rx-mark {
+  opacity: 1;
+}
+.upd-card[data-phase='refused'] .rx-glow {
+  opacity: 0;
+}
+
+.upd-card[data-phase='interrupted'] .rx-ticks {
+  opacity: 0.35;
+}
+.upd-card[data-phase='interrupted'] .rx-center {
+  opacity: 1;
+}
+.upd-card[data-phase='interrupted'] .rx-glow {
+  opacity: 0.1;
+}
+
+/* ---------- barre de flux (téléchargement seulement) ---------- */
+
+.upd-stream {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--line-1);
+  pointer-events: none;
+}
+/* La fenêtre avance de (p − 1), le remplissage recule de (1 − p) : le dégradé reste épinglé, le violet mène. */
+.upd-stream-win {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  transform: translateX(calc((var(--p) - 1) * 100%));
+  transition: transform 900ms var(--ease-out);
+}
+.upd-stream-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #7c3aed 0%, #4f7cff 55%, #22d3ee 100%);
+  transform: translateX(calc((1 - var(--p)) * 100%));
+  transition: transform 900ms var(--ease-out);
+}
+.upd-stream-head {
+  position: absolute;
+  inset: 0;
+  transform: translateX(calc(var(--p) * 100%));
+  transition: transform 900ms var(--ease-out);
+}
+.upd-stream-head > i {
+  position: absolute;
+  left: -3px;
+  top: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0, #c4b5fd 45%, rgb(196 181 253 / 0) 72%);
+}
+/* Paquets de lumière : 100 % de large, translateX(%) se compte en largeurs de barre. */
+.upd-pk {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+.upd-pk > i {
+  position: absolute;
+  left: -10px;
+  top: 0;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, rgb(196 181 253 / 0), #c4b5fd);
+}
+/* Un nouveau téléchargement (le pourcentage baisse) : une image sans transition. */
+.upd-card[data-reset] .upd-stream *,
+.upd-card[data-reset] .rx-head,
+.upd-card[data-reset] .rx-glow {
+  transition: none !important;
+}
+
+/* ---------- effets coupés (Sober) : même matrice, sans halo qui respire ni orbite qui tourne ---------- */
+
+:root:not([data-fx='on']) .rx-glow {
+  opacity: 0.22;
+  scale: 1;
+  transition: none;
+}
+:root:not([data-fx='on']) .upd-card[data-phase='refused'] .rx-glow {
+  opacity: 0;
+}
+:root:not([data-fx='on']) .rx-head {
+  transition-duration: 300ms;
+}
+:root:not([data-fx='on']) .rx-tick-lit {
+  transition-duration: 200ms;
+}
+:root:not([data-fx='on']) .rx-cell-lit {
+  transition-duration: 200ms;
+}
+:root:not([data-fx='on']) .upd-stream-win,
+:root:not([data-fx='on']) .upd-stream-fill,
+:root:not([data-fx='on']) .upd-stream-head {
+  transition-duration: 300ms;
+}
+
+/* Fenêtre en arrière-plan : aucune transition (zéro image entre deux événements). */
+:root[data-window='idle'] .upd-dock *,
+:root[data-window='idle'] .upd-dock *::before {
+  transition: none !important;
+}
+
+/* ---------- pastille pendant une partie (téléchargement ou vérification) ---------- */
+
+.upd-mini {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 188px;
+  height: 40px;
+  padding: 0 12px 0 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--sh-2);
+  font: 600 12px/16px var(--font-ui);
+  color: var(--text-1);
+  text-align: left;
+  cursor: pointer;
+}
+/* Immobile : rien ne s'anime dans la pastille, pas même le survol. */
+.upd-mini,
+.upd-mini * {
+  transition: none !important;
+  animation: none !important;
+}
+.upd-mini > svg {
+  flex-shrink: 0;
+}
+.upd-mini-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.upd-mini-track {
+  fill: none;
+  stroke: var(--line-2);
+  stroke-width: 2.5;
+}
+.upd-mini-val {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.upd-mini:hover {
+  background: var(--surface-2);
+}
+.upd-mini:focus-visible {
+  box-shadow: var(--focus);
 }

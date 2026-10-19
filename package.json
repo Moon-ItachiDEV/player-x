@@ -1,6 +1,6 @@
 {
   "name": "plateforme-gaming",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Player X : lance tes jeux Steam, Epic et EA et vois tes amis en ligne.",
   "main": "out/main/index.js",
   "private": true,
@@ -9,6 +9,7 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:update": "node --experimental-strip-types --test src/main/services/updateHandoff.test.ts",
     "dist": "electron-vite build && electron-builder --win --x64 --publish never",
     "release": "electron-vite build && electron-builder --win --x64 --publish always",
     "postinstall": "node node_modules/electron/install.js"
@@ -18,6 +19,7 @@
     "productName": "Player X",
     "files": [
       "out/**/*",
+      "!out/main/updateSim-*.js",
       "resources/icon.png"
     ],
     "directories": {
