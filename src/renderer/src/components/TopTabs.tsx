@@ -8,6 +8,8 @@ export const TopSlot = createContext<HTMLElement | null>(null)
 export interface TopTab<T extends string> {
   id: T
   label: string
+  /** Libellé court, à la place du libellé quand la fenêtre est étroite (« Aperçu »). */
+  short?: string
   icon?: IconName
   /** Compteur ou rang affiché après le libellé (« 14 », « 2e »). */
   badge?: string | number
@@ -54,7 +56,14 @@ export function TopTabs<T extends string>({ label, tabs, value, onChange, idBase
             onClick={() => onChange(t.id)}
           >
             {t.icon && <Icon name={t.icon} size={16} filled={t.icon === 'star' && on} />}
-            {t.label}
+            {t.short ? (
+              <>
+                <span className="tb-tab-full">{t.label}</span>
+                <span className="tb-tab-short">{t.short}</span>
+              </>
+            ) : (
+              t.label
+            )}
             {t.badge !== undefined && <span className="tb-tab-badge num">{t.badge}</span>}
           </button>
         )
@@ -62,4 +71,10 @@ export function TopTabs<T extends string>({ label, tabs, value, onChange, idBase
     </div>,
     slot
   )
+}
+
+/** Titre de la page à la place des onglets (même emplacement), quand elle n'en a pas encore. */
+export function TopTitle({ children }: { children: React.ReactNode }): React.JSX.Element | null {
+  const slot = useContext(TopSlot)
+  return slot ? createPortal(<p className="tb-title tb-slot-title">{children}</p>, slot) : null
 }

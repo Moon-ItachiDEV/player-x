@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { capitalize, cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
 import type { Friend, Game } from '@shared/types'
+import { isBf6Game, useBf6Summary } from './stats/bf6'
 import type { GameSheetProps } from '../contracts'
 import { Avatar } from './ui/Avatar'
 import { CountUp } from './ui/CountUp'
@@ -38,7 +39,7 @@ export function GameSheet(props: GameSheetProps): React.JSX.Element | null {
 
 type SheetProps = Omit<GameSheetProps, 'game'> & { game: Game; closing: boolean }
 
-function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorite, onOpenFolder }: SheetProps): React.JSX.Element {
+function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorite, onOpenFolder, onOpenStats }: SheetProps): React.JSX.Element {
   const panelRef = useRef<HTMLElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(false)
@@ -120,23 +121,25 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
       <aside ref={panelRef} className="sheet-panel" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={trapFocus}>
         <header className="sheet-art">
           <Cover key={game.id} game={game} variant="landscape" showTitle={false} />
-          <div className="sheet-poster">
-            <Cover key={`p-${game.id}`} game={game} variant="portrait" showTitle={false} />
-          </div>
           <div className="sheet-art-shade" />
           <button className="icon-btn sheet-close" onClick={onClose} aria-label="Fermer" title="Fermer (Échap)">
             <Icon name="x" size={18} />
           </button>
+        </header>
+        <div className="sheet-head">
+          <div className="sheet-poster">
+            <Cover key={`p-${game.id}`} game={game} variant="portrait" showTitle={false} />
+          </div>
           <div className="sheet-heading">
-            <h2 id={titleId} className="display-l sheet-title">
-              {title}
-            </h2>
             <span className="sheet-tags">
               <StoreTag kind={game.store} long />
               {game.running && <LiveBadge />}
             </span>
+            <h2 id={titleId} className="sheet-title">
+              {title}
+            </h2>
           </div>
-        </header>
+        </div>
 
         <div ref={sentinelRef} className="sheet-sentinel" />
         <div className={`sheet-actions ${stuck ? 'is-stuck' : ''}`}>
@@ -192,8 +195,11 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
             value={game.playtime ? formatPlaytime(game.playtime) : '0 min'}
             countTo={game.playtime}
             caption={game.running ? 'Partie en cours' : game.playtimeSource === 'steam' ? 'selon Steam' : 'mesuré par Player X'}
+            live={game.running}
           />
         </div>
+
+        {isBf6Game(game) && <Bf6Link onOpen={onOpenStats} />}
 
         <section className="sheet-section">
           <h3 className="sheet-h">
@@ -225,28 +231,50 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
           </section>
         )}
 
-        <section className="sheet-section">
+        <section className="sheet-section sheet-install">
           <h3 className="sheet-h">Installation</h3>
           <InstallPath game={game} onOpenFolder={onOpenFolder} />
         </section>
-
-        <p className="caption sheet-id">ID : {game.id}</p>
       </aside>
     </div>
   )
 }
 
-function StatTile({ label, value, caption, countTo }: { label: string; value: string; caption?: string; countTo?: number }): React.JSX.Element {
+function StatTile(props: { label: string; value: string; caption?: string; countTo?: number; live?: boolean }): React.JSX.Element {
+  const { label, value, caption, countTo, live } = props
   return (
     <div className="sheet-tile">
-      <span className="overline">{label}</span>
+      <span className="sheet-tile-label">{label}</span>
       <span className="sheet-tile-value num" title={value}>
         {countTo ? <CountUp value={countTo} format={formatPlaytime} /> : value}
       </span>
-      <span className="caption sheet-tile-caption" title={caption}>
+      <span className={`sheet-tile-caption ${live ? 'is-live' : ''}`} title={caption}>
         {caption}
       </span>
     </div>
+  )
+}
+
+/** Raccourci vers la page Stats, sur la fiche de Battlefield 6 : ton K/D et tes victoires si ton compte est relié. */
+function Bf6Link({ onOpen }: { onOpen: () => void }): React.JSX.Element {
+  const summary = useBf6Summary()
+  const sub =
+    summary === undefined
+      ? 'Chargement…'
+      : summary === null
+        ? 'Relie ton profil pour voir ton K/D, tes armes et tes cartes'
+        : [summary.kd, summary.win, summary.name].filter(Boolean).join(' · ')
+  return (
+    <button className="sheet-link" onClick={onOpen}>
+      <span className="sheet-link-icon">
+        <Icon name="chart" size={20} />
+      </span>
+      <span className="sheet-link-text">
+        <span className="sheet-link-title">{summary === null ? 'Stats Battlefield 6' : 'Tes stats Battlefield 6'}</span>
+        <span className="sheet-link-sub">{sub}</span>
+      </span>
+      <Icon name="chevron-right" size={16} className="sheet-link-go" />
+    </button>
   )
 }
 
@@ -267,8 +295,15 @@ function InstallPath({ game, onOpenFolder }: { game: Game; onOpenFolder: (g: Gam
   const notify = useToast()
   const dir = game.installDir
 
+  const id = <span className="sheet-id">ID : {game.id}</span>
+
   if (!dir) {
-    return <p className="caption sheet-unknown">Dossier inconnu&nbsp;: c'est le lanceur {STORE_LONG[game.store]} qui gère l'installation.</p>
+    return (
+      <>
+        <p className="sheet-unknown">Dossier inconnu&nbsp;: c'est le lanceur {STORE_LONG[game.store]} qui gère l'installation.</p>
+        <div className="sheet-path-actions">{id}</div>
+      </>
+    )
   }
 
   const copy = (): void => {
@@ -290,6 +325,7 @@ function InstallPath({ game, onOpenFolder }: { game: Game; onOpenFolder: (g: Gam
           <Icon name="copy" size={16} />
           Copier
         </button>
+        {id}
       </div>
     </>
   )

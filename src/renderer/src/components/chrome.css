@@ -408,6 +408,10 @@
 .tb-slot:empty {
   display: none;
 }
+.tb-slot-title {
+  align-self: center;
+  padding-left: 12px;
+}
 .tb-spacer {
   flex: 1;
 }
@@ -467,6 +471,17 @@
 }
 .tb-tab[aria-selected='true'] svg {
   color: var(--accent);
+}
+.tb-tab-short {
+  display: none;
+}
+@media (max-width: 1080px) {
+  .tb-tab-full {
+    display: none;
+  }
+  .tb-tab-short {
+    display: inline;
+  }
 }
 .tb-tab-badge {
   color: var(--text-3);
@@ -652,14 +667,39 @@
 
 /* ---------- fenêtre étroite ---------- */
 
+/* Fenêtre étroite : la recherche se replie en loupe (elle se déplie au focus ou tant qu'elle contient une recherche),
+   pour laisser la place aux onglets de la page. */
+@media (max-width: 1279px) {
+  .tb-search {
+    flex: 0 0 auto;
+    width: 36px;
+    min-width: 36px;
+    padding: 0 9px;
+    transition:
+      width var(--d-2) var(--ease-out),
+      border-color var(--d-1) var(--ease-out),
+      box-shadow var(--d-1) var(--ease-out);
+  }
+  .tb-search:focus-within,
+  .tb-search.has-query {
+    width: 240px;
+  }
+  .tb-search:not(:focus-within, .has-query) .tb-kbd {
+    display: none;
+  }
+  .tb-search:not(:focus-within, .has-query) .tb-search-input::placeholder {
+    color: transparent;
+  }
+  .tb-tab {
+    padding: 0 10px;
+    letter-spacing: 0.04em;
+  }
+}
 @media (max-width: 1180px) {
   :root {
     --side-w: 220px;
   }
   .topbar {
     padding-left: 20px;
-  }
-  .tb-search {
-    flex-basis: 240px;
   }
 }

@@ -122,7 +122,7 @@
   --side-w: 248px;
   --nav-w: calc(var(--rail-w) + var(--side-w));
   --topbar-h: 48px;
-  --sheet-w: 520px;
+  --sheet-w: 480px;
   --cover-min: 164px;
   /* Plans */
   --z-sticky: 10;

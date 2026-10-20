@@ -30,7 +30,7 @@ export function TopBar({ title, query, onQueryChange, searchRef, slotRef }: TopB
       <div ref={slotRef} className="tb-slot" />
       <div className="tb-spacer" />
 
-      <div className="tb-search" role="search" onClick={() => searchRef.current?.focus()}>
+      <div className={`tb-search ${query ? 'has-query' : ''}`} role="search" title="Rechercher un jeu (Ctrl K)" onClick={() => searchRef.current?.focus()}>
         <Icon name="search" size={16} className="tb-search-icon" />
         <input
           ref={searchRef}
