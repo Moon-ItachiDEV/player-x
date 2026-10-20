@@ -41,7 +41,11 @@ const PATHS = {
   shield: 'M12 2.5l8 3v6c0 5.2-3.4 9-8 10.5C7.4 20.5 4 16.7 4 11.5v-6z',
   'shield-check': 'M12 2.5l8 3v6c0 5.2-3.4 9-8 10.5C7.4 20.5 4 16.7 4 11.5v-6zM8.5 12l2.5 2.5 4.5-5',
   'shield-x': 'M12 2.5l8 3v6c0 5.2-3.4 9-8 10.5C7.4 20.5 4 16.7 4 11.5v-6zM9.5 9.5l5 5M14.5 9.5l-5 5',
-  download: 'M12 3v12M7 10l5 5 5-5M5 21h14'
+  download: 'M12 3v12M7 10l5 5 5-5M5 21h14',
+  home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+  clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5V12l3 2',
+  trend: 'M3.5 16.5l6-6 4 4 7-7M15 7.5h5.5V13',
+  'trend-down': 'M3.5 7.5l6 6 4-4 7 7M15 16.5h5.5V11'
 } as const
 
 export type IconName = keyof typeof PATHS | 'play'

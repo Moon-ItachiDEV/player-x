@@ -5,7 +5,7 @@ import { setArtFocus, setMorphSource } from '../../motion'
 import { Cover, generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
 import { LiveBadge } from '../ui/LiveBadge'
-import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
+import { StoreTag } from '../ui/StoreTag'
 import { useTilt } from './useTilt'
 
 // Délai avant d'ouvrir la fiche au clic, pour laisser au double-clic le temps de lancer le jeu.
@@ -33,12 +33,12 @@ export function FavStar({ on, pop, size }: { on: boolean; pop: number; size: num
   )
 }
 
-/** Méta courte : « Steam · Il y a 2 j » ou « Epic · Jamais lancé ». */
+/** Méta courte : « 123 h · il y a 2 h », « En jeu · 45 h 45 » ou « Jamais lancé ». */
 export function cardMeta(game: Game): string {
-  if (game.running) return `En jeu · ${game.playtime ? formatPlaytime(game.playtime) : KIND_LABEL[game.store]}`
-  // La plateforme est déjà sur la jaquette : le temps de jeu prend sa place quand on le connaît.
-  const lead = game.playtime ? formatPlaytime(game.playtime) : KIND_LABEL[game.store]
-  return `${lead} · ${game.lastPlayed ? capitalize(timeAgo(game.lastPlayed)) : 'Jamais lancé'}`
+  if (game.running) return `En jeu${game.playtime ? ` · ${formatPlaytime(game.playtime)}` : ''}`
+  // La plateforme est déjà sur la carte : le temps de jeu passe devant quand on le connaît.
+  const when = game.lastPlayed ? timeAgo(game.lastPlayed) : 'jamais lancé'
+  return game.playtime ? `${formatPlaytime(game.playtime)} · ${when}` : capitalize(when)
 }
 
 interface GameCardProps {
@@ -53,7 +53,7 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const card = useRef<HTMLElement>(null)
   const media = useRef<HTMLDivElement>(null)
-  const box = useRef<HTMLDivElement>(null)
+  const cover = useRef<HTMLDivElement>(null)
   const focusArt = useRef(false)
   // Monté pendant un tri animé : la transition de vue s'en charge, pas d'entrée en cascade.
   const [entering] = useState(() => !document.documentElement.classList.contains('vt-active'))
@@ -83,7 +83,7 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
     if (e.detail > 1) return
     timer.current = setTimeout(() => {
       cardOpenAt = performance.now()
-      setMorphSource(box.current, game.id, 'cover')
+      setMorphSource(cover.current, game.id, 'cover')
       onOpen(game)
     }, CLICK_DELAY)
   }
@@ -95,7 +95,7 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
       launch()
     } else if (e.key === ' ') {
       e.preventDefault()
-      setMorphSource(box.current, game.id, 'cover')
+      setMorphSource(cover.current, game.id, 'cover')
       onOpen(game)
     }
   }
@@ -135,57 +135,61 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
             <img src={game.coverUrl} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setGlowFailed(true)} />
           )}
         </div>
-        <div ref={box} className="lib-card-box">
-          <Cover key={game.id} game={game} />
-          <StoreTag kind={game.store} size={22} className="lib-card-tag" />
-          {game.running && <LiveBadge className="lib-card-live" />}
-          <div className="lib-card-overlay" aria-hidden="true" />
+        <div className="lib-card-box">
+          <div ref={cover} className="lib-card-cover">
+            <Cover key={game.id} game={game} />
+            {game.running && <LiveBadge className="lib-card-live" />}
+            <div className="lib-card-overlay" aria-hidden="true" />
+            <button
+              className="lib-card-play"
+              tabIndex={-1}
+              aria-label={`Jouer à ${name}`}
+              title={launching ? 'Lancement…' : 'Jouer'}
+              disabled={launching}
+              onClick={(e) => {
+                stop(e)
+                launch()
+              }}
+              onDoubleClick={stop}
+            >
+              {launching ? (
+                <>
+                  <span className="spinner" />
+                  Lancement…
+                </>
+              ) : (
+                <>
+                  <Icon name="play" size={14} />
+                  Jouer
+                </>
+              )}
+            </button>
+            <button
+              className="lib-card-fav"
+              aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              onClick={(e) => {
+                stop(e)
+                firePop()
+                onFavorite(game)
+              }}
+              onDoubleClick={stop}
+            >
+              <FavStar on={fav} pop={pop} size={15} />
+            </button>
+          </div>
+          <div className="lib-card-text">
+            <span className="lib-card-words">
+              <h3 className="lib-card-title" title={name}>
+                {name}
+              </h3>
+              <p className="lib-card-meta">{launching ? 'Lancement…' : cardMeta(game)}</p>
+            </span>
+            <StoreTag kind={game.store} size={18} className="lib-card-tag" />
+          </div>
           <div className="lib-card-glare" aria-hidden="true" />
           <div className="lib-card-ring fx-loop" aria-hidden="true" />
-          <button
-            className="lib-card-play"
-            tabIndex={-1}
-            aria-label={`Jouer à ${name}`}
-            title={launching ? 'Lancement…' : 'Jouer'}
-            disabled={launching}
-            onClick={(e) => {
-              stop(e)
-              launch()
-            }}
-            onDoubleClick={stop}
-          >
-            {launching ? (
-              <>
-                <span className="spinner" />
-                Lancement…
-              </>
-            ) : (
-              <>
-                <Icon name="play" size={14} />
-                Jouer
-              </>
-            )}
-          </button>
-          <button
-            className="lib-card-fav"
-            aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-            title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-            onClick={(e) => {
-              stop(e)
-              firePop()
-              onFavorite(game)
-            }}
-            onDoubleClick={stop}
-          >
-            <FavStar on={fav} pop={pop} size={16} />
-          </button>
         </div>
-      </div>
-      <div className="lib-card-text">
-        <h3 className="lib-card-title" title={name}>
-          {name}
-        </h3>
-        <p className="caption lib-card-meta">{launching ? 'Lancement…' : cardMeta(game)}</p>
       </div>
     </article>
   )
@@ -196,8 +200,10 @@ export function GameCardSkeleton(): React.JSX.Element {
   return (
     <div className="lib-card-skel" aria-hidden="true">
       <div className="skel lib-skel-cover" />
-      <div className="skel lib-skel-line" style={{ width: '80%' }} />
-      <div className="skel lib-skel-line sm" style={{ width: '45%' }} />
+      <div className="lib-skel-text">
+        <div className="skel lib-skel-line" style={{ width: '80%' }} />
+        <div className="skel lib-skel-line sm" style={{ width: '45%' }} />
+      </div>
     </div>
   )
 }

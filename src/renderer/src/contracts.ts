@@ -2,12 +2,13 @@
 import type { RefObject } from 'react'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings } from '@shared/types'
 
-export type View = 'library' | 'profile' | 'stats' | 'settings'
+export type View = 'home' | 'library' | 'profile' | 'stats' | 'settings'
 export type SettingsSection = 'accounts' | 'library' | 'interface' | 'advanced' | 'about'
 export type LoginPlatform = 'steam' | 'discord' | 'psn'
 
 /** Préférences d'interface, propres à ce PC (localStorage `pg.ui`). */
 export interface UiPrefs {
+  /** Liste d'amis du menu latéral : dépliée ou repliée sur son en-tête. */
   friendsPanel: 'open' | 'hidden'
   coverSize: 'S' | 'M' | 'L'
   reduceMotion: boolean
@@ -18,28 +19,59 @@ export interface UiPrefs {
 
 export const COVER_MIN: Record<UiPrefs['coverSize'], number> = { S: 136, M: 164, L: 200 }
 
-/** components/Rail.tsx → `export function Rail` */
-export interface RailProps {
+/** components/FavRail.tsx → `export function FavRail` (rail des jeux favoris, tout à gauche) */
+export interface FavRailProps {
+  games: Game[]
+  launchingId: string | null
+  /** Clic : lance le jeu. */
+  onLaunch: (g: Game) => void
+  /** Clic droit ou touche Menu : ouvre la fiche. */
+  onOpen: (g: Game) => void
+  /** « + » : rouvre le choix des favoris. */
+  onEditFavorites: () => void
+}
+
+/** components/Sidebar.tsx → `export function Sidebar` (salutation, navigation, amis, paramètres) */
+export interface SidebarProps {
   view: View
   onView: (v: View) => void
+  gamesCount: number
   accounts: Account[]
   demo: boolean
   accountMenuOpen: boolean
   onToggleAccountMenu: () => void
+  friends: SideFriendsProps
+}
+
+/** components/friends/SideFriends.tsx → `export function SideFriends` (liste d'amis du menu latéral) */
+export interface SideFriendsProps {
+  result: FriendsResult
+  accounts: Account[]
+  games: Game[]
+  demo: boolean
+  /** Un serveur Discord est renseigné (ses membres s'affichent même sans compte). */
+  discordConfigured: boolean
+  loading: boolean
+  /** Liste dépliée (préférence `friendsPanel`). */
+  open: boolean
+  onToggleOpen: () => void
+  onRefresh: () => void
+  onOpenAccounts: () => void
 }
 
 /** components/TopBar.tsx → `export function TopBar` */
 export interface TopBarProps {
+  /** Titre de la page ; absent quand la page pose ses onglets dans la barre (TopTabs). */
+  title?: string
   /** Recherche globale : filtre la bibliothèque (bascule sur Bibliothèque quand on tape). */
   query: string
   onQueryChange: (q: string) => void
   searchRef: RefObject<HTMLInputElement | null>
-  friends: Friend[]
-  friendsOpen: boolean
-  onToggleFriends: () => void
+  /** Reçoit l'élément où les pages posent leurs onglets. */
+  slotRef: (el: HTMLElement | null) => void
 }
 
-/** components/AccountMenu.tsx → `export function AccountMenu` (popover ancré au bas de la barre latérale) */
+/** components/AccountMenu.tsx → `export function AccountMenu` (popover ancré sous la salutation du menu latéral) */
 export interface AccountMenuProps {
   open: boolean
   accounts: Account[]
@@ -50,10 +82,25 @@ export interface AccountMenuProps {
   onLogin: () => void
 }
 
+/** components/home/Home.tsx → `export function Home` (accueil : jeu à la une, « À reprendre ») */
+export interface HomeProps {
+  games: Game[]
+  friends: Friend[]
+  scanning: boolean
+  report: ScanReport[]
+  demo: boolean
+  launchingId: string | null
+  onLaunch: (g: Game) => void
+  onOpen: (g: Game) => void
+  onFavorite: (g: Game) => void
+  onRescan: () => void
+  onEnableDemo: () => void
+  onShowLibrary: () => void
+}
+
 /** components/library/Library.tsx → `export function Library` */
 export interface LibraryProps {
   games: Game[]
-  friends: Friend[]
   scanning: boolean
   report: ScanReport[]
   demo: boolean
@@ -66,6 +113,9 @@ export interface LibraryProps {
   onFavorite: (g: Game) => void
   onRescan: () => void
   onEnableDemo: () => void
+  /** Taille des jaquettes (menu « Taille »), partagée avec Paramètres › Interface. */
+  coverSize: UiPrefs['coverSize']
+  onCoverSize: (s: UiPrefs['coverSize']) => void
 }
 
 /** components/GameSheet.tsx → `export function GameSheet` (tiroir à droite ; `game === null` = fermé) */
@@ -77,20 +127,8 @@ export interface GameSheetProps {
   onLaunch: (g: Game) => void
   onFavorite: (g: Game) => void
   onOpenFolder: (g: Game) => void
-}
-
-/** components/friends/FriendsPanel.tsx → `export function FriendsPanel` */
-export interface FriendsPanelProps {
-  result: FriendsResult
-  accounts: Account[]
-  games: Game[]
-  demo: boolean
-  /** Un serveur Discord est renseigné (ses membres s'affichent même sans compte). */
-  discordConfigured: boolean
-  loading: boolean
-  onRefresh: () => void
-  onHide: () => void
-  onOpenAccounts: () => void
+  /** Raccourci « Tes stats Battlefield 6 » (fiche de Battlefield 6 seulement). */
+  onOpenStats: () => void
 }
 
 /** components/Profile.tsx → `export function Profile` */

@@ -236,15 +236,15 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
       <SectionHead title="Interface">Ces préférences s'appliquent tout de suite et restent sur ce PC.</SectionHead>
       <div className="set-rows">
         <SettingRow
-          label="Panneau d'amis"
-          value={ui.friendsPanel === 'open' ? 'Affiché à droite de la fenêtre' : 'Masqué · le bouton de la barre du haut le rouvre'}
+          label="Liste d'amis du menu"
+          value={ui.friendsPanel === 'open' ? 'Dépliée sous la navigation' : "Repliée · un clic sur « Amis » la déplie"}
         >
           <Segmented
-            label="Panneau d'amis"
+            label="Liste d'amis du menu"
             value={ui.friendsPanel}
             options={[
-              { value: 'open', label: 'Affiché' },
-              { value: 'hidden', label: 'Masqué' }
+              { value: 'open', label: 'Dépliée' },
+              { value: 'hidden', label: 'Repliée' }
             ]}
             onChange={(friendsPanel) => onUiChange({ friendsPanel })}
           />
