@@ -2,13 +2,13 @@ import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app, BrowserWindow, Menu, powerMonitor, session, shell } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
-import type { Friend, FriendPlatform, Game, Settings } from '@shared/types'
+import type { Friend, FriendPlatform, Game, Settings, SteamLibrary } from '@shared/types'
 import * as db from './db'
 import { handle } from './ipc'
 import { checkFriends, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
-import { DEMO_FRIENDS, DEMO_GAMES, demoGames } from './services/demo'
+import { DEMO_FRIENDS, DEMO_GAMES, demoGames, demoNotInstalled } from './services/demo'
 import { connectPsn, getAllFriends, resetPsn } from './services/friends'
 import { getScanReport, handoff, launchTarget, scanAllGames } from './services/games'
 import { createLaunches, sanitizeOpts, type LaunchDeps, type Launches, type LaunchWindow, type Timers } from './services/launches'
@@ -17,6 +17,7 @@ import { newMatches } from './services/launchWatchParse'
 import { getGameNews, markNewsSeen, refreshNewsIndex, startNewsWatcher, withNews } from './services/news'
 import { getAccounts, getSettings, publicSettings, removeAccount, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
+import { installSteamGame, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
 import {
   exeNamesFor,
   isRunning,
@@ -152,6 +153,28 @@ function knownGames(): Game[] {
   return getSettings().demoMode ? demoGames() : db.listGames()
 }
 
+/** Un jeu de la bibliothèque, ou un jeu du compte Steam pas installé sur ce PC (sa fiche s'ouvre aussi). */
+function findGame(id: unknown): Game | undefined {
+  if (typeof id !== 'string') return undefined
+  const installed = knownGames().find((g) => g.id === id)
+  if (installed) return installed
+  return (getSettings().demoMode ? demoNotInstalled().find((g) => g.id === id) : ownedSteamGame(id)) ?? undefined
+}
+
+const OWNED_ART_EVERY_MS = 10 * 60_000
+let ownedArt: { at: number; run: Promise<void> | null } = { at: 0, run: null }
+
+/** Jaquettes des jeux Steam non installés, en arrière-plan : une recherche à la fois, au plus toutes les 10 min. */
+function fetchOwnedArtwork(list: Game[]): void {
+  if (!list.length || ownedArt.run || Date.now() - ownedArt.at < OWNED_ART_EVERY_MS) return
+  ownedArt = {
+    at: Date.now(),
+    run: updateArtwork(list)
+      .then((changed) => void (changed && notifyGamesChanged()))
+      .finally(() => (ownedArt.run = null))
+  }
+}
+
 function registerIpc(): void {
   handle('games:list', (_e, refresh?: boolean) => games(refresh))
   // Ne rejette jamais pour un échec de lancement : la phase le dit (failed, already…), en français.
@@ -202,13 +225,29 @@ function registerIpc(): void {
   // Actus des jeux : l'appid Steam est retrouvé ici, à partir de la bibliothèque, jamais reçu de l'interface.
   handle('news:game', async (_e, id: unknown, refresh?: unknown) => {
     if (!getSettings().gameNews) throw new Error('Les actus des jeux sont désactivées dans Paramètres.')
-    const game = typeof id === 'string' ? knownGames().find((g) => g.id === id) : undefined
+    const game = findGame(id)
     if (!game) throw new Error('Jeu introuvable.')
     return getGameNews(game, refresh === true)
   })
   handle('news:seen', (_e, id: unknown) => {
-    const game = typeof id === 'string' ? knownGames().find((g) => g.id === id) : undefined
+    const game = findGame(id)
     if (game) markNewsSeen(game)
+  })
+  // Jeux du compte Steam pas installés sur ce PC (Bibliothèque › Non installés).
+  handle('steam:library', async (_e, refresh?: unknown): Promise<SteamLibrary> => {
+    let lib: SteamLibrary
+    if (getSettings().demoMode) {
+      const notInstalled = demoNotInstalled()
+      lib = { state: 'ready', notInstalled, owned: DEMO_GAMES.filter((g) => g.store === 'steam').length + notInstalled.length }
+    } else lib = await steamLibrary(db.listGames(), refresh === true)
+    fetchOwnedArtwork(lib.notInstalled)
+    return { ...lib, notInstalled: applyArtwork(lib.notInstalled) }
+  })
+  handle('steam:install', async (_e, id: unknown) => {
+    const game = findGame(id)
+    if (!game?.notInstalled) throw new Error('Ce jeu n’est pas dans la liste de ton compte Steam.')
+    // Mode démo : rien n'est installé pour de vrai.
+    if (!getSettings().demoMode) await installSteamGame(game.storeId)
   })
   handle('accounts:list', () => getAccounts())
   handle('accounts:login', async (_e, platform: 'steam' | 'discord') => {
@@ -424,6 +463,12 @@ app.whenReady().then(async () => {
   startPlaytimeTracker(notifyGamesChanged)
   startBf6Recorder()
   startNewsWatcher(knownGames, notifyGamesChanged)
+  // Un jeu installé avec « Installer » : nouveau scan, il passe des « Non installés » à la bibliothèque.
+  startSteamLibrary(notifyGamesChanged, () => {
+    games(true)
+      .then(notifyGamesChanged)
+      .catch(() => {})
+  })
   createWindow()
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
   if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())

@@ -6,7 +6,8 @@ import { Icon } from '../ui/Icon'
 import { PickMenu } from '../ui/PickMenu'
 import { KIND_LABEL } from '../ui/StoreTag'
 
-export type LibTab = 'all' | 'fav'
+/** `uninstalled` : jeux du compte Steam pas installés sur ce PC. */
+export type LibTab = 'all' | 'fav' | 'uninstalled'
 export type LibStore = 'all' | Store
 export type LibSort = 'recent' | 'name' | 'launches' | 'playtime'
 type CoverSize = UiPrefs['coverSize']
@@ -16,7 +17,7 @@ export const STORES: Store[] = ['steam', 'epic', 'ea']
 const SIZE_LABEL: Record<CoverSize, string> = { S: 'Petites', M: 'Moyennes', L: 'Grandes' }
 
 interface ToolbarProps {
-  /** Jeux de l'onglet (tous ou favoris), avant le filtre de store. */
+  /** Jeux de l'onglet (tous, favoris ou non installés), avant le filtre de store. */
   total: number
   /** Nombre de jeux affichés dans la grille (pour « Résultats pour … »). */
   resultCount: number

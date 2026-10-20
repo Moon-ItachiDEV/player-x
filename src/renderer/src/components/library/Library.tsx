@@ -9,6 +9,7 @@ import { GameCard, GameCardSkeleton } from './GameCard'
 import { LibraryToolbar, SORT_LABEL, STORES, type LibSort, type LibStore, type LibTab } from './LibraryToolbar'
 import { NoGames } from './NoGames'
 import './library.css'
+import './uninstalled.css'
 
 // Onglet, store et tri propres à ce PC.
 const STORAGE_KEY = 'pg.library'
@@ -25,7 +26,7 @@ function loadPrefs(): LibPrefs {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Partial<LibPrefs> & { chip?: string }
     const isStore = (v: unknown): v is Store => STORES.includes(v as Store)
-    const tab: LibTab = raw.tab === 'fav' || (raw.tab === undefined && raw.chip === 'fav') ? 'fav' : 'all'
+    const tab: LibTab = raw.tab === 'fav' || (raw.tab === undefined && raw.chip === 'fav') ? 'fav' : raw.tab === 'uninstalled' ? 'uninstalled' : 'all'
     const store: LibStore = isStore(raw.store) ? raw.store : raw.store === undefined && isStore(raw.chip) ? raw.chip : 'all'
     return { tab, store, sort: raw.sort && SORTS.includes(raw.sort) ? raw.sort : 'recent' }
   } catch {
@@ -68,7 +69,8 @@ function matcher(query: string): (g: Game) => boolean {
 }
 
 export function Library(props: LibraryProps): React.JSX.Element {
-  const { games, scanning, report, demo, query, onClearQuery, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, coverSize, onCoverSize } = props
+  const { games, notInstalled, onInstall, scanning, report, demo, query, onClearQuery, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, coverSize, onCoverSize } =
+    props
   const [prefs, setPrefs] = useState<LibPrefs>(loadPrefs)
 
   const update = (patch: Partial<LibPrefs>): void =>
@@ -80,9 +82,10 @@ export function Library(props: LibraryProps): React.JSX.Element {
 
   const q = query.trim()
   // Une recherche porte sur toute la bibliothèque : l'onglet affiché est « Tous » le temps de la recherche.
-  const tab: LibTab = q ? 'all' : prefs.tab
+  // « Non installés » n'existe que si le compte Steam a des jeux absents de ce PC.
+  const tab: LibTab = q || (prefs.tab === 'uninstalled' && !notInstalled.length) ? 'all' : prefs.tab
   const favCount = useMemo(() => games.filter((g) => g.favorite).length, [games])
-  const inTab = useMemo(() => (tab === 'fav' ? games.filter((g) => g.favorite) : games), [games, tab])
+  const inTab = useMemo(() => (tab === 'fav' ? games.filter((g) => g.favorite) : tab === 'uninstalled' ? notInstalled : games), [games, notInstalled, tab])
   const storeCounts = useMemo(() => {
     const c: Record<Store, number> = { steam: 0, epic: 0, ea: 0 }
     for (const g of inTab) c[g.store]++
@@ -99,6 +102,20 @@ export function Library(props: LibraryProps): React.JSX.Element {
       prefs.sort
     )
   }, [inTab, store, q, prefs.sort])
+
+  // Recherche : les jeux Steam pas installés qui correspondent suivent ceux de la bibliothèque.
+  const shownUninstalled = useMemo(() => {
+    if (!q) return []
+    const match = matcher(q)
+    return sortGames(
+      notInstalled.filter((g) => (store === 'all' || g.store === store) && match(g)),
+      prefs.sort
+    )
+  }, [notInstalled, store, q, prefs.sort])
+
+  const card = (g: Game): React.JSX.Element => (
+    <GameCard key={g.id} game={g} onOpen={onOpen} onLaunch={g.notInstalled ? onInstall : onLaunch} onFavorite={onFavorite} />
+  )
 
   const tabs = (
     <TopTabs<LibTab>
@@ -117,7 +134,8 @@ export function Library(props: LibraryProps): React.JSX.Element {
       }}
       tabs={[
         { id: 'all', label: 'Tous', icon: 'grid', badge: games.length },
-        { id: 'fav', label: 'Favoris', icon: 'star', badge: favCount }
+        { id: 'fav', label: 'Favoris', icon: 'star', badge: favCount },
+        ...(notInstalled.length ? [{ id: 'uninstalled' as const, label: 'Non installés', short: 'À installer', icon: 'download' as const, badge: notInstalled.length }] : [])
       ]}
     />
   )
@@ -125,7 +143,7 @@ export function Library(props: LibraryProps): React.JSX.Element {
   const toolbar = (loading = false): React.JSX.Element => (
     <LibraryToolbar
       total={inTab.length}
-      resultCount={shown.length}
+      resultCount={shown.length + shownUninstalled.length}
       storeCounts={storeCounts}
       store={store}
       sort={prefs.sort}
@@ -142,7 +160,7 @@ export function Library(props: LibraryProps): React.JSX.Element {
   )
 
   // Premier scan : squelettes.
-  if (games.length === 0 && scanning) {
+  if (games.length === 0 && scanning && tab !== 'uninstalled') {
     return (
       <div className="page lib" aria-busy="true">
         {tabs}
@@ -156,7 +174,7 @@ export function Library(props: LibraryProps): React.JSX.Element {
     )
   }
 
-  if (games.length === 0) {
+  if (games.length === 0 && tab !== 'uninstalled' && !shownUninstalled.length) {
     return (
       <div className="page lib">
         {tabs}
@@ -187,7 +205,7 @@ export function Library(props: LibraryProps): React.JSX.Element {
             </button>
           </div>
         </div>
-      ) : shown.length === 0 ? (
+      ) : shown.length === 0 && shownUninstalled.length === 0 ? (
         <div className="empty-state lib-empty-small">
           <div className="empty-icon">
             <Icon name="search" size={28} />
@@ -200,11 +218,23 @@ export function Library(props: LibraryProps): React.JSX.Element {
           </div>
         </div>
       ) : (
-        <div className="lib-grid">
-          {shown.map((g) => (
-            <GameCard key={g.id} game={g} onOpen={onOpen} onLaunch={onLaunch} onFavorite={onFavorite} />
-          ))}
-        </div>
+        <>
+          {tab === 'uninstalled' && (
+            <p className="lib-hint caption">
+              Les jeux de ton compte Steam qui ne sont pas sur ce PC. « Installer » ouvre Steam, qui télécharge le jeu ; il rejoint ensuite ta bibliothèque tout seul.
+            </p>
+          )}
+          {shown.length > 0 && <div className="lib-grid">{shown.map(card)}</div>}
+          {shownUninstalled.length > 0 && (
+            <section className="lib-more" aria-labelledby="lib-more-h">
+              <h2 id="lib-more-h" className="h-section lib-more-h">
+                Pas installés sur ce PC
+                <span className="lib-more-count num">{shownUninstalled.length}</span>
+              </h2>
+              <div className="lib-grid">{shownUninstalled.map(card)}</div>
+            </section>
+          )}
+        </>
       )}
     </div>
   )

@@ -25,6 +25,8 @@ export interface Game {
   runningSince?: number
   /** Patch publié sur Steam ces 7 derniers jours et pas encore vu dans la fiche : badge « Nouveau patch ». */
   newPatch?: { id: string; title: string; at: number }
+  /** Jeu du compte Steam qui n'est pas installé sur ce PC : « Installer » à la place de « Jouer ». */
+  notInstalled?: boolean
 }
 
 export type FriendPlatform = 'steam' | 'discord' | 'psn'
@@ -302,6 +304,22 @@ export interface GameNews {
   seenAt: number
 }
 
+// ---------- Jeux du compte Steam (installés ou non) ----------
+
+/**
+ * Pourquoi la liste des jeux Steam manque, ou `ready`.
+ * `private` : les « détails des jeux » du profil Steam ne sont pas publics ; `key-refused` : clé Web API refusée par Steam.
+ */
+export type SteamLibraryState = 'ready' | 'loading' | 'no-account' | 'no-key' | 'key-refused' | 'private' | 'offline'
+
+export interface SteamLibrary {
+  state: SteamLibraryState
+  /** Jeux du compte Steam qui ne sont pas installés sur ce PC, avec le temps de jeu et la dernière partie selon Steam. */
+  notInstalled: Game[]
+  /** Nombre de jeux du compte, installés ou non (0 tant que la liste manque). */
+  owned: number
+}
+
 export interface LauncherApi {
   getGames(refresh?: boolean): Promise<Game[]>
   /**
@@ -361,6 +379,10 @@ export interface LauncherApi {
   getGameNews(id: string, refresh?: boolean): Promise<GameNews>
   /** Les actus de ce jeu ont été vues dans sa fiche : son badge « Nouveau patch » disparaît. */
   markNewsSeen(id: string): Promise<void>
+  /** Jeux du compte Steam non installés sur ce PC (liste gardée 1 h, sauf `refresh`). */
+  getSteamLibrary(refresh?: boolean): Promise<SteamLibrary>
+  /** Ouvre l'installation d'un jeu Steam non installé ; il rejoint la bibliothèque une fois téléchargé. */
+  installGame(id: string): Promise<void>
   platform: string
   version: string
 }

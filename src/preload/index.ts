@@ -60,6 +60,8 @@ const api: LauncherApi = {
   testFriendAlert: () => ipcRenderer.invoke('friends:test-alert'),
   getGameNews: (id, refresh) => ipcRenderer.invoke('news:game', id, refresh),
   markNewsSeen: (id) => ipcRenderer.invoke('news:seen', id),
+  getSteamLibrary: (refresh) => ipcRenderer.invoke('steam:library', refresh),
+  installGame: (id) => ipcRenderer.invoke('steam:install', id),
   platform: process.platform,
   version: __APP_VERSION__
 }

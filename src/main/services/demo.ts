@@ -49,6 +49,33 @@ export function demoGames(now = Date.now()): Game[] {
 /** Ids des jeux fictifs, pour les retrouver dans la base. */
 export const DEMO_GAMES = BASE_GAMES
 
+// Jeux du compte Steam fictif qui ne sont pas installés : [appid, nom, minutes jouées, dernière partie il y a combien de jours (0 : jamais)]
+const NOT_INSTALLED: [string, string, number, number][] = [
+  ['1174180', 'Red Dead Redemption 2', 3_120, 64],
+  ['2379780', 'Balatro', 650, 12],
+  ['105600', 'Terraria', 4_980, 122],
+  ['367520', 'Hollow Knight', 2_350, 300],
+  ['374320', 'DARK SOULS™ III', 2_810, 410],
+  ['814380', 'Sekiro™: Shadows Die Twice - GOTY Edition', 1_520, 530],
+  ['620', 'Portal 2', 1_140, 700],
+  ['546560', 'Half-Life: Alyx', 0, 0],
+  ['1817070', "Marvel's Spider-Man Remastered", 0, 0],
+  ['1888930', 'The Last of Us™ Part I', 0, 0]
+]
+
+/** Jeux Steam fictifs non installés (onglet « Non installés ») : « Installer » n'ouvre pas Steam en mode démo. */
+export function demoNotInstalled(now = Date.now()): Game[] {
+  return NOT_INSTALLED.map(([appId, name, minutes, days]) => ({
+    id: `steam:${appId}`,
+    store: 'steam',
+    storeId: appId,
+    name,
+    notInstalled: true,
+    ...(days ? { lastPlayed: now - days * 24 * 3600_000 } : {}),
+    ...(minutes ? { playtime: minutes, playtimeSource: 'steam' as const } : {})
+  }))
+}
+
 const avatar = (seed: string): string => `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(seed)}`
 
 export const DEMO_FRIENDS: Friend[] = [

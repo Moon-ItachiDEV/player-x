@@ -21,6 +21,7 @@ import { STORE_LONG, StoreTag } from './ui/StoreTag'
 import { errorMessage, useToast } from './ui/Toasts'
 import { openedByCard } from './library/GameCard'
 import './gamesheet.css'
+import './library/uninstalled.css'
 
 /** Durée de l'animation de fermeture (doit suivre gamesheet.css). */
 const CLOSE_MS = 180
@@ -47,7 +48,7 @@ export function GameSheet(props: GameSheetProps): React.JSX.Element | null {
 
 type SheetProps = Omit<GameSheetProps, 'game'> & { game: Game; closing: boolean }
 
-function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFavorite, onOpenFolder, onOpenStats }: SheetProps): React.JSX.Element {
+function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFavorite, onOpenFolder, onInstall, onOpenStats }: SheetProps): React.JSX.Element {
   const panelRef = useRef<HTMLElement>(null)
   const posterRef = useRef<HTMLDivElement>(null)
   const playRef = useRef<HTMLButtonElement>(null)
@@ -202,6 +203,7 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
             <span className="sheet-tags">
               <StoreTag kind={game.store} long />
               {game.running && <LiveBadge />}
+              {game.notInstalled && <span className="sheet-uninstalled">Pas installé</span>}
             </span>
             <h2 id={titleId} className="sheet-title">
               {title}
@@ -211,54 +213,68 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
 
         <div ref={sentinelRef} className="sheet-sentinel" />
         <div className={`sheet-actions ${stuck ? 'is-stuck' : ''}`}>
-          <button
-            ref={playRef}
-            className={`btn btn-primary btn-play sheet-play ${p.className}`}
-            onClick={() => p.activate(posterRef.current)}
-            aria-disabled={p.inert || undefined}
-            aria-busy={p.busy || undefined}
-            aria-label={p.ariaLabel}
-            title={p.state === 'idle' ? undefined : p.title}
-            data-magnetic={p.state === 'idle' ? '' : undefined}
-          >
-            <PlayLabel p={p} size={18} />
-          </button>
-          <button
-            className={`btn btn-secondary sheet-square ${game.favorite ? 'is-fav' : ''}`}
-            onClick={toggleFavorite}
-            aria-pressed={!!game.favorite}
-            aria-label={game.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-            title={game.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-          >
-            <span key={pop} className={pop ? 'sheet-star-pop' : undefined}>
-              <Icon name="star" size={20} filled={!!game.favorite} />
-            </span>
-          </button>
-          <button
-            className="btn btn-secondary sheet-square"
-            onClick={() => onOpenFolder(game)}
-            disabled={!game.installDir}
-            aria-label="Ouvrir le dossier d'installation"
-            title={game.installDir ? "Ouvrir le dossier d'installation" : "Dossier d'installation inconnu"}
-          >
-            <Icon name="folder" size={20} />
-          </button>
+          {game.notInstalled ? (
+            // Pas installé sur ce PC : Steam s'occupe du téléchargement ; ni favori ni dossier tant que le jeu n'est pas là.
+            <button className="btn btn-primary btn-play sheet-play" onClick={() => onInstall(game)} title="Installer avec Steam" data-magnetic>
+              <Icon name="download" size={18} />
+              Installer
+            </button>
+          ) : (
+            <>
+              <button
+                ref={playRef}
+                className={`btn btn-primary btn-play sheet-play ${p.className}`}
+                onClick={() => p.activate(posterRef.current)}
+                aria-disabled={p.inert || undefined}
+                aria-busy={p.busy || undefined}
+                aria-label={p.ariaLabel}
+                title={p.state === 'idle' ? undefined : p.title}
+                data-magnetic={p.state === 'idle' ? '' : undefined}
+              >
+                <PlayLabel p={p} size={18} />
+              </button>
+              <button
+                className={`btn btn-secondary sheet-square ${game.favorite ? 'is-fav' : ''}`}
+                onClick={toggleFavorite}
+                aria-pressed={!!game.favorite}
+                aria-label={game.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                title={game.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              >
+                <span key={pop} className={pop ? 'sheet-star-pop' : undefined}>
+                  <Icon name="star" size={20} filled={!!game.favorite} />
+                </span>
+              </button>
+              <button
+                className="btn btn-secondary sheet-square"
+                onClick={() => onOpenFolder(game)}
+                disabled={!game.installDir}
+                aria-label="Ouvrir le dossier d'installation"
+                title={game.installDir ? "Ouvrir le dossier d'installation" : "Dossier d'installation inconnu"}
+              >
+                <Icon name="folder" size={20} />
+              </button>
+            </>
+          )}
         </div>
 
-        <LaunchLine game={game} p={p} playRef={playRef} onLaunch={onLaunch} onRescan={onRescan} />
+        {!game.notInstalled && <LaunchLine game={game} p={p} playRef={playRef} onLaunch={onLaunch} onRescan={onRescan} />}
 
         <div className="sheet-stats">
           {game.lastPlayed ? (
             <StatTile label="Dernier lancement" value={capitalize(timeAgo(game.lastPlayed))} caption={formatDate(game.lastPlayed)} />
           ) : (
-            <StatTile label="Dernier lancement" value="Jamais" caption="depuis Player X" />
+            <StatTile label="Dernier lancement" value="Jamais" caption={game.notInstalled ? 'selon Steam' : 'depuis Player X'} />
           )}
-          <StatTile label="Lancements" value={String(game.launches ?? 0)} caption="depuis Player X" />
+          {game.notInstalled ? (
+            <StatTile label="Sur ce PC" value="Pas installé" caption="via Steam" />
+          ) : (
+            <StatTile label="Lancements" value={String(game.launches ?? 0)} caption="depuis Player X" />
+          )}
           <StatTile
             label="Temps de jeu"
             value={game.playtime ? formatPlaytime(game.playtime) : '0 min'}
             countTo={game.playtime}
-            caption={game.running ? 'Partie en cours' : game.playtimeSource === 'steam' ? 'selon Steam' : 'mesuré par Player X'}
+            caption={game.running ? 'Partie en cours' : game.playtimeSource === 'steam' || game.notInstalled ? 'selon Steam' : 'mesuré par Player X'}
             live={game.running}
           />
         </div>
@@ -383,6 +399,15 @@ function InstallPath({ game, onOpenFolder }: { game: Game; onOpenFolder: (g: Gam
   const dir = game.installDir
 
   const id = <span className="sheet-id">ID : {game.id}</span>
+
+  if (game.notInstalled) {
+    return (
+      <>
+        <p className="sheet-unknown">Pas installé sur ce PC. « Installer » ouvre Steam, qui télécharge le jeu ; il rejoint ensuite ta bibliothèque Player X tout seul.</p>
+        <div className="sheet-path-actions">{id}</div>
+      </>
+    )
+  }
 
   if (!dir) {
     return (

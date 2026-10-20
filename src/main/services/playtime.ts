@@ -1,10 +1,10 @@
 import { execFile } from 'node:child_process'
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { net, powerMonitor } from 'electron'
+import { powerMonitor } from 'electron'
 import type { Game, Store } from '@shared/types'
-import { getKv, listGames, openSession, playtimeByGame, setKv, touchSessions } from '../db'
-import { getAccounts, getSettings } from './settings'
+import { listGames, openSession, playtimeByGame, touchSessions } from '../db'
+import { steamMinutes } from './steamLibrary'
 import { coalesce, exeName, GENERIC_EXE, matchGames, memoAsync, parseProcLines, usableDir, watchNames, type Matchable, type RunningProcess } from './tracking'
 
 // Temps de jeu : toutes les minutes, on regarde quels programmes tournent et on les rattache au dossier
@@ -14,8 +14,6 @@ import { coalesce, exeName, GENERIC_EXE, matchGames, memoAsync, parseProcLines, 
 const POLL_MS = 60_000
 /** Après un lancement depuis Player X : vérifications rapprochées, le temps que le jeu démarre. */
 const NUDGE_MS = [20_000, 45_000]
-const STEAM_MAX_AGE = 3600_000
-const TIMEOUT_MS = 15_000
 /** Noms d'exécutables suivis par jeu pendant un lancement. */
 const MAX_NAMES = 64
 
@@ -165,7 +163,7 @@ export function startPlaytimeTracker(notify: () => void): void {
   powerMonitor.on('resume', () => setTimeout(tick, 5_000))
 }
 
-/** Chaque changement (jeu lancé ou fermé, compteur Steam). Renvoie la fonction de désabonnement. */
+/** Chaque changement (jeu lancé ou fermé). Renvoie la fonction de désabonnement. */
 export function onPlaytimeChange(cb: () => void): () => void {
   listeners.add(cb)
   return () => {
@@ -233,46 +231,6 @@ export async function exeNamesFor(game: Matchable, refresh: boolean): Promise<Se
     }
   }
   return names
-}
-
-// ---------- compteur Steam ----------
-
-interface SteamPlaytime {
-  at: number
-  steamId: string
-  /** appid → minutes */
-  minutes: Record<string, number>
-}
-
-let steamLoading = false
-
-async function refreshSteamPlaytime(key: string, steamId: string): Promise<void> {
-  if (steamLoading) return
-  steamLoading = true
-  try {
-    const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${encodeURIComponent(key)}&steamid=${steamId}&include_played_free_games=1&include_appinfo=0`
-    const res = await net.fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) })
-    if (!res.ok) return
-    const body = (await res.json()) as { response?: { games?: { appid: number; playtime_forever?: number }[] } }
-    // Détails de jeu privés : réponse vide, on garde le temps mesuré par Player X.
-    const minutes = Object.fromEntries((body.response?.games ?? []).map((g) => [String(g.appid), g.playtime_forever ?? 0]))
-    setKv('steamPlaytime', { at: Date.now(), steamId, minutes } satisfies SteamPlaytime)
-    onChange()
-  } catch {
-    /* hors ligne : on réessaie au prochain affichage */
-  } finally {
-    steamLoading = false
-  }
-}
-
-function steamMinutes(): Record<string, number> {
-  const key = getSettings().steamApiKey
-  const steamId = getAccounts().find((a) => a.platform === 'steam')?.id
-  if (!key || !steamId) return {}
-  const cached = getKv<SteamPlaytime | null>('steamPlaytime', null)
-  const mine = cached?.steamId === steamId ? cached : null
-  if (!mine || Date.now() - mine.at > STEAM_MAX_AGE) void refreshSteamPlaytime(key, steamId)
-  return mine?.minutes ?? {}
 }
 
 /** Ajoute le temps de jeu et l'état « en jeu » à la vraie bibliothèque. */

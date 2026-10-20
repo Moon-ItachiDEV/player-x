@@ -1,7 +1,7 @@
 // Contrats entre App.tsx et les écrans. Chaque écran exporte un composant nommé qui reçoit exactement ces props.
 import type { RefObject } from 'react'
 import type { LaunchVia } from '@shared/launch'
-import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings } from '@shared/types'
+import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 
 export type View = 'home' | 'library' | 'profile' | 'stats' | 'settings'
 export type SettingsSection = 'accounts' | 'library' | 'interface' | 'advanced' | 'about'
@@ -106,6 +106,9 @@ export interface HomeProps {
 /** components/library/Library.tsx → `export function Library` */
 export interface LibraryProps {
   games: Game[]
+  /** Jeux du compte Steam pas installés sur ce PC : onglet « Non installés », et en fin de recherche. */
+  notInstalled: Game[]
+  onInstall: (g: Game) => void
   scanning: boolean
   report: ScanReport[]
   demo: boolean
@@ -132,6 +135,8 @@ export interface GameSheetProps {
   onRescan?: () => void
   onFavorite: (g: Game) => void
   onOpenFolder: (g: Game) => void
+  /** « Installer » d'un jeu Steam pas installé sur ce PC (`game.notInstalled`). */
+  onInstall: (g: Game) => void
   /** Raccourci « Tes stats Battlefield 6 » (fiche de Battlefield 6 seulement). */
   onOpenStats: () => void
   /** Actus des jeux activées (Paramètres › Bibliothèque) : section « Actus » et bandeau du nouveau patch. */
@@ -175,6 +180,9 @@ export interface SettingsProps {
   onRescan: () => void
   /** Rouvre l'écran de démarrage (choix des jeux favoris). */
   onOpenSetup: () => void
+  /** Jeux du compte Steam pas installés (null avant la première lecture), et relecture immédiate. */
+  steamLibrary: SteamLibrary | null
+  onRefreshSteamLibrary: () => Promise<void>
   loginPending: LoginPlatform | null
 }
 
