@@ -23,7 +23,8 @@
       "out/**/*",
       "!out/main/updateSim-*.js",
       "!out/main/launchSim-*.js",
-      "resources/icon.png"
+      "resources/icon.png",
+      "resources/tray*.png"
     ],
     "directories": {
       "output": "dist"

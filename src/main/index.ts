@@ -2,6 +2,7 @@ import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app, BrowserWindow, Menu, powerMonitor, session, shell } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
+import { cleanName } from '@shared/text'
 import type { Friend, FriendPlatform, Game, Settings, SteamLibrary } from '@shared/types'
 import * as db from './db'
 import { handle } from './ipc'
@@ -32,6 +33,7 @@ import {
   storeWasRunning,
   withPlaytime
 } from './services/playtime'
+import { attachWindow, setTrayPlaying, startHidden, startTray, startupState, syncStartup } from './services/tray'
 import { initUpdater, takeRelaunchBounds } from './services/updater'
 import type { LaunchSim } from './launchSim'
 
@@ -53,7 +55,8 @@ function createWindow(): void {
   const win = new BrowserWindow({
     ...(b ? { x: b.x, y: b.y, width: b.width, height: b.height } : { width: 1440, height: 900 }),
     // Agrandie avant la mise à jour : montrée directement agrandie, sans passer par sa taille normale.
-    show: !b?.maximized,
+    // Lancée avec Windows : cachée près de l'horloge jusqu'au premier clic sur l'icône.
+    show: !b?.maximized && !startHidden,
     minWidth: 1024,
     minHeight: 640,
     backgroundColor: '#06101c',
@@ -75,6 +78,7 @@ function createWindow(): void {
     win.maximize()
     win.focus()
   }
+  attachWindow(win)
   // Les liens externes s'ouvrent dans le navigateur, pas dans l'appli.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) shell.openExternal(url)
@@ -90,6 +94,12 @@ let lastFriends: Friend[] = []
 
 function notifyGamesChanged(): void {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send('games:changed')
+  updateTrayPlaying()
+}
+
+/** Jeux en cours dans le menu de l'icône près de l'horloge. Vraie bibliothèque seulement : la démo reste dans la fenêtre. */
+function updateTrayPlaying(): void {
+  setTrayPlaying(getSettings().demoMode ? [] : withPlaytime(db.listGames()).flatMap((g) => (g.running ? [cleanName(g.name)] : [])))
 }
 
 // Favoris et lancements du mode démo : gardés à part pour ne jamais toucher la vraie bibliothèque.
@@ -277,12 +287,14 @@ function registerIpc(): void {
     const wasDemo = before.demoMode
     const next = saveSettings(patch)
     if (next.psnNpsso !== before.psnNpsso) resetPsn()
+    if (next.startWithWindows !== before.startWithWindows) syncStartup()
     if (next.gameNews !== before.gameNews) {
       // Badges retirés tout de suite, ou relevés dès la réactivation.
       notifyGamesChanged()
       if (next.gameNews) refreshNewsIndex(knownGames()).catch(() => {})
     }
     if (next.demoMode !== wasDemo) {
+      updateTrayPlaying()
       resetFriendAlerts()
       // Les lancements en cours (vrais ou de démo) s'arrêtent sans carte : l'interface vide aussi les siens.
       launches.reset()
@@ -300,6 +312,7 @@ function registerIpc(): void {
   handle('bf6:tracked', () => getBf6Tracked())
   handle('bf6:set-tracked', (_e, tracked: unknown) => setBf6Tracked(tracked))
   handle('bf6:history', (_e, account: unknown) => getBf6History(account))
+  handle('app:startup', () => startupState())
   handle('shell:open', (_e, url: unknown) => {
     if (typeof url === 'string' && url.startsWith('https://')) return shell.openExternal(url)
   })
@@ -469,6 +482,8 @@ app.whenReady().then(async () => {
       .then(notifyGamesChanged)
       .catch(() => {})
   })
+  startTray()
+  updateTrayPlaying()
   createWindow()
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
   if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())

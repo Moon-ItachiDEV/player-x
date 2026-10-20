@@ -12,6 +12,7 @@ import { errorMessage, useToast } from '../ui/Toasts'
 import { AboutSection } from './AboutSection'
 import { AccountsSection, connState, PLATFORMS } from './AccountsSection'
 import { AdvancedSection } from './AdvancedSection'
+import { BackgroundRows } from './BackgroundRows'
 import { Collapse, SectionHead, SettingRow, storeCaption, useNow } from './parts'
 import './settings.css'
 
@@ -397,6 +398,7 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
             onChange={(launchWindow) => onSaveSettings({ launchWindow }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
           />
         </SettingRow>
+        <BackgroundRows settings={settings} onSaveSettings={onSaveSettings} />
         <SettingRow label="Alertes d'amis" value={ALERT_LABEL[settings.friendAlerts]}>
           <div className="set-inline">
             <Segmented

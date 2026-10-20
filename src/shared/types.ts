@@ -66,7 +66,14 @@ export interface Settings {
   launchWindow: LaunchWindowMode
   /** Actus des jeux : annonces officielles publiées sur Steam dans la fiche, et badge « Nouveau patch ». */
   gameNews: boolean
+  /** La croix range Player X dans la zone de notification (près de l'horloge) au lieu de le fermer. */
+  closeToTray: boolean
+  /** Lancé caché dans la zone de notification à l'ouverture de la session Windows. */
+  startWithWindows: boolean
 }
+
+/** Démarrage avec Windows : `unavailable` hors de la version installée sur Windows, `blocked` si Windows l'a désactivé (Gestionnaire des tâches). */
+export type StartupState = 'on' | 'off' | 'blocked' | 'unavailable'
 
 export type FriendAlertMode = 'all' | 'games' | 'off'
 export type LaunchWindowMode = 'stay' | 'minimize'
@@ -383,6 +390,8 @@ export interface LauncherApi {
   getSteamLibrary(refresh?: boolean): Promise<SteamLibrary>
   /** Ouvre l'installation d'un jeu Steam non installé ; il rejoint la bibliothèque une fois téléchargé. */
   installGame(id: string): Promise<void>
+  /** Démarrage avec Windows tel que Windows le voit (il peut l'avoir désactivé de son côté). */
+  getStartupState(): Promise<StartupState>
   platform: string
   version: string
 }
