@@ -83,6 +83,8 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
               demo={settings.demoMode}
               onRescan={props.onRescan}
               onOpenSetup={props.onOpenSetup}
+              settings={settings}
+              onSaveSettings={props.onSaveSettings}
             />
           )}
           {section === 'interface' && (
@@ -108,10 +110,13 @@ interface LibraryProps {
   demo: boolean
   onRescan: () => void
   onOpenSetup: () => void
+  settings: Settings
+  onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>
 }
 
-function LibrarySection({ report, scanning, lastScanAt, gamesCount, demo, onRescan, onOpenSetup }: LibraryProps): React.JSX.Element {
+function LibrarySection({ report, scanning, lastScanAt, gamesCount, demo, onRescan, onOpenSetup, settings, onSaveSettings }: LibraryProps): React.JSX.Element {
   const now = useNow()
+  const notify = useToast()
   return (
     <>
       <SectionHead title="Bibliothèque">Les jeux sont détectés automatiquement sur ce PC.</SectionHead>
@@ -153,6 +158,20 @@ function LibrarySection({ report, scanning, lastScanAt, gamesCount, demo, onResc
           <Icon name="star" size={16} />
           Choisir mes jeux favoris
         </button>
+      </SettingRow>
+      <SettingRow
+        label="Actus des jeux"
+        value={
+          settings.gameNews
+            ? 'Activées · annonces officielles de Steam dans la fiche, badge « Nouveau patch » sur les jeux mis à jour cette semaine'
+            : 'Désactivées · Player X ne demande plus les actus de tes jeux à Steam'
+        }
+      >
+        <Switch
+          checked={settings.gameNews}
+          onChange={(gameNews) => onSaveSettings({ gameNews }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+          label="Actus des jeux"
+        />
       </SettingRow>
     </>
   )

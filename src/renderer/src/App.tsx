@@ -510,6 +510,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
           setOpenGameId(null)
           go('stats')
         }}
+        news={settings.gameNews}
       />
       <FriendAlerts games={games} onShowFriends={showFriends} />
       <UpdateNotice onOpenAbout={() => goSettings('about')} inGame={anyRunning} launching={pending.real && !anyRunning} />

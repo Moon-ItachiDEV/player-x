@@ -58,6 +58,8 @@ const api: LauncherApi = {
     return () => ipcRenderer.removeListener('friends:show', listener)
   },
   testFriendAlert: () => ipcRenderer.invoke('friends:test-alert'),
+  getGameNews: (id, refresh) => ipcRenderer.invoke('news:game', id, refresh),
+  markNewsSeen: (id) => ipcRenderer.invoke('news:seen', id),
   platform: process.platform,
   version: __APP_VERSION__
 }

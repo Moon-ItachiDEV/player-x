@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { capitalize, cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
-import type { Friend, Game } from '@shared/types'
+import type { Friend, Game, NewsPost } from '@shared/types'
 import { isBf6Game, useBf6Summary } from './stats/bf6'
 import type { GameSheetProps, LaunchFn } from '../contracts'
 import { sheetLine } from '../launch/copy'
@@ -8,6 +8,9 @@ import { isPending } from '../launch/phase'
 import { PlayLabel } from '../launch/PlayLabel'
 import { useWindowActive } from '../update/useCardPhase'
 import { usePlayState, type PlayInfo } from '../launch/usePlayState'
+import { NewsReader } from './news/NewsReader'
+import { NewsBanner, NewsSection } from './news/NewsSection'
+import { useGameNews } from './news/useGameNews'
 import { Avatar } from './ui/Avatar'
 import { CountUp } from './ui/CountUp'
 import { Cover } from './ui/Cover'
@@ -44,7 +47,7 @@ export function GameSheet(props: GameSheetProps): React.JSX.Element | null {
 
 type SheetProps = Omit<GameSheetProps, 'game'> & { game: Game; closing: boolean }
 
-function Sheet({ game, friends, closing, onClose, onLaunch, onRescan, onFavorite, onOpenFolder, onOpenStats }: SheetProps): React.JSX.Element {
+function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFavorite, onOpenFolder, onOpenStats }: SheetProps): React.JSX.Element {
   const panelRef = useRef<HTMLElement>(null)
   const posterRef = useRef<HTMLDivElement>(null)
   const playRef = useRef<HTMLButtonElement>(null)
@@ -56,7 +59,61 @@ function Sheet({ game, friends, closing, onClose, onLaunch, onRescan, onFavorite
   // Ouverte par une transition de vue : pas de glissement CSS en plus (la classe reste pour cette ouverture).
   const [morph] = useState(() => document.documentElement.classList.contains('vt-open'))
 
-  useEscape(!closing, onClose)
+  // Actus : lues à l'ouverture. Le patch signalé par le badge reste en haut tant que la fiche est ouverte,
+  // même une fois marqué comme vu (le badge des cartes, lui, disparaît).
+  const { state: newsState, reload: reloadNews } = useGameNews(game.id, news && !closing)
+  const [opened, setOpened] = useState({ id: game.id, patch: game.newPatch })
+  if (opened.id !== game.id) setOpened({ id: game.id, patch: game.newPatch })
+  const patch = news ? opened.patch : undefined
+  // Annonce ouverte dans le lecteur (identifiant), et d'où on vient pour y revenir.
+  const [reading, setReading] = useState<string | null>(null)
+  const readerBack = useRef<HTMLButtonElement>(null)
+  const readerOpener = useRef<HTMLElement | null>(null)
+  const listScroll = useRef(0)
+  const seenFor = useRef<string | null>(null)
+
+  const markSeen = useCallback(() => {
+    if (seenFor.current === game.id) return
+    seenFor.current = game.id
+    window.launcher.markNewsSeen(game.id).catch(() => {})
+  }, [game.id])
+
+  // Le bandeau du patch est en haut de la fiche : vu dès que les actus sont là.
+  useEffect(() => {
+    if (patch && newsState.status === 'ready') markSeen()
+  }, [patch, newsState.status, markSeen])
+
+  const openPost = (id: string, opener: HTMLElement): void => {
+    readerOpener.current = opener
+    listScroll.current = panelRef.current?.scrollTop ?? 0
+    setReading(id)
+  }
+  const closeReader = (): void => setReading(null)
+
+  // Lecteur ouvert : en haut, focus sur « Retour ». Refermé : retour à la même hauteur, focus sur l'actu d'origine.
+  const wasReading = useRef(false)
+  useLayoutEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+    if (reading) {
+      panel.scrollTop = 0
+      readerBack.current?.focus({ preventScroll: true })
+    } else if (wasReading.current) {
+      panel.scrollTop = listScroll.current
+      const opener = readerOpener.current
+      if (opener?.isConnected) opener.focus({ preventScroll: true })
+    }
+    wasReading.current = !!reading
+  }, [reading])
+
+  // Autre jeu : on quitte le lecteur (sans revenir à la hauteur de l'ancien jeu).
+  useEffect(() => {
+    wasReading.current = false
+    setReading(null)
+  }, [game.id])
+
+  useEscape(!closing && !reading, onClose)
+  useEscape(!closing && !!reading, closeReader)
 
   useEffect(() => {
     if (!closing) openedAt.current = performance.now()
@@ -98,7 +155,10 @@ function Sheet({ game, friends, closing, onClose, onLaunch, onRescan, onFavorite
 
   const trapFocus = (e: React.KeyboardEvent<HTMLElement>): void => {
     if (e.key !== 'Tab' || !panelRef.current) return
-    const items = [...panelRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input, [tabindex]:not([tabindex="-1"])')]
+    // Le contenu de la fiche reste monté (caché) pendant la lecture d'une actu : on ne garde que ce qui est visible.
+    const items = [...panelRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input, [tabindex]:not([tabindex="-1"])')].filter(
+      (el) => el.checkVisibility?.() ?? true
+    )
     if (!items.length) return
     const first = items[0]
     const lastItem = items[items.length - 1]
@@ -126,7 +186,7 @@ function Sheet({ game, friends, closing, onClose, onLaunch, onRescan, onFavorite
   return (
     <div className={`sheet-root ${morph ? 'is-morph' : ''} ${closing ? 'is-closing' : ''}`} inert={closing}>
       <div className="sheet-scrim" onClick={onScrimClick} aria-hidden="true" />
-      <aside ref={panelRef} className="sheet-panel" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={trapFocus}>
+      <aside ref={panelRef} className={`sheet-panel ${reading ? 'is-reading' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={trapFocus}>
         <header className="sheet-art">
           <Cover key={game.id} game={game} variant="landscape" showTitle={false} />
           <div className="sheet-art-shade" />
@@ -205,6 +265,8 @@ function Sheet({ game, friends, closing, onClose, onLaunch, onRescan, onFavorite
 
         {isBf6Game(game) && <Bf6Link onOpen={onOpenStats} />}
 
+        {patch && <NewsBanner patch={patch} onOpen={(opener) => openPost(patch.id, opener)} />}
+
         <section className="sheet-section">
           <h3 className="sheet-h">
             Amis sur ce jeu
@@ -235,10 +297,31 @@ function Sheet({ game, friends, closing, onClose, onLaunch, onRescan, onFavorite
           </section>
         )}
 
+        {news && (
+          <NewsSection
+            state={newsState}
+            seenAt={newsState.status === 'ready' ? newsState.news.seenAt : 0}
+            onRead={(post: NewsPost, opener) => openPost(post.id, opener)}
+            onRetry={reloadNews}
+            onSeen={markSeen}
+          />
+        )}
+
         <section className="sheet-section sheet-install">
           <h3 className="sheet-h">Installation</h3>
           <InstallPath game={game} onOpenFolder={onOpenFolder} />
         </section>
+        {reading && (
+          <NewsReader
+            gameName={title}
+            state={newsState}
+            postId={reading}
+            backRef={readerBack}
+            onBack={closeReader}
+            onClose={onClose}
+            onRetry={reloadNews}
+          />
+        )}
       </aside>
     </div>
   )

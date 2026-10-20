@@ -113,6 +113,17 @@ export async function updateArtwork(games: Game[]): Promise<boolean> {
   return changed
 }
 
+/** Appid Steam de chaque jeu : le sien pour un jeu Steam, sinon celui retrouvé par son nom (cache des jaquettes). */
+export function steamAppIds(games: Game[]): Map<string, string> {
+  const cache = getKv<ArtCache>('artwork', {})
+  const out = new Map<string, string>()
+  for (const g of games) {
+    const appId = g.store === 'steam' ? g.storeId : cache[g.id]?.appId
+    if (appId && /^\d{1,10}$/.test(appId)) out.set(g.id, appId)
+  }
+  return out
+}
+
 /** Applique les images connues (cache local), sans réseau. */
 export function applyArtwork(games: Game[]): Game[] {
   const cache = getKv<ArtCache>('artwork', {})

@@ -14,6 +14,7 @@ import { getScanReport, handoff, launchTarget, scanAllGames } from './services/g
 import { createLaunches, sanitizeOpts, type LaunchDeps, type Launches, type LaunchWindow, type Timers } from './services/launches'
 import { createWatcher } from './services/launchWatch'
 import { newMatches } from './services/launchWatchParse'
+import { getGameNews, markNewsSeen, refreshNewsIndex, startNewsWatcher, withNews } from './services/news'
 import { getAccounts, getSettings, publicSettings, removeAccount, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import {
@@ -116,17 +117,19 @@ let launchSim: LaunchSim | null = null
 async function games(refresh = false): Promise<Game[]> {
   if (getSettings().demoMode) {
     const state = demoState()
-    return applyArtwork(demoGames()).map((g) => {
-      const l = state.launches[g.id]
-      return {
-        ...g,
-        favorite: state.favorites ? state.favorites.includes(g.id) : g.favorite,
-        lastPlayed: l?.last ?? g.lastPlayed,
-        launches: (g.launches ?? 0) + (l?.count ?? 0),
-        // Développement : « En jeu » d'après le faux relevé du simulateur de lancement.
-        ...(launchSim?.isRunning(g.id) ? { running: true, runningSince: launchSim.runningSince(g.id) } : {})
-      }
-    })
+    return withNews(
+      applyArtwork(demoGames()).map((g) => {
+        const l = state.launches[g.id]
+        return {
+          ...g,
+          favorite: state.favorites ? state.favorites.includes(g.id) : g.favorite,
+          lastPlayed: l?.last ?? g.lastPlayed,
+          launches: (g.launches ?? 0) + (l?.count ?? 0),
+          // Développement : « En jeu » d'après le faux relevé du simulateur de lancement.
+          ...(launchSim?.isRunning(g.id) ? { running: true, runningSince: launchSim.runningSince(g.id) } : {})
+        }
+      })
+    )
   }
   if (refresh || !scanned) {
     const found = applyArtwork(await scanAllGames())
@@ -141,7 +144,12 @@ async function games(refresh = false): Promise<Game[]> {
     // Le mode démo a pu s'activer pendant le scan : on rend alors la bibliothèque de démo.
     if (getSettings().demoMode) return games()
   }
-  return withPlaytime(db.listGames())
+  return withNews(withPlaytime(db.listGames()))
+}
+
+/** La bibliothèque déjà connue (vraie ou de démo), sans relancer de scan : pour les actus des jeux. */
+function knownGames(): Game[] {
+  return getSettings().demoMode ? demoGames() : db.listGames()
 }
 
 function registerIpc(): void {
@@ -191,6 +199,17 @@ function registerIpc(): void {
     return result
   })
   handle('friends:test-alert', () => testFriendAlert(getSettings().demoMode ? DEMO_FRIENDS : lastFriends))
+  // Actus des jeux : l'appid Steam est retrouvé ici, à partir de la bibliothèque, jamais reçu de l'interface.
+  handle('news:game', async (_e, id: unknown, refresh?: unknown) => {
+    if (!getSettings().gameNews) throw new Error('Les actus des jeux sont désactivées dans Paramètres.')
+    const game = typeof id === 'string' ? knownGames().find((g) => g.id === id) : undefined
+    if (!game) throw new Error('Jeu introuvable.')
+    return getGameNews(game, refresh === true)
+  })
+  handle('news:seen', (_e, id: unknown) => {
+    const game = typeof id === 'string' ? knownGames().find((g) => g.id === id) : undefined
+    if (game) markNewsSeen(game)
+  })
   handle('accounts:list', () => getAccounts())
   handle('accounts:login', async (_e, platform: 'steam' | 'discord') => {
     const account = await (platform === 'steam' ? loginSteam() : loginDiscord())
@@ -219,6 +238,11 @@ function registerIpc(): void {
     const wasDemo = before.demoMode
     const next = saveSettings(patch)
     if (next.psnNpsso !== before.psnNpsso) resetPsn()
+    if (next.gameNews !== before.gameNews) {
+      // Badges retirés tout de suite, ou relevés dès la réactivation.
+      notifyGamesChanged()
+      if (next.gameNews) refreshNewsIndex(knownGames()).catch(() => {})
+    }
     if (next.demoMode !== wasDemo) {
       resetFriendAlerts()
       // Les lancements en cours (vrais ou de démo) s'arrêtent sans carte : l'interface vide aussi les siens.
@@ -399,6 +423,7 @@ app.whenReady().then(async () => {
   initUpdater()
   startPlaytimeTracker(notifyGamesChanged)
   startBf6Recorder()
+  startNewsWatcher(knownGames, notifyGamesChanged)
   createWindow()
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
   if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())

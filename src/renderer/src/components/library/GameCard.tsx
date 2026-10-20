@@ -6,6 +6,7 @@ import { libraryMeta } from '../../launch/copy'
 import { PlayLabel } from '../../launch/PlayLabel'
 import { usePlayState } from '../../launch/usePlayState'
 import { setArtFocus, setMorphSource } from '../../motion'
+import { NewsBadge } from '../news/NewsBadge'
 import { Cover, generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
 import { LiveBadge } from '../ui/LiveBadge'
@@ -130,7 +131,7 @@ export function GameCard({ game, onOpen, onLaunch, onFavorite }: GameCardProps):
       className={`lib-card ${game.running ? 'is-running' : ''} ${entering ? 'is-entering' : ''} ${shown ? 'is-launching' : ''} ${fav ? 'is-fav' : ''}`}
       data-launch={p.state === 'idle' ? undefined : p.state}
       tabIndex={0}
-      aria-label={`${name}, ${meta}`}
+      aria-label={`${name}, ${meta}${game.newPatch ? ', nouveau patch' : ''}`}
       aria-busy={p.busy || undefined}
       onClick={onClick}
       onDoubleClick={launch}
@@ -148,6 +149,7 @@ export function GameCard({ game, onOpen, onLaunch, onFavorite }: GameCardProps):
           <div ref={cover} className="lib-card-cover">
             <Cover key={game.id} game={game} />
             {game.running && <LiveBadge className="lib-card-live" />}
+            {game.newPatch && !game.running && <NewsBadge patch={game.newPatch} className="lib-card-news" />}
             <div className="lib-card-overlay" aria-hidden="true" />
             <button
               className={`lib-card-play ${p.className}`}

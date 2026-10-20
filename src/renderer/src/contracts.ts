@@ -134,6 +134,8 @@ export interface GameSheetProps {
   onOpenFolder: (g: Game) => void
   /** Raccourci « Tes stats Battlefield 6 » (fiche de Battlefield 6 seulement). */
   onOpenStats: () => void
+  /** Actus des jeux activées (Paramètres › Bibliothèque) : section « Actus » et bandeau du nouveau patch. */
+  news: boolean
 }
 
 /** components/Profile.tsx → `export function Profile` */

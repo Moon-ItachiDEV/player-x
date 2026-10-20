@@ -12,6 +12,7 @@ import { Cover, generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
 import { LiveBadge } from '../ui/LiveBadge'
 import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
+import { NewsBadge } from '../news/NewsBadge'
 import './home.css'
 
 export type { HomeProps }
@@ -227,6 +228,7 @@ function HomeHero({ game, players, onLaunch, onOpen, onFavorite }: HeroProps): R
               </span>
             )}
             {game.running && <LiveBadge />}
+            {game.newPatch && <NewsBadge patch={game.newPatch} className="hh-news" />}
           </div>
           <h1 className="hh-title" title={name}>
             {name}
@@ -413,6 +415,7 @@ function ResumeCard({ game, players, onLaunch, onOpen }: CardProps): React.JSX.E
         </span>
         <StoreTag kind={game.store} long className="rc-store" />
         {game.running && <LiveBadge className="rc-live" />}
+        {game.newPatch && <NewsBadge patch={game.newPatch} className="rc-news" />}
       </button>
       <div className="rc-body">
         <p className="rc-date">{game.lastPlayed ? launchedOn(game.lastPlayed) : KIND_LABEL[game.store]}</p>
