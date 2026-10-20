@@ -13,6 +13,7 @@ import { Profile } from './components/Profile'
 import { SettingsView } from './components/settings/SettingsView'
 import { Setup } from './components/setup/Setup'
 import { Sidebar } from './components/Sidebar'
+import { RecapHost } from './components/stats/Recap'
 import { Stats } from './components/stats/Stats'
 import { TopBar } from './components/TopBar'
 import { TopSlot } from './components/TopTabs'
@@ -563,6 +564,13 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         news={settings.gameNews}
       />
       <FriendAlerts games={games} onShowFriends={showFriends} />
+      <RecapHost
+        games={games}
+        onOpenStats={() => {
+          setOpenGameId(null)
+          go('stats')
+        }}
+      />
       <UpdateNotice onOpenAbout={() => goSettings('about')} inGame={anyRunning} launching={pending.real && !anyRunning} />
       <LaunchDock onRescan={() => loadGames(true)} />
       <WhatsNew />

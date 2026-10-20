@@ -12,6 +12,7 @@ import { errorMessage, useToast } from '../ui/Toasts'
 import { AboutSection } from './AboutSection'
 import { AccountsSection, connState, PLATFORMS } from './AccountsSection'
 import { AdvancedSection } from './AdvancedSection'
+import { openRecap, sampleRecap } from '../stats/Recap'
 import { BackgroundRows } from './BackgroundRows'
 import { Collapse, SectionHead, SettingRow, storeCaption, useNow } from './parts'
 import './settings.css'
@@ -417,6 +418,25 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
               onClick={() => window.launcher.testFriendAlert().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
             >
               Tester
+            </button>
+          </div>
+        </SettingRow>
+        <SettingRow
+          label="Bilan Battlefield 6"
+          value={
+            settings.bf6Recap
+              ? 'Activé · quand tu quittes le jeu, tes éliminations, ton K/D et tes victoires de la session (profil relié dans Stats)'
+              : 'Désactivé · Player X ne relève plus tes stats au lancement du jeu'
+          }
+        >
+          <div className="set-inline">
+            <Switch
+              checked={settings.bf6Recap}
+              onChange={(bf6Recap) => onSaveSettings({ bf6Recap }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+              label="Bilan Battlefield 6"
+            />
+            <button className="btn btn-secondary btn-sm" onClick={() => openRecap(sampleRecap())}>
+              Voir un exemple
             </button>
           </div>
         </SettingRow>

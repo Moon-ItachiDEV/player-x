@@ -12,6 +12,7 @@
     "test:update": "node --experimental-strip-types --test src/main/services/updateHandoff.test.ts",
     "test:launch": "node --experimental-strip-types --test src/main/services/tracking.test.ts src/main/services/launchWatchParse.test.ts src/main/services/launches.test.ts && node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/main/services/launchWatch.test.ts src/renderer/src/launch/*.test.ts",
     "test:news": "node --experimental-strip-types --test src/main/services/newsFormat.test.ts",
+    "test:bf6": "node --experimental-strip-types --test src/main/services/bf6Diff.test.ts",
     "dist": "electron-vite build && electron-builder --win --x64 --publish never",
     "release": "electron-vite build && electron-builder --win --x64 --publish always",
     "postinstall": "node node_modules/electron/install.js"
@@ -23,6 +24,7 @@
       "out/**/*",
       "!out/main/updateSim-*.js",
       "!out/main/launchSim-*.js",
+      "!out/main/bf6Sim-*.js",
       "resources/icon.png",
       "resources/tray*.png"
     ],

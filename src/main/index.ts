@@ -2,13 +2,14 @@ import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app, BrowserWindow, Menu, powerMonitor, session, shell } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
-import { cleanName } from '@shared/text'
+import { cleanName, isBf6Name } from '@shared/text'
 import type { Friend, FriendPlatform, Game, Settings, SteamLibrary } from '@shared/types'
 import * as db from './db'
 import { handle } from './ipc'
 import { checkFriends, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
+import { bf6RecapState, markBf6RecapSeen, setBf6Running, startBf6Recaps, syncBf6Recaps } from './services/bf6Recap'
 import { DEMO_FRIENDS, DEMO_GAMES, demoGames, demoNotInstalled } from './services/demo'
 import { connectPsn, getAllFriends, resetPsn } from './services/friends'
 import { getScanReport, handoff, launchTarget, scanAllGames } from './services/games'
@@ -94,12 +95,15 @@ let lastFriends: Friend[] = []
 
 function notifyGamesChanged(): void {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send('games:changed')
-  updateTrayPlaying()
+  updateRunning()
 }
 
-/** Jeux en cours dans le menu de l'icône près de l'horloge. Vraie bibliothèque seulement : la démo reste dans la fenêtre. */
-function updateTrayPlaying(): void {
-  setTrayPlaying(getSettings().demoMode ? [] : withPlaytime(db.listGames()).flatMap((g) => (g.running ? [cleanName(g.name)] : [])))
+/** Jeux en cours dans la vraie bibliothèque : menu de l'icône près de l'horloge, début et fin d'une session Battlefield 6. */
+function updateRunning(): void {
+  const running = withPlaytime(db.listGames()).filter((g) => g.running)
+  // La démo reste dans la fenêtre : rien dans le menu de l'icône.
+  setTrayPlaying(getSettings().demoMode ? [] : running.map((g) => cleanName(g.name)))
+  setBf6Running(running.some((g) => isBf6Name(g.name)))
 }
 
 // Favoris et lancements du mode démo : gardés à part pour ne jamais toucher la vraie bibliothèque.
@@ -288,13 +292,14 @@ function registerIpc(): void {
     const next = saveSettings(patch)
     if (next.psnNpsso !== before.psnNpsso) resetPsn()
     if (next.startWithWindows !== before.startWithWindows) syncStartup()
+    if (next.bf6Recap !== before.bf6Recap) syncBf6Recaps()
     if (next.gameNews !== before.gameNews) {
       // Badges retirés tout de suite, ou relevés dès la réactivation.
       notifyGamesChanged()
       if (next.gameNews) refreshNewsIndex(knownGames()).catch(() => {})
     }
     if (next.demoMode !== wasDemo) {
-      updateTrayPlaying()
+      updateRunning()
       resetFriendAlerts()
       // Les lancements en cours (vrais ou de démo) s'arrêtent sans carte : l'interface vide aussi les siens.
       launches.reset()
@@ -312,6 +317,9 @@ function registerIpc(): void {
   handle('bf6:tracked', () => getBf6Tracked())
   handle('bf6:set-tracked', (_e, tracked: unknown) => setBf6Tracked(tracked))
   handle('bf6:history', (_e, account: unknown) => getBf6History(account))
+  // Bilans de session : ton vrai compte seulement (rien en mode démo).
+  handle('bf6:recaps', () => bf6RecapState())
+  handle('bf6:recap-seen', (_e, id: unknown) => markBf6RecapSeen(id))
   handle('app:startup', () => startupState())
   handle('shell:open', (_e, url: unknown) => {
     if (typeof url === 'string' && url.startsWith('https://')) return shell.openExternal(url)
@@ -473,6 +481,8 @@ app.whenReady().then(async () => {
   app.on('will-quit', () => launches.shutdown())
   registerIpc()
   initUpdater()
+  // Avant le suivi du temps de jeu : une session Battlefield 6 restée ouverte lit la dernière apparition du jeu.
+  startBf6Recaps()
   startPlaytimeTracker(notifyGamesChanged)
   startBf6Recorder()
   startNewsWatcher(knownGames, notifyGamesChanged)
@@ -483,7 +493,12 @@ app.whenReady().then(async () => {
       .catch(() => {})
   })
   startTray()
-  updateTrayPlaying()
+  updateRunning()
+  // Développement seulement : PX_BF6_SIM simule une partie de Battlefield 6 (bf6Sim.ts, jamais dans l'installeur).
+  if (!app.isPackaged && process.env.PX_BF6_SIM) {
+    const mode = process.env.PX_BF6_SIM
+    import('./services/bf6Sim').then(({ startBf6Sim }) => startBf6Sim(mode)).catch((e) => console.warn('[bf6-sim]', e))
+  }
   createWindow()
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
   if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())

@@ -10,6 +10,8 @@ export interface ToastOptions {
   /** URL d'avatar à la place de l'icône. */
   avatarUrl?: string
   action?: { label: string; onClick: () => void }
+  /** Durée d'affichage en ms, à la place de celle du genre. */
+  duration?: number
 }
 
 interface Toast extends ToastOptions {
@@ -43,9 +45,9 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }): R
   const closeRef = useRef(onClose)
   closeRef.current = onClose
   const start = useCallback(() => {
-    const d = DURATION[toast.kind]
+    const d = toast.duration ?? DURATION[toast.kind]
     if (d) timer.current = setTimeout(() => closeRef.current(), d)
-  }, [toast.kind])
+  }, [toast.kind, toast.duration])
   useEffect(() => {
     start()
     return () => clearTimeout(timer.current)

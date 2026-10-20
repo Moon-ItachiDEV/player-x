@@ -70,6 +70,8 @@ export interface Settings {
   closeToTray: boolean
   /** Lancé caché dans la zone de notification à l'ouverture de la session Windows. */
   startWithWindows: boolean
+  /** Bilan de session Battlefield 6 : tes stats relevées au lancement du jeu, puis comparées après la partie. */
+  bf6Recap: boolean
 }
 
 /** Démarrage avec Windows : `unavailable` hors de la version installée sur Windows, `blocked` si Windows l'a désactivé (Gestionnaire des tâches). */
@@ -260,6 +262,69 @@ export interface Bf6Tracked {
   rivals: Bf6Account[]
 }
 
+/** Une carte ou un mode joué pendant une session. */
+export interface Bf6RecapPlace {
+  name: string
+  image?: string
+  matches: number
+  wins: number
+}
+
+/**
+ * Bilan d'une session de Battlefield 6. gametools.network ne donne que des totaux : c'est la différence entre
+ * tes stats relevées au lancement du jeu et celles relues après la partie. Gardé sur ce PC.
+ */
+export interface Bf6Recap {
+  id: string
+  account: { name: string; platform: Bf6Platform }
+  /** Lancement et fermeture du jeu, vus par Player X. */
+  startedAt: number
+  endedAt: number
+  /** Le jeu tournait déjà quand le suivi a commencé (ouverture de Player X) : seules les parties d'après comptent. */
+  partial?: boolean
+  kills: number
+  deaths: number
+  assists: number
+  revives: number
+  matches: number
+  wins: number
+  losses: number
+  /** Temps passé en partie (hors menus), selon les stats du jeu. */
+  secondsPlayed: number
+  killDeath: number
+  killsPerMinute: number
+  /** Éliminations en véhicule (comprises dans `kills`). */
+  vehicleKills: number
+  /** Tes moyennes juste avant la session, pour la situer. */
+  average: { killDeath: number; killsPerMinute: number; winPercent: number }
+  /** L'arme avec le plus d'éliminations pendant la session. */
+  weapon?: { name: string; image?: string; kills: number }
+  /** La classe la plus jouée. */
+  role?: { name: string; kills: number; seconds: number }
+  /** Les plus jouées d'abord. */
+  maps: Bf6RecapPlace[]
+  modes: Bf6RecapPlace[]
+  /** Déjà ouvert dans Player X. */
+  seen?: boolean
+  /** Exemple (Paramètres, Stats) : chiffres fictifs, jamais enregistrés. */
+  sample?: boolean
+}
+
+export interface Bf6RecapState {
+  /** Réglage « Bilan Battlefield 6 ». */
+  enabled: boolean
+  /** Session suivie : jeu en cours (sans `endedAt`), ou terminé et bilan en préparation. */
+  pending: { startedAt: number; endedAt?: number } | null
+  /** Les plus récents d'abord. Vide en mode démo. */
+  recaps: Bf6Recap[]
+}
+
+/** `ready` : bilan prêt, Player X au premier plan ; `open` : clic sur la notification Windows ; `updated` : chiffres complétés. */
+export interface Bf6RecapEvent {
+  recap: Bf6Recap
+  reason: 'ready' | 'open' | 'updated'
+}
+
 // ---------- Actus des jeux (annonces officielles publiées sur Steam) ----------
 
 /** Morceau de texte d'une actu, avec sa mise en forme. */
@@ -376,6 +441,12 @@ export interface LauncherApi {
   bf6SetTracked(tracked: Bf6Tracked): Promise<Bf6Tracked>
   /** Relevés quotidiens d'un compte suivi, du plus ancien au plus récent. */
   bf6History(account: Bf6Account): Promise<Bf6Point[]>
+  /** Bilans de session et session en cours. */
+  bf6Recaps(): Promise<Bf6RecapState>
+  /** Bilan ouvert : il n'est plus proposé. */
+  bf6RecapSeen(id: string): Promise<void>
+  /** Bilan prêt, complété, ou à ouvrir (clic sur la notification Windows). Renvoie la fonction de désabonnement. */
+  onBf6Recap(cb: (e: Bf6RecapEvent) => void): () => void
   /** Alertes d'amis à afficher dans la fenêtre (quand elle est au premier plan ; sinon Windows les affiche). */
   onFriendAlert(cb: (alerts: FriendAlert[]) => void): () => void
   /** Clic sur une notification Windows : ouvrir le panneau d'amis. */

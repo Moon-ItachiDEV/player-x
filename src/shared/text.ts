@@ -17,6 +17,11 @@ export function norm(name: string): string {
     .replace(/[^a-z0-9]/g, '')
 }
 
+/** Battlefield 6, quel que soit le nom exact du store (« Battlefield™ 6 »…). */
+export function isBf6Name(name: string): boolean {
+  return norm(name).includes('battlefield6')
+}
+
 /** Teinte stable (0-359) dérivée d'un nom, pour les jaquettes générées. */
 export function hue(name: string): number {
   let h = 0
