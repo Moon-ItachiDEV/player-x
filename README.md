@@ -26,6 +26,12 @@ Pour fabriquer l’installeur Windows : `npm run dist` (sortie dans `dist/`). De
 
 Player X détecte les jeux installés sur ton PC (Steam, Epic Games, EA app). Filtre par store, trie par récents, nom, plus lancés ou plus joués, et choisis la taille des jaquettes. Tes favoris restent dans le rail de gauche, sur toutes les pages : un clic lance le jeu, un clic droit ouvre sa fiche.
 
+L’onglet **Non installés** montre les jeux de ton compte Steam qui ne sont pas sur ce PC, avec ton temps de jeu. **Installer** ouvre l’installation dans Steam (choix du disque, téléchargement) ; une fois le jeu téléchargé, il rejoint ta bibliothèque tout seul. Il faut ta clé Steam Web API et des détails de jeu publics sur ton profil Steam : **Paramètres › Bibliothèque** indique ce qui manque.
+
+## Actus des jeux
+
+La fiche d’un jeu montre ses dernières annonces officielles publiées sur Steam, notes de patch comprises, et les ouvre en entier dans Player X. Un jeu mis à jour ces 7 derniers jours porte un badge **Nouveau patch** jusqu’à ce que tu ouvres ses actus. Les jeux EA et Epic vendus aussi sur Steam (Battlefield 6…) ont leurs actus. Se coupe dans **Paramètres › Bibliothèque**.
+
 ## Temps de jeu
 
 ![Fiche d'un jeu en cours](docs/screenshots/fiche-en-jeu.png)
@@ -96,6 +102,8 @@ Si la clé privée est perdue, les versions installées ne peuvent plus se mettr
 | Jeux Steam | Lit `libraryfolders.vdf` et les `appmanifest_*.acf` de toutes tes bibliothèques (registre + disques C à H). |
 | Jeux Epic | Lit les manifestes `C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\*.item`. |
 | Jeux EA | Dossier d’installation de l’EA app, registre `EA Games` / `Electronic Arts`, entrées de désinstallation et `__Installer\installerdata.xml`. |
+| Jeux Steam non installés | `IPlayerService/GetOwnedGames` (clé Steam Web API, détails de jeu publics), relu au plus toutes les heures. **Installer** passe par `steam://install/<appid>` ; la fin du téléchargement est lue dans le manifeste du jeu. |
+| Actus des jeux | `ISteamNews/GetNewsForApp`, public et sans clé, annonces officielles seulement. Titres relevés au plus toutes les 6 h pour les badges, texte complet à l’ouverture de la fiche, lu en éléments React (jamais de HTML venu d’internet). |
 | Jaquettes | Steam : CDN Steam. EA et Epic : recherche du même jeu dans le catalogue Steam, mise en cache 7 jours. Sinon, une jaquette générée. |
 | Lancer un jeu | Passe par le client officiel (`steam://`, `com.epicgames.launcher://`, `origin2://`), sinon lance l’exécutable trouvé. |
 | Login Steam | OpenID Steam dans ton navigateur, signature vérifiée auprès de Steam. |
@@ -135,7 +143,7 @@ Direction « Arène · Abysse » depuis la 0.7.0 : bleu nuit, jaune réservé à
 ```
 src/
   main/          processus Electron : base SQLite, scan des jeux, logins, amis, stats
-    services/    games.ts, artwork.ts, auth.ts, friends.ts, alerts.ts, playtime.ts, stats.ts, settings.ts, demo.ts, updater.ts
+    services/    games.ts, steamLibrary.ts, artwork.ts, news.ts, auth.ts, friends.ts, alerts.ts, playtime.ts, stats.ts, settings.ts, demo.ts, updater.ts
   preload/       pont sécurisé main ↔ interface
   renderer/src/
     components/  home/, library/, friends/, stats/, settings/, setup/, ui/, FavRail (rail des favoris), Sidebar (menu et amis),
