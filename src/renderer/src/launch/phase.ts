@@ -32,6 +32,35 @@ export const CARD_ACTIVE_MS: Partial<Record<LaunchPhase, number>> = {
 export const PENDING_PHASES: ReadonlySet<LaunchPhase> = new Set(['sending', 'waiting', 'relay'])
 export const isPending = (phase: LaunchPhase): boolean => PENDING_PHASES.has(phase)
 
+/** Ce que la carte et la date gelée savent d'un lancement (LaunchView, sans dépendre du store). */
+export interface CardRecord {
+  gameId: string
+  checking: boolean
+  cardDone: boolean
+  status: Pick<LaunchStatus, 'phase' | 'detectedAt'>
+}
+
+/**
+ * La date de dernier lancement du jeu reste celle d'avant le clic : seulement tant qu'il n'a pas été vu. Un relais
+ * (déjà détecté une fois) ne la regèle pas : la date fraîche est déjà affichée, les listes ne bougent pas deux fois.
+ */
+export const freezesDate = (v: Pick<CardRecord, 'checking' | 'status'>): boolean =>
+  (v.checking || isPending(v.status.phase)) && v.status.detectedAt === undefined
+
+/**
+ * Nouveau lancement d'un jeu : ses cartes terminées encore ouvertes (échec, jeu fermé, déjà en jeu…) se ferment,
+ * sinon l'ancienne reviendrait quand la nouvelle part. Rend `all` tel quel s'il n'y a rien à fermer.
+ */
+export function closeFinishedCards<T extends CardRecord>(all: Record<string, T>, gameId: string): Record<string, T> {
+  let out = all
+  for (const [id, v] of Object.entries(all)) {
+    if (v.gameId !== gameId || v.cardDone || v.checking || isPending(v.status.phase)) continue
+    if (out === all) out = { ...all }
+    out[id] = { ...v, cardDone: true }
+  }
+  return out
+}
+
 /** Phases sans carte : rien à dire de plus. */
 const NO_CARD: ReadonlySet<LaunchPhase> = new Set(['ended', 'cancelled'])
 export const hasCard = (s: LaunchStatus): boolean => !NO_CARD.has(s.phase) && !s.silent && !(s.demo && s.phase === 'ended')

@@ -47,6 +47,7 @@ type SheetProps = Omit<GameSheetProps, 'game'> & { game: Game; closing: boolean 
 function Sheet({ game, friends, closing, onClose, onLaunch, onRescan, onFavorite, onOpenFolder, onOpenStats }: SheetProps): React.JSX.Element {
   const panelRef = useRef<HTMLElement>(null)
   const posterRef = useRef<HTMLDivElement>(null)
+  const playRef = useRef<HTMLButtonElement>(null)
   const p = usePlayState(game, onLaunch)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(false)
@@ -151,6 +152,7 @@ function Sheet({ game, friends, closing, onClose, onLaunch, onRescan, onFavorite
         <div ref={sentinelRef} className="sheet-sentinel" />
         <div className={`sheet-actions ${stuck ? 'is-stuck' : ''}`}>
           <button
+            ref={playRef}
             className={`btn btn-primary btn-play sheet-play ${p.className}`}
             onClick={() => p.activate(posterRef.current)}
             aria-disabled={p.inert || undefined}
@@ -183,7 +185,7 @@ function Sheet({ game, friends, closing, onClose, onLaunch, onRescan, onFavorite
           </button>
         </div>
 
-        <LaunchLine game={game} p={p} onLaunch={onLaunch} onRescan={onRescan} />
+        <LaunchLine game={game} p={p} playRef={playRef} onLaunch={onLaunch} onRescan={onRescan} />
 
         <div className="sheet-stats">
           {game.lastPlayed ? (
@@ -390,7 +392,16 @@ function middleEllipsis(text: string, max: number, measure: (s: string) => numbe
  * Ligne sous « Jouer » (spec launch-sequence.md §3.3) : où en est le lancement, compteur compris. Pas une région
  * annoncée (la carte du lancement s'en charge). Un échec reste affiché jusqu'à la fermeture de la fiche.
  */
-function LaunchLine({ game, p, onLaunch, onRescan }: { game: Game; p: PlayInfo; onLaunch: LaunchFn; onRescan?: () => void }): React.JSX.Element | null {
+interface LaunchLineProps {
+  game: Game
+  p: PlayInfo
+  /** « Jouer » de la fiche : toujours monté et focalisable (aria-disabled), il reprend le focus du lien qui disparaît. */
+  playRef: React.RefObject<HTMLButtonElement | null>
+  onLaunch: LaunchFn
+  onRescan?: () => void
+}
+
+function LaunchLine({ game, p, playRef, onLaunch, onRescan }: LaunchLineProps): React.JSX.Element | null {
   const active = useWindowActive()
   const [now, setNow] = useState(() => Date.now())
   // Ouverture de la fiche : un lancement terminé avant n'y est pas rappelé.
@@ -404,7 +415,9 @@ function LaunchLine({ game, p, onLaunch, onRescan }: { game: Game; p: PlayInfo; 
     const id = setTimeout(() => setNow(Date.now()), 1000 - ((at - s.clickAt) % 1000) + 8)
     return () => clearTimeout(id)
   }, [pending, active, s, now])
-  if (!v || !s || v.checking || (!pending && v.changedAt < openedAt)) return null
+  // La partie simulée de la démo tient lieu de « Partie en cours » : dite même si elle a commencé avant l'ouverture.
+  const demoRunning = !!s?.demo && s.phase === 'running'
+  if (!v || !s || v.checking || (!pending && !demoRunning && v.changedAt < openedAt)) return null
   const line = sheetLine(s, { name: cleanName(game.name), now: active ? Date.now() : now })
   if (!line?.text) return null
   const act = line.action
@@ -413,7 +426,16 @@ function LaunchLine({ game, p, onLaunch, onRescan }: { game: Game; p: PlayInfo; 
       {line.icon && <Icon name={line.icon} size={14} />}
       <span className="num">{line.text}</span>
       {act && (act.kind !== 'rescan' || onRescan) && (
-        <button className="link-btn" onClick={() => (act.kind === 'rescan' ? onRescan?.() : onLaunch(game, null, act.kind))}>
+        <button
+          className="link-btn"
+          onClick={() => {
+            if (act.kind === 'rescan') return onRescan?.()
+            // La ligne du nouveau lancement n'a pas de lien : le focus passe d'abord sur « Jouer » (il ne tombe pas sur
+            // <body> dans la fiche modale), qui devient aussi le contrôle d'origine du lancement.
+            playRef.current?.focus({ preventScroll: true })
+            onLaunch(game, null, act.kind)
+          }}
+        >
           {act.label}
         </button>
       )}

@@ -75,8 +75,13 @@ interface CardProps {
   onRescan: () => void
 }
 
-function Card({ v, leaving, onRescan }: CardProps): React.JSX.Element {
+function Card({ v: latest, leaving, onRescan }: CardProps): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
+  // Carte qui part : elle garde ce qu'elle montrait (le « cancelled » qui suit un × arrive pendant son fondu et
+  // viderait ses lignes). React garde la même instance d'un emplacement à l'autre (même clé) : la référence suit.
+  const shown = useRef(latest)
+  if (!leaving) shown.current = latest
+  const v = leaving ? shown.current : latest
   const active = useWindowActive()
   const [now, setNow] = useState(() => Date.now())
   const [hovered, setHovered] = useState(false)
@@ -122,8 +127,11 @@ function Card({ v, leaving, onRescan }: CardProps): React.JSX.Element {
   }, [leaving, budget, clockKey, counting, v.launchId])
 
   // ----- entrée -----
+  // Décidée une fois par instance : en développement, StrictMode rejoue l'effet et `mountedOnce` dirait déjà « vue ».
+  const entered = useRef(false)
   useLayoutEffect(() => {
-    if (leaving) return
+    if (leaving || entered.current) return
+    entered.current = true
     const first = !mountedOnce.has(v.launchId)
     mountedOnce.add(v.launchId)
     if (v.hydrated && first) return

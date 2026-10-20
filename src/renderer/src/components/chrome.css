@@ -95,6 +95,17 @@
     0 0 0 4px var(--live),
     0 0 18px -2px var(--live);
 }
+/* Couleurs forcées : plus d'ombres, les anneaux deviennent des contours (le rail n'a pas de texte visible). */
+@media (forced-colors: active) {
+  .favrail-item.is-pending {
+    outline: 2px dashed CanvasText;
+    outline-offset: 2px;
+  }
+  .favrail-item.is-live {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+}
 .favrail-dot {
   position: absolute;
   right: -5px;

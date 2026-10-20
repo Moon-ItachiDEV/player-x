@@ -334,8 +334,17 @@
   border-radius: var(--r-md);
   color: var(--text-1);
   background: var(--badge-bg);
-  backdrop-filter: blur(8px);
   opacity: 0;
+  /* Le flou part à la fin du fondu de sortie. */
+  transition:
+    opacity var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    backdrop-filter 0s linear var(--d-1);
+}
+/* Flou seulement quand l'étoile se voit : une étoile invisible n'est pas un calque composité (300 jaquettes en
+   faisaient plus de 1 000, relayoutés à chaque repaint de la page, compteur du lancement compris). */
+.lib-card:is(.is-fav, :hover, :focus-within) .lib-card-fav {
+  backdrop-filter: blur(8px);
   transition:
     opacity var(--d-1) var(--ease-out),
     color var(--d-1) var(--ease-out);
@@ -385,6 +394,12 @@
     opacity 180ms var(--ease-out) 40ms,
     translate 260ms var(--ease-glide) 40ms,
     background-color var(--d-1) var(--ease-out);
+}
+/* En attente, en jeu : les couleurs changent d'un coup, même pastille forcée visible. */
+.lib-card:is(:hover, :focus-visible, .is-launching) .lib-card-play:is(.is-waiting, .is-live) {
+  transition:
+    opacity 180ms var(--ease-out) 40ms,
+    translate 260ms var(--ease-glide) 40ms;
 }
 
 /* Complet : inclinaison, reflet et anneau sous la souris (sans transition CSS sur transform : la boucle rAF lisse) */

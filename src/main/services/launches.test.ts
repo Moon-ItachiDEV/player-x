@@ -11,6 +11,8 @@ import type { LaunchTarget } from './games'
 import { CADENCE, createLaunches, DEMO, reduce, sanitizeOpts, scaledTiming, TIMING, windowAction, type LaunchDeps, type WindowCtx } from './launches.ts'
 // @ts-ignore TS5097
 import { isValid, MIN_PROCS, newMatches, parseSample, SCRIPT, tickLine, type Query, type Sample } from './launchWatchParse.ts'
+// @ts-ignore TS5097
+import { watchNames } from './tracking.ts'
 
 const flush = (): Promise<void> => new Promise((resolve) => setImmediate(resolve))
 
@@ -86,6 +88,8 @@ function harness(o: Options = {}) {
   const running = new Map<string, number>()
   const blind = new Set<string>()
   const pinned = new Set<string>()
+  /** Programmes rattachés à un jeu par leur dossier au dernier relevé, en plus de NAMES (noms génériques compris, comme matchGames). */
+  const folder = new Map<string, Set<string>>()
   const listeners: (() => void)[] = []
   const nudges: (() => boolean)[] = []
   const t = {
@@ -148,7 +152,9 @@ function harness(o: Options = {}) {
     },
     matchedNames: (id: string): Set<string> => {
       call('tracker.matchedNames')
-      return new Set(running.has(id) ? [...world.values()].filter((n) => NAMES[id]?.includes(n)) : [])
+      if (!running.has(id)) return new Set()
+      // Comme playtime.ts : sans les noms génériques.
+      return watchNames([...[...world.values()].filter((n) => NAMES[id]?.includes(n)), ...(folder.get(id) ?? [])])
     },
     nudge: (still: () => boolean): void => {
       call('tracker.nudge')
@@ -333,6 +339,7 @@ function harness(o: Options = {}) {
     running,
     blind,
     pinned,
+    folder,
     t,
     w,
     win,
@@ -704,6 +711,47 @@ describe('fin de partie et relais', () => {
     assert.equal(s.silent, undefined)
   })
 
+  // Jeu Unreal avec son navigateur intégré, rattaché par son dossier, pendant qu'Epic Games fait tourner le sien.
+  async function detectedWithCef(h: ReturnType<typeof harness>): Promise<{ game: number; cef: number }> {
+    const epicCef = h.run('UnrealCEFSubProcess')
+    h.t.snapshot = new Set([...h.t.snapshot!, epicCef])
+    await h.launches.start(EPIC.id, opts('L1'))
+    await h.advance(2_000)
+    const game = h.run('fortniteclient')
+    const cef = h.run('UnrealCEFSubProcess')
+    h.folder.set(EPIC.id, new Set(['unrealcefsubprocess']))
+    await h.advance(1_000)
+    assert.equal(h.last('L1').phase, 'running')
+    return { game, cef }
+  }
+
+  test('nom générique rattaché par le dossier (UnrealCEFSubProcess) : la copie d’Epic ne retient pas la partie', async () => {
+    const h = harness({ setting: 'minimize' })
+    const { game, cef } = await detectedWithCef(h)
+    await h.advance(40_000)
+    assert.equal(h.count('window.minimize'), 1)
+    h.world.delete(game)
+    h.world.delete(cef)
+    const closedAt = h.now()
+    // Le suivi rapide seul (aucun relevé de la minute dans ce faux PC) voit la fermeture et Player X revient.
+    await untilPhase(h, 'L1', 'ended')
+    assert.ok(h.now() - closedAt <= 15_000, `${h.now() - closedAt} ms`)
+    await h.advance(TIMING.RESTORE_DELAY_MS)
+    assert.equal(h.count('window.showInactive'), 1)
+  })
+
+  test('nom générique rattaché par le dossier : un plantage juste après la détection passe par le relais, puis early-exit', async () => {
+    const h = harness()
+    const { game, cef } = await detectedWithCef(h)
+    await h.advance(10_000)
+    h.world.delete(game)
+    h.world.delete(cef)
+    await h.advance(11_000)
+    assert.equal(h.last('L1').phase, 'relay')
+    await h.advance(TIMING.RELAY_GRACE_MS)
+    assert.deepEqual(h.phases('L1'), ['sending', 'waiting', 'running', 'relay', 'early-exit'])
+  })
+
   test('relevé de confirmation en échec : rien ne se termine, nouvel essai toutes les 5 s', async () => {
     const h = harness()
     const pid = await detectedCs2(h)
@@ -1059,6 +1107,45 @@ describe('cycle de vie', () => {
     assert.equal(h.w.alive, false)
   })
 
+  test('mode démo basculé pendant le relevé frais d’un jeu « En jeu » : rien n’est envoyé, créé ni émis', async () => {
+    const h = harness({ setting: 'minimize' })
+    // Pastille « En jeu » périmée : le relevé frais (1 s) ne verra plus le jeu.
+    h.running.set(CS2.id, 5)
+    h.t.pollDelay = 1_000
+    const reply = h.launches.start(CS2.id, opts('L1'))
+    await h.advance(500)
+    assert.equal(h.t.polls, 1)
+    h.launches.reset()
+    await h.advance(1_000)
+    const s = await reply
+    assert.deepEqual([s.launchId, s.phase, s.silent, s.demo], ['L1', 'cancelled', true, undefined])
+    assert.equal(h.of('L1').length, 0)
+    assert.deepEqual(h.launches.list(), [])
+    assert.equal(h.count('handoff'), 0)
+    assert.deepEqual(h.recorded, [])
+    assert.equal(h.count('tracker.nudge'), 0)
+    await h.advance(30_000)
+    assert.equal(h.w.samples.length, 0)
+    assert.equal(h.count('window.minimize'), 0)
+  })
+
+  test('mode démo basculé pendant la recherche du jeu (scan) : ni envoi, ni échec « introuvable »', async () => {
+    const h = harness()
+    const found = h.launches.start(CS2.id, opts('L1'))
+    const missing = h.launches.start('steam:999', opts('L2'))
+    h.launches.reset()
+    for (const [p, id] of [[found, 'L1'], [missing, 'L2']] as const) {
+      const s = await p
+      assert.deepEqual([s.launchId, s.phase, s.silent], [id, 'cancelled', true])
+      assert.equal(h.of(id).length, 0)
+    }
+    assert.deepEqual(h.launches.list(), [])
+    assert.equal(h.count('handoff'), 0)
+    assert.deepEqual(h.recorded, [])
+    // Après le basculement, un nouveau clic part normalement.
+    assert.equal((await h.launches.start(CS2.id, opts('L3'))).phase, 'waiting')
+  })
+
   test('list() : lancements en cours, et terminés depuis moins de 15 min', async () => {
     const h = harness()
     await h.launches.start('steam:999', opts('L0'))
@@ -1167,6 +1254,9 @@ describe('fenêtre', () => {
     assert.deepEqual(windowAction('minimize', { ...exit, minimizedByThis: false }, T), { kind: 'none' })
     assert.deepEqual(windowAction('minimize', { ...exit, minimized: false }, T), { kind: 'clear' })
     assert.deepEqual(windowAction('minimize', { ...exit, otherRunning: 'L9' }, T), { kind: 'hand-over', to: 'L9' })
+    // Agrandi : pas de retour automatique (il reviendrait à sa taille normale), sauf passage de relais à un autre jeu.
+    assert.deepEqual(windowAction('minimize', { ...exit, wasMaximized: true }, T), { kind: 'clear' })
+    assert.deepEqual(windowAction('minimize', { ...exit, wasMaximized: true, otherRunning: 'L9' }, T), { kind: 'hand-over', to: 'L9' })
     assert.deepEqual(windowAction('minimize', exit, { ...T, restoreOnExit: false }), { kind: 'clear' })
     assert.deepEqual(windowAction('minimize', { ...exit, demo: true }, T), { kind: 'clear' })
   })
@@ -1210,6 +1300,23 @@ describe('fenêtre', () => {
     await h.advance(1)
     assert.equal(h.count('window.showInactive'), 1)
     assert.equal(h.count('window.minimize'), 1)
+  })
+
+  test('« Se réduire » : Player X agrandi reste dans la barre des tâches à la fin, et ne revient plus tout seul', async () => {
+    const h = harness({ setting: 'minimize' })
+    h.win.maximized = true
+    const pid = await detectedCs2(h)
+    h.w.windows.add(pid)
+    await h.advance(5_000)
+    assert.equal(h.count('window.minimize'), 1)
+    await h.advance(40_000)
+    h.world.delete(pid)
+    await untilPhase(h, 'L1', 'ended')
+    await h.advance(TIMING.RESTORE_DELAY_MS * 5)
+    assert.equal(h.count('window.showInactive'), 0)
+    // Plus rien à rouvrir : un relevé suivant ne fait rien non plus.
+    await h.advance(60_000)
+    assert.equal(h.count('window.showInactive'), 0)
   })
 
   test('« Se réduire » sans fenêtre vue : au bout de 10 s ; jamais si Player X est au premier plan', async () => {

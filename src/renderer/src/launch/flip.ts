@@ -23,10 +23,32 @@ const RATIO_MAX = 1.7
 /** Au-delà de 15 % d'écart de proportions, la jaquette apparaît en fondu pendant son vol. */
 const RATIO_TOLERANCE = 0.15
 
-/** Source utilisable : visible dans la fenêtre, assez large, de proportions proches d'une jaquette. */
-export function usableSource(r: Box | null | undefined, viewport: { width: number; height: number }): boolean {
+/** Part de la source qui doit se voir dans sa zone (pas à moitié sous la barre du haut ou la barre d'outils). */
+const MIN_VISIBLE = 0.65
+
+/** Intersection de deux rectangles (largeur ou hauteur 0 s'ils ne se touchent pas). */
+export function clipBox(a: Box, b: Box): Box {
+  const left = Math.max(a.left, b.left)
+  const top = Math.max(a.top, b.top)
+  const width = Math.max(0, Math.min(a.left + a.width, b.left + b.width) - left)
+  const height = Math.max(0, Math.min(a.top + a.height, b.top + b.height) - top)
+  return { left, top, width, height }
+}
+
+/** Part visible de `r` dans `clip`, de 0 à 1. */
+export function visibleShare(r: Box, clip: Box): number {
+  const c = clipBox(r, clip)
+  return r.width > 0 && r.height > 0 ? (c.width * c.height) / (r.width * r.height) : 0
+}
+
+/**
+ * Source utilisable : visible dans la fenêtre, assez large, de proportions proches d'une jaquette. `clip` : ce qu'on
+ * voit vraiment de sa zone qui défile ; la source doit s'y voir aux deux tiers environ.
+ */
+export function usableSource(r: Box | null | undefined, viewport: { width: number; height: number }, clip?: Box | null): boolean {
   if (!r || r.width < MIN_WIDTH || r.height <= 0) return false
   if (r.left + r.width <= 0 || r.top + r.height <= 0 || r.left >= viewport.width || r.top >= viewport.height) return false
+  if (clip && visibleShare(r, clip) < MIN_VISIBLE) return false
   const ratio = r.height / r.width
   return ratio >= RATIO_MIN && ratio <= RATIO_MAX
 }

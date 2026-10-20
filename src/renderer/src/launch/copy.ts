@@ -132,7 +132,8 @@ export function cardCopy(s: LaunchStatus, o: { name: string; now: number }): Car
     ...extra
   })
 
-  if (s.demo) {
+  // Démo : seulement ce qu'elle simule (attente, partie) ; un échec ou une fin se disent comme d'habitude.
+  if (s.demo && (pending || s.phase === 'running')) {
     if (s.phase === 'running') return done('Mode démo · En jeu', 'Partie simulée · rien ne tourne vraiment', 'live', { live: true })
     const kicker = s.phase === 'sending' ? 'Mode démo · Lancement' : 'Mode démo · En attente du jeu'
     return done(kicker, 'Simulation · rien n’est lancé sur ton PC', 'muted')
@@ -261,9 +262,13 @@ export interface SheetLine {
 
 /** Ligne sous « Jouer » dans la fiche (null : rien à dire, ou « Partie en cours » est déjà affiché). */
 export function sheetLine(s: LaunchStatus, o: { name: string; now: number }): SheetLine | null {
-  if (s.silent || s.phase === 'cancelled' || s.phase === 'ended' || s.phase === 'running' || s.phase === 'already') return null
+  if (s.silent || s.phase === 'cancelled' || s.phase === 'ended') return null
   const c = cardCopy(s, o)
-  if (s.demo) return { text: s.phase === 'sending' || s.phase === 'waiting' ? `Mode démo · ${c.sub}` : '', tone: 'muted', icon: null, action: null }
+  // Démo : « Partie en cours » n'apparaît jamais dans la fiche, la ligne dit la partie simulée.
+  if (s.demo && (isPending(s.phase) || s.phase === 'running')) return { text: `Mode démo · ${c.sub}`, tone: 'muted', icon: null, action: null }
+  if (s.phase === 'running') return null
+  // La carte est sous le voile de la fiche : son « Relancer quand même » est repris ici (un faux « En jeu » ne bloque jamais).
+  if (s.phase === 'already') return { text: `Déjà en jeu · ${c.sub}`, tone: 'muted', icon: null, action: c.action }
   if (s.phase === 'failed') return { text: `Lancement impossible · ${c.sub}`, tone: 'danger', icon: 'alert-circle', action: c.action }
   if (s.phase === 'early-exit') return { text: `Jeu fermé · ${c.sub}`, tone: 'muted', icon: null, action: c.action }
   if (s.phase === 'gave-up') return { text: `Jeu non détecté · ${c.sub}`, tone: 'muted', icon: null, action: null }
@@ -296,7 +301,8 @@ export function announcement(prev: LaunchStatus | null, next: LaunchStatus, name
     if (next.phase === 'waiting') return `Mode démo${NB}: ${name} serait lancé. Rien n’est lancé sur ton PC.`
     if (next.phase === 'running') return `Mode démo${NB}: partie simulée de ${name}.`
     if (next.phase === 'ended') return `Mode démo${NB}: partie simulée terminée.`
-    return null
+    // × pendant l'attente (A9) et échec (A7) : lus comme hors démo.
+    if (next.phase !== 'cancelled' && next.phase !== 'failed') return null
   }
   if (!phaseChanged) {
     if (next.phase === 'waiting' && next.steamUpdating && !prev?.steamUpdating) return `Steam indique une mise à jour de ${name}.`
@@ -316,7 +322,9 @@ export function announcement(prev: LaunchStatus | null, next: LaunchStatus, name
     }
     case 'failed': {
       const sub = failedCopy(next).sub
-      return `Impossible de lancer ${name}${NB}: ${sub.charAt(0).toLowerCase()}${sub.slice(1)}.`
+      // Minuscule en milieu de phrase, sauf pour le nom de l'appli (« Player X ne sait pas lancer ce jeu »).
+      const head = sub.startsWith('Player X') ? sub : `${sub.charAt(0).toLowerCase()}${sub.slice(1)}`
+      return `Impossible de lancer ${name}${NB}: ${head}.`
     }
     case 'gave-up':
       // Resté bloqué à l'envoi : c'est Windows qui n'a rien fait, pas le jeu qui manque.

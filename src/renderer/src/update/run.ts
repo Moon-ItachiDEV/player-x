@@ -26,8 +26,9 @@ export class Run {
 
   settle(how: 'finish' | 'cancel'): void
   /**
-   * 'fade' : tout s'arrête (minuteries comprises) et `el` s'efface en 160 ms, même fenêtre en arrière-plan.
-   * Rend le fondu (null s'il n'a pas pu jouer : l'appelant démonte tout de suite).
+   * 'fade' : les minuteries s'arrêtent, chaque animation se fige sur son image du moment (fill 'both' : rien ne
+   * revient d'un coup à son état CSS) et `el` s'efface en 160 ms, même fenêtre en arrière-plan. Les animations
+   * figées partent avec le DOM. Rend le fondu (null s'il n'a pas pu jouer : l'appelant démonte tout de suite).
    */
   settle(how: 'fade', el: Element | null | undefined): Animation | null
   settle(how: 'finish' | 'cancel' | 'fade', el?: Element | null): Animation | null | void {
@@ -39,6 +40,7 @@ export class Run {
     for (const a of this.anims) {
       try {
         if (how === 'finish') a.finish()
+        else if (how === 'fade') a.pause()
         else a.cancel()
       } catch {
         /* pseudo-élément déjà disparu */

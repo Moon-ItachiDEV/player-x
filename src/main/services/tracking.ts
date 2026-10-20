@@ -75,6 +75,13 @@ export function matchGames(procs: RunningProcess[], games: Matchable[], namesByG
   return found
 }
 
+/**
+ * Noms qu'un suivi de lancement peut chercher parmi ceux que matchGames a rattachés au jeu : sans les génériques, qu'un jeu
+ * lance de son dossier (navigateur intégré, rapport de plantage) mais qu'Epic Games ou l'EA app font tourner en permanence.
+ * Suivis par leur nom seul, ils feraient croire le jeu encore ouvert après sa fermeture.
+ */
+export const watchNames = (names: Iterable<string>): Set<string> => new Set([...names].filter((n) => !GENERIC_EXE.test(n)))
+
 export function runningGameIds(procs: RunningProcess[], games: Matchable[], namesByGame?: Map<string, Set<string>>): Set<string> {
   return new Set(matchGames(procs, games, namesByGame).keys())
 }

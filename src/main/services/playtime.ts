@@ -5,7 +5,7 @@ import { net, powerMonitor } from 'electron'
 import type { Game, Store } from '@shared/types'
 import { getKv, listGames, openSession, playtimeByGame, setKv, touchSessions } from '../db'
 import { getAccounts, getSettings } from './settings'
-import { coalesce, exeName, GENERIC_EXE, matchGames, memoAsync, parseProcLines, usableDir, type Matchable, type RunningProcess } from './tracking'
+import { coalesce, exeName, GENERIC_EXE, matchGames, memoAsync, parseProcLines, usableDir, watchNames, type Matchable, type RunningProcess } from './tracking'
 
 // Temps de jeu : toutes les minutes, on regarde quels programmes tournent et on les rattache au dossier
 // d'installation d'un jeu. Ça marche aussi pour un jeu lancé hors de Player X, tant que Player X est ouvert.
@@ -197,9 +197,12 @@ export function lastPollOk(): boolean {
   return !unsure
 }
 
-/** Noms des programmes rattachés à ce jeu au dernier relevé (y compris ceux trouvés par leur dossier). */
+/**
+ * Noms des programmes rattachés à ce jeu au dernier relevé (y compris ceux trouvés par leur dossier), pour le suivi rapide :
+ * sans les génériques (watchNames). Les pastilles « En jeu » et les sessions gardent tout lastMatch.
+ */
 export function matchedNames(id: string): Set<string> {
-  return new Set(lastMatch.get(id))
+  return watchNames(lastMatch.get(id) ?? [])
 }
 
 const fresh = (maxAgeMs: number): RunningProcess[] | null => (snapshot && Date.now() - snapshot.at <= maxAgeMs ? snapshot.procs : null)

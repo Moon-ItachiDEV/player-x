@@ -8,7 +8,7 @@ import type { Game } from '@shared/types'
 import { KF } from '../update/keyframes'
 import { Run } from '../update/run'
 import { anim, createStore, fx, tier } from '../update/session'
-import { flipFrom, ratioMismatch, usableSource, type Box } from './flip'
+import { clipBox, flipFrom, ratioMismatch, usableSource, type Box } from './flip'
 import { LKF } from './keyframes'
 import type { LaunchView } from './store'
 
@@ -54,11 +54,29 @@ const cardEl = (id: string): HTMLElement | null => document.querySelector<HTMLEl
 const viewport = (): { width: number; height: number } => ({ width: innerWidth, height: innerHeight })
 const box = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height })
 
-/** Rectangle de l'élément cliqué, s'il peut servir de départ au vol. */
+/**
+ * Ce qu'on voit vraiment autour de la source : la fenêtre, coupée par la zone qui défile (le contenu sous la barre du
+ * haut, la liste du rail) et, dans la bibliothèque, par sa barre d'outils collante.
+ */
+function visibleClip(from: HTMLElement): Box {
+  let clip: Box = { left: 0, top: 0, ...viewport() }
+  const scroller = from.closest('.shell > .content, .favrail-list')
+  if (!scroller) return clip
+  clip = clipBox(clip, box(scroller.getBoundingClientRect()))
+  const bar = scroller.querySelector('.lib-toolbar')
+  // Seulement ce qui vient après la barre dans la page peut passer dessous.
+  if (bar && bar.compareDocumentPosition(from) & Node.DOCUMENT_POSITION_FOLLOWING) {
+    const b = bar.getBoundingClientRect()
+    clip = clipBox(clip, { left: clip.left, top: b.bottom, width: clip.width, height: Math.max(0, clip.top + clip.height - b.bottom) })
+  }
+  return clip
+}
+
+/** Rectangle de l'élément cliqué, s'il peut servir de départ au vol (assez visible, pas caché sous une barre). */
 function sourceBox(from: HTMLElement | null): Box | null {
   if (!from?.isConnected) return null
   const r = box(from.getBoundingClientRect())
-  return usableSource(r, viewport()) ? r : null
+  return usableSource(r, viewport(), visibleClip(from)) ? r : null
 }
 
 /** Phase du lancement une fois le lien transmis (ou refusé) par Windows ; null tant qu'il part. */
@@ -155,7 +173,8 @@ const WATCHDOG_MS = 1600
 
 function playStage(ctx: VisualCtx): void {
   const contentEl = document.querySelector('.shell > .content')
-  if (!contentEl) return playGlide(ctx)
+  // Une autre mise à feu finit son fondu : la nouvelle ne reprend pas sa scène (même DOM, fondu compris), elle glisse.
+  if (!contentEl || launchStage.get()?.mode === 'stage') return playGlide(ctx)
   const content = box(contentEl.getBoundingClientRect())
   const src = sourceBox(ctx.from)
   const g = ctx.game
@@ -170,8 +189,12 @@ function playStage(ctx: VisualCtx): void {
   const q = (s: string): HTMLElement | null => root.querySelector<HTMLElement>(s)
   const card = cardEl(ctx.launchId)
   const thumb = card?.querySelector<HTMLElement>('.launch-thumb') ?? null
-  // La carte attend sous la scène : invisible, vignette cachée (la jaquette va s'y poser).
-  if (card) card.style.opacity = '0'
+  // La carte attend sous la scène : invisible (et sans prendre les clics destinés à ce qui est dessous), vignette
+  // cachée (la jaquette va s'y poser).
+  if (card) {
+    card.style.opacity = '0'
+    card.style.pointerEvents = 'none'
+  }
   if (thumb) thumb.style.visibility = 'hidden'
 
   let ignitedAt: number | null = null
@@ -182,6 +205,7 @@ function playStage(ctx: VisualCtx): void {
   const restoreCard = (): void => {
     if (card) {
       card.style.opacity = ''
+      card.style.pointerEvents = ''
       for (const a of card.getAnimations()) a.cancel()
     }
     if (thumb) thumb.style.visibility = ''
@@ -245,6 +269,7 @@ function playStage(ctx: VisualCtx): void {
     else run.play(poster, LKF.stageOut)
     if (card) {
       card.style.opacity = ''
+      card.style.pointerEvents = ''
       // Entre sous la jaquette qui se pose, puis revient à son état CSS (rien ne reste dans getAnimations()).
       const a = anim(card, LKF.cardLand.frames, { ...LKF.cardLand.opts })
       if (a) a.onfinish = () => a.cancel()
@@ -314,6 +339,9 @@ function playGlide(ctx: VisualCtx): void {
   const card = cardEl(ctx.launchId)
   if (!card) return igniteCardWhenHanded(ctx)
   const thumb = card.querySelector<HTMLElement>('.launch-thumb')
+  // La pile peut glisser dans le même rendu (carte de mise à jour passée en pastille) : sa place d'arrivée d'abord,
+  // invisible puisque la carte entre depuis l'opacité 0.
+  for (const a of card.closest('.launch-dock')?.getAnimations() ?? []) if (a instanceof CSSTransition) a.finish()
   // Place finale de la vignette, lue avant que la carte ne bouge.
   const tr = thumb ? box(thumb.getBoundingClientRect()) : null
   const t = tier()
@@ -322,6 +350,9 @@ function playGlide(ctx: VisualCtx): void {
   if (a) a.onfinish = () => a.cancel()
   igniteCardWhenHanded(ctx)
 
+  // Une mise à feu finit encore son fondu (lancement d'un autre jeu pendant la scène) : pas de jaquette fantôme, qui
+  // prendrait sa place d'un coup ; la carte entre simplement.
+  if (launchStage.get()?.mode === 'stage') return
   const src = sourceBox(ctx.from)
   if (!thumb || !tr || !src || tr.width <= 0) return
   const key = ++stageKey

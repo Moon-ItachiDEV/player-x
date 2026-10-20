@@ -156,6 +156,22 @@ test('mode démo : le texte le dit toujours, jamais de faux « En jeu »', () =>
   assert.equal(d('running'), 'Mode démo · En jeu')
   assert.equal(playCopy('demo-running', NAME).label, 'Démo · en jeu')
   assert.equal(libraryMeta('demo-running', 'steam'), 'Démo · en jeu')
+  // Un échec en démo (l'IPC a rejeté) se dit comme un échec, pas « En attente du jeu ».
+  const failed = cardCopy(status({ phase: 'failed', reason: 'other', demo: true }), { name: NAME, now: T0 })
+  assert.equal(failed.kicker, 'Lancement impossible')
+  assert.equal(failed.closeLabel, 'Fermer')
+  // × pendant l'attente (A9) et échec (A7) : lus aussi en démo.
+  const waiting = status({ phase: 'waiting', demo: true, handedAt: T0 })
+  assert.equal(announcement(waiting, { ...waiting, phase: 'cancelled', rev: 2 }, NAME), `Player X n’attend plus ${NAME}.`)
+  assert.equal(plain(announcement(waiting, { ...waiting, phase: 'failed', reason: 'other', rev: 2 }, NAME)), `Impossible de lancer ${NAME} : le lancement a échoué.`)
+  assert.equal(announcement(status({ demo: true }), { ...waiting, rev: 2 }, NAME)?.startsWith('Mode démo'), true)
+  assert.equal(announcement(waiting, { ...waiting, rev: 2 }, NAME), null)
+})
+
+test('annonces : « Player X » garde sa majuscule au milieu de A7', () => {
+  const a = announcement(null, status({ phase: 'failed', reason: 'no-target' }), 'Hades')
+  assert.equal(plain(a), 'Impossible de lancer Hades : Player X ne sait pas lancer ce jeu.')
+  assert.equal(plain(announcement(null, status({ phase: 'failed', reason: 'not-found' }), 'Hades')), 'Impossible de lancer Hades : ce jeu n’est plus dans ta bibliothèque.')
 })
 
 test('boutons, méta, rail et fiche', () => {
@@ -177,4 +193,14 @@ test('boutons, méta, rail et fiche', () => {
   const failed = sheetLine(status({ phase: 'failed', reason: 'other' }), { name: NAME, now: T0 })
   assert.equal(failed?.text, 'Lancement impossible · Le lancement a échoué')
   assert.equal(failed?.tone, 'danger')
+  // Déjà en jeu : la carte est sous le voile de la fiche, la ligne reprend « Relancer quand même ».
+  const already = sheetLine(status({ phase: 'already', handedAt: T0 }), { name: NAME, now: T0 })
+  assert.equal(already?.text, 'Déjà en jeu · Il tourne déjà sur ce PC')
+  assert.equal(already?.action?.kind, 'relaunch')
+  assert.equal(already?.action?.label, 'Relancer quand même')
+  // Démo : la partie simulée est dite dans la fiche (pas de « Partie en cours »).
+  assert.equal(sheetLine(status({ phase: 'running', demo: true, handedAt: T0 }), { name: NAME, now: T0 })?.text, 'Mode démo · Partie simulée · rien ne tourne vraiment')
+  assert.equal(sheetLine(status({ phase: 'waiting', demo: true, handedAt: T0 }), { name: NAME, now: T0 })?.text, 'Mode démo · Simulation · rien n’est lancé sur ton PC')
+  assert.equal(sheetLine(status({ phase: 'ended', demo: true, handedAt: T0 }), { name: NAME, now: T0 }), null)
+  assert.equal(sheetLine(status({ phase: 'failed', reason: 'other', demo: true }), { name: NAME, now: T0 })?.tone, 'danger')
 })

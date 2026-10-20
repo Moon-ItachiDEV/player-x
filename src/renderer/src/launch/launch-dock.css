@@ -196,9 +196,16 @@
   color: var(--text-3);
 }
 
+/* Couleurs forcées : le filet et les points gardent leur forme (sans quoi le fond système les efface). */
 @media (forced-colors: active) {
-  .launch-card::before {
+  .launch-card::before,
+  .launch-dot {
     forced-color-adjust: none;
     background: CanvasText;
+  }
+  /* Point « en jeu » des boutons (PlayLabel) : sur fond de bouton. */
+  .launch-live-dot {
+    forced-color-adjust: none;
+    background: ButtonText;
   }
 }

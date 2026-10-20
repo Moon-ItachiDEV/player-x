@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { flipFrom, ratioMismatch, usableSource } from './flip.ts'
+import { clipBox, flipFrom, ratioMismatch, usableSource, visibleShare } from './flip.ts'
 
 const VP = { width: 1440, height: 900 }
 
@@ -44,4 +44,21 @@ test('source : visible, assez large, de proportions de jaquette', () => {
   assert.equal(usableSource({ left: 100, top: 100, width: 320, height: 180 }, VP), false) // vignette paysage
   assert.equal(usableSource({ left: 100, top: 100, width: 84, height: 0 }, VP), false)
   assert.equal(usableSource(null, VP), false)
+})
+
+test('source : à moitié sous la barre du haut ou la barre d’outils collante, elle ne vole pas', () => {
+  // Contenu sous la barre du haut (48 px), barre d'outils de la bibliothèque collée jusqu'à 109 px.
+  const content = { left: 304, top: 48, width: 976, height: 592 }
+  const clip = clipBox(content, { left: 304, top: 109, width: 976, height: 531 })
+  assert.deepEqual(clip, { left: 304, top: 109, width: 976, height: 531 })
+  const cover = { left: 336, top: -15, width: 168, height: 251 }
+  assert.equal(usableSource(cover, VP), true) // dans la fenêtre…
+  assert.equal(usableSource(cover, VP, clip), false) // … mais plus de la moitié cachée
+  assert.ok(Math.abs(visibleShare(cover, clip) - 127 / 251) < 1e-9)
+  // Entièrement visible, ou à peine rognée : elle vole.
+  assert.equal(usableSource({ left: 336, top: 200, width: 168, height: 251 }, VP, clip), true)
+  assert.equal(usableSource({ left: 336, top: 60, width: 168, height: 251 }, VP, clip), true)
+  // Hors de la zone : rien.
+  assert.equal(visibleShare({ left: 0, top: 0, width: 40, height: 40 }, clip), 0)
+  assert.deepEqual(clipBox({ left: 0, top: 0, width: 10, height: 10 }, { left: 20, top: 20, width: 5, height: 5 }).width, 0)
 })

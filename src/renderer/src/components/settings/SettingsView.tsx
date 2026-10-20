@@ -209,7 +209,7 @@ function launchWindowCaption(settings: Settings): string {
   if (!IS_WINDOWS) return 'Disponible sur Windows'
   if (settings.demoMode) return 'Sans effet en mode démo : rien n’est lancé'
   return settings.launchWindow === 'minimize'
-    ? 'Se réduit quand le jeu est détecté et revient quand tu le quittes'
+    ? 'Se réduit quand le jeu est détecté et revient quand tu le quittes, sauf s’il était agrandi'
     : 'Player X reste ouvert derrière le jeu, sans jamais passer devant'
 }
 

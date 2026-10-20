@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { coalesce, exeName, GENERIC_EXE, matchGames, memoAsync, parseProcLines, runningGameIds, usableDir } from './tracking.ts'
+import { coalesce, exeName, GENERIC_EXE, matchGames, memoAsync, parseProcLines, runningGameIds, usableDir, watchNames } from './tracking.ts'
 
 const flush = (): Promise<void> => new Promise((resolve) => setImmediate(resolve))
 
@@ -68,6 +68,22 @@ test('GENERIC_EXE : outils et lanceurs écartés, vrais jeux gardés', () => {
   for (const n of ['unins000', 'UnityCrashHandler64', 'EasyAntiCheat_EOS', 'EADesktopLauncher', 'vc_redist.x64', 'CrashReportClient', 'start_protected_game', 'cefsharp.browsersubprocess', 'UnrealCEFSubProcess', 'QtWebEngineProcess'])
     assert.equal(GENERIC_EXE.test(n), true, n)
   for (const n of ['cs2', 'bf6', 'eldenring', 'witcher3', 'Cyberpunk2077']) assert.equal(GENERIC_EXE.test(n), false, n)
+})
+
+test('watchNames : le navigateur intégré d’un jeu (rattaché par son dossier) n’est pas suivi par son nom', () => {
+  const games = [{ id: 'epic:ue', installDir: 'C:\\Program Files\\Epic Games\\UEGame' }]
+  const procs = [
+    { name: 'UEGame-Win64-Shipping', pid: 1, path: 'C:\\Program Files\\Epic Games\\UEGame\\Binaries\\Win64\\UEGame-Win64-Shipping.exe' },
+    { name: 'UnrealCEFSubProcess', pid: 2, path: 'C:\\Program Files\\Epic Games\\UEGame\\Engine\\Binaries\\Win64\\UnrealCEFSubProcess.exe' },
+    // La copie d'Epic Games, qui tourne tant que le lanceur est ouvert.
+    { name: 'UnrealCEFSubProcess', pid: 3, path: 'C:\\Program Files (x86)\\Epic Games\\Launcher\\Engine\\Binaries\\Win64\\UnrealCEFSubProcess.exe' }
+  ]
+  const matched = matchGames(procs, games).get('epic:ue')!
+  // Le rattachement (pastilles, sessions) garde tout ; le suivi d'un lancement ne cherche que le jeu.
+  assert.deepEqual([...matched].sort(), ['uegame-win64-shipping', 'unrealcefsubprocess'])
+  assert.deepEqual([...watchNames(matched)], ['uegame-win64-shipping'])
+  assert.deepEqual([...watchNames(['qtwebengineprocess', 'crashpad_handler', 'cs2'])], ['cs2'])
+  assert.equal(watchNames([]).size, 0)
 })
 
 test('exeName et usableDir : chemins Windows, même sous Linux', () => {

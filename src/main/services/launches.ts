@@ -93,6 +93,7 @@ export interface LaunchTracker {
   snapshotPids(maxAgeMs: number): Set<number> | null
   storeWasRunning(store: Store, maxAgeMs: number): boolean | null
   exeNamesFor(game: Game, refresh: boolean): Promise<Set<string>>
+  /** Noms rattachés au jeu par le dernier relevé, sans les génériques (tracking.ts watchNames) : le suivi rapide les cherche aussi. */
   matchedNames(gameId: string): Set<string>
   /** Relevés à 20 s et 45 s, chacun seulement si `still()`. */
   nudge(still: () => boolean): void
@@ -225,6 +226,8 @@ export interface WindowCtx {
   minimizedByThis?: boolean
   /** Lancement d'un autre jeu encore en cours. */
   otherRunning?: string | null
+  /** Player X était agrandi quand il a été réduit. */
+  wasMaximized?: boolean
 }
 
 export type WindowAction =
@@ -253,6 +256,9 @@ export function windowAction(
   // Jamais pendant un relais : un autre programme du jeu peut suivre.
   if (!exit || !c.minimizedByThis || !c.minimized) return none
   if (c.otherRunning) return { kind: 'hand-over', to: c.otherRunning }
+  // Rouverte sans activation, une fenêtre réduite revient à sa taille normale (SW_SHOWNOACTIVATE), et rien ne l'agrandit
+  // sans l'activer : agrandi, Player X reste dans la barre des tâches, d'où un clic le rouvre agrandi.
+  if (c.wasMaximized) return { kind: 'clear' }
   return (t.restoreOnExit ?? RESTORE_ON_EXIT) ? { kind: 'restore', delayMs: t.RESTORE_DELAY_MS } : { kind: 'clear' }
 }
 
@@ -337,6 +343,8 @@ export function createLaunches(deps: LaunchDeps): Launches {
   let minimizedBy: string | null = null
   let wasMaximized = false
   let restoreTimer: unknown = null
+  /** Croît à chaque reset() : un start() qui attendait (jeu, relevé frais) d'avant le basculement du mode démo s'arrête là. */
+  let epoch = 0
 
   const label = (rec: Rec): string => `${rec.game?.name ?? rec.s.gameId} (${rec.s.launchId})`
   const watchOff = (): boolean => now() < watchOffUntil
@@ -464,8 +472,22 @@ export function createLaunches(deps: LaunchDeps): Launches {
     prune()
     const same = records.get(opts.launchId)
     if (same) return same.s
+    // Mode démo basculé pendant une attente ci-dessous : le clic appartenait à l'autre bibliothèque, rien n'est créé ni émis.
+    const began = epoch
+    const dropped = (): LaunchStatus => ({
+      launchId: opts.launchId,
+      gameId,
+      route: routeOfId(gameId),
+      phase: 'cancelled',
+      silent: true,
+      detect: 'none',
+      via: opts.via,
+      rev: 1,
+      clickAt: now()
+    })
     // 1. Jeu introuvable.
     const game = await deps.findGame(gameId)
+    if (epoch !== began) return dropped()
     if (!game) return create(gameId, routeOfId(gameId), opts, null, { phase: 'failed', reason: 'not-found' }).s
     const target = deps.target(game)
     // 2. Mode démo : séquence jouée en mémoire, rien n'est lancé.
@@ -476,6 +498,7 @@ export function createLaunches(deps: LaunchDeps): Launches {
     // 4. Jeu déjà en cours : relevé frais d'abord (une pastille « En jeu » fausse ne doit jamais bloquer).
     if (!opts.force && tracker.isRunning(game.id)) {
       const ok = await tracker.pollNow()
+      if (epoch !== began) return dropped()
       const again = pending()
       if (again) return again.s
       if (!ok || tracker.isRunning(game.id)) {
@@ -690,7 +713,12 @@ export function createLaunches(deps: LaunchDeps): Launches {
     if (!apply(rec, { type: 'gone', at: goneAt })) return
     arm(rec, 'relay', t.RELAY_GRACE_MS, () => void relayEnd(rec))
     // Relevés en échec pendant tout le relais : au bout de 5 min, l'attente s'arrête sans carte (rien ne dit s'il s'est fermé).
-    arm(rec, 'gave-up', Math.max(0, goneAt + t.GAVE_UP_MS - now()), () => apply(rec, { type: 'gave-up', silent: true }))
+    // Player X réduit par ce lancement reste dans la barre des tâches : il n'est plus à nous de le rouvrir.
+    arm(rec, 'gave-up', Math.max(0, goneAt + t.GAVE_UP_MS - now()), () => {
+      if (!apply(rec, { type: 'gave-up', silent: true })) return
+      if (minimizedBy === rec.s.launchId) minimizedBy = null
+      refreshWatch()
+    })
   }
 
   async function relayEnd(rec: Rec): Promise<void> {
@@ -971,7 +999,7 @@ export function createLaunches(deps: LaunchDeps): Launches {
     const other = all().find((r) => r !== rec && !r.s.demo && r.s.phase === 'running')
     const a = windowAction(
       deps.settings().launchWindow,
-      { event, minimizedByThis: true, minimized: w.minimized(), otherRunning: other?.s.launchId ?? null },
+      { event, minimizedByThis: true, minimized: w.minimized(), otherRunning: other?.s.launchId ?? null, wasMaximized },
       t
     )
     if (a.kind === 'hand-over') {
@@ -987,9 +1015,12 @@ export function createLaunches(deps: LaunchDeps): Launches {
         minimizedBy = null
         if (!w.minimized()) return
         w.showInactive()
-        deps.log(`${label(rec)} : Player X revient sans activation (agrandi avant : ${wasMaximized}, après : ${w.maximized()})`)
+        deps.log(`${label(rec)} : Player X revient sans activation (agrandi après : ${w.maximized()})`)
       }, a.delayMs)
-    } else minimizedBy = null
+    } else {
+      if (wasMaximized) deps.log(`${label(rec)} : Player X était agrandi, il reste dans la barre des tâches`)
+      minimizedBy = null
+    }
     refreshWatch()
   }
 
@@ -1006,6 +1037,7 @@ export function createLaunches(deps: LaunchDeps): Launches {
   }
 
   function reset(): void {
+    epoch++
     stopWatch(true)
     clearRestore()
     minimizedBy = null

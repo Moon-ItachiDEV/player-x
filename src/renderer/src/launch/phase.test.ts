@@ -114,3 +114,42 @@ test('plafond de 10 min et mise à feu une fois par 10 min', () => {
   assert.equal(P.hasCard(status({ phase: 'gave-up', silent: true })), false)
   assert.equal(P.hasCard(status({ phase: 'failed' })), true)
 })
+
+test('date gelée : seulement tant que le jeu n’a pas été vu (un relais ne la regèle pas)', () => {
+  const rec = (o: Partial<LaunchStatus>, checking = false): { checking: boolean; status: LaunchStatus } => ({ checking, status: status(o) })
+  assert.equal(P.freezesDate(rec({ phase: 'sending' })), true)
+  assert.equal(P.freezesDate(rec({ phase: 'waiting', handedAt: T0 })), true)
+  assert.equal(P.freezesDate(rec({ phase: 'running', detectedAt: T0 + 5_000 }, true)), false)
+  assert.equal(P.freezesDate(rec({ phase: 'sending' }, true)), true) // vérification d'un jeu qui semblait tourner
+  assert.equal(P.freezesDate(rec({ phase: 'running', detectedAt: T0 + 5_000 })), false)
+  // Steam → EA app : le premier programme se ferme, le relais garde detectedAt.
+  assert.equal(P.freezesDate(rec({ phase: 'relay', detectedAt: T0 + 5_000, goneAt: T0 + 9_000 })), false)
+  assert.equal(P.freezesDate(rec({ phase: 'failed' })), false)
+})
+
+test('nouveau lancement : les cartes terminées du même jeu se ferment, pas les autres', () => {
+  const rec = (gameId: string, phase: LaunchStatus['phase'], o: { cardDone?: boolean; checking?: boolean } = {}) => ({
+    gameId,
+    checking: !!o.checking,
+    cardDone: !!o.cardDone,
+    status: status({ gameId, phase })
+  })
+  const all = {
+    a: rec('g1', 'failed'),
+    b: rec('g1', 'early-exit', { cardDone: true }),
+    c: rec('g1', 'waiting'),
+    d: rec('g2', 'failed'),
+    e: rec('g1', 'already'),
+    f: rec('g1', 'sending', { checking: true })
+  }
+  const out = P.closeFinishedCards(all, 'g1')
+  assert.equal(out.a.cardDone, true)
+  assert.equal(out.e.cardDone, true)
+  assert.equal(out.b, all.b) // déjà fermée : même objet
+  assert.equal(out.c, all.c) // encore en attente : elle garde sa carte
+  assert.equal(out.d, all.d) // autre jeu
+  assert.equal(out.f, all.f)
+  assert.equal(all.a.cardDone, false) // rien n'est modifié en place
+  const quiet = { d: rec('g2', 'failed') }
+  assert.equal(P.closeFinishedCards(quiet, 'g1'), quiet)
+})

@@ -7,10 +7,10 @@ import { flushSync } from 'react-dom'
 import { cleanName } from '@shared/text'
 import type { LaunchRoute, LaunchStatus, LaunchVia } from '@shared/launch'
 import type { Game } from '@shared/types'
-import { createStore, isIdle, tier, useStore } from '../update/session'
+import { createStore, isIdle, tier } from '../update/session'
 import { revealDone, warpActive } from '../update/stage'
 import { announcement, clickAnnouncement, pendingAnnouncement, slowAnnouncement } from './copy'
-import { CARD_CAP_MS, isPending, SLOW_MS, STAGE_REPEAT_MS } from './phase'
+import { CARD_CAP_MS, closeFinishedCards, freezesDate, isPending, SLOW_MS, STAGE_REPEAT_MS } from './phase'
 import { playLaunchVisual, type Entrance } from './sequence'
 
 export interface LaunchView {
@@ -32,7 +32,7 @@ export interface LaunchView {
   bump: number
   /** Carte fermée (×, action, temps écoulé). */
   cardDone: boolean
-  /** Revenu par launch:list après un rechargement : ni entrée animée, ni annonce. */
+  /** Revenu par launch:list après un rechargement : ni entrée animée, ni annonce de ce retour (les phases suivantes, si). */
   hydrated: boolean
   entrance: Entrance
 }
@@ -80,8 +80,9 @@ function arm(id: string, ms: number, fn: () => void): void {
 function armPhase(v: LaunchView): void {
   clearTimers(v.launchId)
   const s = v.status
-  if (s.phase === 'waiting' && !s.demo && !v.hydrated) {
-    const at = (s.handedAt ?? s.clickAt) + SLOW_MS
+  const at = (s.handedAt ?? s.clickAt) + SLOW_MS
+  // Revenu après un rechargement au-delà des 90 s : rien à lire d'un coup, l'attente était déjà « Toujours en attente ».
+  if (s.phase === 'waiting' && !s.demo && !(v.hydrated && at <= Date.now())) {
     arm(v.launchId, at - Date.now(), () => {
       const cur = launches.get()[v.launchId]
       if (cur?.status.phase === 'waiting' && !cur.status.steamUpdating) announce(slowAnnouncement(cur.name))
@@ -139,7 +140,8 @@ function merge(s: LaunchStatus, o: { hydrated?: boolean } = {}): void {
     return out
   })
   if (changed) armPhase(next)
-  if (!hydrated) announce(announcement(prev, s, name, now))
+  // Seul le retour par launch:list est muet : ce qui change ensuite est annoncé comme d'habitude.
+  if (cur || !o.hydrated) announce(announcement(prev, s, name, now))
 }
 
 let bound = 0
@@ -173,14 +175,17 @@ const gamesById = new Map<string, Game>()
 const frozen = new Map<string, number | undefined>()
 /** Dernière mise à feu jouée par jeu (performance.now()) : pas deux fois en 10 min. */
 const lastStageAt = new Map<string, number>()
-/** Bouton qui avait le focus au clic : il le reprend si la carte part en le tenant. */
-const sources = new Map<string, HTMLElement>()
+/**
+ * Bouton qui avait le focus au clic : il le reprend si la carte part en le tenant. Référence faible : un écran quitté
+ * (bibliothèque démontée) n'est pas retenu en mémoire par son bouton Jouer.
+ */
+const sources = new Map<string, WeakRef<HTMLElement>>()
 
 /** Le jeu tel que l'interface le connaît (vignette de la carte, Réessayer). */
 export const gameOf = (id: string): Game | undefined => gamesById.get(id)
 /** Contrôle d'où est parti un lancement, s'il est encore dans la page. */
 export function focusSource(id: string): HTMLElement | null {
-  const el = sources.get(id)
+  const el = sources.get(id)?.deref()
   return el?.isConnected ? el : null
 }
 
@@ -259,7 +264,11 @@ export function startLaunch(game: Game, from?: HTMLElement | null, via: LaunchVi
   frozen.set(game.id, game.lastPlayed)
   gamesById.set(game.id, game)
   const active = document.activeElement
-  if (active instanceof HTMLElement && active !== document.body) sources.set(launchId, active)
+  // Parti d'une carte (« Réessayer », « Relancer quand même ») : son bouton disparaît avec elle, le nouveau lancement
+  // garde le contrôle d'où était parti le précédent.
+  const card = active instanceof HTMLElement ? active.closest<HTMLElement>('.launch-card[data-launch-id]') : null
+  const src = card ? sources.get(card.dataset.launchId ?? '')?.deref() : active
+  if (src instanceof HTMLElement && src !== document.body) sources.set(launchId, new WeakRef(src))
   const status: LaunchStatus = {
     launchId,
     gameId: game.id,
@@ -285,7 +294,9 @@ export function startLaunch(game: Game, from?: HTMLElement | null, via: LaunchVi
     hydrated: false,
     entrance
   }
-  const commit = (): void => launches.set((a) => ({ ...a, [launchId]: view }))
+  // Les cartes terminées de ce jeu (échec, jeu fermé, déjà en jeu) se ferment dans le même rendu : sinon l'ancienne
+  // reviendrait quand la nouvelle part (« Lancement impossible » pendant que les boutons disent « En jeu »).
+  const commit = (): void => launches.set((a) => ({ ...closeFinishedCards(a, game.id), [launchId]: view }))
   try {
     flushSync(commit)
   } catch {
@@ -346,10 +357,9 @@ function chooseEntrance(game: Game, from: HTMLElement | null | undefined, via: L
 
 // ---------- lecture ----------
 
-/** Lancements de ce jeu, pour ses boutons. */
+/** Lancements de ce jeu, pour ses boutons : un bouton ne se redessine que si le lancement de son jeu change. */
 export function useLatestLaunch(gameId: string): LaunchView | null {
-  const all = useStore(launches)
-  return useMemo(() => latestFor(all, gameId), [all, gameId])
+  return useSyncExternalStore(launches.subscribe, () => latestFor(launches.get(), gameId))
 }
 
 /** Un vrai lancement attend (hors démo) : retient le compte à rebours d'une mise à jour, coupe son aperçu. */
@@ -369,18 +379,22 @@ export function dockRecord(all: Record<string, LaunchView>): LaunchView | null {
   return best
 }
 
-/**
- * Bibliothèque montrée aux écrans : la date de dernier lancement d'un jeu qui se lance reste celle d'avant le clic,
- * pour que ni l'accueil ni « Récents » ne bougent sous le curseur. Levée dès que le lancement aboutit ou s'arrête.
- */
-export function useFrozenGames(games: Game[]): Game[] {
-  const all = useStore(launches)
-  for (const g of games) gamesById.set(g.id, g)
-  const busy = Object.values(all)
-    .filter(isBusy)
+/** Jeux dont la date reste gelée, en une chaîne stable : la coque ne se redessine que quand cet ensemble change. */
+const frozenKey = (): string =>
+  Object.values(launches.get())
+    .filter(freezesDate)
     .map((v) => v.gameId)
     .sort()
     .join('|')
+
+/**
+ * Bibliothèque montrée aux écrans : la date de dernier lancement d'un jeu qui se lance reste celle d'avant le clic,
+ * pour que ni l'accueil ni « Récents » ne bougent sous le curseur. Levée dès que le jeu est détecté (un relais ne la
+ * remet pas : la date fraîche est déjà affichée), ou que le lancement s'arrête.
+ */
+export function useFrozenGames(games: Game[]): Game[] {
+  const busy = useSyncExternalStore(launches.subscribe, frozenKey)
+  for (const g of games) gamesById.set(g.id, g)
   return useMemo(() => {
     if (!busy) return games
     const ids = new Set(busy.split('|'))
