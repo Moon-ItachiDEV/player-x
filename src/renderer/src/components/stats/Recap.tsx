@@ -24,12 +24,16 @@ const MAX_HISTORY = 5
 
 /** Bilan affiché, un seul à la fois. */
 const shown = createStore<Bf6Recap | null>(null)
-/** Bilans déjà proposés ou ouverts depuis le lancement de Player X : jamais proposés deux fois. */
+/**
+ * Bilans déjà proposés ou ouverts depuis le lancement de Player X : jamais proposés deux fois. Par fin de session : une
+ * session prolongée (jeu relancé avant que le bilan soit complet) est proposée de nouveau à sa nouvelle fin.
+ */
 const offered = new Set<string>()
+const offerKey = (r: Bf6Recap): string => `${r.id}@${r.endedAt}`
 
 /** Ouvre la carte d'un bilan. Un vrai bilan ouvert n'est plus proposé. */
 export function openRecap(recap: Bf6Recap): void {
-  offered.add(recap.id)
+  offered.add(offerKey(recap))
   shown.set(recap)
   if (!recap.sample && !recap.seen) api.bf6RecapSeen(recap.id).catch(() => {})
 }
@@ -335,8 +339,8 @@ export function RecapHost({ games, onOpenStats }: { games: Game[]; onOpenStats: 
 
   const offer = useCallback(
     (r: Bf6Recap) => {
-      if (offered.has(r.id) || shown.get()?.id === r.id) return
-      offered.add(r.id)
+      if (offered.has(offerKey(r)) || shown.get()?.id === r.id) return
+      offered.add(offerKey(r))
       notify('Ton bilan Battlefield 6 est prêt', { id: 'bf6-recap', duration: TOAST_MS, action: { label: 'Voir le bilan', onClick: () => openLatest(r) } })
     },
     [notify]
@@ -390,7 +394,7 @@ export function RecapHost({ games, onOpenStats }: { games: Game[]; onOpenStats: 
 
 // ---------- encart de la page Stats ----------
 
-/** Bilans et session en cours, relus quand un jeu démarre ou s'arrête et quand un bilan arrive ou se ferme. */
+/** Bilans et session en cours, relus quand la session suivie change et quand un bilan arrive ou se ferme. */
 function useRecapState(): Bf6RecapState | null {
   const [state, setState] = useState<Bf6RecapState | null>(null)
   useEffect(() => {
@@ -402,12 +406,12 @@ function useRecapState(): Bf6RecapState | null {
         .catch(() => {})
     }
     load()
-    const offGames = api.onGamesChanged(load)
+    const offState = api.onBf6RecapState(load)
     const offRecap = api.onBf6Recap(load)
     const offShown = shown.subscribe(load)
     return () => {
       live = false
-      offGames()
+      offState()
       offRecap()
       offShown()
     }

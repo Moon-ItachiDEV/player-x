@@ -313,7 +313,7 @@ export interface Bf6Recap {
 export interface Bf6RecapState {
   /** Réglage « Bilan Battlefield 6 ». */
   enabled: boolean
-  /** Session suivie : jeu en cours (sans `endedAt`), ou terminé et bilan en préparation. */
+  /** Session suivie : jeu en cours (sans `endedAt`), ou terminé et bilan pas encore prêt. */
   pending: { startedAt: number; endedAt?: number } | null
   /** Les plus récents d'abord. Vide en mode démo. */
   recaps: Bf6Recap[]
@@ -447,6 +447,8 @@ export interface LauncherApi {
   bf6RecapSeen(id: string): Promise<void>
   /** Bilan prêt, complété, ou à ouvrir (clic sur la notification Windows). Renvoie la fonction de désabonnement. */
   onBf6Recap(cb: (e: Bf6RecapEvent) => void): () => void
+  /** Session suivie commencée, terminée ou close : `bf6Recaps().pending` a changé. Renvoie la fonction de désabonnement. */
+  onBf6RecapState(cb: () => void): () => void
   /** Alertes d'amis à afficher dans la fenêtre (quand elle est au premier plan ; sinon Windows les affiche). */
   onFriendAlert(cb: (alerts: FriendAlert[]) => void): () => void
   /** Clic sur une notification Windows : ouvrir le panneau d'amis. */

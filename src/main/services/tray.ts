@@ -23,6 +23,7 @@ let quitting = false
 let playing: string[] = []
 /** Gardée tant qu'elle vit, sinon son clic est perdu. */
 let hint: Notification | null = null
+let onHide = (): void => {}
 
 function mainWindow(): BrowserWindow | undefined {
   return BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
@@ -76,11 +77,17 @@ export function attachWindow(win: BrowserWindow): void {
     if (quitting || !tray || !getSettings().closeToTray) return
     e.preventDefault()
     win.hide()
+    onHide()
     showHint()
   })
   // Arrêt ou redémarrage de Windows : la fenêtre ne doit pas le retenir.
   win.on('query-session-end', () => (quitting = true))
   win.on('session-end', () => (quitting = true))
+}
+
+/** La croix vient de ranger la fenêtre : un choix de l'utilisateur, que la fin d'une partie ne défait pas. */
+export function onHideToTray(cb: () => void): void {
+  onHide = cb
 }
 
 /** Inscrit (ou retire) Player X des programmes lancés à l'ouverture de la session Windows. Version installée seulement. */

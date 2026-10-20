@@ -96,6 +96,8 @@ function load(): Session | null {
 function save(): void {
   if (session) setKv(SESSION_KEY, session)
   else deleteKv(SESSION_KEY)
+  // « Dernière session » dans Stats : en jeu, bilan en préparation, ou plus rien.
+  for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('bf6:recap-state')
 }
 
 /** Prochaine étape de la session (nouvel essai du relevé, ou relecture après la fermeture). */
@@ -206,12 +208,15 @@ function announce(recap: Bf6Recap, reason: 'ready' | 'updated'): void {
 async function begin(me: Bf6Account, partial: boolean): Promise<void> {
   const now = Date.now()
   const prev = session
+  // La précédente s'arrête là. La nouvelle est montrée tout de suite (« En jeu »), son relevé suit.
+  clearTimeout(timer)
+  const s: Session = { id: `bf6-${now}`, account: me, startedAt: now, beforeTries: 0, ...(partial ? { partial } : {}) }
+  session = s
+  save()
   const snap = await read(me, now - STALE_BEFORE_MS)
-  if (prev && prev === session) {
-    if (snap && prev.endedAt !== undefined && keyOf(prev.account) === keyOf(me)) record(prev, snap.stats)
-    close()
-  }
-  session = { id: `bf6-${now}`, account: me, startedAt: now, beforeTries: 0, ...(partial ? { partial } : {}), ...(snap ? { before: snap.stats } : {}) }
+  if (snap && prev?.endedAt !== undefined && keyOf(prev.account) === keyOf(me)) record(prev, snap.stats)
+  if (session !== s) return
+  if (snap) s.before = snap.stats
   setTimer(snap ? undefined : now + BEFORE_RETRY[0])
 }
 
@@ -319,9 +324,13 @@ function setRunning(now: boolean): void {
   enqueue(now ? started : stopped)
 }
 
-/** Battlefield 6 vient d'être vu en cours, ou vient de se fermer (suivi du temps de jeu). */
-export function setBf6Running(now: boolean): void {
-  if (!simulated) setRunning(now)
+/**
+ * Battlefield 6 vient d'être vu en cours, ou vient de se fermer (suivi du temps de jeu). `sure` : faux quand le jeu a
+ * disparu sans relevé fiable (mise en veille, liste des programmes illisible) ; la session continue jusqu'au relevé suivant.
+ */
+export function setBf6Running(now: boolean, sure = true): void {
+  if (simulated || (!now && !sure)) return
+  setRunning(now)
 }
 
 /** Développement seulement (bf6Sim.ts) : l'état du jeu vient du simulateur, plus du suivi du temps de jeu. */
@@ -349,9 +358,11 @@ export function bf6RecapState(): Bf6RecapState {
   // Mode démo : ni tes vrais bilans ni ta session en cours.
   if (demoMode) return { enabled: bf6Recap, pending: null, recaps: [] }
   const s = session
+  // Bilan déjà annoncé : il est dans la liste (et peut encore être complété), plus « en préparation ».
+  const showPending = s && !orphan && !(s.endedAt !== undefined && s.announced)
   return {
     enabled: bf6Recap,
-    pending: s && !orphan ? { startedAt: s.startedAt, ...(s.endedAt !== undefined ? { endedAt: s.endedAt } : {}) } : null,
+    pending: showPending ? { startedAt: s.startedAt, ...(s.endedAt !== undefined ? { endedAt: s.endedAt } : {}) } : null,
     recaps: recaps()
   }
 }

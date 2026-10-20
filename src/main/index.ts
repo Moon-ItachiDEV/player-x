@@ -34,7 +34,7 @@ import {
   storeWasRunning,
   withPlaytime
 } from './services/playtime'
-import { attachWindow, setTrayPlaying, startHidden, startTray, startupState, syncStartup } from './services/tray'
+import { attachWindow, onHideToTray, setTrayPlaying, startHidden, startTray, startupState, syncStartup } from './services/tray'
 import { initUpdater, takeRelaunchBounds } from './services/updater'
 import type { LaunchSim } from './launchSim'
 
@@ -103,7 +103,8 @@ function updateRunning(): void {
   const running = withPlaytime(db.listGames()).filter((g) => g.running)
   // La démo reste dans la fenêtre : rien dans le menu de l'icône.
   setTrayPlaying(getSettings().demoMode ? [] : running.map((g) => cleanName(g.name)))
-  setBf6Running(running.some((g) => isBf6Name(g.name)))
+  // Fin vue sans relevé fiable (mise en veille, PowerShell en panne) : le bilan attend le prochain relevé réussi.
+  setBf6Running(running.some((g) => isBf6Name(g.name)), lastPollOk())
 }
 
 // Favoris et lancements du mode démo : gardés à part pour ne jamais toucher la vraie bibliothèque.
@@ -341,7 +342,8 @@ function emitLaunch(s: LaunchStatus): void {
 
 /**
  * Fenêtre principale vue par le lancement : lue, réduite, ou rouverte sans activation. Un « restore » qui ne vient pas de
- * showInactive ci-dessous est celui de l'utilisateur : Player X ne reviendra plus tout seul.
+ * showInactive ci-dessous est celui de l'utilisateur : Player X ne reviendra plus tout seul. Pareil quand la croix
+ * range la fenêtre près de l'horloge.
  */
 function launchWindow(): LaunchWindow {
   const win = (): BrowserWindow | undefined => BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
@@ -356,9 +358,14 @@ function launchWindow(): LaunchWindow {
       onUser()
     })
   )
+  onHideToTray(() => onUser())
   return {
     focused: () => win()?.isFocused() ?? true,
-    minimized: () => win()?.isMinimized() ?? false,
+    // Rangée près de l'horloge : comme réduite, jamais réduite (Windows la remontrerait dans la barre des tâches) ni rouverte.
+    minimized: () => {
+      const w = win()
+      return !!w && (w.isMinimized() || !w.isVisible())
+    },
     maximized: () => win()?.isMaximized() ?? false,
     minimize: () => win()?.minimize(),
     showInactive: () => {

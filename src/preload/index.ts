@@ -54,6 +54,11 @@ const api: LauncherApi = {
     ipcRenderer.on('bf6:recap', listener)
     return () => ipcRenderer.removeListener('bf6:recap', listener)
   },
+  onBf6RecapState: (cb) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('bf6:recap-state', listener)
+    return () => ipcRenderer.removeListener('bf6:recap-state', listener)
+  },
   onFriendAlert: (cb) => {
     const listener = (_e: unknown, alerts: FriendAlert[]): void => cb(alerts)
     ipcRenderer.on('friends:alert', listener)
