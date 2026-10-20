@@ -13,6 +13,8 @@ export interface TopTab<T extends string> {
   icon?: IconName
   /** Compteur ou rang affiché après le libellé (« 14 », « 2e »). */
   badge?: string | number
+  /** Pastille d'alerte après le libellé, avec ce texte pour les lecteurs d'écran (« action requise »). */
+  alert?: string
 }
 
 interface Props<T extends string> {
@@ -65,6 +67,12 @@ export function TopTabs<T extends string>({ label, tabs, value, onChange, idBase
               t.label
             )}
             {t.badge !== undefined && <span className="tb-tab-badge num">{t.badge}</span>}
+            {t.alert && (
+              <span className="tb-tab-alert" title={t.alert}>
+                <Icon name="alert-circle" size={14} />
+                <span className="sr-only">· {t.alert}</span>
+              </span>
+            )}
           </button>
         )
       })}

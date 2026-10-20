@@ -775,11 +775,11 @@ function exitReveal(r: Reveal, fast: boolean): void {
   r.run.later(flight, () => finishReveal(r))
 }
 
-/** FLIP vers .rail-logo .brand-mark (rectangles lus une fois, maintenant) ; sans logo dans le rail, fondu sur place. */
+/** FLIP vers .favrail-logo .brand-mark (rectangles lus une fois, maintenant) ; sans logo dans le rail, fondu sur place. */
 function flyToRail(r: Reveal, mark: HTMLElement | null, ms: number, o: AnimOpts): void {
   if (!mark) return
   const a = mark.getBoundingClientRect()
-  const b = document.querySelector('.rail-logo .brand-mark')?.getBoundingClientRect()
+  const b = document.querySelector('.favrail-logo .brand-mark')?.getBoundingClientRect()
   if (b && b.width > 0 && b.height > 0 && a.height > 0) {
     const dx = b.left + b.width / 2 - (a.left + a.width / 2)
     const dy = b.top + b.height / 2 - (a.top + a.height / 2)

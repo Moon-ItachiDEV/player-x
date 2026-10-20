@@ -31,7 +31,7 @@ The update is one continuous object: the **reactor**, a 52 px core in a fixed-si
 | From | Taken |
 |---|---|
 | **Séquence Réacteur** (base) | Reactor, shield, energy cells, hyperspace warp, match cut across the NSIS gap, boot reveal, main-owned clamped restart delay with failsafe, kv handoff with measured « de retour en N s », `initialTier()`, step queue, stall handling, refused-shield card. |
-| **Métamorphose** | Motion is data (zero infinite animations while downloading), translate-not-scale fills, `anim()` tier gate for WAAPI, mark flying into `.rail-logo .brand-mark` at the end of the reveal, `PX_UPDATE_SIM` dev simulator, no ETA, data lines in `--text-2`, preview never invents a target version. |
+| **Métamorphose** | Motion is data (zero infinite animations while downloading), translate-not-scale fills, `anim()` tier gate for WAAPI, mark flying into `.favrail-logo .brand-mark` at the end of the reveal, `PX_UPDATE_SIM` dev simulator, no ETA, data lines in `--text-2`, preview never invents a target version. |
 | **Overdrive** | Counter-translated gradient bar, zero-animation mini pill while a game runs, celebration deferred to the next focus, mandatory hover and focus-within countdown pause, WAAPI charge fill inside « Redémarrer », error tone by code, `check()` guard, WhatsNew stat chips, « Voir l'aperçu » in the shipping WhatsNew, « Copier l'empreinte », « Plus tard » toast, 1 MiB hashing chunks, `gotProgress` rule, `win.setProgressBar`. |
 | **New here** | The implosion uses a **View Transition snapshot** instead of animating `.shell`. `install()` returns an `InstallResult` and the renderer has its own watchdog, which fixes the stuck UI. The reveal holds a static frame until `.boot` is gone. Relaunch restores the window bounds. SVG "line draws" are replaced by transform/opacity stamps. |
 
@@ -1585,12 +1585,12 @@ No record at all (for example the first update **into** 0.6.0, done by 0.5.1, wh
 | 1400–1640 | `.stage-text` | opacity 1 → 0, `scale(1) → scale(.98)` | `--ease-in` |
 | 1400–1800 | `.stage-ring` | `scale(1)` opacity 1 → `scale(1.3)` opacity 0 | `--ease-in` |
 | 1400–1900 | `.stage-shock` (160 px ring, 1.5 px `--accent-line`) | `scale(.3)` opacity .5 → `scale(2.6)` opacity 0 | `--ease-out` |
-| 1400–2000 | `.stage-mark` | **FLIP to `.rail-logo .brand-mark`**: `translate(dx, dy) scale(18 / 40)`. Rects are read once at 1400 ms. | `--ease-glide` |
+| 1400–2000 | `.stage-mark` | **FLIP to `.favrail-logo .brand-mark`**: `translate(dx, dy) scale(15 / 40)`. Rects are read once at 1400 ms. | `--ease-glide` |
 | 1450–1950 | `.stage-veil` | opacity 1 → 0: the UI appears under the flying mark | `--ease-out` |
 | 1400 | `.stage` | `pointer-events` stays `none`; the skip listeners are removed, so input reaches the UI from here on | — |
 | 2000 | — | remove `html.px-revealing` (the real logo shows exactly where the flying mark lands), unmount the stage, `revealDone.set(true)` | — |
 
-If `.rail-logo .brand-mark` is missing (macOS, Login or Setup on screen), the mark fades in place instead: `scale(1) → scale(.9)`, opacity → 0, 400 ms.
+If `.favrail-logo .brand-mark` is missing (macOS, Login or Setup on screen), the mark fades in place instead: `scale(1) → scale(.9)`, opacity → 0, 400 ms.
 
 Data:
 
@@ -1663,7 +1663,7 @@ createPortal(
 .stage-skip { position: absolute; left: 0; right: 0; bottom: 32px; text-align: center; font: 400 12px/16px var(--font-ui); color: var(--text-3); opacity: 0; }
 .stage-badge { position: absolute; top: 60px; left: 50%; translate: -50% 0; height: 24px; padding: 0 10px; border-radius: var(--r-pill);
   background: var(--accent-soft); color: var(--accent-text); font: 600 11px/24px var(--font-ui); letter-spacing: .06em; text-transform: uppercase; }
-html.px-revealing .rail-logo .brand-mark { opacity: 0; }
+html.px-revealing .favrail-logo .brand-mark { opacity: 0; }
 /* Reveal: hidden during the hold; WAAPI entrances use fill 'both', so a skipped animation (anim() → null) just shows the element. */
 .stage[data-mode='reveal'][data-phase='hold'] :is(.stage-text, .stage-skip, .stage-ring) { opacity: 0; }
 .stage[data-mode='reveal'][data-phase='run'][data-tier='full'] .stage-ring { opacity: 1; }
@@ -2031,7 +2031,7 @@ Helpers in `update-anim.mjs`:
 | S12 | Warp, Full | click « Redémarrer » | `calls.length === 1`, `opts.delayMs === 1200`, `calls[0].at` ≤ the start of the first stage animation; `html.vt-warp` during the transition; `.shell[inert]`; all stage anims `finished` by `quitAt − 120`; no rAF from streaks afterwards; canvas `width === 0` | screencast 0–1200 ms (check that the snapshot recedes **over** the veil; if not, log it as the documented degradation); final-frame screenshot. In the mock nothing quits, so end the scenario before the watchdog aborts at 11.2 s. |
 | S13 | Warp, other tiers | Sober (`pg.ui.visualFx = false`), Reduced, `document.hidden` | delayMs 450 / 150 / 0; Sober: no canvas, no `vt-warp`; Reduced: 0 stage anims, final frame at once; hidden: no stage | screencast Sober; screenshot Reduced |
 | S14 | Warp failures | `installResult` `{ok:false}`; `'reject'`; `'hang'` + clock `delay + 10 s`; ok then emit `ready` | each: stage gone ≤ 300 ms; no `inert`; focus on « Redémarrer »; sub « Redémarre quand tu veux »; error toast; countdown never restarts for that version | screenshot after abort |
-| S15 | Reveal, cinematic | `pg.lastVersion = '0.5.1'`; `lastUpdate = {from:'0.5.1', to:'0.6.0', fingerprint, downloadMs:38000, backMs:12000, relaunch:true, thisBoot:true, installedAt}`; reload | first frame = veil + mark at M (pixel diff of the mark region vs the S12 final frame < 2 %); hold until `.boot` is gone; timeline; at 2000 ms the flying mark rect equals `.rail-logo .brand-mark` rect ± 1 px; `px-revealing` removed; WhatsNew opens with 4 chips | screencast 0–2200 ms; WhatsNew screenshot |
+| S15 | Reveal, cinematic | `pg.lastVersion = '0.5.1'`; `lastUpdate = {from:'0.5.1', to:'0.6.0', fingerprint, downloadMs:38000, backMs:12000, relaunch:true, thisBoot:true, installedAt}`; reload | first frame = veil + mark at M (pixel diff of the mark region vs the S12 final frame < 2 %); hold until `.boot` is gone; timeline; at 2000 ms the flying mark rect equals `.favrail-logo .brand-mark` rect ± 1 px; `px-revealing` removed; WhatsNew opens with 4 chips | screencast 0–2200 ms; WhatsNew screenshot |
 | S16 | Reveal variants | `relaunch:false`; unfocused; Reduced; no record; skip by key (with a `keydown` spy on `document`); reload after reveal | Sober ≈ 1.06 s; quiet 260 ms; Reduced: no `.stage`, WhatsNew at once; no record: versions only, no chips; skip: exit ≤ 300 ms and the spy is **not** called; reload: no reveal (`pg.update.revealed`) | screencasts |
 | S17 | Preview | À propos › « Voir l'aperçu »; let it run; repeat with Esc in each phase; repeat with a real `downloading` mid-way | `calls` stays empty; every card kicker starts with « Aperçu »; the only version text is `VERSION`; Esc cleans up (no `inert`, no `vt-warp`, no `.stage`, no `px-revealing`); a real event stops it | full video; screenshots per phase |
 | S18 | À propos | each state; copy the fingerprint (grant `clipboard-write`) | phrases per §13.8; `canCheck` false in verifying and installing; clipboard = 128 hex; toast « Empreinte copiée »; the preview button is disabled during real states | screenshots |
@@ -2094,7 +2094,7 @@ Run with `node --experimental-strip-types --test src/main/services/updateHandoff
 | 9 | Preview (card + warp + reveal + WhatsNew preview) and the À propos row | P0 (it is how the user sees it now) |
 | 10 | À propos new states and track | P0 |
 | 11 | QA harness S1–S19, main tests | P0 |
-| 12 | Mark FLIP into `.rail-logo` | P1 |
+| 12 | Mark FLIP into `.favrail-logo` | P1 |
 | 13 | WhatsNew chips, `VersionRoll`, « Voir l'aperçu » (`PREVIEW_INTRO`) | P1 |
 | 14 | Fingerprint row and « Copier l'empreinte » | P1 |
 | 15 | Window bounds restore, `setProgressBar` | P1 |

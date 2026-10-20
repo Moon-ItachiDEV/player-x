@@ -489,6 +489,10 @@
   letter-spacing: 0;
   text-transform: none;
 }
+.tb-tab-alert {
+  display: inline-grid;
+  color: var(--warning);
+}
 .tb-tab[aria-selected='true'] .tb-tab-badge {
   color: inherit;
   opacity: 0.7;

@@ -183,7 +183,7 @@
 }
 
 /* Le vrai logo du rail se cache pendant le retour : la marque volante s'y pose (§8.4). */
-html.px-revealing .rail-logo .brand-mark {
+html.px-revealing .favrail-logo .brand-mark {
   opacity: 0;
 }
 

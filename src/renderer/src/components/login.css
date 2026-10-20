@@ -71,28 +71,36 @@
   color: var(--text-2);
 }
 
-/* Bouton fournisseur (Steam) */
+/* Bouton fournisseur (Steam) : l'action principale de l'écran, en jaune */
 .login-provider {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
   height: 48px;
-  padding: 0 16px;
-  border-radius: 12px;
-  background: var(--surface-1);
-  border: 1px solid var(--line-2);
-  color: var(--text-1);
-  font: 600 14px/20px var(--font-ui);
+  padding: 0 16px 0 10px;
+  border-radius: var(--r-md);
+  background: var(--accent-solid);
+  border: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  color: var(--on-accent);
+  font: 700 14px/20px var(--font-ui);
   text-align: left;
   transition:
     background-color var(--d-1) var(--ease-out),
-    border-color var(--d-1) var(--ease-out),
+    box-shadow var(--d-1) var(--ease-out),
     transform 80ms var(--ease-out);
 }
 .login-provider:hover:not(:disabled) {
-  background: var(--surface-2);
-  border-color: var(--line-3);
+  background: var(--accent-solid-hover);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    var(--glow-accent);
+}
+.login-provider:focus-visible:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    var(--focus);
 }
 .login-provider:active:not(:disabled) {
   transform: scale(0.97);
@@ -103,12 +111,15 @@
 .login-provider-tile {
   display: inline-flex;
 }
+.login-provider-tile .store-tag {
+  background: var(--bg-0);
+}
 .login-provider-label {
   flex: 1;
   min-width: 0;
 }
 .login-provider-chevron {
-  color: var(--text-3);
+  color: var(--on-accent);
   transition: transform var(--d-1) var(--ease-out);
 }
 .login-provider:hover:not(:disabled) .login-provider-chevron {
@@ -235,7 +246,7 @@
   pointer-events: none;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--bg-0) 90%, transparent) 0, transparent 120px),
-    radial-gradient(60% 60% at 70% 40%, color-mix(in srgb, var(--brand-violet) 18%, transparent), transparent 70%),
+    radial-gradient(60% 60% at 70% 40%, rgb(47 124 246 / 0.16), transparent 70%),
     linear-gradient(
       90deg,
       var(--bg-1) 0%,

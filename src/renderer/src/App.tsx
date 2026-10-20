@@ -33,8 +33,8 @@ const DEFAULT_UI: UiPrefs = { friendsPanel: 'open', coverSize: 'M', reduceMotion
 
 const SETUP_KEY = 'pg.setup'
 
-/** Titre de la barre du haut ; la bibliothèque et les stats y posent leurs onglets à la place. */
-const VIEW_TITLE: Partial<Record<View, string>> = { home: 'Accueil', profile: 'Profil', settings: 'Paramètres' }
+/** Titre de la barre du haut ; la bibliothèque, les stats et les paramètres y posent leurs onglets à la place. */
+const VIEW_TITLE: Partial<Record<View, string>> = { home: 'Accueil', profile: 'Profil' }
 
 function setupDone(): boolean {
   try {

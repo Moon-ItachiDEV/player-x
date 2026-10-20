@@ -57,8 +57,10 @@ export function Profile({ games, accounts, friends, launchingId, onOpenGame, onL
 
   return (
     <div className="page prof">
-      <Banner urls={bannerUrls} />
-      <Identity accounts={accounts} onManageAccounts={onManageAccounts} />
+      <header className="prof-hero">
+        <Banner urls={bannerUrls} />
+        <Identity accounts={accounts} onManageAccounts={onManageAccounts} />
+      </header>
 
       <section className="prof-stats" aria-label="Statistiques">
         <StatTile
@@ -216,10 +218,11 @@ function Identity({ accounts, onManageAccounts }: { accounts: Account[]; onManag
   return (
     <section className="prof-identity" aria-label="Identité">
       <div className="prof-avatar">
-        <Avatar name={name} url={main?.avatarUrl} size={104} status={main ? 'connected' : 'guest'} />
+        <Avatar name={name} url={main?.avatarUrl} size={88} status={main ? 'connected' : 'guest'} />
       </div>
       <div className="prof-id-text">
-        <h1 className="display-l prof-name" title={name}>
+        <span className="prof-kicker">Ton profil</span>
+        <h1 className="prof-name" title={name}>
           {name}
         </h1>
         {linked.length > 0 ? (
