@@ -20,7 +20,8 @@ import {
   type AnimOpts,
   type Tier
 } from './session'
-import { runStreaks, stopAllStreaks, type StreakRun } from './streaks'
+import { Run } from './run'
+import { runStreaks, stopAllStreaks } from './streaks'
 
 export type StageMode = 'idle' | 'warp' | 'reveal'
 export type StagePhase = 'hold' | 'run' | 'exit'
@@ -215,47 +216,6 @@ const twoFrames = (): Promise<void> =>
       })
     )
   })
-
-/** Minuteries, animations, écouteurs et traînées d'une course de la scène : tout se range d'un coup. */
-class Run {
-  anims: Animation[] = []
-  streaks: StreakRun | null = null
-  private timers: ReturnType<typeof setTimeout>[] = []
-  private offs: (() => void)[] = []
-
-  play(el: Element | null | undefined, k: KeyframeSet, o: AnimOpts = {}): Animation | null {
-    const a = anim(el, k.frames, { ...k.opts, ...o })
-    if (a) this.anims.push(a)
-    return a
-  }
-
-  later(ms: number, fn: () => void): void {
-    this.timers.push(setTimeout(fn, Math.max(0, ms)))
-  }
-
-  on(off: () => void): void {
-    this.offs.push(off)
-  }
-
-  settle(how: 'finish' | 'cancel'): void {
-    this.streaks?.stop()
-    for (const a of this.anims) {
-      try {
-        if (how === 'finish') a.finish()
-        else a.cancel()
-      } catch {
-        /* pseudo-élément déjà disparu */
-      }
-    }
-  }
-
-  dispose(): void {
-    for (const t of this.timers) clearTimeout(t)
-    this.timers = []
-    for (const off of this.offs.splice(0)) off()
-    this.streaks?.stop()
-  }
-}
 
 // ---------- saut (§7) ----------
 

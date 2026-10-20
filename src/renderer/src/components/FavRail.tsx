@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import { cleanName } from '@shared/text'
 import type { Game } from '@shared/types'
-import type { FavRailProps } from '../contracts'
+import type { FavRailProps, LaunchFn } from '../contracts'
+import { railHint } from '../launch/copy'
+import { usePlayState } from '../launch/usePlayState'
 import { BrandMark } from './ui/Brand'
 import { Cover } from './ui/Cover'
 import { Icon } from './ui/Icon'
@@ -19,7 +21,7 @@ interface Tip {
 }
 
 /** Rail des jeux favoris : un clic lance le jeu, un clic droit ouvre sa fiche. Ordre alphabétique, stable. */
-export function FavRail({ games, launchingId, onLaunch, onOpen, onEditFavorites }: FavRailProps): React.JSX.Element {
+export function FavRail({ games, onLaunch, onOpen, onEditFavorites }: FavRailProps): React.JSX.Element {
   const favs = useMemo(() => games.filter((g) => g.favorite).sort((a, b) => collator.compare(cleanName(a.name), cleanName(b.name))), [games])
   const [tip, setTip] = useState<Tip | null>(null)
   const list = useRef<HTMLDivElement>(null)
@@ -37,50 +39,84 @@ export function FavRail({ games, launchingId, onLaunch, onOpen, onEditFavorites 
     <nav className="favrail" aria-label="Jeux favoris">
       <div className="favrail-logo">{!IS_MAC && <BrandMark height={15} />}</div>
       <div ref={list} className="favrail-list" onScroll={hide}>
-        {favs.map((g) => {
-          const name = cleanName(g.name)
-          const launching = launchingId === g.id
-          return (
-            <button
-              key={g.id}
-              className={`favrail-item ${g.running ? 'is-live' : ''} ${launching ? 'is-launching' : ''}`}
-              aria-label={`Jouer à ${name}${g.running ? ', en jeu' : ''}`}
-              aria-describedby={tip?.game.id === g.id ? 'favrail-tip' : undefined}
-              aria-busy={launching || undefined}
-              onClick={() => !launching && onLaunch(g)}
-              onContextMenu={(e) => {
-                e.preventDefault()
-                hide()
-                onOpen(g)
-              }}
-              onPointerEnter={(e) => show(g, e.currentTarget)}
-              onPointerLeave={hide}
-              onFocus={(e) => e.currentTarget.matches(':focus-visible') && show(g, e.currentTarget)}
-              onBlur={hide}
-            >
-              <span className="favrail-art">
-                <Cover game={g} variant="letter" />
-              </span>
-              {launching && (
-                <span className="favrail-busy" aria-hidden="true">
-                  <span className="spinner" />
-                </span>
-              )}
-              {g.running && <span className="favrail-dot fx-loop" aria-hidden="true" />}
-            </button>
-          )
-        })}
+        {favs.map((g) => (
+          <RailItem
+            key={g.id}
+            game={g}
+            described={tip?.game.id === g.id}
+            onLaunch={onLaunch}
+            onOpen={(game) => {
+              hide()
+              onOpen(game)
+            }}
+            onShow={show}
+            onHide={hide}
+          />
+        ))}
         <button className="favrail-item favrail-add" aria-label="Choisir mes favoris" title="Choisir mes favoris" onClick={onEditFavorites}>
           <Icon name="plus" size={18} />
         </button>
       </div>
 
-      {tip && tipGame && (
-        <div id="favrail-tip" className="favrail-tip" role="tooltip" style={{ top: tip.top }}>
-          <span className="favrail-tip-name">{cleanName(tipGame.name)}</span>
-          <span className="favrail-tip-hint">{tipGame.running ? 'En jeu · ' : ''}Clic : jouer · clic droit : fiche</span>
-        </div>
-      )}
+      {tip && tipGame && <RailTip game={tipGame} top={tip.top} onLaunch={onLaunch} />}
     </nav>
+  )
+}
+
+interface RailItemProps {
+  game: Game
+  described: boolean
+  onLaunch: LaunchFn
+  onOpen: (g: Game) => void
+  onShow: (g: Game, el: HTMLElement) => void
+  onHide: () => void
+}
+
+/** Un favori : le lancement s'y lit sans texte (anneau jaune immobile en attente, anneau cyan en jeu). */
+function RailItem({ game: g, described, onLaunch, onOpen, onShow, onHide }: RailItemProps): React.JSX.Element {
+  const art = useRef<HTMLSpanElement>(null)
+  const p = usePlayState(g, onLaunch)
+  const name = cleanName(g.name)
+  const live = p.state === 'running'
+  const sending = p.state === 'sending' || p.state === 'checking'
+  const pending = p.state === 'pending'
+  const label = live ? `${name}, en jeu` : pending ? `${name}, en attente` : sending ? p.ariaLabel : `Jouer à ${name}`
+  return (
+    <button
+      className={`favrail-item ${live ? 'is-live' : ''} ${pending ? 'is-pending' : ''} ${sending ? 'is-launching' : ''}`}
+      aria-label={label}
+      aria-describedby={described ? 'favrail-tip' : undefined}
+      aria-disabled={p.inert || undefined}
+      aria-busy={p.busy || undefined}
+      onClick={() => p.activate(art.current)}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        onOpen(g)
+      }}
+      onPointerEnter={(e) => onShow(g, e.currentTarget)}
+      onPointerLeave={onHide}
+      onFocus={(e) => e.currentTarget.matches(':focus-visible') && onShow(g, e.currentTarget)}
+      onBlur={onHide}
+    >
+      <span ref={art} className="favrail-art">
+        <Cover game={g} variant="letter" />
+      </span>
+      {sending && (
+        <span className="favrail-busy" aria-hidden="true">
+          <span className="spinner launch-spin" />
+        </span>
+      )}
+      {live && <span className="favrail-dot fx-loop" aria-hidden="true" />}
+    </button>
+  )
+}
+
+function RailTip({ game, top, onLaunch }: { game: Game; top: number; onLaunch: LaunchFn }): React.JSX.Element {
+  const p = usePlayState(game, onLaunch)
+  return (
+    <div id="favrail-tip" className="favrail-tip" role="tooltip" style={{ top }}>
+      <span className="favrail-tip-name">{cleanName(game.name)}</span>
+      <span className="favrail-tip-hint">{railHint(p.state)}</span>
+    </div>
   )
 }

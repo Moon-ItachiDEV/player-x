@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { capitalize, cleanName, formatPlaytime, norm, plural, timeAgo } from '@shared/text'
 import type { Friend, Game } from '@shared/types'
-import type { HomeProps } from '../../contracts'
+import type { HomeProps, LaunchFn } from '../../contracts'
+import { PlayLabel } from '../../launch/PlayLabel'
+import { usePlayState } from '../../launch/usePlayState'
 import { follow, fxOn, motionReduced, setArtBase, setArtFocus, setMorphSource } from '../../motion'
 import { FavStar, usePop } from '../library/GameCard'
 import { NoGames } from '../library/NoGames'
@@ -21,7 +23,9 @@ const hasArt = (g: Game): boolean => !!(g.heroUrl || g.coverUrl)
 
 /** Jeu à la une : celui qui tourne, sinon le dernier lancé, sinon un favori (puis un jeu) avec une image. */
 function pickHero(games: Game[]): Game | null {
-  const running = games.find((g) => g.running)
+  // Plusieurs jeux en cours : le dernier démarré.
+  let running: Game | null = null
+  for (const g of games) if (g.running && (!running || (g.runningSince ?? 0) > (running.runningSince ?? 0))) running = g
   if (running) return running
   let recent: Game | null = null
   for (const g of games) if (g.lastPlayed && (!recent || g.lastPlayed > (recent.lastPlayed ?? 0))) recent = g
@@ -59,7 +63,7 @@ export function playersLabel(players: Friend[]): string {
 }
 
 export function Home(props: HomeProps): React.JSX.Element {
-  const { games, friends, scanning, report, demo, launchingId, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, onShowLibrary } = props
+  const { games, friends, scanning, report, demo, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, onShowLibrary } = props
   const hero = useMemo(() => pickHero(games), [games])
   const heroId = hero?.id
 
@@ -89,7 +93,6 @@ export function Home(props: HomeProps): React.JSX.Element {
         key={hero.id}
         game={hero}
         players={playersOf(hero, friends)}
-        launching={launchingId === hero.id}
         onLaunch={onLaunch}
         onOpen={onOpen}
         onFavorite={onFavorite}
@@ -100,7 +103,6 @@ export function Home(props: HomeProps): React.JSX.Element {
           sub={resumed ? 'Tes derniers jeux lancés' : 'Lance un jeu : il apparaîtra ici'}
           games={cards}
           friends={friends}
-          launchingId={launchingId}
           onLaunch={onLaunch}
           onOpen={onOpen}
           onShowLibrary={onShowLibrary}
@@ -113,15 +115,16 @@ export function Home(props: HomeProps): React.JSX.Element {
 interface HeroProps {
   game: Game
   players: Friend[]
-  launching: boolean
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
   onOpen: (g: Game) => void
   onFavorite: (g: Game) => void
 }
 
 /** Grande carte du jeu à la une : visuel, jaquette, titre, actions et bandeau de chiffres en verre. */
-function HomeHero({ game, players, launching, onLaunch, onOpen, onFavorite }: HeroProps): React.JSX.Element {
+function HomeHero({ game, players, onLaunch, onOpen, onFavorite }: HeroProps): React.JSX.Element {
   const root = useRef<HTMLElement>(null)
+  const poster = useRef<HTMLButtonElement>(null)
+  const p = usePlayState(game, onLaunch)
   const art = useRef<HTMLDivElement>(null)
   const [heroFailed, setHeroFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -211,7 +214,7 @@ function HomeHero({ game, players, launching, onLaunch, onOpen, onFavorite }: He
       <div className="hh-scrim" aria-hidden="true" />
 
       <div className="hh-in">
-        <button className="hh-poster" tabIndex={-1} aria-hidden="true" onClick={open}>
+        <button ref={poster} className="hh-poster" tabIndex={-1} aria-hidden="true" onClick={open}>
           <Cover game={game} />
         </button>
         <div className="hh-text">
@@ -230,18 +233,16 @@ function HomeHero({ game, players, launching, onLaunch, onOpen, onFavorite }: He
           </h1>
           <p className="hh-sub">{sub}</p>
           <div className="hh-actions">
-            <button className={`btn btn-primary btn-play ${launching ? 'is-launching' : ''}`} data-magnetic="" disabled={launching} onClick={() => onLaunch(game)}>
-              {launching ? (
-                <>
-                  <span className="spinner" />
-                  Lancement…
-                </>
-              ) : (
-                <>
-                  <Icon name="play" size={18} />
-                  Jouer
-                </>
-              )}
+            <button
+              className={`btn btn-primary btn-play ${p.className}`}
+              data-magnetic={p.state === 'idle' ? '' : undefined}
+              aria-disabled={p.inert || undefined}
+              aria-busy={p.busy || undefined}
+              aria-label={p.ariaLabel}
+              title={p.state === 'idle' ? undefined : p.title}
+              onClick={() => p.activate(poster.current)}
+            >
+              <PlayLabel p={p} size={18} />
             </button>
             <button className="btn btn-secondary btn-lg hh-sheet" onClick={open}>
               Fiche
@@ -298,14 +299,13 @@ interface RowProps {
   sub: string
   games: Game[]
   friends: Friend[]
-  launchingId: string | null
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
   onOpen: (g: Game) => void
   onShowLibrary: () => void
 }
 
 /** Rangée de cartes défilante, avec boutons précédent / suivant. */
-function ResumeRow({ title, sub, games, friends, launchingId, onLaunch, onOpen, onShowLibrary }: RowProps): React.JSX.Element {
+function ResumeRow({ title, sub, games, friends, onLaunch, onOpen, onShowLibrary }: RowProps): React.JSX.Element {
   const track = useRef<HTMLDivElement>(null)
   const [edges, setEdges] = useState({ start: false, end: false })
 
@@ -354,7 +354,7 @@ function ResumeRow({ title, sub, games, friends, launchingId, onLaunch, onOpen, 
       </header>
       <div ref={track} className="hr-track">
         {games.map((g) => (
-          <ResumeCard key={g.id} game={g} players={playersOf(g, friends)} launching={launchingId === g.id} onLaunch={onLaunch} onOpen={onOpen} />
+          <ResumeCard key={g.id} game={g} players={playersOf(g, friends)} onLaunch={onLaunch} onOpen={onOpen} />
         ))}
       </div>
     </section>
@@ -364,13 +364,13 @@ function ResumeRow({ title, sub, games, friends, launchingId, onLaunch, onOpen, 
 interface CardProps {
   game: Game
   players: Friend[]
-  launching: boolean
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
   onOpen: (g: Game) => void
 }
 
-function ResumeCard({ game, players, launching, onLaunch, onOpen }: CardProps): React.JSX.Element {
+function ResumeCard({ game, players, onLaunch, onOpen }: CardProps): React.JSX.Element {
   const art = useRef<HTMLButtonElement>(null)
+  const p = usePlayState(game, onLaunch)
   const lit = useRef(false)
   const name = cleanName(game.name)
   const image = game.heroUrl || game.coverUrl
@@ -421,9 +421,15 @@ function ResumeCard({ game, players, launching, onLaunch, onOpen }: CardProps): 
         </h3>
         <p className="rc-meta num">{meta || (game.favorite ? 'Favori' : 'Pas encore de temps de jeu')}</p>
         <div className="rc-actions">
-          <button className={`btn btn-primary btn-sm rc-play ${launching ? 'is-launching' : ''}`} disabled={launching} onClick={() => onLaunch(game)}>
-            {launching ? <span className="spinner" /> : <Icon name="play" size={13} />}
-            {launching ? 'Lancement…' : 'Jouer'}
+          <button
+            className={`btn btn-primary btn-sm rc-play ${p.className}`}
+            aria-disabled={p.inert || undefined}
+            aria-busy={p.busy || undefined}
+            aria-label={p.ariaLabel}
+            title={p.state === 'idle' ? undefined : p.title}
+            onClick={() => p.activate(art.current)}
+          >
+            <PlayLabel p={p} size={13} />
           </button>
           <button className="btn btn-secondary btn-sm" onClick={open}>
             Fiche

@@ -202,6 +202,17 @@ const ALERT_LABEL: Record<FriendAlertMode, string> = {
   off: 'Désactivées'
 }
 
+const IS_WINDOWS = window.launcher?.platform === 'win32'
+
+/** Légende de « Quand un jeu démarre » (spec launch-sequence.md §5). Player X ne passe jamais devant le jeu. */
+function launchWindowCaption(settings: Settings): string {
+  if (!IS_WINDOWS) return 'Disponible sur Windows'
+  if (settings.demoMode) return 'Sans effet en mode démo : rien n’est lancé'
+  return settings.launchWindow === 'minimize'
+    ? 'Se réduit quand le jeu est détecté et revient quand tu le quittes'
+    : 'Player X reste ouvert derrière le jeu, sans jamais passer devant'
+}
+
 interface InterfaceProps {
   ui: UiPrefs
   onUiChange: (patch: Partial<UiPrefs>) => void
@@ -274,6 +285,18 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
           value={ui.transparency ? 'Activés · flou derrière les barres et les notifications' : 'Désactivés · couleurs pleines, sans flou'}
         >
           <Switch checked={ui.transparency} onChange={(transparency) => onUiChange({ transparency })} label="Effets de transparence" />
+        </SettingRow>
+        <SettingRow label="Quand un jeu démarre" value={launchWindowCaption(settings)}>
+          <Segmented
+            label="Quand un jeu démarre"
+            value={settings.launchWindow}
+            disabled={!IS_WINDOWS}
+            options={[
+              { value: 'stay', label: 'Rester ouvert' },
+              { value: 'minimize', label: 'Se réduire' }
+            ]}
+            onChange={(launchWindow) => onSaveSettings({ launchWindow }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+          />
         </SettingRow>
         <SettingRow label="Alertes d'amis" value={ALERT_LABEL[settings.friendAlerts]}>
           <div className="set-inline">

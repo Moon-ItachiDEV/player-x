@@ -1,11 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { LaunchStatus } from '@shared/launch'
 import type { FriendAlert, LauncherApi, UpdateState } from '@shared/types'
 
 declare const __APP_VERSION__: string
 
 const api: LauncherApi = {
   getGames: (refresh) => ipcRenderer.invoke('games:list', refresh),
-  launchGame: (id) => ipcRenderer.invoke('games:launch', id),
+  launchGame: (id, opts) => ipcRenderer.invoke('games:launch', id, opts),
+  cancelLaunch: (launchId) => ipcRenderer.invoke('launch:cancel', launchId),
+  listLaunches: () => ipcRenderer.invoke('launch:list'),
+  onLaunchStatus: (cb) => {
+    const listener = (_e: unknown, s: LaunchStatus): void => cb(s)
+    ipcRenderer.on('launch:status', listener)
+    return () => ipcRenderer.removeListener('launch:status', listener)
+  },
   toggleFavorite: (id) => ipcRenderer.invoke('games:favorite', id),
   setFavorites: (ids) => ipcRenderer.invoke('games:set-favorites', ids),
   getScanReport: () => ipcRenderer.invoke('games:report'),

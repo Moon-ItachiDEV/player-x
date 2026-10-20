@@ -68,7 +68,7 @@ function matcher(query: string): (g: Game) => boolean {
 }
 
 export function Library(props: LibraryProps): React.JSX.Element {
-  const { games, scanning, report, demo, query, onClearQuery, launchingId, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, coverSize, onCoverSize } = props
+  const { games, scanning, report, demo, query, onClearQuery, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, coverSize, onCoverSize } = props
   const [prefs, setPrefs] = useState<LibPrefs>(loadPrefs)
 
   const update = (patch: Partial<LibPrefs>): void =>
@@ -202,7 +202,7 @@ export function Library(props: LibraryProps): React.JSX.Element {
       ) : (
         <div className="lib-grid">
           {shown.map((g) => (
-            <GameCard key={g.id} game={g} launching={launchingId === g.id} onOpen={onOpen} onLaunch={onLaunch} onFavorite={onFavorite} />
+            <GameCard key={g.id} game={g} onOpen={onOpen} onLaunch={onLaunch} onFavorite={onFavorite} />
           ))}
         </div>
       )}

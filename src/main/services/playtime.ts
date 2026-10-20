@@ -1,10 +1,11 @@
 import { execFile } from 'node:child_process'
 import { readdir } from 'node:fs/promises'
-import { basename, join } from 'node:path'
+import { join } from 'node:path'
 import { net, powerMonitor } from 'electron'
-import type { Game } from '@shared/types'
+import type { Game, Store } from '@shared/types'
 import { getKv, listGames, openSession, playtimeByGame, setKv, touchSessions } from '../db'
 import { getAccounts, getSettings } from './settings'
+import { coalesce, exeName, GENERIC_EXE, matchGames, memoAsync, parseProcLines, usableDir, type Matchable, type RunningProcess } from './tracking'
 
 // Temps de jeu : toutes les minutes, on regarde quels programmes tournent et on les rattache au dossier
 // d'installation d'un jeu. Ça marche aussi pour un jeu lancé hors de Player X, tant que Player X est ouvert.
@@ -15,69 +16,68 @@ const POLL_MS = 60_000
 const NUDGE_MS = [20_000, 45_000]
 const STEAM_MAX_AGE = 3600_000
 const TIMEOUT_MS = 15_000
+/** Noms d'exécutables suivis par jeu pendant un lancement. */
+const MAX_NAMES = 64
 
-/** Jeu en cours → session ouverte dans la base. */
-const running = new Map<string, number>()
-let onChange: () => void = () => {}
-let polling = false
+/** Jeu en cours → session ouverte dans la base, et début de la partie (premier relevé qui l'a vu). */
+const running = new Map<string, { session: number; since: number }>()
+const listeners = new Set<() => void>()
 let lastPoll = 0
+/** Dernier relevé réussi, avec les PID : base du « programme nouveau » d'un lancement. */
+let snapshot: { at: number; procs: RunningProcess[] } | null = null
+/** Jeu → noms des programmes qui lui ont été rattachés au dernier relevé réussi. */
+let lastMatch = new Map<string, Set<string>>()
+/** Relevé raté, ou sessions arrêtées sans relevé, depuis le dernier réussi : un jeu absent ne s'est peut-être pas fermé. */
+let unsure = false
+
+function onChange(): void {
+  for (const cb of listeners) {
+    try {
+      cb()
+    } catch (e) {
+      console.error('[playtime]', e)
+    }
+  }
+}
 
 /** Toutes les sessions s'arrêtent (mise en veille, ou trop longtemps sans relevé) : le temps passé n'est pas compté. */
 function endAll(): boolean {
   if (!running.size) return false
   running.clear()
+  unsure = true
   return true
 }
 
-export interface RunningProcess {
-  /** Nom sans « .exe », toujours lisible. */
-  name: string
-  /** Chemin complet : vide pour un processus protégé (anti-triche) ou lancé en administrateur. */
-  path: string
-}
-
 // Sortie en UTF-8 (sinon PowerShell 5.1 écrit dans la page de code OEM et les chemins accentués ne correspondent plus).
-const PS_COMMAND = '[Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-Process | ForEach-Object { $_.ProcessName + [char]9 + $_.Path }'
+const PS_COMMAND =
+  '[Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-Process | ForEach-Object { $_.ProcessName + [char]9 + $_.Id + [char]9 + $_.Path }'
 
-/** Programmes en cours (Windows uniquement). */
-function runningProcesses(): Promise<RunningProcess[]> {
-  if (process.platform !== 'win32') return Promise.resolve([])
+/** Programmes en cours (Windows uniquement). null si la liste n'a pas pu être lue (erreur, délai dépassé) : rien n'en est conclu. */
+function runningProcesses(): Promise<RunningProcess[] | null> {
+  if (process.platform !== 'win32') return Promise.resolve(null)
   return new Promise((resolve) => {
     execFile(
       'powershell.exe',
       ['-NoProfile', '-NonInteractive', '-Command', PS_COMMAND],
       { windowsHide: true, timeout: 20_000, maxBuffer: 8 * 1024 * 1024, encoding: 'utf8' },
-      (err, stdout) =>
-        resolve(
-          err
-            ? []
-            : stdout
-                .split(/\r?\n/)
-                .filter(Boolean)
-                .map((line) => {
-                  const [name = '', path = ''] = line.split('\t')
-                  return { name: name.trim(), path: path.trim() }
-                })
-        )
+      (err, stdout) => {
+        const procs = err ? [] : parseProcLines(stdout)
+        // Une liste vide n'existe pas sous Windows : c'est une sortie tronquée, pas « plus aucun jeu ».
+        resolve(procs.length ? procs : null)
+      }
     )
   })
 }
 
 // ---------- exécutables de chaque jeu (pour les processus dont le chemin est illisible) ----------
 
-/** Exécutables trop génériques pour désigner un jeu (installeurs, rapports de plantage, anti-triche, navigateurs intégrés…). */
-const GENERIC_EXE =
-  /^(unins\d*|uninstall.*|setup.*|install.*|vc_?redist.*|dxsetup|dotnet.*|directx.*|ue\dprereqsetup.*|.*crash.*|.*report.*|easyanticheat.*|eac.*|beservice.*|battleye.*|.*launcher.*|.*updater.*|.*helper.*|cef.*|.*webview.*|quicksfv|touchup|cleanup|activation.*|pbsvc|start_protected_game)$/i
 const MAX_SCAN_ENTRIES = 3000
 
-/** dossier → noms d'exécutables (minuscules, sans « .exe ») */
-const exeCache = new Map<string, Set<string>>()
+/** Noms d'exécutables (minuscules, sans « .exe ») d'un dossier, gardés : un relevé pendant le parcours attend la liste complète. */
+const exeNames = memoAsync(scanExeNames)
 
-async function exeNames(dir: string): Promise<Set<string>> {
-  const cached = exeCache.get(dir)
-  if (cached) return cached
+async function scanExeNames(dir: string): Promise<Set<string>> {
   const names = new Set<string>()
-  exeCache.set(dir, names)
   let seen = 0
   const walk = async (d: string, depth: number): Promise<void> => {
     if (depth > 3 || seen > MAX_SCAN_ENTRIES) return
@@ -100,87 +100,136 @@ async function exeNames(dir: string): Promise<Set<string>> {
   return names
 }
 
-const normPath = (p: string): string => p.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase()
-
-/** Dossiers trop courts (« C:\Games ») : on ne les rattache à aucun jeu pour éviter les faux positifs. */
-const usableDir = (dir: string): boolean => normPath(dir).split('\\').filter(Boolean).length >= 3
-
-type Matchable = Pick<Game, 'id' | 'installDir' | 'exePath'>
-
-export function runningGameIds(procs: RunningProcess[], games: Matchable[], namesByGame: Map<string, Set<string>> = new Map()): Set<string> {
-  const dirs = games
-    .filter((g) => g.installDir && usableDir(g.installDir))
-    .map((g) => ({ id: g.id, dir: normPath(g.installDir!) + '\\' }))
-    // Le dossier le plus précis gagne si deux jeux sont imbriqués.
-    .sort((a, b) => b.dir.length - a.dir.length)
-  const exes = new Map(games.filter((g) => g.exePath).map((g) => [normPath(g.exePath!), g.id]))
-  const byName = new Map<string, string>()
-  for (const g of games) {
-    if (g.exePath) byName.set(basename(normPath(g.exePath), '.exe'), g.id)
-    for (const n of namesByGame.get(g.id) ?? []) if (!byName.has(n)) byName.set(n, g.id)
-  }
-  const found = new Set<string>()
-  for (const proc of procs) {
-    let id: string | undefined
-    if (proc.path) {
-      const p = normPath(proc.path)
-      id = exes.get(p) ?? dirs.find((d) => p.startsWith(d.dir))?.id
-    } else {
-      // Chemin illisible (jeu protégé par un anti-triche ou lancé en administrateur) : on compare le nom de l'exécutable.
-      id = byName.get(proc.name.toLowerCase())
-    }
-    if (id) found.add(id)
-  }
-  return found
-}
-
 async function gameExeNames(games: Matchable[]): Promise<Map<string, Set<string>>> {
   const out = new Map<string, Set<string>>()
   for (const g of games) if (g.installDir && usableDir(g.installDir)) out.set(g.id, await exeNames(g.installDir))
   return out
 }
 
-async function poll(): Promise<void> {
-  if (polling) return
-  polling = true
-  try {
-    const now = Date.now()
-    // Un trou de plus de trois relevés (veille, PC figé) : les sessions en cours s'arrêtent au dernier relevé.
-    let changed = lastPoll > 0 && now - lastPoll > POLL_MS * 3 ? endAll() : false
-    lastPoll = now
-    const games = listGames()
-    const procs = await runningProcesses()
-    const seen = runningGameIds(procs, games, procs.some((p) => !p.path) ? await gameExeNames(games) : undefined)
-    for (const id of [...running.keys()]) {
-      if (seen.has(id)) continue
-      // Session terminée : sa fin reste la dernière fois où le jeu a été vu.
-      running.delete(id)
-      changed = true
-    }
-    touchSessions([...running.values()], now)
-    for (const id of seen) {
-      if (running.has(id)) continue
-      running.set(id, openSession(id, now))
-      changed = true
-    }
+/** Un relevé : true si la liste des programmes a pu être lue. */
+async function poll(): Promise<boolean> {
+  const now = Date.now()
+  // Un trou de plus de trois relevés réussis (veille, PC figé, PowerShell en panne) : les sessions en cours s'arrêtent au dernier relevé.
+  let changed = lastPoll > 0 && now - lastPoll > POLL_MS * 3 ? endAll() : false
+  const procs = await runningProcesses()
+  if (!procs) {
+    // Liste illisible : aucune conclusion (avant, toutes les sessions s'arrêtaient d'un coup).
+    unsure = true
     if (changed) onChange()
-  } finally {
-    polling = false
+    return false
+  }
+  // Premier relevé réussi après une panne : chacun revérifie (une fin vue pendant la panne n'a rien conclu).
+  if (unsure) {
+    unsure = false
+    changed = true
+  }
+  lastPoll = now
+  snapshot = { at: now, procs }
+  const games = listGames()
+  lastMatch = matchGames(procs, games, procs.some((p) => !p.path) ? await gameExeNames(games) : undefined)
+  for (const id of [...running.keys()]) {
+    if (lastMatch.has(id)) continue
+    // Session terminée : sa fin reste la dernière fois où le jeu a été vu.
+    running.delete(id)
+    changed = true
+  }
+  touchSessions([...running.values()].map((r) => r.session), now)
+  for (const id of lastMatch.keys()) {
+    if (running.has(id)) continue
+    running.set(id, { session: openSession(id, now), since: now })
+    changed = true
+  }
+  if (changed) onChange()
+  return true
+}
+
+/**
+ * Relevé tout de suite, regroupé avec celui en cours : la minute, le démarrage, les relevés rapprochés et la confirmation
+ * d'un lancement passent tous par ici. Vrai si la liste des programmes a pu être lue.
+ */
+export const pollNow = coalesce(() =>
+  poll().catch((e) => {
+    console.error('[playtime]', e)
+    return false
+  })
+)
+
+export function startPlaytimeTracker(notify: () => void): void {
+  listeners.add(notify)
+  if (process.platform !== 'win32') return
+  const tick = (): void => void pollNow()
+  setTimeout(tick, 5_000)
+  setInterval(tick, POLL_MS)
+  powerMonitor.on('suspend', () => endAll() && onChange())
+  // Au réveil, l'état « en jeu » n'attend pas la minute suivante.
+  powerMonitor.on('resume', () => setTimeout(tick, 5_000))
+}
+
+/** Chaque changement (jeu lancé ou fermé, compteur Steam). Renvoie la fonction de désabonnement. */
+export function onPlaytimeChange(cb: () => void): () => void {
+  listeners.add(cb)
+  return () => {
+    listeners.delete(cb)
   }
 }
 
-export function startPlaytimeTracker(notify: () => void): void {
-  onChange = notify
+/** Un jeu vient d'être lancé depuis Player X. `still` : faux une fois le jeu détecté, le relevé suivant n'a plus lieu. */
+export function nudgePlaytime(still: () => boolean = () => true): void {
   if (process.platform !== 'win32') return
-  setTimeout(poll, 5_000)
-  setInterval(poll, POLL_MS)
-  powerMonitor.on('suspend', () => endAll() && onChange())
+  for (const ms of NUDGE_MS)
+    setTimeout(() => {
+      if (still()) void pollNow()
+    }, ms)
 }
 
-/** Un jeu vient d'être lancé depuis Player X. */
-export function nudgePlaytime(): void {
-  if (process.platform !== 'win32') return
-  for (const ms of NUDGE_MS) setTimeout(poll, ms)
+// ---------- état « en jeu », pour le suivi d'un lancement (launches.ts) ----------
+
+export function isRunning(id: string): boolean {
+  return running.has(id)
+}
+
+export function runningSince(id: string): number | undefined {
+  return running.get(id)?.since
+}
+
+/** Le dernier relevé a réussi, et aucune session ne s'est arrêtée sans relevé depuis : un jeu absent s'est bien fermé. */
+export function lastPollOk(): boolean {
+  return !unsure
+}
+
+/** Noms des programmes rattachés à ce jeu au dernier relevé (y compris ceux trouvés par leur dossier). */
+export function matchedNames(id: string): Set<string> {
+  return new Set(lastMatch.get(id))
+}
+
+const fresh = (maxAgeMs: number): RunningProcess[] | null => (snapshot && Date.now() - snapshot.at <= maxAgeMs ? snapshot.procs : null)
+
+/** PID du dernier relevé s'il a moins de `maxAgeMs` ; null sinon. */
+export function snapshotPids(maxAgeMs: number): Set<number> | null {
+  const procs = fresh(maxAgeMs)
+  return procs ? new Set(procs.map((p) => p.pid)) : null
+}
+
+/** Programme principal de chaque client (noms vérifiés sous Windows). */
+const STORE_PROCESS: Record<Store, string> = { steam: 'steam', epic: 'epicgameslauncher', ea: 'eadesktop' }
+
+/** Le client du store tournait au dernier relevé (s'il a moins de `maxAgeMs`) ; null : on ne sait pas. */
+export function storeWasRunning(store: Store, maxAgeMs = 90_000): boolean | null {
+  const procs = fresh(maxAgeMs)
+  return procs ? procs.some((p) => p.name.toLowerCase() === STORE_PROCESS[store]) : null
+}
+
+/** Noms d'exécutables d'un jeu, au plus 64. `refresh` relit son dossier (le jeu a pu être mis à jour depuis le dernier relevé). */
+export async function exeNamesFor(game: Matchable, refresh: boolean): Promise<Set<string>> {
+  const names = new Set<string>()
+  if (game.exePath) names.add(exeName(game.exePath))
+  if (game.installDir && usableDir(game.installDir)) {
+    for (const n of await exeNames(game.installDir, refresh)) {
+      if (names.size >= MAX_NAMES) break
+      names.add(n)
+    }
+  }
+  return names
 }
 
 // ---------- compteur Steam ----------
@@ -228,6 +277,7 @@ export function withPlaytime(games: Game[]): Game[] {
   const local = playtimeByGame()
   const steam = steamMinutes()
   return games.map((g) => {
+    const r = running.get(g.id)
     const mine = local.get(g.id) ?? 0
     const fromSteam = g.store === 'steam' ? steam[g.storeId] : undefined
     // Le compteur Steam peut avoir une heure de retard sur une session en cours : on garde le plus grand.
@@ -236,7 +286,7 @@ export function withPlaytime(games: Game[]): Game[] {
     return {
       ...g,
       ...(playtime > 0 ? { playtime, playtimeSource: useSteam ? ('steam' as const) : ('local' as const) } : {}),
-      ...(running.has(g.id) ? { running: true } : {})
+      ...(r ? { running: true, runningSince: r.since } : {})
     }
   })
 }

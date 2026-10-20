@@ -1,5 +1,6 @@
 // Contrats entre App.tsx et les écrans. Chaque écran exporte un composant nommé qui reçoit exactement ces props.
 import type { RefObject } from 'react'
+import type { LaunchVia } from '@shared/launch'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings } from '@shared/types'
 
 export type View = 'home' | 'library' | 'profile' | 'stats' | 'settings'
@@ -19,12 +20,17 @@ export interface UiPrefs {
 
 export const COVER_MIN: Record<UiPrefs['coverSize'], number> = { S: 136, M: 164, L: 200 }
 
+/**
+ * Lance un jeu (launch/store.ts startLaunch). `from` : l'image cliquée, d'où part la jaquette de la mise à feu.
+ * Pendant l'attente, ramène la carte du lancement devant au lieu de renvoyer le lien.
+ */
+export type LaunchFn = (g: Game, from?: HTMLElement | null, via?: LaunchVia) => void
+
 /** components/FavRail.tsx → `export function FavRail` (rail des jeux favoris, tout à gauche) */
 export interface FavRailProps {
   games: Game[]
-  launchingId: string | null
   /** Clic : lance le jeu. */
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
   /** Clic droit ou touche Menu : ouvre la fiche. */
   onOpen: (g: Game) => void
   /** « + » : rouvre le choix des favoris. */
@@ -89,8 +95,7 @@ export interface HomeProps {
   scanning: boolean
   report: ScanReport[]
   demo: boolean
-  launchingId: string | null
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
   onOpen: (g: Game) => void
   onFavorite: (g: Game) => void
   onRescan: () => void
@@ -107,8 +112,7 @@ export interface LibraryProps {
   /** Texte de la recherche du haut (déjà appliqué par Library au filtrage). */
   query: string
   onClearQuery: () => void
-  launchingId: string | null
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
   onOpen: (g: Game) => void
   onFavorite: (g: Game) => void
   onRescan: () => void
@@ -122,9 +126,10 @@ export interface LibraryProps {
 export interface GameSheetProps {
   game: Game | null
   friends: Friend[]
-  launching: boolean
   onClose: () => void
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
+  /** « Réanalyser » (exécutable introuvable) : relance l'analyse de la bibliothèque. */
+  onRescan?: () => void
   onFavorite: (g: Game) => void
   onOpenFolder: (g: Game) => void
   /** Raccourci « Tes stats Battlefield 6 » (fiche de Battlefield 6 seulement). */
@@ -136,9 +141,8 @@ export interface ProfileProps {
   games: Game[]
   accounts: Account[]
   friends: FriendsResult
-  launchingId: string | null
   onOpenGame: (g: Game) => void
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
   onManageAccounts: () => void
   onShowFriends: () => void
 }
@@ -210,4 +214,6 @@ export interface UpdateNoticeProps {
   onOpenAbout: () => void
   /** Un jeu tourne : la carte devient une pastille immobile et le compte à rebours se met en pause. */
   inGame: boolean
+  /** Un vrai jeu est en train de se lancer : même discrétion, compte « En pause pendant le lancement ». */
+  launching?: boolean
 }

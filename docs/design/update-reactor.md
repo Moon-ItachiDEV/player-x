@@ -748,9 +748,11 @@ App
    ├─ Shell
    │   └─ .shell
    │       ├─ … (rail, topbar, backdrop, content, friends)
-   │       ├─ UpdateNotice inGame={games.some(g => g.running)}   ← dock (card | mini) + live region
+   │       ├─ UpdateNotice inGame={anyRunning} launching={realPending && !anyRunning}   ← dock (card | mini) + live region
+   │       ├─ LaunchDock                                         ← 0.7.0: launch card, stacked above (§6.10)
    │       └─ WhatsNew                                           ← waits for revealDone
-   └─ UpdateStage                                                ← portal to body, z --z-warp; warp + reveal
+   ├─ UpdateStage                                                ← portal to body, z --z-warp; warp + reveal
+   └─ LaunchStage                                                ← 0.7.0: portal to body, z --z-launch (launch-sequence.md)
 ```
 
 `UpdateStage` sits inside `ToastProvider`, so it can raise the abort toast, and outside `.shell`, so `inert` on the shell never reaches it.
@@ -861,15 +863,15 @@ The longest ready sub is « En pause jusqu'à ton retour » (27 chars ≈ 176 px
 ```css
 .upd-dock {
   position: fixed;
-  left: calc(var(--rail-w) + 20px);
+  left: calc(var(--nav-w) + 20px);       /* 0.7.0: rail + sidebar */
   bottom: 20px;
   z-index: calc(var(--z-scrim) - 5);
-  width: min(var(--upd-w), calc(100vw - var(--rail-w) - 40px));
+  width: min(var(--upd-w), calc(100vw - var(--nav-w) - 40px));
 }
 .upd-dock[data-mode='mini'] { width: auto; }
 .shell:has(.upd-dock[data-mode='card']) > .content { padding-bottom: 104px; }
 .shell:has(.upd-dock[data-mode='mini']) > .content { padding-bottom: 68px; }
-@media (max-width: 1311px) {
+@media (max-width: 1279px) {         /* 0.7.0 breakpoint */
   #root:has(.upd-dock[data-mode='card']) .toasts { bottom: 108px; }
   #root:has(.upd-dock[data-mode='mini']) .toasts { bottom: 72px; }
 }
@@ -918,6 +920,8 @@ The longest ready sub is « En pause jusqu'à ton retour » (27 chars ≈ 176 px
 /* No transition at all while the window is in the background (zero frames between events). */
 :root[data-window='idle'] .upd-dock *, :root[data-window='idle'] .upd-dock *::before { transition: none !important; }
 ```
+
+**With the launch card (0.7.0).** The launch card (`.launch-dock`, `launch-sequence.md` §4.2) has the same corner, width and height. The update dock never moves: the launch card stacks above it, at `bottom: calc(20px + var(--upd-h) + 10px)` (106 px) when the full card shows (during a launch that is the armed, refused or interrupted card) and at `70px` above the mini pill. The reserved room grows to `padding-bottom` 190 px (154 px with the mini pill), and narrow-window toasts rise to 194 px (158 px).
 
 `.upd-sheen` is a real span (it was `::after`), so it can be replayed by WAAPI:
 
@@ -1153,7 +1157,7 @@ When `swapKey` changes, the previous rows stay in an absolutely positioned `.upd
 
 The sub row alone (percent, bytes, seconds) changes text in place, without a swap.
 
-### 5.8 Mini pill (a game is running, phase `download` or `verify`)
+### 5.8 Mini pill (a game is running or a launch is pending, phase `download` or `verify`)
 
 ```
 ╭──────────────────────────────╮ 188 × 40, r pill, --surface-3, 1 px --line-2
@@ -1181,7 +1185,7 @@ The sub row alone (percent, bytes, seconds) changes text in place, without a swa
 .upd-mini:focus-visible { box-shadow: var(--focus); }
 ```
 
-The contract is that `document.getAnimations().filter(a => a.effect?.target?.closest?.('.upd-dock')).length === 0` while the mini pill is shown. Switching between card and pill is instant in both directions. The pill never expands on hover. `ready`, `refused` and `interrupted` always use the full card, even in game, because they carry buttons. They are static while idle, and the countdown is paused in game (§6.6).
+The contract is that `document.getAnimations().filter(a => a.effect?.target?.closest?.('.upd-dock')).length === 0` while the mini pill is shown. Switching between card and pill is instant in both directions. The pill never expands on hover. `ready`, `refused` and `interrupted` always use the full card, even in game or during a launch, because they carry buttons. They are static while idle, and the countdown is paused in game and during a launch (§6.6, §6.10).
 
 
 ---
@@ -1192,11 +1196,11 @@ The contract is that `document.getAnimations().filter(a => a.effect?.target?.clo
 
 ```ts
 export type CardPhase = 'hidden' | 'download' | 'verify' | 'lock' | 'armed' | 'refused' | 'interrupted' | 'installing'
-export type HoldReason = 'unfocused' | 'hover' | 'game' | 'blocked' | null
+export type HoldReason = 'unfocused' | 'hover' | 'game' | 'launch' | 'blocked' | null   // 'launch': 0.7.0 (§6.10)
 
 export interface CardModel {
   phase: CardPhase
-  mini: boolean                      // inGame && (download | verify)
+  mini: boolean                      // quiet && (download | verify), quiet = inGame || launching (§6.10)
   version: string
   percent: number                    // download
   p: number                          // 0..1 written to --p
@@ -1211,7 +1215,7 @@ export interface CardModel {
   preview: boolean
 }
 
-export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; cardRef: RefObject<HTMLElement> }): {
+export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; launching: boolean; cardRef: RefObject<HTMLElement> }): {
   model: CardModel
   restart(origin?: DOMRect | null): void
   later(): void
@@ -1309,11 +1313,11 @@ If the app starts already `ready` (the state was fetched at boot), the card ente
 const D = 10 // RESTART_DELAY, unchanged
 const counting =
   phase === 'armed' && !dismissed && !blocked && !installing && !preview?.stopped &&
-  focused && !hovered && !focusWithin && !inGame && lockDone
+  focused && !hovered && !focusWithin && !quiet && lockDone   // quiet = inGame || launching (§6.10)
 ```
 
 - **Existing rules are unchanged.** 10 s, counted only while the window is focused, and restarting from 10 for each new version.
-- **New rules can only delay a restart.** The countdown pauses while the pointer is over the card or focus is inside it (WCAG 2.2.1), and while a game is running. After a failed restart (`blocked`) it does not run again for that version.
+- **New rules can only delay a restart.** The countdown pauses while the pointer is over the card or focus is inside it (WCAG 2.2.1), while a game is running, and while a launch is pending. After a failed restart (`blocked`) it does not run again for that version.
 - Ticks come from a `setTimeout` chain of 1000 ms, restarted on resume, so the next tick is a full second after resuming. `left` keeps its value through pauses, as it does today.
 - At `left === 0`: `restart(reactorRect)`.
 
@@ -1339,6 +1343,7 @@ Hold states (no countdown, no motion):
 | `unfocused` | `pause` icon (crossfade 120 ms) | « En pause jusqu'à ton retour » |
 | `hover` | digit at opacity .5 (`.is-held`) | « Redémarrage en pause » |
 | `game` | `pause` icon | « En pause pendant ta partie » |
+| `launch` | `pause` icon | « En pause pendant le lancement » |
 | `blocked` | `check` icon | « Redémarre quand tu veux » |
 
 ### 6.7 « Plus tard »
@@ -1367,6 +1372,15 @@ Neither card has any motion after its entrance: no jolt, no shatter, no loop. In
 ### 6.9 Installing (card)
 
 Buttons are disabled and the sub reads « Redémarrage… ». The centre shows the `check` icon. No animation.
+
+### 6.10 During a game launch (0.7.0)
+
+A launch from Player X (`launch-sequence.md`) gets the in-game contract before the game is confirmed running.
+
+- **Inputs.** `UpdateNotice` gets `inGame = games.some(g => g.running)` and `launching = realPending && !inGame`, where `realPending` means a non-demo launch in `checking`, `sending`, `waiting` or `relay` (`useLaunchPending().real`). `useCardPhase` takes `{ inGame, launching, cardRef }` and works from `quiet = inGame || launching`.
+- **Mini pill** only in `download` and `verify`: `mini = quiet && !view.preview && (phase === 'download' || phase === 'verify')`. The entrance is suppressed on `quiet`, as it is in game.
+- **Hold:** `inGame ? 'game' : launching ? 'launch' : …`. `HOLD_SUB.launch` is « En pause pendant le lancement ». The armed card stays full size and the launch card stacks above it (§5.1).
+- **Preview:** `gameRunning` (`update/session.ts`) is true while a game runs **or a real launch is pending**, so the preview is refused during a launch, as in game. A demo launch never sets it: the preview and the countdown are untouched.
 
 ---
 
@@ -1827,6 +1841,7 @@ Kickers are written in sentence case. CSS sets uppercase. `{v}` is the version, 
 | sub, unfocused | « En pause jusqu'à ton retour » |
 | sub, hover or focus | « Redémarrage en pause » |
 | sub, game | « En pause pendant ta partie » |
+| sub, launch | « En pause pendant le lancement » |
 | sub, blocked | « Redémarre quand tu veux » |
 | sub, installing | « Redémarrage… » |
 | primary | « Redémarrer » (`title` « Installer la {v} maintenant ») |
@@ -1911,7 +1926,7 @@ Release note bullet (`docs/release-notes/0.6.0.md`, under the first section):
 ## 14. Accessibility
 
 1. **Live region.** One `sr-only` polite `role="status"` per dock, written only on phase changes (§13.9). The countdown is never announced each second, and `role="status"` is removed from the card. The stage has its own region for the warp and reveal. Toasts keep their own.
-2. **Timing (WCAG 2.2.1).** The countdown pauses on hover, focus-within, an unfocused window and a running game. « Plus tard » turns it off for this version. A restart is always available from À propos. A failed restart never retries on its own.
+2. **Timing (WCAG 2.2.1).** The countdown pauses on hover, focus-within, an unfocused window, a running game and a pending launch. « Plus tard » turns it off for this version. A restart is always available from À propos. A failed restart never retries on its own.
 3. **Motion (WCAG 2.2.2, 2.3.1).** During the download there are no infinite animations. The only loop is the signature spinner, an activity indicator, `.fx-loop`, which pauses when idle. There is one flash, 200 ms, under 3 per second.
 4. **Vestibular.** Full-window radial motion is limited to ≤ 1.0 s (warp) and ≤ 0.6 s (arrival). Alpha ≤ .7, the snapshot shrinks only to .92, and there is no camera zoom in the reveal. Turning off « Effets visuels » removes the streaks (Sober). « Réduire les animations », or Windows' animation setting, gives Reduced: nothing moves and every value stays (card text, WhatsNew chips).
 5. **Focus.** Nothing in the card auto-focuses, which would pause the countdown. During the warp the shell is `inert`, and focus goes back to the trigger on abort. The reveal never takes focus. Its skip swallows the skip event and, when it is a modifier (Ctrl+K…), the chord key that follows. WhatsNew keeps `autoFocus` on « C'est parti ».

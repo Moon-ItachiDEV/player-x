@@ -10,6 +10,7 @@
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:update": "node --experimental-strip-types --test src/main/services/updateHandoff.test.ts",
+    "test:launch": "node --experimental-strip-types --test src/main/services/tracking.test.ts src/main/services/launchWatchParse.test.ts src/main/services/launches.test.ts && node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/main/services/launchWatch.test.ts src/renderer/src/launch/*.test.ts",
     "dist": "electron-vite build && electron-builder --win --x64 --publish never",
     "release": "electron-vite build && electron-builder --win --x64 --publish always",
     "postinstall": "node node_modules/electron/install.js"
@@ -20,6 +21,7 @@
     "files": [
       "out/**/*",
       "!out/main/updateSim-*.js",
+      "!out/main/launchSim-*.js",
       "resources/icon.png"
     ],
     "directories": {

@@ -108,8 +108,13 @@ export function useStore<T>(s: Store<T>): T {
   return useSyncExternalStore(s.subscribe, s.get)
 }
 
-/** Un jeu lancé depuis Player X tourne (tenu à jour par App) : l'aperçu n'est alors ni proposé ni joué. */
+/** Un jeu lancé depuis Player X tourne, ou se lance (tenu à jour par App) : l'aperçu n'est alors ni proposé ni joué. */
 export const gameRunning = createStore(false)
+/** Seulement un lancement en attente (aucun jeu ne tourne encore) : les infobulles le disent. */
+export const launchBusy = createStore(false)
+
+/** Infobulle d'un aperçu indisponible pendant une partie ou un lancement. */
+export const busyTitle = (): string => (launchBusy.get() ? 'Indisponible pendant un lancement' : 'Indisponible pendant une partie')
 
 // ---------- dernière mise à jour connue du processus principal ----------
 

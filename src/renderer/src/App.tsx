@@ -16,10 +16,13 @@ import { Stats } from './components/stats/Stats'
 import { TopBar } from './components/TopBar'
 import { TopSlot } from './components/TopTabs'
 // Avant WhatsNew : lit pg.lastVersion et prépare le retour d'une mise à jour avant le premier rendu.
-import { gameRunning } from './update/session'
+import { gameRunning, launchBusy } from './update/session'
 import './update/stage'
 import { UpdateStage } from './update/UpdateStage'
 import { UpdateNotice } from './components/UpdateNotice'
+import { LaunchDock } from './launch/LaunchDock'
+import { LaunchStage } from './launch/LaunchStage'
+import { bindLaunchIpc, resetLaunches, setLaunchDemo, startLaunch, useFrozenGames, useLaunchPending } from './launch/store'
 import { WhatsNew } from './components/WhatsNew'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
 import { COVER_MIN, type LoginPlatform, type SettingsSection, type UiPrefs, type View } from './contracts'
@@ -83,6 +86,7 @@ export default function App(): React.JSX.Element {
     <ToastProvider>
       <Shell ui={ui} updateUi={updateUi} setup={setup} setSetup={setSetup} />
       <UpdateStage />
+      <LaunchStage />
     </ToastProvider>
   )
 }
@@ -110,7 +114,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   const [friendsLoading, setFriendsLoading] = useState(false)
   const [query, setQuery] = useState('')
   const [openGameId, setOpenGameId] = useState<string | null>(null)
-  const [launchingId, setLaunchingId] = useState<string | null>(null)
   const [accountMenu, setAccountMenu] = useState(false)
   // Emplacement des onglets de page dans la barre du haut (TopTabs).
   const [tabSlot, setTabSlot] = useState<HTMLElement | null>(null)
@@ -119,8 +122,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   const searchRef = useRef<HTMLInputElement>(null)
   // Seule la dernière connexion lancée met à jour l'état et le toast « login ».
   const loginSeq = useRef(0)
-  // Jeu en cours de lancement, lu sans attendre le rendu (double clic).
-  const launchingRef = useRef<string | null>(null)
   // Change à chaque bascule du mode démo : un scan lancé avant ne doit pas remplacer la nouvelle bibliothèque.
   const libraryEpoch = useRef(0)
 
@@ -168,11 +169,33 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       setReady(true)
     })
     loadGames()
-    return api.onGamesChanged(() => api.getGames().then(setGames))
+    return api.onGamesChanged(() =>
+      api
+        .getGames()
+        .then(setGames)
+        .catch(() => {})
+    )
   }, [loadGames, setEntered])
 
-  // Un jeu en cours coupe l'aperçu de l'animation de mise à jour (rien n'anime pendant une partie).
-  useEffect(() => gameRunning.set(games.some((g) => g.running)), [games])
+  // Lancements : événements du processus principal, puis ceux déjà en cours (rechargement de l'interface).
+  useEffect(() => bindLaunchIpc(), [])
+  useEffect(() => setLaunchDemo(!!settings?.demoMode), [settings?.demoMode])
+  const pending = useLaunchPending()
+  // Les écrans voient la date de dernier lancement d'avant le clic tant que le lancement attend (rien ne bouge).
+  const shownGames = useFrozenGames(games)
+  const anyRunning = games.some((g) => g.running)
+
+  // Un jeu en cours (ou un vrai lancement) coupe l'aperçu de l'animation de mise à jour (rien n'anime pendant une partie).
+  useEffect(() => {
+    launchBusy.set(pending.real && !anyRunning)
+    gameRunning.set(anyRunning || pending.real)
+  }, [anyRunning, pending.real])
+  // Pendant un lancement, les boucles d'ambiance s'arrêtent (base.css :root[data-launching]).
+  useEffect(() => {
+    const root = document.documentElement
+    if (pending.any) root.dataset.launching = ''
+    else delete root.dataset.launching
+  }, [pending.any])
 
   // Les comptes comptent par identité : un pseudo ou un avatar mis à jour ne relance pas toute la récupération.
   const accountsKey = accounts.map((a) => `${a.platform}:${a.id}`).join('|')
@@ -209,6 +232,9 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     const next = await api.saveSettings(patch)
     setSettings(next)
     if ('demoMode' in patch) {
+      // Le processus principal a arrêté de suivre les lancements de l'autre bibliothèque.
+      setLaunchDemo(next.demoMode)
+      resetLaunches()
       libraryEpoch.current++
       setGames(await api.getGames())
       // Un scan encore en cours appartient à l'ancienne bibliothèque : il ne doit plus bloquer l'écran.
@@ -250,28 +276,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       notify(`${platform === 'psn' ? 'PlayStation' : platform === 'steam' ? 'Steam' : 'Discord'} déconnecté`, { kind: 'success' })
     },
     [notify]
-  )
-
-  const launch = useCallback(
-    async (game: Game) => {
-      // Déjà en cours de lancement : on ignore le second clic.
-      if (launchingRef.current === game.id) return
-      launchingRef.current = game.id
-      setLaunchingId(game.id)
-      try {
-        await api.launchGame(game.id)
-        notify(settings?.demoMode ? `Mode démo : ${game.name} serait lancé` : `Lancement de ${game.name}…`, { kind: 'info' })
-        setGames(await api.getGames())
-      } catch (e) {
-        notify(`Impossible de lancer ${game.name} : ${errorMessage(e)}`, { kind: 'error' })
-      } finally {
-        setTimeout(() => {
-          if (launchingRef.current === game.id) launchingRef.current = null
-          setLaunchingId((id) => (id === game.id ? null : id))
-        }, 1500)
-      }
-    },
-    [notify, settings?.demoMode]
   )
 
   const toggleFavorite = useCallback(async (game: Game) => setGames(await api.toggleFavorite(game.id)), [])
@@ -330,7 +334,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     setAccountMenu(false)
   }
 
-  const openGame = useMemo(() => games.find((g) => g.id === openGameId) ?? null, [games, openGameId])
+  const openGame = useMemo(() => shownGames.find((g) => g.id === openGameId) ?? null, [shownGames, openGameId])
 
   // Ouverture et fermeture de la fiche : la jaquette (ou le visuel) d'origine se transforme en en-tête.
   const openSheet = useCallback((g: Game) => {
@@ -380,7 +384,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
 
   return (
     <div className="shell">
-      <FavRail games={games} launchingId={launchingId} onLaunch={launch} onOpen={openSheet} onEditFavorites={() => setSetup({ open: true, first: false })} />
+      <FavRail games={shownGames} onLaunch={startLaunch} onOpen={openSheet} onEditFavorites={() => setSetup({ open: true, first: false })} />
       <Sidebar
         view={view}
         onView={go}
@@ -417,13 +421,12 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         <main className="content" key={view}>
           {view === 'home' && (
             <Home
-              games={games}
+              games={shownGames}
               friends={friends.friends}
               scanning={scanning}
               report={report}
               demo={settings.demoMode}
-              launchingId={launchingId}
-              onLaunch={launch}
+              onLaunch={startLaunch}
               onOpen={openSheet}
               onFavorite={toggleFavorite}
               onRescan={() => loadGames(true)}
@@ -433,14 +436,13 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
           )}
           {view === 'library' && (
             <Library
-              games={games}
+              games={shownGames}
               scanning={scanning}
               report={report}
               demo={settings.demoMode}
               query={query}
               onClearQuery={() => setQuery('')}
-              launchingId={launchingId}
-              onLaunch={launch}
+              onLaunch={startLaunch}
               onOpen={openSheet}
               onFavorite={toggleFavorite}
               onRescan={() => loadGames(true)}
@@ -451,12 +453,11 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
           )}
           {view === 'profile' && (
             <Profile
-              games={games}
+              games={shownGames}
               accounts={accounts}
               friends={friends}
-              launchingId={launchingId}
               onOpenGame={openSheet}
-              onLaunch={launch}
+              onLaunch={startLaunch}
               onManageAccounts={() => goSettings('accounts')}
               onShowFriends={showFriends}
             />
@@ -500,9 +501,9 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       <GameSheet
         game={openGame}
         friends={friends.friends}
-        launching={!!openGame && launchingId === openGame.id}
         onClose={closeSheet}
-        onLaunch={launch}
+        onLaunch={startLaunch}
+        onRescan={() => loadGames(true)}
         onFavorite={toggleFavorite}
         onOpenFolder={openFolder}
         onOpenStats={() => {
@@ -511,7 +512,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         }}
       />
       <FriendAlerts games={games} onShowFriends={showFriends} />
-      <UpdateNotice onOpenAbout={() => goSettings('about')} inGame={games.some((g) => g.running)} />
+      <UpdateNotice onOpenAbout={() => goSettings('about')} inGame={anyRunning} launching={pending.real && !anyRunning} />
+      <LaunchDock onRescan={() => loadGames(true)} />
       <WhatsNew />
     </div>
   )

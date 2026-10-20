@@ -231,6 +231,31 @@
 .sheet-play {
   flex: 1;
 }
+/* Où en est le lancement, sous « Jouer » : 12/16, icône 14 px, sans animation. */
+.sheet-launch-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -2px 24px 8px;
+  font: 400 12px/16px var(--font-ui);
+  color: var(--text-2);
+}
+.sheet-launch-line > svg {
+  flex-shrink: 0;
+}
+.sheet-launch-line > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet-launch-line.is-danger {
+  color: var(--danger-text);
+}
+.sheet-launch-line > .link-btn {
+  flex-shrink: 0;
+  font-size: 12px;
+}
 .sheet-square {
   width: 48px;
   height: 48px;

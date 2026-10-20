@@ -42,6 +42,7 @@
   --live: #3fd0ff;
   --live-soft: rgba(63, 208, 255, 0.14);
   --live-text: #7edfff;
+  --live-line: rgba(63, 208, 255, 0.45); /* jumeau de --accent-line */
   --on-live: #04121f;
   --meter: #3fd0ff;
   --meter-2: #7fa6d6;
@@ -132,5 +133,6 @@
   --z-popover: 60;
   --z-modal: 70;
   --z-toast: 80;
+  --z-launch: 75; /* mise à feu d'un jeu : au-dessus des dialogues, sous les toasts et le saut */
   --z-warp: 100; /* au-dessus des toasts : redémarrage et retour d'une mise à jour */
 }

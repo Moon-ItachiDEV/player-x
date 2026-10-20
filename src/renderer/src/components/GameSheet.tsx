@@ -2,7 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { capitalize, cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
 import type { Friend, Game } from '@shared/types'
 import { isBf6Game, useBf6Summary } from './stats/bf6'
-import type { GameSheetProps } from '../contracts'
+import type { GameSheetProps, LaunchFn } from '../contracts'
+import { sheetLine } from '../launch/copy'
+import { isPending } from '../launch/phase'
+import { PlayLabel } from '../launch/PlayLabel'
+import { useWindowActive } from '../update/useCardPhase'
+import { usePlayState, type PlayInfo } from '../launch/usePlayState'
 import { Avatar } from './ui/Avatar'
 import { CountUp } from './ui/CountUp'
 import { Cover } from './ui/Cover'
@@ -39,8 +44,10 @@ export function GameSheet(props: GameSheetProps): React.JSX.Element | null {
 
 type SheetProps = Omit<GameSheetProps, 'game'> & { game: Game; closing: boolean }
 
-function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorite, onOpenFolder, onOpenStats }: SheetProps): React.JSX.Element {
+function Sheet({ game, friends, closing, onClose, onLaunch, onRescan, onFavorite, onOpenFolder, onOpenStats }: SheetProps): React.JSX.Element {
   const panelRef = useRef<HTMLElement>(null)
+  const posterRef = useRef<HTMLDivElement>(null)
+  const p = usePlayState(game, onLaunch)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(false)
   const [pop, setPop] = useState(0)
@@ -58,7 +65,7 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
   // Ouverte autrement (« Détails », vignette), un double-clic est seulement ignoré.
   const onScrimClick = (e: React.MouseEvent): void => {
     const justOpened = performance.now() - openedAt.current < DBL_CLICK_MS
-    if (justOpened && e.detail === 2 && !launching && openedByCard(DBL_CLICK_MS)) onLaunch(game)
+    if (justOpened && e.detail === 2 && p.state === 'idle' && openedByCard(DBL_CLICK_MS)) p.activate(posterRef.current)
     if (justOpened || e.detail > 1) return
     onClose()
   }
@@ -127,7 +134,7 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
           </button>
         </header>
         <div className="sheet-head">
-          <div className="sheet-poster">
+          <div ref={posterRef} className="sheet-poster">
             <Cover key={`p-${game.id}`} game={game} variant="portrait" showTitle={false} />
           </div>
           <div className="sheet-heading">
@@ -144,22 +151,15 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
         <div ref={sentinelRef} className="sheet-sentinel" />
         <div className={`sheet-actions ${stuck ? 'is-stuck' : ''}`}>
           <button
-            className={`btn btn-primary btn-play sheet-play ${launching ? 'is-launching' : ''}`}
-            onClick={() => onLaunch(game)}
-            disabled={launching}
-            data-magnetic
+            className={`btn btn-primary btn-play sheet-play ${p.className}`}
+            onClick={() => p.activate(posterRef.current)}
+            aria-disabled={p.inert || undefined}
+            aria-busy={p.busy || undefined}
+            aria-label={p.ariaLabel}
+            title={p.state === 'idle' ? undefined : p.title}
+            data-magnetic={p.state === 'idle' ? '' : undefined}
           >
-            {launching ? (
-              <>
-                <span className="spinner" aria-hidden="true" />
-                Lancement…
-              </>
-            ) : (
-              <>
-                <Icon name="play" size={18} />
-                Jouer
-              </>
-            )}
+            <PlayLabel p={p} size={18} />
           </button>
           <button
             className={`btn btn-secondary sheet-square ${game.favorite ? 'is-fav' : ''}`}
@@ -182,6 +182,8 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
             <Icon name="folder" size={20} />
           </button>
         </div>
+
+        <LaunchLine game={game} p={p} onLaunch={onLaunch} onRescan={onRescan} />
 
         <div className="sheet-stats">
           {game.lastPlayed ? (
@@ -382,4 +384,39 @@ function middleEllipsis(text: string, max: number, measure: (s: string) => numbe
     else hi = mid - 1
   }
   return cut(lo)
+}
+
+/**
+ * Ligne sous « Jouer » (spec launch-sequence.md §3.3) : où en est le lancement, compteur compris. Pas une région
+ * annoncée (la carte du lancement s'en charge). Un échec reste affiché jusqu'à la fermeture de la fiche.
+ */
+function LaunchLine({ game, p, onLaunch, onRescan }: { game: Game; p: PlayInfo; onLaunch: LaunchFn; onRescan?: () => void }): React.JSX.Element | null {
+  const active = useWindowActive()
+  const [now, setNow] = useState(() => Date.now())
+  // Ouverture de la fiche : un lancement terminé avant n'y est pas rappelé.
+  const [openedAt] = useState(() => Date.now())
+  const v = p.launch
+  const s = v?.status
+  const pending = !!s && isPending(s.phase)
+  useEffect(() => {
+    if (!pending || !active || !s) return
+    const at = Date.now()
+    const id = setTimeout(() => setNow(Date.now()), 1000 - ((at - s.clickAt) % 1000) + 8)
+    return () => clearTimeout(id)
+  }, [pending, active, s, now])
+  if (!v || !s || v.checking || (!pending && v.changedAt < openedAt)) return null
+  const line = sheetLine(s, { name: cleanName(game.name), now: active ? Date.now() : now })
+  if (!line?.text) return null
+  const act = line.action
+  return (
+    <p className={`sheet-launch-line ${line.tone === 'danger' ? 'is-danger' : ''}`}>
+      {line.icon && <Icon name={line.icon} size={14} />}
+      <span className="num">{line.text}</span>
+      {act && (act.kind !== 'rescan' || onRescan) && (
+        <button className="link-btn" onClick={() => (act.kind === 'rescan' ? onRescan?.() : onLaunch(game, null, act.kind))}>
+          {act.label}
+        </button>
+      )}
+    </p>
+  )
 }

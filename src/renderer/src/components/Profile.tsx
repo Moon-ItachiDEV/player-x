@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { capitalize, cleanName, formatDate, formatPlaytime, plural, timeAgo } from '@shared/text'
 import type { Account, FriendPlatform, FriendsResult, Game, Store } from '@shared/types'
-import type { ProfileProps } from '../contracts'
+import type { LaunchFn, ProfileProps } from '../contracts'
+import { PlayIcon } from '../launch/PlayLabel'
+import { usePlayState } from '../launch/usePlayState'
 import { setArtFocus, setMorphSource } from '../motion'
 import { Avatar } from './ui/Avatar'
 import { CountUp } from './ui/CountUp'
@@ -31,7 +33,7 @@ function primaryAccount(accounts: Account[]): Account | undefined {
   return undefined
 }
 
-export function Profile({ games, accounts, friends, launchingId, onOpenGame, onLaunch, onManageAccounts, onShowFriends }: ProfileProps): React.JSX.Element {
+export function Profile({ games, accounts, friends, onOpenGame, onLaunch, onManageAccounts, onShowFriends }: ProfileProps): React.JSX.Element {
   const stats = useMemo(() => {
     const launched = games
       .filter((g) => launchesOf(g) > 0)
@@ -42,7 +44,8 @@ export function Profile({ games, accounts, friends, launchingId, onOpenGame, onL
       top: launched.slice(0, 5),
       topPlayed: played.slice(0, 5),
       totalPlaytime: games.reduce((n, g) => n + playtimeOf(g), 0),
-      running: games.find((g) => g.running),
+      // Plusieurs jeux en cours : le dernier démarré.
+      running: games.filter((g) => g.running).sort((a, b) => (b.runningSince ?? 0) - (a.runningSince ?? 0))[0] as Game | undefined,
       recent: recent.slice(0, 6),
       last: recent[0] as Game | undefined,
       mostLaunched: launched[0] as Game | undefined,
@@ -156,7 +159,6 @@ export function Profile({ games, accounts, friends, launchingId, onOpenGame, onL
                     key={g.id}
                     game={g}
                     meta={capitalize(timeAgo(g.lastPlayed!))}
-                    launching={launchingId === g.id}
                     onOpen={onOpenGame}
                     onLaunch={onLaunch}
                   />
@@ -173,7 +175,7 @@ export function Profile({ games, accounts, friends, launchingId, onOpenGame, onL
             {stats.favorites.length > 0 ? (
               <div className="prof-favs">
                 {stats.favorites.map((g) => (
-                  <GameTile key={g.id} game={g} meta={KIND_LABEL[g.store]} launching={launchingId === g.id} onOpen={onOpenGame} onLaunch={onLaunch} />
+                  <GameTile key={g.id} game={g} meta={KIND_LABEL[g.store]} onOpen={onOpenGame} onLaunch={onLaunch} />
                 ))}
               </div>
             ) : (
@@ -358,16 +360,19 @@ function TopPlayed({ games, onOpenGame }: { games: Game[]; onOpenGame: (g: Game)
 interface GameTileProps {
   game: Game
   meta: string
-  launching: boolean
   onOpen: (g: Game) => void
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
 }
 
 /** Jaquette 2:3 cliquable (ouvre la fiche) avec un bouton Jouer au survol. */
-function GameTile({ game, meta, launching, onOpen, onLaunch }: GameTileProps): React.JSX.Element {
+function GameTile({ game, meta, onOpen, onLaunch }: GameTileProps): React.JSX.Element {
   const name = cleanName(game.name)
   const art = game.heroUrl || game.coverUrl
   const box = useRef<HTMLSpanElement>(null)
+  const p = usePlayState(game, onLaunch)
+  // Démo en jeu : l'icône reste celle du repos (pas de texte pour dire que c'est simulé, donc pas de cyan).
+  const look = p.state === 'demo-running' ? null : p
+  const shown = p.state !== 'idle' && p.state !== 'demo-running'
   // Fond aux couleurs du jeu : on ne l'efface que si cette tuile l'a posé.
   const hovered = useRef(false)
   const focused = useRef(false)
@@ -379,8 +384,8 @@ function GameTile({ game, meta, launching, onOpen, onLaunch }: GameTileProps): R
   )
   return (
     <div
-      className={`prof-gt ${launching ? 'is-launching' : ''}`}
-      aria-busy={launching || undefined}
+      className={`prof-gt ${shown ? 'is-launching' : ''}`}
+      aria-busy={p.busy || undefined}
       onPointerEnter={() => {
         hovered.current = true
         setArtFocus(art)
@@ -416,13 +421,13 @@ function GameTile({ game, meta, launching, onOpen, onLaunch }: GameTileProps): R
         <span className="caption prof-gt-meta">{meta}</span>
       </button>
       <button
-        className="prof-gt-play"
-        onClick={() => onLaunch(game)}
-        disabled={launching}
-        aria-label={`Jouer à ${name}`}
-        title={launching ? 'Lancement…' : 'Jouer'}
+        className={`prof-gt-play ${look?.className ?? ''}`}
+        onClick={() => p.activate(box.current)}
+        aria-disabled={p.inert || undefined}
+        aria-label={p.ariaLabel}
+        title={p.label}
       >
-        {launching ? <span className="spinner" /> : <Icon name="play" size={16} />}
+        {look ? <PlayIcon p={look} size={16} /> : <Icon name="play" size={16} />}
       </button>
     </div>
   )

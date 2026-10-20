@@ -83,6 +83,12 @@
 .favrail-item:active {
   scale: 0.94;
 }
+/* Lancement en attente : anneau jaune immobile, sans voile (rien ne tourne). */
+.favrail-item.is-pending {
+  box-shadow:
+    0 0 0 2px var(--bg-rail),
+    0 0 0 4px var(--accent-line);
+}
 .favrail-item.is-live {
   box-shadow:
     0 0 0 2px var(--bg-rail),

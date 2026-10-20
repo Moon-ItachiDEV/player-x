@@ -14,6 +14,7 @@ Research behind the choices: tvOS focus (lift, light, almost unnoticeable parall
 2. **One rich thing at a time.** Only the hovered or focused card or tile carries tilt, glare, glow and the ring. Idle cards render nothing extra.
 3. **Physical, not bouncy.** Ease out quickly, settle slowly, never overshoot. No springs on big surfaces. `--ease-pop` stays for the favourite star only.
 4. **Respond fast, drift slowly.** A response to a hover, press or open takes 340ms or less. Only ambient things (backdrop crossfade, carousel, drift) are slow.
+   **Documented exception (0.7.0): « Mise à feu »**, the game launch stage (`launch-sequence.md` §4.1). It runs in the Full tier only and lasts ≤ 1.0s (about 880ms nominal). It is input-transparent: `pointer-events: none` and never focused, so every click and key goes through. It is skipped on repeats (the same game within 10 minutes, « Réessayer » or « Relancer quand même », a launch while another one is pending). It fades out in 160ms as soon as the window loses focus or is hidden, and on a click, the wheel or Esc.
 5. **Everything degrades cleanly.** With "Effets visuels" off you get today's polished UI. With reduced motion, nothing moves.
 
 ---
@@ -26,6 +27,7 @@ Research behind the choices: tvOS focus (lift, light, almost unnoticeable parall
 | `html.no-blur` | App.tsx (exists) | class | "Effets de transparence" is off. |
 | `html[data-fx]` | **App.tsx (C)** | `on` / `off` | `on` = `ui.visualFx && !ui.reduceMotion && !systemReducedMotion`. **This is the only gate for rich effects**, in CSS (`:root[data-fx='on'] …`) and in JS (`fxOn()`). |
 | `html[data-window]` | **Ambient.tsx (D)** | `active` / `idle` | `idle` when the window is blurred or hidden. Pauses every `.fx-loop` animation. Player X often sits on a second screen while a game runs, so the GPU must stay quiet. |
+| `html[data-launching]` | App.tsx (0.7.0) | present / absent | Present while a game launch is pending. Also pauses every `.fx-loop` animation, in every tier (`launch-sequence.md` §6). |
 | `html.vt-active`, `.vt-open`, `.vt-close`, `.vt-close-new`, `.vt-reorder`, `.vt-from-cover`, `.vt-from-art` | **motion.ts (C)** | classes | Present only while a view transition runs. |
 
 ### 2.1 New setting "Effets visuels"
@@ -645,7 +647,9 @@ Add to `UiPrefs`: `/** « Effets visuels » : relief des jaquettes, reflets, fon
 ### 6.5 `styles/transitions.css`
 
 ```css
-/* Transitions de vue (motion.ts). Toutes ≤ 340 ms : la page ne reçoit pas les clics pendant ce temps. */
+/* Transitions de vue (motion.ts). Toutes ≤ 340 ms. */
+/* Les clics traversent l'animation (double-clic lent sur une jaquette pendant l'ouverture de la fiche). */
+::view-transition { pointer-events: none; }
 ::view-transition-group(root) { animation-duration: 220ms; animation-timing-function: var(--ease-out); }
 
 /* Jaquette → affiche, visuel → en-tête */
@@ -677,6 +681,7 @@ How the open transition plays out:
 - The panel slides in as its own group.
 - The cover flies from the card to the poster: portrait to portrait, so nothing stretches. Shelf and hero art fly landscape to landscape into the header, with `object-fit: cover`.
 - Every group is drawn above everything else for 340ms, which is why only fully visible elements are named (`visibleCards`, `onScreen`).
+- Clicks still go through: `::view-transition { pointer-events: none }` hands them to the page underneath, so the second click of a slow double click on a cover lands while the sheet opens (`ff989ed`).
 
 ---
 
@@ -860,7 +865,7 @@ Place it between "Réduire les animations" and "Effets de transparence". You may
 | §6 "Cards and panels never glow" | The **single** hovered or focused card shows an ambient glow made from its own art. Panels still never glow. `--glow-accent` stays limited to primary buttons. |
 | §6 "No springy motion on big surfaces, no parallax" | Parallax is allowed on the hero (pointer and scroll) and on the sheet header (scroll) only, in the Full tier. Springs and overshoot are still banned. |
 | §6 "Don't animate the width or height of grid items" | Exception: shelf tiles (`flex-basis`, ≤ 8 items). The grid still never animates layout. |
-| §5 "No interaction animation lasts longer than 420ms" | Still true for responses (≤ 340ms in this pass). Ambient exceptions: backdrop and carousel crossfades (700ms), hero art settle (1100ms), JOUER shine (750ms), drift and ring loops. |
+| §5 "No interaction animation lasts longer than 420ms" | Still true for responses (≤ 340ms in this pass). Ambient exceptions: backdrop and carousel crossfades (700ms), hero art settle (1100ms), JOUER shine (750ms), drift and ring loops. The one response exception is the « Mise à feu » launch stage (≤ 1.0s, §1 rule 4). |
 | §5 "Animate only transform and opacity" | Same, with the exceptions listed in §8 rule 1. |
 | §5 grid entrance "20ms per card, max 240ms" | 22ms per card, capped at the 13th card (264ms), Full tier only. |
 | §5 "Card hover lift translateY(-4px)" / "cover zoom 1.04" | Sober tier: unchanged. Full tier: −6px, scale 1.05, inner art scale 1.08. |

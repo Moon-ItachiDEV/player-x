@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { capitalize, cleanName, formatPlaytime, timeAgo } from '@shared/text'
 import type { Game } from '@shared/types'
+import type { LaunchFn } from '../../contracts'
+import { libraryMeta } from '../../launch/copy'
+import { PlayLabel } from '../../launch/PlayLabel'
+import { usePlayState } from '../../launch/usePlayState'
 import { setArtFocus, setMorphSource } from '../../motion'
 import { Cover, generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
@@ -43,13 +47,12 @@ export function cardMeta(game: Game): string {
 
 interface GameCardProps {
   game: Game
-  launching: boolean
   onOpen: (g: Game) => void
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
   onFavorite: (g: Game) => void
 }
 
-export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: GameCardProps): React.JSX.Element {
+export function GameCard({ game, onOpen, onLaunch, onFavorite }: GameCardProps): React.JSX.Element {
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const card = useRef<HTMLElement>(null)
   const media = useRef<HTMLDivElement>(null)
@@ -62,6 +65,11 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
   const name = cleanName(game.name)
   const fav = !!game.favorite
   const art = game.heroUrl || game.coverUrl
+  const p = usePlayState(game, onLaunch)
+  // Pendant un lancement, la méta dit où il en est (« En attente · Steam ») ; sinon la méta habituelle.
+  const meta = libraryMeta(p.state, p.launch?.status.route ?? null) ?? cardMeta(game)
+  // La pastille reste visible tant que le lancement attend (ou en démo, seul signe de la partie simulée).
+  const shown = p.state !== 'idle' && p.state !== 'running'
 
   useTilt(media, card, art)
   useEffect(
@@ -75,7 +83,7 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
 
   const launch = (): void => {
     clearTimeout(timer.current)
-    if (!launching) onLaunch(game)
+    p.activate(cover.current)
   }
 
   const onClick = (e: React.MouseEvent): void => {
@@ -119,10 +127,11 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
   return (
     <article
       ref={card}
-      className={`lib-card ${game.running ? 'is-running' : ''} ${entering ? 'is-entering' : ''} ${launching ? 'is-launching' : ''} ${fav ? 'is-fav' : ''}`}
+      className={`lib-card ${game.running ? 'is-running' : ''} ${entering ? 'is-entering' : ''} ${shown ? 'is-launching' : ''} ${fav ? 'is-fav' : ''}`}
+      data-launch={p.state === 'idle' ? undefined : p.state}
       tabIndex={0}
-      aria-label={`${name}, ${cardMeta(game)}`}
-      aria-busy={launching || undefined}
+      aria-label={`${name}, ${meta}`}
+      aria-busy={p.busy || undefined}
       onClick={onClick}
       onDoubleClick={launch}
       onKeyDown={onKeyDown}
@@ -141,28 +150,18 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
             {game.running && <LiveBadge className="lib-card-live" />}
             <div className="lib-card-overlay" aria-hidden="true" />
             <button
-              className="lib-card-play"
+              className={`lib-card-play ${p.className}`}
               tabIndex={-1}
-              aria-label={`Jouer à ${name}`}
-              title={launching ? 'Lancement…' : 'Jouer'}
-              disabled={launching}
+              aria-label={p.ariaLabel}
+              title={p.title}
+              aria-disabled={p.inert || undefined}
               onClick={(e) => {
                 stop(e)
                 launch()
               }}
               onDoubleClick={stop}
             >
-              {launching ? (
-                <>
-                  <span className="spinner" />
-                  Lancement…
-                </>
-              ) : (
-                <>
-                  <Icon name="play" size={14} />
-                  Jouer
-                </>
-              )}
+              <PlayLabel p={p} size={14} />
             </button>
             <button
               className="lib-card-fav"
@@ -183,7 +182,7 @@ export function GameCard({ game, launching, onOpen, onLaunch, onFavorite }: Game
               <h3 className="lib-card-title" title={name}>
                 {name}
               </h3>
-              <p className="lib-card-meta">{launching ? 'Lancement…' : cardMeta(game)}</p>
+              <p className="lib-card-meta">{meta}</p>
             </span>
             <StoreTag kind={game.store} size={18} className="lib-card-tag" />
           </div>

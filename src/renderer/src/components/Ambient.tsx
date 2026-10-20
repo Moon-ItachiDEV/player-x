@@ -137,7 +137,8 @@ export function Ambient(): React.JSX.Element {
         attached.delete(el)
       }
       const move = (ev: PointerEvent): void => {
-        if (el.disabled || !fxOn()) return leave()
+        // Désactivé, effets coupés, ou plus magnétique (un jeu se lance) : retour au repos.
+        if (el.disabled || !el.hasAttribute('data-magnetic') || !fxOn()) return leave()
         f.set(clamp((ev.clientX - cx) * 0.22, 6), clamp((ev.clientY - cy) * 0.22, 4))
       }
       el.addEventListener('pointermove', move)

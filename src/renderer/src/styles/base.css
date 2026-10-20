@@ -248,8 +248,54 @@ kbd {
   position: relative;
   z-index: 1;
 }
-.btn-play.is-launching {
-  opacity: 0.7;
+/* Lancement (launch/usePlayState.ts) : même largeur dans tous les états, couleurs et libellés changés d'un coup.
+   Envoi : jaune plein, opaque ; attente : jaune clair, horloge immobile ; en jeu : cyan. Aussi « À reprendre » et la fiche. */
+.btn.btn-primary:is(.btn-play, .rc-play):is(.is-sending, .is-waiting, .is-live) {
+  transition: scale 160ms var(--ease-glide);
+}
+.btn.btn-primary:is(.btn-play, .rc-play).is-sending {
+  background-color: var(--accent-solid);
+  color: var(--on-accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  cursor: default;
+}
+.btn.btn-primary:is(.btn-play, .rc-play).is-waiting {
+  background-color: var(--accent-soft);
+  color: var(--accent-text);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.btn.btn-primary:is(.btn-play, .rc-play).is-live {
+  background-color: var(--live-soft);
+  color: var(--live-text);
+  box-shadow: inset 0 0 0 1px var(--live-line);
+}
+.btn.btn-primary:is(.btn-play, .rc-play).is-live:hover {
+  background-color: color-mix(in srgb, var(--live) 22%, transparent);
+}
+.btn.btn-primary:is(.btn-play, .rc-play).is-sending:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    var(--focus);
+}
+.btn.btn-primary:is(.btn-play, .rc-play):is(.is-waiting, .is-live):focus-visible {
+  box-shadow: var(--focus);
+}
+.hh-actions .btn-play {
+  min-width: 196px;
+}
+.rc-play {
+  min-width: 132px;
+}
+.sheet-play {
+  min-width: 172px;
+}
+/* Point « en jeu » des boutons : immobile. */
+.launch-live-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--live);
 }
 /* Reflet : un seul passage par survol ; au repos, retour sans transition (invisible) */
 .btn-play::after {
@@ -260,7 +306,7 @@ kbd {
   translate: -130% 0;
   pointer-events: none;
 }
-:root[data-fx='on'] .btn-play:hover:not(:disabled, .is-launching)::after {
+:root[data-fx='on'] .btn-play:hover:not(:disabled, [aria-disabled='true'], .is-sending, .is-waiting, .is-live)::after {
   translate: 130% 0;
   transition: translate 750ms var(--ease-in-out);
 }
@@ -446,8 +492,14 @@ kbd {
     background-color var(--d-1) var(--ease-out),
     color var(--d-1) var(--ease-out);
 }
-.seg button:hover {
+.seg button:hover:not([aria-disabled='true']) {
   color: var(--text-1);
+}
+.seg[aria-disabled='true'] {
+  opacity: 0.55;
+}
+.seg button[aria-disabled='true'] {
+  cursor: default;
 }
 .seg button.active {
   background: var(--nav-on-bg);
@@ -838,6 +890,13 @@ kbd {
 :root[data-window='idle'] .fx-loop,
 :root[data-window='idle'] .fx-loop::before,
 :root[data-window='idle'] .fx-loop::after {
+  animation-play-state: paused !important;
+}
+/* Un jeu se lance (App pose data-launching) : rien ne bouge derrière la carte du lancement. */
+:root[data-launching] .fx-loop,
+:root[data-launching] .fx-loop::before,
+:root[data-launching] .fx-loop::after,
+:root[data-window='idle'] .launch-spin {
   animation-play-state: paused !important;
 }
 

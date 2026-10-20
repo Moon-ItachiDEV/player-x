@@ -1,0 +1,189 @@
+/* Mise à feu d'un jeu (LaunchStage.tsx, launch/sequence.ts), spec launch-sequence.md §3.1.
+   Dans <body>, au-dessus du contenu, sous les toasts. Ne bloque aucun clic, ne prend jamais le focus.
+   Seulement le contenu est voilé : rail, menu et barre du haut restent visibles. Tout ce qui bouge est transform ou
+   opacity (WAAPI, launch/keyframes.ts) ; les ombres et les dégradés sont statiques. Jaune : ton geste ; jamais de cyan ici. */
+
+.launch-stage {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-launch);
+  pointer-events: none;
+  contain: layout style;
+}
+
+.launch-veil {
+  position: absolute;
+  left: var(--cl);
+  top: var(--ct);
+  width: var(--cw);
+  height: var(--ch);
+  background: color-mix(in srgb, var(--bg-0) 55%, transparent);
+  opacity: 0;
+}
+
+.launch-band {
+  position: absolute;
+  left: var(--cl);
+  width: var(--cw);
+  top: calc(var(--cy) - 140px);
+  height: 280px;
+  overflow: hidden;
+  opacity: 0;
+  mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+}
+.launch-stage[data-narrow] .launch-band {
+  top: calc(var(--cy) - 110px);
+  height: 220px;
+}
+.launch-band > img,
+.launch-band-gen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+}
+.launch-band-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(closest-side, rgb(47 124 246 / 0.28), transparent) calc(50% - 120px) 50% / 360px 360px no-repeat,
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--bg-0) 30%, transparent),
+      color-mix(in srgb, var(--bg-0) 82%, transparent) 55%,
+      color-mix(in srgb, var(--bg-0) 92%, transparent)
+    );
+}
+
+.launch-group {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  translate: -50% -50%;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.launch-art {
+  position: relative;
+  flex-shrink: 0;
+  width: 168px;
+  height: 252px;
+}
+.launch-stage[data-narrow] .launch-art {
+  width: 132px;
+  height: 198px;
+}
+.launch-poster {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow:
+    0 24px 48px -20px rgb(0 0 0 / 0.8),
+    0 0 0 1px var(--line-3);
+  transform-origin: 0 0;
+  /* Pas d'opacité au repos ici : la prise la pose (fill: both), le départ l'emmène. */
+}
+.launch-poster > .cover {
+  height: 100%;
+}
+.launch-sheen,
+.launch-shock {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+}
+.launch-sheen {
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.5) 50%, transparent 65%);
+}
+/* Onde de la mise à feu : un cercle centré sur la jaquette (hors de son overflow). */
+.launch-shock {
+  left: 50%;
+  top: 50%;
+  width: 168px;
+  height: 168px;
+  margin: -84px 0 0 -84px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent-line);
+}
+.launch-stage[data-narrow] .launch-shock {
+  width: 132px;
+  height: 132px;
+  margin: -66px 0 0 -66px;
+}
+
+.launch-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(380px, calc(var(--cw) - 260px));
+  min-width: 0;
+}
+/* TextSwap : un seul enfant par bloc, sur une ligne (le titre est hors du bloc). */
+.launch-text .upd-swap {
+  display: block;
+}
+.launch-text .upd-text {
+  display: block;
+}
+.launch-kicker {
+  display: block;
+  font: 600 12px/16px var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.launch-stage[data-demo] .launch-kicker {
+  color: var(--text-2);
+}
+.launch-title {
+  font: 800 36px/0.95 var(--font-display);
+  text-transform: uppercase;
+  color: var(--text-1);
+  text-wrap: balance;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.launch-stage[data-narrow] .launch-title {
+  font-size: 28px;
+}
+.launch-sub {
+  display: block;
+  font: 400 14px/20px var(--font-ui);
+  color: var(--text-2);
+}
+
+/* ---------- glissé : la jaquette va de l'endroit cliqué à la vignette de la carte ---------- */
+
+.launch-ghost {
+  position: fixed;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  transform-origin: 0 0;
+  box-shadow: 0 0 0 1px var(--line-2);
+}
+.launch-ghost > .cover {
+  height: 100%;
+}
+
+/* Allumage dans la fiche : onde et reflet ajoutés sur .sheet-poster, puis retirés (sequence.ts igniteLocal). */
+.sheet-poster {
+  position: relative;
+}
+.sheet-poster > .launch-shock {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  margin: 0;
+  translate: -50% -50%;
+}
+.sheet-poster > .launch-sheen {
+  border-radius: inherit;
+}
