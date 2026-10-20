@@ -24,7 +24,7 @@
 - Grid: `var(--rail-w) var(--side-w) minmax(0, 1fr)`; top bar `--topbar-h` 48px. Under 1180px the sidebar is 220px. Minimum window 1024 × 640.
 - **Rail** (`FavRail.tsx`, `favrail-*`): logo, favourite games (click launches, right click opens the sheet, a cyan ring and dot when in game), `+` opens the favourites picker.
 - **Sidebar** (`Sidebar.tsx`, `friends/SideFriends.tsx`): account menu, navigation (Accueil, Bibliothèque, Stats de jeu, Profil), friends grouped as in game (by game), online, away; « Hors ligne » and « Serveur Discord » fold. Paramètres and the demo badge sit at the bottom.
-- **Top bar** (`TopBar.tsx`, `TopTabs.tsx`): a page renders its tabs into the bar with `<TopTabs>` (a portal into `.tb-slot`), or its title with `<TopTitle>`. Tabs are full height with a 2px yellow bar under the selected one. Under 1080px a tab shows its `short` label; under 1279px the search collapses to a magnifier and opens on focus, on Ctrl K or while it holds a query.
+- **Top bar** (`TopBar.tsx`, `TopTabs.tsx`): a page renders its tabs into the bar with `<TopTabs>` (a portal into `.tb-slot`), or its title with `<TopTitle>`. Tabs are full height with a 2px yellow bar under the selected one. Under 1080px a tab shows its `short` label; under 1279px the search collapses to a magnifier and opens on focus, on Ctrl K or while it holds a query. From 1280px the tabs keep their full width and the search shrinks first, down to 120px (its Ctrl K hint goes under 230px); the tabs only scroll if even that is not enough.
 - **Game sheet** (`GameSheet.tsx`): a 480px panel from the right. Its scrim leaves the rail, the sidebar and the top bar visible.
 - **Update card** (`UpdateNotice.tsx`): bottom left of the content, `left: calc(var(--nav-w) + 20px)`.
 

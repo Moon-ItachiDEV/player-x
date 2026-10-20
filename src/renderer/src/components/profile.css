@@ -156,11 +156,17 @@
 
 /* ---------- tuiles de statistiques ---------- */
 
+/* Quatre tuiles : sur une ligne, sinon en 2 × 2 (jamais 3 + 1). */
 .prof-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-top: 28px;
+}
+@container (max-width: 900px) {
+  .prof-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .prof-tile {
   display: flex;

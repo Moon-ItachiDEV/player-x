@@ -399,10 +399,13 @@
   text-transform: uppercase;
   color: var(--text-1);
 }
+/* Les onglets gardent leur largeur : la recherche rétrécit d'abord (jusqu'à 120px) ; ils ne défilent qu'en dernier recours. */
 .tb-slot {
   display: flex;
+  flex-shrink: 0;
   align-self: stretch;
   min-width: 0;
+  max-width: calc(100% - 152px);
   margin-left: -12px;
 }
 .tb-slot:empty {
@@ -503,9 +506,10 @@
   align-items: center;
   gap: 8px;
   flex: 0 1 300px;
-  min-width: 200px;
+  min-width: 120px;
   height: 34px;
   padding: 0 5px 0 12px;
+  container-type: inline-size;
   border-radius: var(--r-md);
   background: var(--field-bg);
   border: 1px solid var(--line-2);
@@ -572,6 +576,12 @@
 }
 .tb-search:focus-within .tb-kbd {
   opacity: 0;
+}
+/* Recherche rétrécie par des onglets longs : le raccourci s'efface, le champ garde la place pour son texte. */
+@container (max-width: 230px) {
+  .tb-kbd {
+    display: none;
+  }
 }
 
 .tb-clear {
@@ -693,6 +703,11 @@
   }
   .tb-search:not(:focus-within, .has-query) .tb-search-input::placeholder {
     color: transparent;
+  }
+  /* La loupe laisse la place aux onglets ; dépliée pour une recherche, c'est elle qui passe devant. */
+  .tb-slot {
+    flex-shrink: 1;
+    max-width: none;
   }
   .tb-tab {
     padding: 0 10px;
