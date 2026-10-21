@@ -94,7 +94,13 @@ function steamGame(appId: string, name: string, installDir?: string): Game {
   }
 }
 
-export async function scanSteam(report: ScanReport): Promise<Game[]> {
+/** Outils et runtimes Steam qui ne sont pas des jeux. */
+export function isSteamTool(appId: string, name: string): boolean {
+  return STEAM_NOT_GAMES.has(appId) || /redistributable|proton|steam linux runtime/i.test(name)
+}
+
+/** Dossiers des bibliothèques Steam de ce PC, celle du registre d'abord. `checked` reçoit ce qui a été regardé (rapport de scan). */
+export async function steamLibraryDirs(checked: string[] = []): Promise<string[]> {
   const regPath = (await regQuery('HKCU\\Software\\Valve\\Steam', 'SteamPath'))?.replace(/\//g, '\\')
   const candidates = [
     regPath,
@@ -127,11 +133,14 @@ export async function scanSteam(report: ScanReport): Promise<Game[]> {
       /* pas de bibliothèque secondaire */
     }
   }
-  report.checked.push(regPath ? `Registre Steam : ${regPath}` : 'Registre Steam : introuvable')
-  report.checked.push(libraries.size ? `Bibliothèques : ${[...libraries.values()].join(', ')}` : 'Aucune bibliothèque Steam trouvée')
+  checked.push(regPath ? `Registre Steam : ${regPath}` : 'Registre Steam : introuvable')
+  checked.push(libraries.size ? `Bibliothèques : ${[...libraries.values()].join(', ')}` : 'Aucune bibliothèque Steam trouvée')
+  return [...libraries.values()]
+}
 
+export async function scanSteam(report: ScanReport): Promise<Game[]> {
   const games = new Map<string, Game>()
-  for (const lib of libraries.values()) {
+  for (const lib of await steamLibraryDirs(report.checked)) {
     const appsDir = join(lib, 'steamapps')
     for (const file of await safeReaddir(appsDir)) {
       if (!/^appmanifest_\d+\.acf$/i.test(file)) continue
@@ -140,7 +149,7 @@ export async function scanSteam(report: ScanReport): Promise<Game[]> {
         const appId = vdfValue(acf, 'appid')
         const name = vdfValue(acf, 'name')
         const installdir = vdfValue(acf, 'installdir') ?? ''
-        if (!appId || !/^\d+$/.test(appId) || !name || STEAM_NOT_GAMES.has(appId) || /redistributable|proton|steam linux runtime/i.test(name)) continue
+        if (!appId || !/^\d+$/.test(appId) || !name || isSteamTool(appId, name)) continue
         // Un simple nom de dossier sous steamapps\common : jamais de chemin qui en sort.
         if (/[\\/:]|^\.{1,2}$/.test(installdir)) continue
         // La première bibliothèque gagne (celle du registre Steam d'abord) : un manifeste en double ne remplace pas le vrai jeu.

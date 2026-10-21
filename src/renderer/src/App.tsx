@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Account, FriendPlatform, FriendsResult, Game, ScanReport, Settings } from '@shared/types'
+import { cleanName } from '@shared/text'
+import type { Account, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 import { AccountMenu } from './components/AccountMenu'
 import { Ambient } from './components/Ambient'
 import { FavRail } from './components/FavRail'
@@ -12,6 +13,7 @@ import { Profile } from './components/Profile'
 import { SettingsView } from './components/settings/SettingsView'
 import { Setup } from './components/setup/Setup'
 import { Sidebar } from './components/Sidebar'
+import { RecapHost } from './components/stats/Recap'
 import { Stats } from './components/stats/Stats'
 import { TopBar } from './components/TopBar'
 import { TopSlot } from './components/TopTabs'
@@ -107,6 +109,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   const [settings, setSettings] = useState<Settings | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [games, setGames] = useState<Game[]>([])
+  const [steamLib, setSteamLib] = useState<SteamLibrary | null>(null)
   const [scanning, setScanning] = useState(false)
   const [report, setReport] = useState<ScanReport[]>([])
   const [lastScanAt, setLastScanAt] = useState<number | null>(null)
@@ -125,6 +128,15 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   // Change à chaque bascule du mode démo : un scan lancé avant ne doit pas remplacer la nouvelle bibliothèque.
   const libraryEpoch = useRef(0)
 
+  // Jeux du compte Steam pas installés sur ce PC : relus avec la bibliothèque, et quand le compte Steam ou la clé changent.
+  const loadSteamLib = useCallback(async (refresh = false) => {
+    try {
+      setSteamLib(await api.getSteamLibrary(refresh))
+    } catch {
+      /* la liste affichée reste la précédente */
+    }
+  }, [])
+
   const loadGames = useCallback(
     async (refresh = false) => {
       const epoch = libraryEpoch.current
@@ -133,7 +145,11 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         const list = await api.getGames(refresh)
         if (epoch !== libraryEpoch.current) return
         setGames(list)
-        if (refresh) notify(`Bibliothèque à jour · ${list.length} jeu${list.length > 1 ? 'x' : ''}`, { kind: 'success', id: 'scan' })
+        if (refresh) {
+          // Un jeu peut être passé de « Non installés » à la bibliothèque.
+          loadSteamLib()
+          notify(`Bibliothèque à jour · ${list.length} jeu${list.length > 1 ? 'x' : ''}`, { kind: 'success', id: 'scan' })
+        }
       } catch (e) {
         notify(errorMessage(e), { kind: 'error' })
       } finally {
@@ -145,7 +161,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         }
       }
     },
-    [notify]
+    [notify, loadSteamLib]
   )
 
   const loadFriends = useCallback(async () => {
@@ -169,13 +185,14 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       setReady(true)
     })
     loadGames()
-    return api.onGamesChanged(() =>
+    return api.onGamesChanged(() => {
       api
         .getGames()
         .then(setGames)
         .catch(() => {})
-    )
-  }, [loadGames, setEntered])
+      loadSteamLib()
+    })
+  }, [loadGames, loadSteamLib, setEntered])
 
   // Lancements : événements du processus principal, puis ceux déjà en cours (rechargement de l'interface).
   useEffect(() => bindLaunchIpc(), [])
@@ -205,6 +222,16 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     const timer = setInterval(loadFriends, 60_000)
     return () => clearInterval(timer)
   }, [entered, accountsKey, settings?.demoMode, settings?.discordGuildId, settings?.steamApiKey, settings?.psnNpsso, loadFriends])
+
+  useEffect(() => {
+    if (entered) loadSteamLib()
+  }, [entered, accountsKey, settings?.demoMode, settings?.steamApiKey, loadSteamLib])
+
+  // Une liste Steam lue avant un scan peut encore contenir un jeu qui vient d'être installé.
+  const notInstalled = useMemo(() => {
+    const here = new Set(games.map((g) => g.id))
+    return (steamLib?.notInstalled ?? []).filter((g) => !here.has(g.id))
+  }, [games, steamLib])
 
   // Clic sur une notification Windows d'un ami (ou sur une alerte) : la liste d'amis du menu se déplie et se montre.
   const showFriends = useCallback(() => {
@@ -278,6 +305,22 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     [notify]
   )
 
+  const install = useCallback(
+    async (game: Game) => {
+      const name = cleanName(game.name)
+      try {
+        await api.installGame(game.id)
+        notify(
+          settings?.demoMode ? `Mode démo : Steam installerait ${name}` : `Steam s'ouvre pour installer ${name}. Le jeu rejoindra ta bibliothèque une fois téléchargé.`,
+          { kind: 'info' }
+        )
+      } catch (e) {
+        notify(`Impossible d'installer ${name} : ${errorMessage(e)}`, { kind: 'error' })
+      }
+    },
+    [notify, settings?.demoMode]
+  )
+
   const toggleFavorite = useCallback(async (game: Game) => setGames(await api.toggleFavorite(game.id)), [])
 
   const openFolder = useCallback(
@@ -334,7 +377,10 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     setAccountMenu(false)
   }
 
-  const openGame = useMemo(() => shownGames.find((g) => g.id === openGameId) ?? null, [shownGames, openGameId])
+  const openGame = useMemo(
+    () => shownGames.find((g) => g.id === openGameId) ?? notInstalled.find((g) => g.id === openGameId) ?? null,
+    [shownGames, notInstalled, openGameId]
+  )
 
   // Ouverture et fermeture de la fiche : la jaquette (ou le visuel) d'origine se transforme en en-tête.
   const openSheet = useCallback((g: Game) => {
@@ -437,6 +483,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
           {view === 'library' && (
             <Library
               games={shownGames}
+              notInstalled={notInstalled}
+              onInstall={install}
               scanning={scanning}
               report={report}
               demo={settings.demoMode}
@@ -481,6 +529,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               onLogout={logout}
               onRescan={() => loadGames(true)}
               onOpenSetup={() => setSetup({ open: true, first: false })}
+              steamLibrary={steamLib}
+              onRefreshSteamLibrary={() => loadSteamLib(true)}
               loginPending={loginPending}
             />
           )}
@@ -506,12 +556,21 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         onRescan={() => loadGames(true)}
         onFavorite={toggleFavorite}
         onOpenFolder={openFolder}
+        onInstall={install}
+        onOpenStats={() => {
+          setOpenGameId(null)
+          go('stats')
+        }}
+        news={settings.gameNews}
+      />
+      <FriendAlerts games={games} onShowFriends={showFriends} />
+      <RecapHost
+        games={games}
         onOpenStats={() => {
           setOpenGameId(null)
           go('stats')
         }}
       />
-      <FriendAlerts games={games} onShowFriends={showFriends} />
       <UpdateNotice onOpenAbout={() => goSettings('about')} inGame={anyRunning} launching={pending.real && !anyRunning} />
       <LaunchDock onRescan={() => loadGames(true)} />
       <WhatsNew />

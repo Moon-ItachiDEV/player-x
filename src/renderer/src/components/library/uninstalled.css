@@ -1,0 +1,47 @@
+/* Jeux du compte Steam pas installés sur ce PC : onglet « Non installés », fin de recherche, fiche. */
+
+.lib-hint {
+  margin: 2px 0 4px;
+  max-width: 72ch;
+  color: var(--text-3);
+}
+
+/* Recherche : les jeux de la bibliothèque d'abord, puis ceux à installer. */
+.lib-more {
+  margin-top: 36px;
+}
+.lib-more-h {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.lib-more-count {
+  font: 600 14px/1 var(--font-ui);
+  letter-spacing: 0;
+  color: var(--text-3);
+}
+
+/* Jaquette éteinte tant que le jeu n'est pas sur ce PC ; pleine couleur au survol et au focus. */
+.lib-card.is-uninstalled .lib-card-cover .cover {
+  filter: saturate(0.3) brightness(0.72);
+  transition:
+    scale 400ms var(--ease-out),
+    filter var(--d-2) var(--ease-out);
+}
+.lib-card.is-uninstalled:is(:hover, :focus-visible, [data-tilt]) .lib-card-cover .cover {
+  filter: none;
+}
+
+/* Fiche : pastille à côté du store. */
+.sheet-uninstalled {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--text-2);
+  font: 600 11px/1 var(--font-ui);
+  white-space: nowrap;
+}

@@ -12,7 +12,12 @@ function defaults(): Settings {
     psnNpsso: '',
     demoMode: false,
     friendAlerts: 'all',
-    launchWindow: 'stay'
+    launchWindow: 'stay',
+    gameNews: true,
+    // Sous Linux, beaucoup de bureaux n'affichent pas la zone de notification : la croix y ferme Player X par défaut.
+    closeToTray: process.platform === 'win32',
+    startWithWindows: false,
+    bf6Recap: true
   }
 }
 
@@ -35,6 +40,10 @@ function cleanPatch(patch: unknown): Partial<Settings> {
   }
   if (typeof clean.discordGuildId === 'string') clean.discordGuildId = discordGuildIdFrom(clean.discordGuildId)
   if (typeof p.demoMode === 'boolean') clean.demoMode = p.demoMode
+  if (typeof p.gameNews === 'boolean') clean.gameNews = p.gameNews
+  if (typeof p.closeToTray === 'boolean') clean.closeToTray = p.closeToTray
+  if (typeof p.startWithWindows === 'boolean') clean.startWithWindows = p.startWithWindows
+  if (typeof p.bf6Recap === 'boolean') clean.bf6Recap = p.bf6Recap
   if (typeof p.friendAlerts === 'string' && ALERT_MODES.includes(p.friendAlerts)) clean.friendAlerts = p.friendAlerts as Settings['friendAlerts']
   if (typeof p.launchWindow === 'string' && WINDOW_MODES.includes(p.launchWindow)) clean.launchWindow = p.launchWindow as Settings['launchWindow']
   return clean

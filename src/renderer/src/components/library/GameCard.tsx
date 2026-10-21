@@ -6,6 +6,7 @@ import { libraryMeta } from '../../launch/copy'
 import { PlayLabel } from '../../launch/PlayLabel'
 import { usePlayState } from '../../launch/usePlayState'
 import { setArtFocus, setMorphSource } from '../../motion'
+import { NewsBadge } from '../news/NewsBadge'
 import { Cover, generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
 import { LiveBadge } from '../ui/LiveBadge'
@@ -37,9 +38,10 @@ export function FavStar({ on, pop, size }: { on: boolean; pop: number; size: num
   )
 }
 
-/** Méta courte : « 123 h · il y a 2 h », « En jeu · 45 h 45 » ou « Jamais lancé ». */
+/** Méta courte : « 123 h · il y a 2 h », « En jeu · 45 h 45 », « Jamais lancé » ou « Pas installé · 52 h ». */
 export function cardMeta(game: Game): string {
   if (game.running) return `En jeu${game.playtime ? ` · ${formatPlaytime(game.playtime)}` : ''}`
+  if (game.notInstalled) return `Pas installé${game.playtime ? ` · ${formatPlaytime(game.playtime)}` : ''}`
   // La plateforme est déjà sur la carte : le temps de jeu passe devant quand on le connaît.
   const when = game.lastPlayed ? timeAgo(game.lastPlayed) : 'jamais lancé'
   return game.playtime ? `${formatPlaytime(game.playtime)} · ${when}` : capitalize(when)
@@ -64,6 +66,8 @@ export function GameCard({ game, onOpen, onLaunch, onFavorite }: GameCardProps):
   const [pop, firePop] = usePop()
   const name = cleanName(game.name)
   const fav = !!game.favorite
+  // Jeu du compte Steam pas installé : « Installer » à la place de « Jouer », pas de favori.
+  const install = !!game.notInstalled
   const art = game.heroUrl || game.coverUrl
   const p = usePlayState(game, onLaunch)
   // Pendant un lancement, la méta dit où il en est (« En attente · Steam ») ; sinon la méta habituelle.
@@ -127,10 +131,10 @@ export function GameCard({ game, onOpen, onLaunch, onFavorite }: GameCardProps):
   return (
     <article
       ref={card}
-      className={`lib-card ${game.running ? 'is-running' : ''} ${entering ? 'is-entering' : ''} ${shown ? 'is-launching' : ''} ${fav ? 'is-fav' : ''}`}
+      className={`lib-card ${game.running ? 'is-running' : ''} ${entering ? 'is-entering' : ''} ${shown ? 'is-launching' : ''} ${fav ? 'is-fav' : ''} ${install ? 'is-uninstalled' : ''}`}
       data-launch={p.state === 'idle' ? undefined : p.state}
       tabIndex={0}
-      aria-label={`${name}, ${meta}`}
+      aria-label={`${name}, ${meta}${game.newPatch ? ', nouveau patch' : ''}`}
       aria-busy={p.busy || undefined}
       onClick={onClick}
       onDoubleClick={launch}
@@ -148,12 +152,13 @@ export function GameCard({ game, onOpen, onLaunch, onFavorite }: GameCardProps):
           <div ref={cover} className="lib-card-cover">
             <Cover key={game.id} game={game} />
             {game.running && <LiveBadge className="lib-card-live" />}
+            {game.newPatch && !game.running && <NewsBadge patch={game.newPatch} className="lib-card-news" />}
             <div className="lib-card-overlay" aria-hidden="true" />
             <button
               className={`lib-card-play ${p.className}`}
               tabIndex={-1}
-              aria-label={p.ariaLabel}
-              title={p.title}
+              aria-label={install ? `Installer ${name} avec Steam` : p.ariaLabel}
+              title={install ? 'Installer avec Steam' : p.title}
               aria-disabled={p.inert || undefined}
               onClick={(e) => {
                 stop(e)
@@ -161,21 +166,30 @@ export function GameCard({ game, onOpen, onLaunch, onFavorite }: GameCardProps):
               }}
               onDoubleClick={stop}
             >
-              <PlayLabel p={p} size={14} />
+              {install ? (
+                <>
+                  <Icon name="download" size={14} />
+                  <span>Installer</span>
+                </>
+              ) : (
+                <PlayLabel p={p} size={14} />
+              )}
             </button>
-            <button
-              className="lib-card-fav"
-              aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-              title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-              onClick={(e) => {
-                stop(e)
-                firePop()
-                onFavorite(game)
-              }}
-              onDoubleClick={stop}
-            >
-              <FavStar on={fav} pop={pop} size={15} />
-            </button>
+            {!install && (
+              <button
+                className="lib-card-fav"
+                aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                onClick={(e) => {
+                  stop(e)
+                  firePop()
+                  onFavorite(game)
+                }}
+                onDoubleClick={stop}
+              >
+                <FavStar on={fav} pop={pop} size={15} />
+              </button>
+            )}
           </div>
           <div className="lib-card-text">
             <span className="lib-card-words">

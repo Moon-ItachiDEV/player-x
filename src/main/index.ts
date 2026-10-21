@@ -2,20 +2,24 @@ import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app, BrowserWindow, Menu, powerMonitor, session, shell } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
-import type { Friend, FriendPlatform, Game, Settings } from '@shared/types'
+import { cleanName, isBf6Name } from '@shared/text'
+import type { Friend, FriendPlatform, Game, Settings, SteamLibrary } from '@shared/types'
 import * as db from './db'
 import { handle } from './ipc'
 import { checkFriends, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
-import { DEMO_FRIENDS, DEMO_GAMES, demoGames } from './services/demo'
+import { bf6RecapState, markBf6RecapSeen, setBf6Running, startBf6Recaps, syncBf6Recaps } from './services/bf6Recap'
+import { DEMO_FRIENDS, DEMO_GAMES, demoGames, demoNotInstalled } from './services/demo'
 import { connectPsn, getAllFriends, resetPsn } from './services/friends'
 import { getScanReport, handoff, launchTarget, scanAllGames } from './services/games'
 import { createLaunches, sanitizeOpts, type LaunchDeps, type Launches, type LaunchWindow, type Timers } from './services/launches'
 import { createWatcher } from './services/launchWatch'
 import { newMatches } from './services/launchWatchParse'
+import { getGameNews, markNewsSeen, refreshNewsIndex, startNewsWatcher, withNews } from './services/news'
 import { getAccounts, getSettings, publicSettings, removeAccount, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
+import { installSteamGame, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
 import {
   exeNamesFor,
   isRunning,
@@ -30,6 +34,7 @@ import {
   storeWasRunning,
   withPlaytime
 } from './services/playtime'
+import { attachWindow, onHideToTray, setTrayPlaying, startHidden, startTray, startupState, syncStartup } from './services/tray'
 import { initUpdater, takeRelaunchBounds } from './services/updater'
 import type { LaunchSim } from './launchSim'
 
@@ -51,7 +56,8 @@ function createWindow(): void {
   const win = new BrowserWindow({
     ...(b ? { x: b.x, y: b.y, width: b.width, height: b.height } : { width: 1440, height: 900 }),
     // Agrandie avant la mise à jour : montrée directement agrandie, sans passer par sa taille normale.
-    show: !b?.maximized,
+    // Lancée avec Windows : cachée près de l'horloge jusqu'au premier clic sur l'icône.
+    show: !b?.maximized && !startHidden,
     minWidth: 1024,
     minHeight: 640,
     backgroundColor: '#06101c',
@@ -73,6 +79,7 @@ function createWindow(): void {
     win.maximize()
     win.focus()
   }
+  attachWindow(win)
   // Les liens externes s'ouvrent dans le navigateur, pas dans l'appli.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) shell.openExternal(url)
@@ -88,6 +95,16 @@ let lastFriends: Friend[] = []
 
 function notifyGamesChanged(): void {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send('games:changed')
+  updateRunning()
+}
+
+/** Jeux en cours dans la vraie bibliothèque : menu de l'icône près de l'horloge, début et fin d'une session Battlefield 6. */
+function updateRunning(): void {
+  const running = withPlaytime(db.listGames()).filter((g) => g.running)
+  // La démo reste dans la fenêtre : rien dans le menu de l'icône.
+  setTrayPlaying(getSettings().demoMode ? [] : running.map((g) => cleanName(g.name)))
+  // Fin vue sans relevé fiable (mise en veille, PowerShell en panne) : le bilan attend le prochain relevé réussi.
+  setBf6Running(running.some((g) => isBf6Name(g.name)), lastPollOk())
 }
 
 // Favoris et lancements du mode démo : gardés à part pour ne jamais toucher la vraie bibliothèque.
@@ -116,17 +133,19 @@ let launchSim: LaunchSim | null = null
 async function games(refresh = false): Promise<Game[]> {
   if (getSettings().demoMode) {
     const state = demoState()
-    return applyArtwork(demoGames()).map((g) => {
-      const l = state.launches[g.id]
-      return {
-        ...g,
-        favorite: state.favorites ? state.favorites.includes(g.id) : g.favorite,
-        lastPlayed: l?.last ?? g.lastPlayed,
-        launches: (g.launches ?? 0) + (l?.count ?? 0),
-        // Développement : « En jeu » d'après le faux relevé du simulateur de lancement.
-        ...(launchSim?.isRunning(g.id) ? { running: true, runningSince: launchSim.runningSince(g.id) } : {})
-      }
-    })
+    return withNews(
+      applyArtwork(demoGames()).map((g) => {
+        const l = state.launches[g.id]
+        return {
+          ...g,
+          favorite: state.favorites ? state.favorites.includes(g.id) : g.favorite,
+          lastPlayed: l?.last ?? g.lastPlayed,
+          launches: (g.launches ?? 0) + (l?.count ?? 0),
+          // Développement : « En jeu » d'après le faux relevé du simulateur de lancement.
+          ...(launchSim?.isRunning(g.id) ? { running: true, runningSince: launchSim.runningSince(g.id) } : {})
+        }
+      })
+    )
   }
   if (refresh || !scanned) {
     const found = applyArtwork(await scanAllGames())
@@ -141,7 +160,34 @@ async function games(refresh = false): Promise<Game[]> {
     // Le mode démo a pu s'activer pendant le scan : on rend alors la bibliothèque de démo.
     if (getSettings().demoMode) return games()
   }
-  return withPlaytime(db.listGames())
+  return withNews(withPlaytime(db.listGames()))
+}
+
+/** La bibliothèque déjà connue (vraie ou de démo), sans relancer de scan : pour les actus des jeux. */
+function knownGames(): Game[] {
+  return getSettings().demoMode ? demoGames() : db.listGames()
+}
+
+/** Un jeu de la bibliothèque, ou un jeu du compte Steam pas installé sur ce PC (sa fiche s'ouvre aussi). */
+function findGame(id: unknown): Game | undefined {
+  if (typeof id !== 'string') return undefined
+  const installed = knownGames().find((g) => g.id === id)
+  if (installed) return installed
+  return (getSettings().demoMode ? demoNotInstalled().find((g) => g.id === id) : ownedSteamGame(id)) ?? undefined
+}
+
+const OWNED_ART_EVERY_MS = 10 * 60_000
+let ownedArt: { at: number; run: Promise<void> | null } = { at: 0, run: null }
+
+/** Jaquettes des jeux Steam non installés, en arrière-plan : une recherche à la fois, au plus toutes les 10 min. */
+function fetchOwnedArtwork(list: Game[]): void {
+  if (!list.length || ownedArt.run || Date.now() - ownedArt.at < OWNED_ART_EVERY_MS) return
+  ownedArt = {
+    at: Date.now(),
+    run: updateArtwork(list)
+      .then((changed) => void (changed && notifyGamesChanged()))
+      .finally(() => (ownedArt.run = null))
+  }
 }
 
 function registerIpc(): void {
@@ -191,6 +237,33 @@ function registerIpc(): void {
     return result
   })
   handle('friends:test-alert', () => testFriendAlert(getSettings().demoMode ? DEMO_FRIENDS : lastFriends))
+  // Actus des jeux : l'appid Steam est retrouvé ici, à partir de la bibliothèque, jamais reçu de l'interface.
+  handle('news:game', async (_e, id: unknown, refresh?: unknown) => {
+    if (!getSettings().gameNews) throw new Error('Les actus des jeux sont désactivées dans Paramètres.')
+    const game = findGame(id)
+    if (!game) throw new Error('Jeu introuvable.')
+    return getGameNews(game, refresh === true)
+  })
+  handle('news:seen', (_e, id: unknown) => {
+    const game = findGame(id)
+    if (game) markNewsSeen(game)
+  })
+  // Jeux du compte Steam pas installés sur ce PC (Bibliothèque › Non installés).
+  handle('steam:library', async (_e, refresh?: unknown): Promise<SteamLibrary> => {
+    let lib: SteamLibrary
+    if (getSettings().demoMode) {
+      const notInstalled = demoNotInstalled()
+      lib = { state: 'ready', notInstalled, owned: DEMO_GAMES.filter((g) => g.store === 'steam').length + notInstalled.length }
+    } else lib = await steamLibrary(db.listGames(), refresh === true)
+    fetchOwnedArtwork(lib.notInstalled)
+    return { ...lib, notInstalled: applyArtwork(lib.notInstalled) }
+  })
+  handle('steam:install', async (_e, id: unknown) => {
+    const game = findGame(id)
+    if (!game?.notInstalled) throw new Error('Ce jeu n’est pas dans la liste de ton compte Steam.')
+    // Mode démo : rien n'est installé pour de vrai.
+    if (!getSettings().demoMode) await installSteamGame(game.storeId)
+  })
   handle('accounts:list', () => getAccounts())
   handle('accounts:login', async (_e, platform: 'steam' | 'discord') => {
     const account = await (platform === 'steam' ? loginSteam() : loginDiscord())
@@ -219,7 +292,15 @@ function registerIpc(): void {
     const wasDemo = before.demoMode
     const next = saveSettings(patch)
     if (next.psnNpsso !== before.psnNpsso) resetPsn()
+    if (next.startWithWindows !== before.startWithWindows) syncStartup()
+    if (next.bf6Recap !== before.bf6Recap) syncBf6Recaps()
+    if (next.gameNews !== before.gameNews) {
+      // Badges retirés tout de suite, ou relevés dès la réactivation.
+      notifyGamesChanged()
+      if (next.gameNews) refreshNewsIndex(knownGames()).catch(() => {})
+    }
     if (next.demoMode !== wasDemo) {
+      updateRunning()
       resetFriendAlerts()
       // Les lancements en cours (vrais ou de démo) s'arrêtent sans carte : l'interface vide aussi les siens.
       launches.reset()
@@ -237,6 +318,10 @@ function registerIpc(): void {
   handle('bf6:tracked', () => getBf6Tracked())
   handle('bf6:set-tracked', (_e, tracked: unknown) => setBf6Tracked(tracked))
   handle('bf6:history', (_e, account: unknown) => getBf6History(account))
+  // Bilans de session : ton vrai compte seulement (rien en mode démo).
+  handle('bf6:recaps', () => bf6RecapState())
+  handle('bf6:recap-seen', (_e, id: unknown) => markBf6RecapSeen(id))
+  handle('app:startup', () => startupState())
   handle('shell:open', (_e, url: unknown) => {
     if (typeof url === 'string' && url.startsWith('https://')) return shell.openExternal(url)
   })
@@ -257,7 +342,8 @@ function emitLaunch(s: LaunchStatus): void {
 
 /**
  * Fenêtre principale vue par le lancement : lue, réduite, ou rouverte sans activation. Un « restore » qui ne vient pas de
- * showInactive ci-dessous est celui de l'utilisateur : Player X ne reviendra plus tout seul.
+ * showInactive ci-dessous est celui de l'utilisateur : Player X ne reviendra plus tout seul. Pareil quand la croix
+ * range la fenêtre près de l'horloge.
  */
 function launchWindow(): LaunchWindow {
   const win = (): BrowserWindow | undefined => BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
@@ -272,9 +358,14 @@ function launchWindow(): LaunchWindow {
       onUser()
     })
   )
+  onHideToTray(() => onUser())
   return {
     focused: () => win()?.isFocused() ?? true,
-    minimized: () => win()?.isMinimized() ?? false,
+    // Rangée près de l'horloge : comme réduite, jamais réduite (Windows la remontrerait dans la barre des tâches) ni rouverte.
+    minimized: () => {
+      const w = win()
+      return !!w && (w.isMinimized() || !w.isVisible())
+    },
     maximized: () => win()?.isMaximized() ?? false,
     minimize: () => win()?.minimize(),
     showInactive: () => {
@@ -397,8 +488,24 @@ app.whenReady().then(async () => {
   app.on('will-quit', () => launches.shutdown())
   registerIpc()
   initUpdater()
+  // Avant le suivi du temps de jeu : une session Battlefield 6 restée ouverte lit la dernière apparition du jeu.
+  startBf6Recaps()
   startPlaytimeTracker(notifyGamesChanged)
   startBf6Recorder()
+  startNewsWatcher(knownGames, notifyGamesChanged)
+  // Un jeu installé avec « Installer » : nouveau scan, il passe des « Non installés » à la bibliothèque.
+  startSteamLibrary(notifyGamesChanged, () => {
+    games(true)
+      .then(notifyGamesChanged)
+      .catch(() => {})
+  })
+  startTray()
+  updateRunning()
+  // Développement seulement : PX_BF6_SIM simule une partie de Battlefield 6 (bf6Sim.ts, jamais dans l'installeur).
+  if (!app.isPackaged && process.env.PX_BF6_SIM) {
+    const mode = process.env.PX_BF6_SIM
+    import('./services/bf6Sim').then(({ startBf6Sim }) => startBf6Sim(mode)).catch((e) => console.warn('[bf6-sim]', e))
+  }
   createWindow()
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
   if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())

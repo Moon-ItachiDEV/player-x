@@ -72,6 +72,8 @@ export async function updateArtwork(games: Game[]): Promise<boolean> {
     const a = cache[g.id]
     return a && now - a.at < MAX_AGE ? a : undefined
   }
+  /** Ce que cette recherche a trouvé : seul écrit à la fin, par-dessus le cache relu (une autre recherche a pu finir entre-temps). */
+  const found: ArtCache = {}
   let changed = false
 
   // 1. Appid Steam des jeux EA / Epic (recherche par nom, 4 à la fois). Une erreur réseau n'est pas mise en cache.
@@ -80,7 +82,7 @@ export async function updateArtwork(games: Game[]): Promise<boolean> {
     await Promise.all(
       unknown.slice(i, i + 4).map(async (g) => {
         try {
-          cache[g.id] = { appId: await findSteamAppId(g.name), at: now }
+          cache[g.id] = found[g.id] = { appId: await findSteamAppId(g.name), at: now }
           changed = true
         } catch {
           /* hors ligne : on réessaiera au prochain scan */
@@ -101,7 +103,7 @@ export async function updateArtwork(games: Game[]): Promise<boolean> {
       const assets = await fetchAssets([...toFetch.keys()])
       for (const [appId, ids] of toFetch) {
         const a = assets.get(appId)
-        for (const id of ids) cache[id] = { appId, cover: a?.cover, hero: a?.hero, assetsFetched: true, at: now }
+        for (const id of ids) cache[id] = found[id] = { appId, cover: a?.cover, hero: a?.hero, assetsFetched: true, at: now }
       }
       changed = true
     } catch (e) {
@@ -109,8 +111,19 @@ export async function updateArtwork(games: Game[]): Promise<boolean> {
     }
   }
 
-  if (changed) setKv('artwork', cache)
+  if (changed) setKv('artwork', { ...getKv<ArtCache>('artwork', {}), ...found })
   return changed
+}
+
+/** Appid Steam de chaque jeu : le sien pour un jeu Steam, sinon celui retrouvé par son nom (cache des jaquettes). */
+export function steamAppIds(games: Game[]): Map<string, string> {
+  const cache = getKv<ArtCache>('artwork', {})
+  const out = new Map<string, string>()
+  for (const g of games) {
+    const appId = g.store === 'steam' ? g.storeId : cache[g.id]?.appId
+    if (appId && /^\d{1,10}$/.test(appId)) out.set(g.id, appId)
+  }
+  return out
 }
 
 /** Applique les images connues (cache local), sans réseau. */

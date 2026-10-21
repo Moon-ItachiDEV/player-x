@@ -23,6 +23,10 @@ export interface Game {
   running?: boolean
   /** Début de la partie en cours (premier relevé qui l'a vu), quand `running`. */
   runningSince?: number
+  /** Patch publié sur Steam ces 7 derniers jours et pas encore vu dans la fiche : badge « Nouveau patch ». */
+  newPatch?: { id: string; title: string; at: number }
+  /** Jeu du compte Steam qui n'est pas installé sur ce PC : « Installer » à la place de « Jouer ». */
+  notInstalled?: boolean
 }
 
 export type FriendPlatform = 'steam' | 'discord' | 'psn'
@@ -60,7 +64,18 @@ export interface Settings {
   friendAlerts: FriendAlertMode
   /** Quand un jeu lancé depuis Player X démarre : Player X reste ouvert derrière (`stay`) ou se réduit (`minimize`). */
   launchWindow: LaunchWindowMode
+  /** Actus des jeux : annonces officielles publiées sur Steam dans la fiche, et badge « Nouveau patch ». */
+  gameNews: boolean
+  /** La croix range Player X dans la zone de notification (près de l'horloge) au lieu de le fermer. */
+  closeToTray: boolean
+  /** Lancé caché dans la zone de notification à l'ouverture de la session Windows. */
+  startWithWindows: boolean
+  /** Bilan de session Battlefield 6 : tes stats relevées au lancement du jeu, puis comparées après la partie. */
+  bf6Recap: boolean
 }
+
+/** Démarrage avec Windows : `unavailable` hors de la version installée sur Windows, `blocked` si Windows l'a désactivé (Gestionnaire des tâches). */
+export type StartupState = 'on' | 'off' | 'blocked' | 'unavailable'
 
 export type FriendAlertMode = 'all' | 'games' | 'off'
 export type LaunchWindowMode = 'stay' | 'minimize'
@@ -247,6 +262,136 @@ export interface Bf6Tracked {
   rivals: Bf6Account[]
 }
 
+/** Une carte ou un mode joué pendant une session. */
+export interface Bf6RecapPlace {
+  name: string
+  image?: string
+  matches: number
+  wins: number
+}
+
+/**
+ * Bilan d'une session de Battlefield 6. gametools.network ne donne que des totaux : c'est la différence entre
+ * tes stats relevées au lancement du jeu et celles relues après la partie. Gardé sur ce PC.
+ */
+export interface Bf6Recap {
+  id: string
+  account: { name: string; platform: Bf6Platform }
+  /** Lancement et fermeture du jeu, vus par Player X. */
+  startedAt: number
+  endedAt: number
+  /** Le jeu tournait déjà quand le suivi a commencé (ouverture de Player X) : seules les parties d'après comptent. */
+  partial?: boolean
+  kills: number
+  deaths: number
+  assists: number
+  revives: number
+  matches: number
+  wins: number
+  losses: number
+  /** Temps passé en partie (hors menus), selon les stats du jeu. */
+  secondsPlayed: number
+  killDeath: number
+  killsPerMinute: number
+  /** Éliminations en véhicule (comprises dans `kills`). */
+  vehicleKills: number
+  /** Tes moyennes juste avant la session, pour la situer. */
+  average: { killDeath: number; killsPerMinute: number; winPercent: number }
+  /** L'arme avec le plus d'éliminations pendant la session. */
+  weapon?: { name: string; image?: string; kills: number }
+  /** La classe la plus jouée. */
+  role?: { name: string; kills: number; seconds: number }
+  /** Les plus jouées d'abord. */
+  maps: Bf6RecapPlace[]
+  modes: Bf6RecapPlace[]
+  /** Déjà ouvert dans Player X. */
+  seen?: boolean
+  /** Exemple (Paramètres, Stats) : chiffres fictifs, jamais enregistrés. */
+  sample?: boolean
+}
+
+export interface Bf6RecapState {
+  /** Réglage « Bilan Battlefield 6 ». */
+  enabled: boolean
+  /** Session suivie : jeu en cours (sans `endedAt`), ou terminé et bilan pas encore prêt. */
+  pending: { startedAt: number; endedAt?: number } | null
+  /** Les plus récents d'abord. Vide en mode démo. */
+  recaps: Bf6Recap[]
+}
+
+/** `ready` : bilan prêt, Player X au premier plan ; `open` : clic sur la notification Windows ; `updated` : chiffres complétés. */
+export interface Bf6RecapEvent {
+  recap: Bf6Recap
+  reason: 'ready' | 'open' | 'updated'
+}
+
+// ---------- Actus des jeux (annonces officielles publiées sur Steam) ----------
+
+/** Morceau de texte d'une actu, avec sa mise en forme. */
+export interface NewsSpan {
+  text: string
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+  strike?: boolean
+  /** Lien https, ouvert dans le navigateur. */
+  href?: string
+}
+
+/** Bloc d'une actu, déjà lu dans le processus principal : l'interface n'affiche que du texte, jamais de HTML venu d'internet. */
+export type NewsBlock =
+  | { type: 'heading'; level: 1 | 2 | 3; spans: NewsSpan[] }
+  | { type: 'paragraph'; spans: NewsSpan[] }
+  /** `depth` : 0 pour un point de premier niveau, 1 pour un sous-point… */
+  | { type: 'list'; ordered: boolean; items: { spans: NewsSpan[]; depth: number }[] }
+  | { type: 'quote'; spans: NewsSpan[] }
+  | { type: 'image'; src: string }
+  /** Vidéo YouTube : un lien, jamais de lecteur intégré. */
+  | { type: 'video'; url: string }
+  | { type: 'rule' }
+
+/** Une annonce officielle d'un jeu sur Steam. */
+export interface NewsPost {
+  id: string
+  title: string
+  /** Page de l'annonce sur Steam (https). */
+  url: string
+  date: number
+  author?: string
+  /** Notes de patch : marquées comme telles sur Steam, ou titre de mise à jour (« Update 1.2.0 », « Hotfix »…). */
+  patch: boolean
+  /** Début du texte, sans mise en forme. */
+  excerpt: string
+  /** Première image de l'annonce. */
+  image?: string
+  blocks: NewsBlock[]
+}
+
+export interface GameNews {
+  /** Appid Steam du jeu ; null si le jeu n'est pas sur Steam (pas d'actus). */
+  appId: string | null
+  /** Les plus récentes d'abord. */
+  posts: NewsPost[]
+  /** Date de la plus récente actu déjà vue dans la fiche, avant cette ouverture (0 : jamais). */
+  seenAt: number
+}
+
+// ---------- Jeux du compte Steam (installés ou non) ----------
+
+/**
+ * Pourquoi la liste des jeux Steam manque, ou `ready`.
+ * `private` : les « détails des jeux » du profil Steam ne sont pas publics ; `key-refused` : clé Web API refusée par Steam.
+ */
+export type SteamLibraryState = 'ready' | 'loading' | 'no-account' | 'no-key' | 'key-refused' | 'private' | 'offline'
+
+export interface SteamLibrary {
+  state: SteamLibraryState
+  /** Jeux du compte Steam qui ne sont pas installés sur ce PC, avec le temps de jeu et la dernière partie selon Steam. */
+  notInstalled: Game[]
+  /** Nombre de jeux du compte, installés ou non (0 tant que la liste manque). */
+  owned: number
+}
+
 export interface LauncherApi {
   getGames(refresh?: boolean): Promise<Game[]>
   /**
@@ -296,12 +441,30 @@ export interface LauncherApi {
   bf6SetTracked(tracked: Bf6Tracked): Promise<Bf6Tracked>
   /** Relevés quotidiens d'un compte suivi, du plus ancien au plus récent. */
   bf6History(account: Bf6Account): Promise<Bf6Point[]>
+  /** Bilans de session et session en cours. */
+  bf6Recaps(): Promise<Bf6RecapState>
+  /** Bilan ouvert : il n'est plus proposé. */
+  bf6RecapSeen(id: string): Promise<void>
+  /** Bilan prêt, complété, ou à ouvrir (clic sur la notification Windows). Renvoie la fonction de désabonnement. */
+  onBf6Recap(cb: (e: Bf6RecapEvent) => void): () => void
+  /** Session suivie commencée, terminée ou close : `bf6Recaps().pending` a changé. Renvoie la fonction de désabonnement. */
+  onBf6RecapState(cb: () => void): () => void
   /** Alertes d'amis à afficher dans la fenêtre (quand elle est au premier plan ; sinon Windows les affiche). */
   onFriendAlert(cb: (alerts: FriendAlert[]) => void): () => void
   /** Clic sur une notification Windows : ouvrir le panneau d'amis. */
   onShowFriends(cb: () => void): () => void
   /** Envoie une alerte d'essai, dans la fenêtre et en notification Windows. */
   testFriendAlert(): Promise<void>
+  /** Annonces officielles d'un jeu sur Steam (gardées 30 min, sauf `refresh`). */
+  getGameNews(id: string, refresh?: boolean): Promise<GameNews>
+  /** Les actus de ce jeu ont été vues dans sa fiche : son badge « Nouveau patch » disparaît. */
+  markNewsSeen(id: string): Promise<void>
+  /** Jeux du compte Steam non installés sur ce PC (liste gardée 1 h, sauf `refresh`). */
+  getSteamLibrary(refresh?: boolean): Promise<SteamLibrary>
+  /** Ouvre l'installation d'un jeu Steam non installé ; il rejoint la bibliothèque une fois téléchargé. */
+  installGame(id: string): Promise<void>
+  /** Démarrage avec Windows tel que Windows le voit (il peut l'avoir désactivé de son côté). */
+  getStartupState(): Promise<StartupState>
   platform: string
   version: string
 }

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
-import type { FriendAlert, LauncherApi, UpdateState } from '@shared/types'
+import type { Bf6RecapEvent, FriendAlert, LauncherApi, UpdateState } from '@shared/types'
 
 declare const __APP_VERSION__: string
 
@@ -47,6 +47,18 @@ const api: LauncherApi = {
   bf6GetTracked: () => ipcRenderer.invoke('bf6:tracked'),
   bf6SetTracked: (tracked) => ipcRenderer.invoke('bf6:set-tracked', tracked),
   bf6History: (account) => ipcRenderer.invoke('bf6:history', account),
+  bf6Recaps: () => ipcRenderer.invoke('bf6:recaps'),
+  bf6RecapSeen: (id) => ipcRenderer.invoke('bf6:recap-seen', id),
+  onBf6Recap: (cb) => {
+    const listener = (_e: unknown, e: Bf6RecapEvent): void => cb(e)
+    ipcRenderer.on('bf6:recap', listener)
+    return () => ipcRenderer.removeListener('bf6:recap', listener)
+  },
+  onBf6RecapState: (cb) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('bf6:recap-state', listener)
+    return () => ipcRenderer.removeListener('bf6:recap-state', listener)
+  },
   onFriendAlert: (cb) => {
     const listener = (_e: unknown, alerts: FriendAlert[]): void => cb(alerts)
     ipcRenderer.on('friends:alert', listener)
@@ -58,6 +70,11 @@ const api: LauncherApi = {
     return () => ipcRenderer.removeListener('friends:show', listener)
   },
   testFriendAlert: () => ipcRenderer.invoke('friends:test-alert'),
+  getGameNews: (id, refresh) => ipcRenderer.invoke('news:game', id, refresh),
+  markNewsSeen: (id) => ipcRenderer.invoke('news:seen', id),
+  getSteamLibrary: (refresh) => ipcRenderer.invoke('steam:library', refresh),
+  installGame: (id) => ipcRenderer.invoke('steam:install', id),
+  getStartupState: () => ipcRenderer.invoke('app:startup'),
   platform: process.platform,
   version: __APP_VERSION__
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { norm } from '@shared/text'
-import type { Bf6Account, Bf6Point, Bf6Snapshot, Game } from '@shared/types'
+import { isBf6Name } from '@shared/text'
+import type { Bf6Account, Bf6Platform, Bf6Point, Bf6Snapshot, Game } from '@shared/types'
 import { errorMessage } from '../ui/Toasts'
 
 // Outils partagés par la page Stats et la fiche de Battlefield 6.
@@ -10,6 +10,8 @@ const api = window.launcher
 export const int = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
 export const dec = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 export const pct = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
+
+export const PLATFORM_LABEL: Record<Bf6Platform, string> = { ea: 'EA', pc: 'PC', steam: 'Steam', psn: 'PlayStation', xbox: 'Xbox' }
 
 export const keyOf = (a: Bf6Account): string => `${a.platform}:${a.personaId ?? a.name.toLowerCase()}`
 export const percent = (n: number): string => `${pct.format(n)} %`
@@ -29,7 +31,7 @@ export function playedFor(seconds: number): string {
 }
 
 /** Battlefield 6 dans la bibliothèque, quel que soit le nom exact du store (« Battlefield™ 6 »…). */
-export const isBf6Game = (g: Pick<Game, 'name'>): boolean => norm(g.name).includes('battlefield6')
+export const isBf6Game = (g: Pick<Game, 'name'>): boolean => isBf6Name(g.name)
 
 /** Stats d'un compte, relues à la demande. */
 export function useBf6(account: Bf6Account | null): { snap: Bf6Snapshot | null; error: string | null; loading: boolean; refresh: () => void } {

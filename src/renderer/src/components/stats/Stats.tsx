@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { timeAgo } from '@shared/text'
-import type { Bf6Account, Bf6Art, Bf6Match, Bf6Platform, Bf6Point, Bf6Row, Bf6Snapshot, Bf6Tracked } from '@shared/types'
+import type { Bf6Account, Bf6Art, Bf6Match, Bf6Point, Bf6Row, Bf6Snapshot, Bf6Tracked } from '@shared/types'
 import type { StatsProps } from '../../contracts'
 import { TopTabs, TopTitle } from '../TopTabs'
 import { Avatar } from '../ui/Avatar'
 import { Icon } from '../ui/Icon'
 import { errorMessage } from '../ui/Toasts'
-import { dec, duration, inWindow, int, isBf6Game, kdOf, keyOf, percent, periodOf, playedFor, useBf6, useBf6History } from './bf6'
+import { dec, duration, inWindow, int, isBf6Game, kdOf, keyOf, percent, periodOf, PLATFORM_LABEL, playedFor, useBf6, useBf6History } from './bf6'
 import { ClassIcon, classKind } from './ClassIcon'
 import { Progress } from './Progress'
+import { LastSession } from './Recap'
 import './stats.css'
 
 export type { StatsProps }
@@ -16,7 +17,6 @@ export type { StatsProps }
 const api = window.launcher
 
 const SOURCE_URL = 'https://gametools.network/stats'
-const PLATFORM_LABEL: Record<Bf6Platform, string> = { ea: 'EA', pc: 'PC', steam: 'Steam', psn: 'PlayStation', xbox: 'Xbox' }
 const TOP = 10
 
 /** Ligne « All » que l'API glisse dans les cartes, modes et classes : c'est le total, pas une entrée. */
@@ -170,6 +170,7 @@ export function Stats({ games }: StatsProps): React.JSX.Element {
             <>
               {tab === 'overview' && (
                 <>
+                  <LastSession />
                   <Highlights snap={snap} history={history} onOpen={pick} />
                   <KeyTiles snap={snap} />
                 </>

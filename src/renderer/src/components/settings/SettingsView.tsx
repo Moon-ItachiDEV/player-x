@@ -1,7 +1,7 @@
 // Paramètres : une section par onglet (barre du haut). Pas de bouton « Enregistrer » global : chaque réglage s'applique seul.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { timeAgo } from '@shared/text'
-import type { FriendAlertMode, FriendPlatform, ScanReport, Settings } from '@shared/types'
+import type { FriendAlertMode, FriendPlatform, ScanReport, Settings, SteamLibrary, SteamLibraryState } from '@shared/types'
 import { COVER_MIN, type SettingsProps, type SettingsSection, type UiPrefs } from '../../contracts'
 import { useSystemReducedMotion } from '../../motion'
 import { TopTabs } from '../TopTabs'
@@ -12,6 +12,8 @@ import { errorMessage, useToast } from '../ui/Toasts'
 import { AboutSection } from './AboutSection'
 import { AccountsSection, connState, PLATFORMS } from './AccountsSection'
 import { AdvancedSection } from './AdvancedSection'
+import { openRecap, sampleRecap } from '../stats/Recap'
+import { BackgroundRows } from './BackgroundRows'
 import { Collapse, SectionHead, SettingRow, storeCaption, useNow } from './parts'
 import './settings.css'
 
@@ -83,6 +85,12 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
               demo={settings.demoMode}
               onRescan={props.onRescan}
               onOpenSetup={props.onOpenSetup}
+              settings={settings}
+              onSaveSettings={props.onSaveSettings}
+              steamLibrary={props.steamLibrary}
+              onRefreshSteamLibrary={props.onRefreshSteamLibrary}
+              onConnectSteam={() => props.onLogin('steam')}
+              onConfigureSteam={() => configure('steam')}
             />
           )}
           {section === 'interface' && (
@@ -108,10 +116,18 @@ interface LibraryProps {
   demo: boolean
   onRescan: () => void
   onOpenSetup: () => void
+  settings: Settings
+  onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>
+  steamLibrary: SteamLibrary | null
+  onRefreshSteamLibrary: () => Promise<void>
+  onConnectSteam: () => void
+  onConfigureSteam: () => void
 }
 
-function LibrarySection({ report, scanning, lastScanAt, gamesCount, demo, onRescan, onOpenSetup }: LibraryProps): React.JSX.Element {
+function LibrarySection(props: LibraryProps): React.JSX.Element {
+  const { report, scanning, lastScanAt, gamesCount, demo, onRescan, onOpenSetup, settings, onSaveSettings } = props
   const now = useNow()
+  const notify = useToast()
   return (
     <>
       <SectionHead title="Bibliothèque">Les jeux sont détectés automatiquement sur ce PC.</SectionHead>
@@ -154,7 +170,92 @@ function LibrarySection({ report, scanning, lastScanAt, gamesCount, demo, onResc
           Choisir mes jeux favoris
         </button>
       </SettingRow>
+      <SettingRow
+        label="Actus des jeux"
+        value={
+          settings.gameNews
+            ? 'Activées · annonces officielles de Steam dans la fiche, badge « Nouveau patch » sur les jeux mis à jour cette semaine'
+            : 'Désactivées · Player X ne demande plus les actus de tes jeux à Steam'
+        }
+      >
+        <Switch
+          checked={settings.gameNews}
+          onChange={(gameNews) => onSaveSettings({ gameNews }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+          label="Actus des jeux"
+        />
+      </SettingRow>
+      <SteamLibraryRow
+        lib={props.steamLibrary}
+        demo={demo}
+        onRefresh={props.onRefreshSteamLibrary}
+        onConnect={props.onConnectSteam}
+        onConfigure={props.onConfigureSteam}
+      />
     </>
+  )
+}
+
+const STEAM_LIB_TEXT: Record<Exclude<SteamLibraryState, 'ready'>, string> = {
+  loading: 'Lecture de ta liste de jeux Steam…',
+  'no-account': "Connecte ton compte Steam pour voir aussi les jeux que tu n'as pas installés sur ce PC",
+  'no-key': "Ajoute ta clé Steam Web API (onglet Avancé) pour voir aussi les jeux que tu n'as pas installés sur ce PC",
+  'key-refused': "Steam refuse ta clé Web API : vérifie-la dans l'onglet Avancé",
+  private: 'Ta liste de jeux est privée sur Steam : dans ton profil Steam, Modifier le profil › Paramètres de confidentialité, mets « Détails des jeux » sur Public',
+  offline: 'Steam ne répond pas pour le moment'
+}
+
+/** « Jeux Steam non installés » : combien il y en a, ou ce qu'il manque pour les voir (compte, clé, profil public). */
+function SteamLibraryRow(props: {
+  lib: SteamLibrary | null
+  demo: boolean
+  onRefresh: () => Promise<void>
+  onConnect: () => void
+  onConfigure: () => void
+}): React.JSX.Element {
+  const { lib, demo, onRefresh, onConnect, onConfigure } = props
+  const [busy, setBusy] = useState(false)
+  const state = lib?.state ?? 'loading'
+  const n = lib?.notInstalled.length ?? 0
+
+  const refresh = (): void => {
+    setBusy(true)
+    onRefresh().finally(() => setBusy(false))
+  }
+
+  const value = demo
+    ? `Mode démo : ${n} jeux Steam fictifs dans l'onglet « Non installés » de la bibliothèque`
+    : state !== 'ready'
+      ? STEAM_LIB_TEXT[state]
+      : n
+        ? `${n} des ${lib?.owned ?? n} jeux de ton compte Steam ${n > 1 ? 'ne sont' : "n'est"} pas sur ce PC · onglet « Non installés » de la bibliothèque`
+        : 'Tous les jeux de ton compte Steam sont installés sur ce PC'
+
+  let action: React.ReactNode = null
+  if (demo || state === 'loading') action = null
+  else if (state === 'no-account')
+    action = (
+      <button className="btn btn-secondary" onClick={onConnect}>
+        Connecter Steam
+      </button>
+    )
+  else if (state === 'no-key' || state === 'key-refused')
+    action = (
+      <button className="btn btn-secondary" onClick={onConfigure}>
+        {state === 'no-key' ? 'Ajouter la clé' : 'Vérifier la clé'}
+      </button>
+    )
+  else
+    action = (
+      <button className="btn btn-secondary" onClick={refresh} disabled={busy}>
+        {busy ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
+        {state === 'ready' ? 'Actualiser' : 'Réessayer'}
+      </button>
+    )
+
+  return (
+    <SettingRow label="Jeux Steam non installés" value={value}>
+      {action}
+    </SettingRow>
   )
 }
 
@@ -298,6 +399,7 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
             onChange={(launchWindow) => onSaveSettings({ launchWindow }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
           />
         </SettingRow>
+        <BackgroundRows settings={settings} onSaveSettings={onSaveSettings} />
         <SettingRow label="Alertes d'amis" value={ALERT_LABEL[settings.friendAlerts]}>
           <div className="set-inline">
             <Segmented
@@ -316,6 +418,25 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
               onClick={() => window.launcher.testFriendAlert().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
             >
               Tester
+            </button>
+          </div>
+        </SettingRow>
+        <SettingRow
+          label="Bilan Battlefield 6"
+          value={
+            settings.bf6Recap
+              ? 'Activé · quand tu quittes le jeu, tes éliminations, ton K/D et tes victoires de la session (profil relié dans Stats)'
+              : 'Désactivé · Player X ne relève plus tes stats au lancement du jeu'
+          }
+        >
+          <div className="set-inline">
+            <Switch
+              checked={settings.bf6Recap}
+              onChange={(bf6Recap) => onSaveSettings({ bf6Recap }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+              label="Bilan Battlefield 6"
+            />
+            <button className="btn btn-secondary btn-sm" onClick={() => openRecap(sampleRecap())}>
+              Voir un exemple
             </button>
           </div>
         </SettingRow>

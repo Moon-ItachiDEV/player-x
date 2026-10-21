@@ -26,11 +26,21 @@ Pour fabriquer l’installeur Windows : `npm run dist` (sortie dans `dist/`). De
 
 Player X détecte les jeux installés sur ton PC (Steam, Epic Games, EA app). Filtre par store, trie par récents, nom, plus lancés ou plus joués, et choisis la taille des jaquettes. Tes favoris restent dans le rail de gauche, sur toutes les pages : un clic lance le jeu, un clic droit ouvre sa fiche.
 
+L’onglet **Non installés** montre les jeux de ton compte Steam qui ne sont pas sur ce PC, avec ton temps de jeu. **Installer** ouvre l’installation dans Steam (choix du disque, téléchargement) ; une fois le jeu téléchargé, il rejoint ta bibliothèque tout seul. Il faut ta clé Steam Web API et des détails de jeu publics sur ton profil Steam : **Paramètres › Bibliothèque** indique ce qui manque.
+
+## Actus des jeux
+
+La fiche d’un jeu montre ses dernières annonces officielles publiées sur Steam, notes de patch comprises, et les ouvre en entier dans Player X. Un jeu mis à jour ces 7 derniers jours porte un badge **Nouveau patch** jusqu’à ce que tu ouvres ses actus. Les jeux EA et Epic vendus aussi sur Steam (Battlefield 6…) ont leurs actus. Se coupe dans **Paramètres › Bibliothèque**.
+
 ## Temps de jeu
 
 ![Fiche d'un jeu en cours](docs/screenshots/fiche-en-jeu.png)
 
 Toutes les minutes, Player X regarde quels programmes tournent et les rattache au dossier d'installation de tes jeux : le temps compte aussi pour un jeu lancé hors du launcher, tant que Player X est ouvert (même réduit). Pour les jeux Steam, Player X reprend le compteur de Steam (tout ton historique) dès que ta clé Steam Web API est renseignée et que les détails de jeu de ton profil sont publics. Le jeu qui tourne porte une pastille cyan **En jeu**, et la bibliothèque se trie par **Plus joués**.
+
+## Près de l’horloge
+
+La croix range Player X dans la zone de notification au lieu de le fermer : le temps de jeu, les alertes d’amis et le bilan Battlefield 6 continuent. Un clic sur l’icône le rouvre ; son menu montre les jeux en cours et **Quitter Player X**. Une mise à jour ou l’arrêt de Windows le ferment toujours. **Démarrer avec Windows** le lance caché à l’ouverture de ta session (version installée seulement). Les deux se règlent dans **Paramètres › Interface** (**Fermer la fenêtre** : Ranger ou Quitter).
 
 ## Alertes d'amis
 
@@ -49,6 +59,8 @@ Cherche ton pseudo EA, Steam, PlayStation ou Xbox. La **Vue d’ensemble** montr
 **Progression** (onglet du même nom) : Player X garde un relevé de tes stats par jour (à chaque visite de la page, et en arrière-plan si le dernier date de plus de 20 heures) et trace ta courbe de K/D, d'éliminations par minute ou de victoires, sur 7 jours, 30 jours ou depuis le début, avec tes éliminations, tes parties et ton temps de jeu sur la période. Les relevés restent sur ton PC.
 
 ![Progression Battlefield 6](docs/screenshots/progression-bf6.png)
+
+**Bilan de session** : quand tu quittes Battlefield 6, une carte résume ta session : K/D comparé à ta moyenne, éliminations, morts, victoires, éliminations par minute, assistances, réanimations, ton arme et ta classe de la session, les cartes jouées. Player X relève tes stats au lancement du jeu et les relit après la partie : gametools.network met parfois plusieurs minutes à compter les dernières parties, alors le bilan arrive quelques minutes après la fermeture du jeu et se complète si une partie est comptée en retard. Si Player X est caché, une notification Windows te prévient. Tes dernières sessions restent dans la **Vue d’ensemble**, sous **Dernière session**. Il faut ton profil relié et Player X ouvert pendant la partie (même réduit ou près de l’horloge). Se coupe dans **Paramètres › Interface**.
 
 EA ne propose pas d’API publique pour Battlefield 6. Les chiffres viennent de [gametools.network](https://gametools.network), un service communautaire non officiel, sans clé : il peut être lent ou indisponible, et la recherche est limitée à environ une requête toutes les 30 secondes. Les stats sont gardées en cache 10 minutes, et la dernière lecture reste affichée hors ligne. Les visuels du jeu viennent de la page Steam de Battlefield 6.
 
@@ -96,6 +108,8 @@ Si la clé privée est perdue, les versions installées ne peuvent plus se mettr
 | Jeux Steam | Lit `libraryfolders.vdf` et les `appmanifest_*.acf` de toutes tes bibliothèques (registre + disques C à H). |
 | Jeux Epic | Lit les manifestes `C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\*.item`. |
 | Jeux EA | Dossier d’installation de l’EA app, registre `EA Games` / `Electronic Arts`, entrées de désinstallation et `__Installer\installerdata.xml`. |
+| Jeux Steam non installés | `IPlayerService/GetOwnedGames` (clé Steam Web API, détails de jeu publics), relu au plus toutes les heures. **Installer** passe par `steam://install/<appid>` ; la fin du téléchargement est lue dans le manifeste du jeu. |
+| Actus des jeux | `ISteamNews/GetNewsForApp`, public et sans clé, annonces officielles seulement. Titres relevés au plus toutes les 6 h pour les badges, texte complet à l’ouverture de la fiche, lu en éléments React (jamais de HTML venu d’internet). |
 | Jaquettes | Steam : CDN Steam. EA et Epic : recherche du même jeu dans le catalogue Steam, mise en cache 7 jours. Sinon, une jaquette générée. |
 | Lancer un jeu | Passe par le client officiel (`steam://`, `com.epicgames.launcher://`, `origin2://`), sinon lance l’exécutable trouvé. |
 | Login Steam | OpenID Steam dans ton navigateur, signature vérifiée auprès de Steam. |
@@ -105,7 +119,9 @@ Si la clé privée est perdue, les versions installées ne peuvent plus se mettr
 | Discord | Discord ne donne pas la liste d’amis aux applis tierces. On affiche à la place les membres en ligne d’un serveur dont le **widget** est activé. |
 | Temps de jeu | Processus en cours rattachés au dossier d’installation (Windows, PowerShell `Get-Process`), compteur Steam via `IPlayerService/GetOwnedGames`. |
 | Alertes d’amis | Différence entre deux lectures de la liste d’amis ; carte dans l’appli ou notification Windows. |
+| Près de l’horloge | `Tray` d’Electron ; la croix cache la fenêtre (réglage **Fermer la fenêtre**). Démarrage avec Windows : `app.setLoginItemSettings` avec `--hidden`, état relu (Windows peut l’avoir désactivé dans le Gestionnaire des tâches). |
 | Stats Battlefield 6 | Non officiel, via [gametools.network](https://gametools.network). Recherche multi-plateforme, rivaux suivis, cache local, relevé quotidien pour la progression. |
+| Bilan Battlefield 6 | Différence entre la lecture gametools au lancement du jeu (vu par le suivi du temps de jeu) et les relectures après la partie (2, 5, 10, 15, 30, 60 et 120 min), jusqu’à deux lectures identiques 15 min après la fin. La session est gardée en base : elle reprend si Player X redémarre pendant la partie. |
 | Profil | Temps de jeu total, jeux les plus joués (ou les plus lancés sans temps de jeu), jeux par plateforme et derniers lancements. |
 | Mises à jour | `electron-updater` et GitHub Releases : progression, redémarrage après 10 s, fenêtre « Quoi de neuf ». |
 | Favoris, historique | Stockés en local. |
@@ -135,7 +151,8 @@ Direction « Arène · Abysse » depuis la 0.7.0 : bleu nuit, jaune réservé à
 ```
 src/
   main/          processus Electron : base SQLite, scan des jeux, logins, amis, stats
-    services/    games.ts, artwork.ts, auth.ts, friends.ts, alerts.ts, playtime.ts, stats.ts, settings.ts, demo.ts, updater.ts
+    services/    games.ts, steamLibrary.ts, artwork.ts, news.ts, auth.ts, friends.ts, alerts.ts, playtime.ts, stats.ts, bf6Recap.ts,
+                 bf6Diff.ts, tray.ts, settings.ts, demo.ts, updater.ts
   preload/       pont sécurisé main ↔ interface
   renderer/src/
     components/  home/, library/, friends/, stats/, settings/, setup/, ui/, FavRail (rail des favoris), Sidebar (menu et amis),

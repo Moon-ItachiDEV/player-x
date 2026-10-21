@@ -191,6 +191,14 @@ export function touchSessions(ids: number[], at: number): void {
   persist()
 }
 
+/** Dernière fois où l'un de ces jeux a été vu en cours (fin de sa session la plus récente). */
+export function lastSeenAt(gameIds: string[]): number | undefined {
+  if (!gameIds.length) return undefined
+  const res = db.exec(`SELECT MAX(ended) FROM sessions WHERE game_id IN (${gameIds.map(() => '?').join(', ')})`, gameIds)
+  const v = res[0]?.values[0]?.[0]
+  return typeof v === 'number' ? v : undefined
+}
+
 /** Minutes jouées par jeu, toutes sessions confondues. */
 export function playtimeByGame(): Map<string, number> {
   const res = db.exec('SELECT game_id, SUM(ended - started) FROM sessions GROUP BY game_id')
