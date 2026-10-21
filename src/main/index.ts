@@ -6,6 +6,8 @@ import { cleanName, isBf6Name } from '@shared/text'
 import type { Friend, FriendPlatform, Game, Settings, SteamLibrary } from '@shared/types'
 import * as db from './db'
 import { handle } from './ipc'
+import { getAchievementsOverview, getGameAchievements, startAchievementsWatcher } from './services/achievements'
+import { demoAchievements, demoAchievementsOverview } from './services/achievementsDemo'
 import { checkFriends, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
@@ -258,6 +260,13 @@ function registerIpc(): void {
     fetchOwnedArtwork(lib.notInstalled)
     return { ...lib, notInstalled: applyArtwork(lib.notInstalled) }
   })
+  // Succès Steam : comme les actus, le jeu est retrouvé ici à partir de son identifiant.
+  handle('achievements:game', async (_e, id: unknown, refresh?: unknown) => {
+    const game = findGame(id)
+    if (!game) throw new Error('Jeu introuvable.')
+    return getSettings().demoMode ? demoAchievements(game) : getGameAchievements(game, refresh === true)
+  })
+  handle('achievements:overview', (_e, refresh?: unknown) => (getSettings().demoMode ? demoAchievementsOverview() : getAchievementsOverview(refresh === true)))
   handle('steam:install', async (_e, id: unknown) => {
     const game = findGame(id)
     if (!game?.notInstalled) throw new Error('Ce jeu n’est pas dans la liste de ton compte Steam.')
@@ -493,6 +502,7 @@ app.whenReady().then(async () => {
   startPlaytimeTracker(notifyGamesChanged)
   startBf6Recorder()
   startNewsWatcher(knownGames, notifyGamesChanged)
+  startAchievementsWatcher(() => getSettings().demoMode)
   // Un jeu installé avec « Installer » : nouveau scan, il passe des « Non installés » à la bibliothèque.
   startSteamLibrary(notifyGamesChanged, () => {
     games(true)

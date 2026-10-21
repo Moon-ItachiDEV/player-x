@@ -8,6 +8,8 @@ import { isPending } from '../launch/phase'
 import { PlayLabel } from '../launch/PlayLabel'
 import { useWindowActive } from '../update/useCardPhase'
 import { usePlayState, type PlayInfo } from '../launch/usePlayState'
+import { ACH_VIEW, AchievementsSection, AchievementsView } from './achievements/SheetAchievements'
+import { useAchievements } from './achievements/useAchievements'
 import { NewsReader } from './news/NewsReader'
 import { NewsBanner, NewsSection } from './news/NewsSection'
 import { useGameNews } from './news/useGameNews'
@@ -66,6 +68,8 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
   const [opened, setOpened] = useState({ id: game.id, patch: game.newPatch })
   if (opened.id !== game.id) setOpened({ id: game.id, patch: game.newPatch })
   const patch = news ? opened.patch : undefined
+  // Succès Steam : lus à l'ouverture, pour les jeux Steam seulement. La liste complète s'ouvre comme une annonce (ACH_VIEW).
+  const { state: achState, reload: reloadAch } = useAchievements(game.id, game.store === 'steam' && !closing)
   // Annonce ouverte dans le lecteur (identifiant), et d'où on vient pour y revenir.
   const [reading, setReading] = useState<string | null>(null)
   const readerBack = useRef<HTMLButtonElement>(null)
@@ -187,7 +191,7 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
   return (
     <div className={`sheet-root ${morph ? 'is-morph' : ''} ${closing ? 'is-closing' : ''}`} inert={closing}>
       <div className="sheet-scrim" onClick={onScrimClick} aria-hidden="true" />
-      <aside ref={panelRef} className={`sheet-panel ${reading ? 'is-reading' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={trapFocus}>
+      <aside ref={panelRef} className={`sheet-panel ${reading ? (reading === ACH_VIEW ? 'is-ach' : 'is-reading') : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={trapFocus}>
         <header className="sheet-art">
           <Cover key={game.id} game={game} variant="landscape" showTitle={false} />
           <div className="sheet-art-shade" />
@@ -313,6 +317,8 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
           </section>
         )}
 
+        {game.store === 'steam' && <AchievementsSection state={achState} onOpenAll={(opener) => openPost(ACH_VIEW, opener)} onRetry={reloadAch} />}
+
         {news && (
           <NewsSection
             state={newsState}
@@ -327,7 +333,10 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
           <h3 className="sheet-h">Installation</h3>
           <InstallPath game={game} onOpenFolder={onOpenFolder} />
         </section>
-        {reading && (
+        {reading === ACH_VIEW && (
+          <AchievementsView gameName={title} state={achState} backRef={readerBack} onBack={closeReader} onClose={onClose} onRetry={reloadAch} />
+        )}
+        {reading && reading !== ACH_VIEW && (
           <NewsReader
             gameName={title}
             state={newsState}
