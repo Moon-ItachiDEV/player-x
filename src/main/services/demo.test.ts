@@ -4,6 +4,8 @@ import assert from 'node:assert/strict'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
 import { DEMO_FRIENDS, demoGames, demoNotInstalled } from './demo.ts'
+// @ts-ignore TS5097
+import { demoAchievements } from './achievementsDemo.ts'
 
 const NOW = new Date(2026, 9, 21, 22, 0).getTime()
 
@@ -29,6 +31,16 @@ test('jeux non installés : leurs dates viennent de Steam', () => {
   const list = demoNotInstalled(NOW)
   assert.ok(list.some((g) => g.lastPlayed))
   for (const g of list) assert.equal(g.lastPlayedSource, g.lastPlayed ? 'steam' : undefined, g.name)
+})
+
+test('succès de démo : un jeu joué en a, un jeu jamais joué aucun, jamais débloqués après la dernière partie', () => {
+  for (const g of [...demoGames(NOW), ...demoNotInstalled(NOW)]) {
+    const a = demoAchievements(g, NOW)
+    if (a.state !== 'ready') continue
+    assert.equal(a.unlocked > 0, (g.playtime ?? 0) > 0, g.name)
+    // Heure du déblocage fixée dans la journée (achievementsDemo.ts) : à moins de 12 h près.
+    for (const x of a.list) if (x.unlockedAt) assert.ok(x.unlockedAt <= (g.lastPlayed ?? 0) + 12 * 3600_000, `${g.name} · ${x.name}`)
+  }
 })
 
 test('amis de démo : identifiants uniques, un seul ami sur Counter-Strike 2', () => {

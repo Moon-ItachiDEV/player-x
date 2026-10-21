@@ -33,13 +33,14 @@ const DEMO: Record<string, { name: string; minutes: number; rows: Row[] }> = {
     minutes: 11_820,
     rows: [['Un nouveau départ', 'Jouer une partie de Counter-Strike 2', 71.3, 300]]
   },
+  // Joués hors de Player X dans la démo (demo.ts) : quelques succès, tous débloqués avant la dernière partie.
   '1091500': {
     name: 'Cyberpunk 2077',
-    minutes: 0,
+    minutes: 4_210,
     rows: [
-      ['Le Mat', 'Devenir mercenaire à Night City', 91.0, null],
-      ['Les Amoureux', 'Réussir le casse du Konpeki Plaza', 74.0, null],
-      ['L’Ermite', 'Retrouver Hanako Arasaka', 46.5, null],
+      ['Le Mat', 'Devenir mercenaire à Night City', 91.0, 40],
+      ['Les Amoureux', 'Réussir le casse du Konpeki Plaza', 74.0, 12],
+      ['L’Ermite', 'Retrouver Hanako Arasaka', 46.5, 2],
       ['La Roue de Fortune', 'Terminer le contrat de Johnny', 30.2, null],
       ['À couper le souffle', 'Réunir tous les objets légendaires', 3.2, null],
       ['Le Monde', '', 12.8, null, true]
@@ -75,10 +76,10 @@ const DEMO: Record<string, { name: string; minutes: number; rows: Row[] }> = {
   },
   '1145360': {
     name: 'Hades',
-    minutes: 0,
+    minutes: 1_420,
     rows: [
-      ['Évadé du Tartare', 'Vaincre Mégère', 89.0, null],
-      ['Ami de Cerbère', 'Caresser Cerbère', 76.4, null],
+      ['Évadé du Tartare', 'Vaincre Mégère', 89.0, 30],
+      ['Ami de Cerbère', 'Caresser Cerbère', 76.4, 10],
       ['Évasion', 'S’échapper des Enfers', 52.1, null],
       ['Fin', '', 14.6, null, true]
     ]
@@ -135,6 +136,16 @@ const DEMO: Record<string, { name: string; minutes: number; rows: Row[] }> = {
       ['Quinte flush royale', 'Jouer une quinte flush royale', 15.5, 12],
       ['Rétrograde', 'Gagner avec le jeu d’or', 1.2, null],
       ['Collectionneur', 'Découvrir toutes les cartes', 0.8, null]
+    ]
+  },
+  // Jamais joué (non installé, demo.ts) : le jeu « Pas commencé » de la page Trophées.
+  '546560': {
+    name: 'Half-Life: Alyx',
+    minutes: 0,
+    rows: [
+      ['Premier contact', 'Terminer le premier chapitre', 78.5, null],
+      ['Gravité zéro', 'Attraper un objet au vol avec les gants', 64.0, null],
+      ['Résistant', 'Terminer l’histoire', 41.3, null]
     ]
   }
 }
