@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import type { RawNews } from './newsFormat'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { buildFeed, entryFrom, FEED_MAX, fetchAll, needsRefresh, NEW_MS, nextSeen, patchFlags, postsStillFresh, type IndexEntry, type NewsIndex } from './newsFeed.ts'
+import { buildFeed, entryFrom, FEED_MAX, fetchAll, needsRefresh, NEW_MS, nextSeen, olderThanAll, patchFlags, postsStillFresh, type IndexEntry, type NewsIndex } from './newsFeed.ts'
 // @ts-ignore TS5097
 import { cleanRawNews, isPatchPost } from './newsFormat.ts'
 // @ts-ignore TS5097
@@ -63,6 +63,11 @@ test('entryFrom : un patch sorti de la liste (jeu qui publie beaucoup) reste le 
   assert.equal(entryFrom([raw('q', 'Hotfix', NOW - H), ...busy], NOW, prev).patch?.id, 'q')
   assert.equal(entryFrom(busy, NOW).patch, undefined)
   assert.equal(entryFrom([], NOW, prev).patch, undefined)
+  // Même règle pour la fiche, qui lit alors ce patch à part (sinon « Dernier patch » s'ouvrirait sur une annonce introuvable).
+  assert.equal(olderThanAll(busy, prev.patch!.date), true)
+  assert.equal(olderThanAll(short, prev.patch!.date), false)
+  assert.equal(olderThanAll(busy, busy[7].date), false)
+  assert.equal(olderThanAll([], prev.patch!.date), false)
 })
 
 test('postsStillFresh : la fiche relit ses annonces si le relevé en connaît une plus récente ou après 30 min', () => {

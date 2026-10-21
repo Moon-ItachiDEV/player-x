@@ -13,11 +13,12 @@ export function startNewsSim(mode: string): void {
   deleteKv('newsSimIndex')
   deleteKv('simNewsSeen')
   const t0 = Date.now()
-  setNewsSource(async (appId, count, maxlength) => {
+  setNewsSource(async (appId, count, maxlength, enddate) => {
     await new Promise((r) => setTimeout(r, DELAY_MS))
     if (mode === 'offline') throw new Error('PX_NEWS_SIM=offline')
     if (mode === 'empty') return []
     return simNews(appId, t0)
+      .filter((n) => !enddate || (n.date as number) < enddate)
       .slice(0, count)
       .map((n) => (maxlength > 0 && typeof n.contents === 'string' ? { ...n, contents: n.contents.slice(0, maxlength) } : n))
   })

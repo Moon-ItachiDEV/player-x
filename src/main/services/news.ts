@@ -2,7 +2,7 @@ import { net } from 'electron'
 import type { Game, GameNews, NewsFeed, NewsPost } from '@shared/types'
 import { getKv, setKv } from '../db'
 import { steamAppIds } from './artwork'
-import { buildFeed, entryFrom, fetchAll, needsRefresh, nextSeen, patchFlags, postsStillFresh, type NewsIndex } from './newsFeed'
+import { buildFeed, entryFrom, fetchAll, needsRefresh, nextSeen, olderThanAll, patchFlags, postsStillFresh, type NewsIndex } from './newsFeed'
 import { cleanRawNews, toNewsPost, type RawNews } from './newsFormat'
 import { getSettings } from './settings'
 
@@ -39,7 +39,7 @@ const posts = new Map<string, { at: number; posts: NewsPost[] }>()
 let onChange: () => void = () => {}
 
 /** Source des annonces à la place de Steam : le simulateur de développement (newsSim.ts), jamais dans l'installeur. */
-type NewsSource = (appId: string, count: number, maxlength: number) => Promise<unknown[]>
+type NewsSource = (appId: string, count: number, maxlength: number, enddate?: number) => Promise<unknown[]>
 let source: NewsSource | null = null
 
 export function setNewsSource(fn: NewsSource | null): void {
@@ -68,16 +68,18 @@ function readIndex(): NewsIndex {
 
 // ---------- lecture de l'API ----------
 
-async function fetchNews(appId: string, count: number, maxlength: number): Promise<RawNews[]> {
+/** `enddate` (secondes) : seulement les annonces publiées avant. */
+async function fetchNews(appId: string, count: number, maxlength: number, enddate?: number): Promise<RawNews[]> {
   let items: unknown
   if (source) {
     try {
-      items = await source(appId, count, maxlength)
+      items = await source(appId, count, maxlength, enddate)
     } catch {
       throw new UserError(NETWORK_ERROR)
     }
   } else {
-    const url = `${API}?appid=${appId}&count=${count}&maxlength=${maxlength}&feeds=steam_community_announcements&format=json`
+    const before = enddate ? `&enddate=${enddate}` : ''
+    const url = `${API}?appid=${appId}&count=${count}&maxlength=${maxlength}${before}&feeds=steam_community_announcements&format=json`
     let res: Response
     try {
       res = await net.fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(TIMEOUT_MS) })
@@ -132,6 +134,13 @@ export async function getGameNews(game: Game, refresh = false): Promise<GameNews
     // Hors ligne : la dernière lecture vaut mieux que rien.
     if (cached) return { appId, posts: cached.posts, seenAt }
     throw new UserError(e instanceof UserError ? e.message : SERVICE_ERROR)
+  }
+  // Dernier patch gardé par le relevé mais sorti de ces annonces (jeu qui publie beaucoup) : lu à part, sinon « Dernier
+  // patch » sur l'accueil et le bandeau de la fiche s'ouvriraient sur « Cette annonce n'est plus dans les dernières actus ».
+  const kept = index[appId]?.patch
+  if (kept && olderThanAll(raw, kept.date)) {
+    const older = await fetchNews(appId, 1, 0, Math.floor(kept.date / 1000) + 1).catch(() => [])
+    if (older[0]?.gid === kept.id) raw = [...raw, older[0]]
   }
   const now = Date.now()
   const list = raw.map(toNewsPost)

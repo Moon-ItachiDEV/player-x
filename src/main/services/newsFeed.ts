@@ -38,10 +38,9 @@ export type NewsIndex = Record<string, IndexEntry>
  */
 export function entryFrom(raw: RawNews[], at: number, prev?: IndexEntry): IndexEntry {
   const found = raw.find((n) => isPatchPost(n.title, n.tags))
-  const oldest = raw[raw.length - 1]?.date
   const patch = found
     ? { id: found.gid, title: found.title, date: found.date }
-    : prev?.patch && oldest !== undefined && prev.patch.date < oldest
+    : prev?.patch && olderThanAll(raw, prev.patch.date)
       ? prev.patch
       : undefined
   return {
@@ -50,6 +49,12 @@ export function entryFrom(raw: RawNews[], at: number, prev?: IndexEntry): IndexE
     ...(patch ? { patch } : {}),
     items: raw.slice(0, ITEMS_PER_GAME).map((n) => ({ id: n.gid, title: n.title, url: n.url, date: n.date, patch: isPatchPost(n.title, n.tags) }))
   }
+}
+
+/** `date` est plus ancienne que toutes ces annonces (aucune : false) : un patch qui en est sorti, pas un patch retiré. */
+export function olderThanAll(raw: RawNews[], date: number): boolean {
+  const oldest = raw[raw.length - 1]?.date
+  return oldest !== undefined && date < oldest
 }
 
 /**
