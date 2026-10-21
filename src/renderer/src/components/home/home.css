@@ -6,8 +6,9 @@
   gap: 26px;
   container-type: inline-size;
 }
-/* La traîne du visuel (.hh-bleed) passe sous la suite de la page : positionnés, les blocs suivants se peignent par-dessus. */
-.home > :not(.hh) {
+/* La traîne du visuel (.hh-bleed) passe sous la suite de la page : positionnés, les blocs suivants se peignent par-dessus.
+   Sauf .sr-only (squelette de chargement) : il doit rester en position absolue, hors du flux. */
+.home > :not(.hh):not(.sr-only) {
   position: relative;
 }
 
