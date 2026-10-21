@@ -3,7 +3,7 @@ import type { RefObject } from 'react'
 import type { LaunchVia } from '@shared/launch'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 
-export type View = 'home' | 'library' | 'profile' | 'stats' | 'settings'
+export type View = 'home' | 'library' | 'profile' | 'stats' | 'trophies' | 'settings'
 export type SettingsSection = 'accounts' | 'library' | 'interface' | 'advanced' | 'about'
 export type LoginPlatform = 'steam' | 'discord' | 'psn'
 
@@ -158,6 +158,16 @@ export interface ProfileProps {
 export interface StatsProps {
   /** Pour le visuel de Battlefield 6 quand le jeu est dans la bibliothèque. */
   games: Game[]
+}
+
+/** components/achievements/Trophies.tsx → `export function Trophies` (succès Steam de tous les jeux joués) */
+export interface TrophiesProps {
+  /** Pour les jaquettes, et pour ouvrir la fiche d'un jeu installé ou non. */
+  games: Game[]
+  notInstalled: Game[]
+  onOpen: (g: Game) => void
+  /** Pas de compte Steam ou pas de clé : vers Paramètres › Comptes. */
+  onOpenAccounts: () => void
 }
 
 /** components/settings/SettingsView.tsx → `export function SettingsView` */

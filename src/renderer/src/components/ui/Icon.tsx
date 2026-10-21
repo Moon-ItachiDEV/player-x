@@ -45,7 +45,9 @@ const PATHS = {
   home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5V12l3 2',
   trend: 'M3.5 16.5l6-6 4 4 7-7M15 7.5h5.5V13',
-  'trend-down': 'M3.5 7.5l6 6 4-4 7 7M15 16.5h5.5V11'
+  'trend-down': 'M3.5 7.5l6 6 4-4 7 7M15 16.5h5.5V11',
+  trophy: 'M8 21h8M12 16v5M7 4h10v6a5 5 0 0 1-10 0zM7 6H4v1.5A3.5 3.5 0 0 0 7.5 11M17 6h3v1.5a3.5 3.5 0 0 1-3.5 3.5',
+  lock: 'M6 11h12v10H6zM8.5 11V7.5a3.5 3.5 0 0 1 7 0V11'
 } as const
 
 export type IconName = keyof typeof PATHS | 'play'

@@ -74,6 +74,8 @@ const api: LauncherApi = {
   markNewsSeen: (id) => ipcRenderer.invoke('news:seen', id),
   getSteamLibrary: (refresh) => ipcRenderer.invoke('steam:library', refresh),
   installGame: (id) => ipcRenderer.invoke('steam:install', id),
+  getAchievements: (id, refresh) => ipcRenderer.invoke('achievements:game', id, refresh),
+  getAchievementsOverview: (refresh) => ipcRenderer.invoke('achievements:overview', refresh),
   getStartupState: () => ipcRenderer.invoke('app:startup'),
   platform: process.platform,
   version: __APP_VERSION__

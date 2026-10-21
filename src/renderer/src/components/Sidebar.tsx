@@ -37,6 +37,7 @@ const NAV: { view: View; icon: IconName; label: string }[] = [
   { view: 'home', icon: 'home', label: 'Accueil' },
   { view: 'library', icon: 'grid', label: 'Bibliothèque' },
   { view: 'stats', icon: 'chart', label: 'Stats de jeu' },
+  { view: 'trophies', icon: 'trophy', label: 'Trophées' },
   { view: 'profile', icon: 'user', label: 'Profil' }
 ]
 

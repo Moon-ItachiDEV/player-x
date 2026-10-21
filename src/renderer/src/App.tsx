@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cleanName } from '@shared/text'
 import type { Account, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 import { AccountMenu } from './components/AccountMenu'
+import { Trophies } from './components/achievements/Trophies'
 import { Ambient } from './components/Ambient'
 import { FavRail } from './components/FavRail'
 import { FriendAlerts } from './components/FriendAlerts'
@@ -39,7 +40,7 @@ const DEFAULT_UI: UiPrefs = { friendsPanel: 'open', coverSize: 'M', reduceMotion
 const SETUP_KEY = 'pg.setup'
 
 /** Titre de la barre du haut ; la bibliothèque, les stats et les paramètres y posent leurs onglets à la place. */
-const VIEW_TITLE: Partial<Record<View, string>> = { home: 'Accueil', profile: 'Profil' }
+const VIEW_TITLE: Partial<Record<View, string>> = { home: 'Accueil', profile: 'Profil', trophies: 'Trophées' }
 
 function setupDone(): boolean {
   try {
@@ -511,6 +512,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
             />
           )}
           {view === 'stats' && <Stats games={games} />}
+          {view === 'trophies' && <Trophies games={shownGames} notInstalled={notInstalled} onOpen={openSheet} onOpenAccounts={() => goSettings('accounts')} />}
           {view === 'settings' && (
             <SettingsView
               section={section}

@@ -137,6 +137,13 @@ export async function steamLibrary(installed: Game[], refresh = false): Promise<
   return { state: 'ready', notInstalled, owned: Object.keys(list.games).length }
 }
 
+/** Jeux de la dernière liste Steam (succès) ; null sans liste, ou si les détails des jeux du profil sont privés. */
+export function ownedSteamList(): { appId: string; name: string; minutes: number; last: number }[] | null {
+  const list = mine()
+  if (!list || list.hidden) return null
+  return Object.entries(list.games).map(([appId, [name, minutes, last]]) => ({ appId, name, minutes, last: last * 1000 }))
+}
+
 /** Un jeu de la dernière liste Steam, installé ou non (pour retrouver la fiche d'un jeu non installé). */
 export function ownedSteamGame(id: string): Game | null {
   const appId = /^steam:(\d{1,10})$/.exec(id)?.[1]

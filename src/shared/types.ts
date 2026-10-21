@@ -392,6 +392,80 @@ export interface SteamLibrary {
   owned: number
 }
 
+// ---------- Succès Steam ----------
+
+export interface Achievement {
+  /** Nom technique chez Steam (apiname), unique dans le jeu. */
+  id: string
+  name: string
+  /** Absente pour certains succès cachés : Steam ne la donne qu'une fois le succès débloqué. */
+  description?: string
+  hidden: boolean
+  /** Icône en couleur (débloqué) et en gris (pas encore). */
+  icon?: string
+  iconGray?: string
+  /** Date du déblocage ; absente tant que le succès n'est pas débloqué. */
+  unlockedAt?: number
+  /** Part des joueurs Steam du jeu qui l'ont débloqué (0 à 100). */
+  percent?: number
+}
+
+/**
+ * Pourquoi un jeu n'a pas de liste de succès, ou `ready`.
+ * `not-steam` : jeu Epic ou EA (pas d'API publique) ; `none` : le jeu n'a pas de succès ;
+ * `private` : les « détails des jeux » du profil Steam ne sont pas publics ; `key-refused` : clé Web API refusée.
+ */
+export type AchievementsState = 'ready' | 'not-steam' | 'none' | 'no-account' | 'no-key' | 'key-refused' | 'private'
+
+export interface GameAchievements {
+  state: AchievementsState
+  /** Dans l'ordre du jeu. */
+  list: Achievement[]
+  unlocked: number
+  total: number
+}
+
+/** Un succès débloqué, avec son jeu (page Trophées). */
+export interface AchievementPick extends Achievement {
+  gameId: string
+  gameName: string
+  unlockedAt: number
+}
+
+/** Où en est un jeu (page Trophées). */
+export interface AchievementGame {
+  gameId: string
+  name: string
+  unlocked: number
+  total: number
+  /** Dernier déblocage. */
+  lastAt?: number
+}
+
+export type AchievementsOverviewState = 'ready' | 'scanning' | 'no-account' | 'no-key' | 'key-refused' | 'private' | 'offline'
+
+export interface AchievementsOverview {
+  state: AchievementsOverviewState
+  /** Pendant le premier relevé : jeux lus sur combien. */
+  progress?: { done: number; total: number }
+  /** Jeux qui ont des succès, débloqués ou non. */
+  games: AchievementGame[]
+  /** Derniers succès débloqués, tous jeux confondus (les plus récents d'abord). */
+  recent: AchievementPick[]
+  /** Succès débloqués les plus rares (les plus rares d'abord). */
+  rarest: AchievementPick[]
+  unlocked: number
+  total: number
+  /** Jeux terminés à 100 %. */
+  perfect: number
+  /** Moyenne de complétion des jeux commencés (au moins un succès), comme sur le profil Steam. */
+  average: number
+  /** Niveau Steam et badges (absent si Steam ne les donne pas). */
+  level?: { level: number; badges: number; xp: number; xpInLevel: number; xpForLevel: number }
+  /** Date du dernier relevé complet (0 : jamais). */
+  updatedAt: number
+}
+
 export interface LauncherApi {
   getGames(refresh?: boolean): Promise<Game[]>
   /**
@@ -463,6 +537,10 @@ export interface LauncherApi {
   getSteamLibrary(refresh?: boolean): Promise<SteamLibrary>
   /** Ouvre l'installation d'un jeu Steam non installé ; il rejoint la bibliothèque une fois téléchargé. */
   installGame(id: string): Promise<void>
+  /** Succès Steam d'un jeu, avec leur rareté (gardés 10 min, sauf `refresh`). */
+  getAchievements(id: string, refresh?: boolean): Promise<GameAchievements>
+  /** Page Trophées : tous les jeux Steam joués. Lance le relevé s'il a plus de 6 h (ou tout de suite avec `refresh`). */
+  getAchievementsOverview(refresh?: boolean): Promise<AchievementsOverview>
   /** Démarrage avec Windows tel que Windows le voit (il peut l'avoir désactivé de son côté). */
   getStartupState(): Promise<StartupState>
   platform: string
