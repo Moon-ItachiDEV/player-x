@@ -45,7 +45,7 @@ export function cleanRawNews(v: unknown): RawNews | null {
   if (!gid || !title || !url || !date) return null
   return {
     gid,
-    title: decodeEntities(title),
+    title: decodeEntities(unescapeBrackets(title)),
     url,
     author: text(o.author, 64),
     contents: typeof o.contents === 'string' ? o.contents.slice(0, 400_000) : '',
@@ -68,6 +68,14 @@ export function isPatchPost(title: string, tags: string[]): boolean {
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', hellip: '…', mdash: '—', ndash: '–', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“' }
 
+/**
+ * Crochets échappés par l'éditeur d'annonces de Steam, pour qu'ils ne soient pas lus comme des balises :
+ * « \[ UI ] » s'affiche « [ UI ] » (notes de Counter-Strike 2). Une barre oblique devant autre chose reste du texte.
+ */
+export function unescapeBrackets(s: string): string {
+  return s.replace(/\\([[\]])/g, '$1')
+}
+
 export function decodeEntities(s: string): string {
   return s.replace(/&(#x[0-9a-f]{1,6}|#\d{1,7}|[a-z]{2,8});/gi, (whole, code: string) => {
     if (code[0] === '#') {
@@ -87,7 +95,7 @@ interface Node {
   children: (Node | string)[]
 }
 
-/** Balises connues ; les autres crochets (« [PC] », « [ MAPS ] ») restent du texte. */
+/** Balises connues ; les autres crochets (« [PC] », « [ MAPS ] ») restent du texte, comme un crochet échappé (« \[b] »). */
 const ALIASES: Record<string, string> = {
   strong: 'b',
   em: 'i',
@@ -137,7 +145,8 @@ const KNOWN = new Set([
 ])
 const LISTS = new Set(['list', 'olist'])
 
-const TAG_RE = /\[(\/?)([a-z][a-z0-9]*|\*)(=(?:"[^"\]]*"|[^\]\s]*))?((?:\s+[a-z_]+=(?:"[^"]*"|[^\s\]]*))*)\s*\]/gi
+// L'argument peut contenir des crochets échappés : « [url=https://exemple.fr/carte\[2\]] ».
+const TAG_RE = /\[(\/?)([a-z][a-z0-9]*|\*)(=(?:"(?:[^"\\\]]|\\.)*"|(?:[^\]\s\\]|\\.)*))?((?:\s+[a-z_]+=(?:"[^"]*"|[^\s\]]*))*)\s*\]/gi
 const ATTR_RE = /([a-z_]+)=(?:"([^"]*)"|([^\s\]]*))/gi
 
 const unquote = (s: string): string => s.replace(/^"([^"]*)"$/, '$1')
@@ -176,6 +185,11 @@ function parseTree(src: string): Node {
   let last = 0
   for (let m = re.exec(src); m; m = re.exec(src)) {
     const [whole, slash, rawName, rawArg, rawAttrs] = m
+    // « \[b] » : crochet échappé, du texte. La recherche reprend juste après, une vraie balise peut suivre.
+    if (src[m.index - 1] === '\\') {
+      re.lastIndex = m.index + 1
+      continue
+    }
     const lower = rawName.toLowerCase()
     const name = ALIASES[lower] ?? lower
     if (!KNOWN.has(name)) continue
@@ -204,7 +218,7 @@ function parseTree(src: string): Node {
       continue
     }
 
-    const node: Node = { tag: name, arg: rawArg ? unquote(rawArg.slice(1)) : undefined, attrs: parseAttrs(rawAttrs ?? ''), children: [] }
+    const node: Node = { tag: name, arg: rawArg ? unescapeBrackets(unquote(rawArg.slice(1))) : undefined, attrs: parseAttrs(rawAttrs ?? ''), children: [] }
     if (name === '*') {
       // Nouveau point : ferme le précédent de la même liste.
       const item = lastIndex((n) => n.tag === '*')
@@ -235,7 +249,7 @@ function marksFor(node: Node, marks: Marks): Marks {
     case 's':
       return { ...marks, strike: true }
     case 'url': {
-      const href = safeUrl(node.arg ?? node.attrs.href ?? textOf(node))
+      const href = safeUrl(node.arg ?? node.attrs.href ?? unescapeBrackets(textOf(node)))
       return href ? { ...marks, href } : marks
     }
     default:
@@ -294,9 +308,9 @@ class Builder {
     this.size += length
   }
 
-  /** Texte au fil du paragraphe en cours ; une ligne vide termine le paragraphe. */
-  text(raw: string, marks: Marks): void {
-    const parts = decodeEntities(raw).split(/\n[ \t ]*\n\s*/)
+  /** Texte au fil du paragraphe en cours ; une ligne vide termine le paragraphe. `verbatim` : échappements gardés tels quels. */
+  text(raw: string, marks: Marks, verbatim = false): void {
+    const parts = decodeEntities(verbatim ? raw : unescapeBrackets(raw)).split(/\n[ \t ]*\n\s*/)
     parts.forEach((part, i) => {
       if (i > 0) this.flush()
       if (part) this.spans.push(span(part, marks))
@@ -322,7 +336,7 @@ class Builder {
 function collectSpans(node: Node, marks: Marks, out: NewsSpan[] = [], skipLists = false): NewsSpan[] {
   for (const child of node.children) {
     if (typeof child === 'string') {
-      out.push(span(decodeEntities(child), marks))
+      out.push(span(decodeEntities(unescapeBrackets(child)), marks))
       continue
     }
     if (skipLists && LISTS.has(child.tag)) continue
@@ -371,7 +385,7 @@ function addList(node: Node, b: Builder, depth: number, items: { spans: NewsSpan
   for (const child of node.children) {
     if (typeof child === 'string') {
       // Texte hors des points (rare) : il devient un point à part.
-      const spans = tidy([span(decodeEntities(child), {})])
+      const spans = tidy([span(decodeEntities(unescapeBrackets(child)), {})])
       if (spans.length) items.push({ spans, depth })
       continue
     }
@@ -460,7 +474,7 @@ function walk(node: Node, b: Builder, marks: Marks): void {
       }
       case 'code':
       case 'noparse':
-        b.text(textOf(child), marks)
+        b.text(textOf(child), marks, true)
         break
       case 'dynamiclink': {
         const href = safeUrl(child.attrs.href)
@@ -491,7 +505,7 @@ function findAll(node: Node, tag: string, out: Node[] = []): Node[] {
 }
 
 function addImage(node: Node, b: Builder): void {
-  const src = safeUrl(node.attrs.src ?? textOf(node))
+  const src = safeUrl(node.attrs.src ?? unescapeBrackets(textOf(node)))
   if (src) b.add({ type: 'image', src })
 }
 

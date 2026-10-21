@@ -95,11 +95,17 @@ export function deleteKv(key: string): void {
 
 // --- jeux ---
 
+/**
+ * Jeux détectés. `lastPlayed` : dernier lancement depuis Player X, repris de l'historique des lancements si la ligne du jeu
+ * l'a perdu (jeu désinstallé puis réinstallé). Les autres dates (Steam, parties vues) s'ajoutent dans withPlaytime, jamais ici.
+ */
 export function listGames(): Game[] {
+  // Une seule lecture groupée de `launches` (pas d'index sur game_id) pour le nombre et le dernier lancement.
   const res = db.exec(`
-    SELECT g.id, g.store, g.store_id, g.name, g.install_dir, g.cover_url, g.hero_url, g.last_played, g.favorite, g.exe_path,
-           (SELECT COUNT(*) FROM launches l WHERE l.game_id = g.id)
-    FROM games g`)
+    SELECT g.id, g.store, g.store_id, g.name, g.install_dir, g.cover_url, g.hero_url,
+           MAX(COALESCE(g.last_played, 0), COALESCE(l.last, 0)), g.favorite, g.exe_path, l.n
+    FROM games g
+    LEFT JOIN (SELECT game_id, COUNT(*) AS n, MAX(at) AS last FROM launches GROUP BY game_id) l ON l.game_id = g.id`)
   if (!res.length) return []
   return res[0].values.map((r) => ({
     id: r[0] as string,
@@ -109,10 +115,10 @@ export function listGames(): Game[] {
     installDir: (r[4] as string) ?? undefined,
     coverUrl: (r[5] as string) ?? undefined,
     heroUrl: (r[6] as string) ?? undefined,
-    lastPlayed: (r[7] as number) ?? undefined,
+    lastPlayed: (r[7] as number) || undefined,
     favorite: r[8] === 1,
     exePath: (r[9] as string) ?? undefined,
-    launches: r[10] as number
+    launches: (r[10] as number) ?? 0
   }))
 }
 
@@ -197,6 +203,12 @@ export function lastSeenAt(gameIds: string[]): number | undefined {
   const res = db.exec(`SELECT MAX(ended) FROM sessions WHERE game_id IN (${gameIds.map(() => '?').join(', ')})`, gameIds)
   const v = res[0]?.values[0]?.[0]
   return typeof v === 'number' ? v : undefined
+}
+
+/** Dernière fois où chaque jeu a été vu en cours par Player X (fin de sa session la plus récente). */
+export function lastSeenByGame(): Map<string, number> {
+  const res = db.exec('SELECT game_id, MAX(ended) FROM sessions GROUP BY game_id')
+  return new Map((res[0]?.values ?? []).map((r) => [r[0] as string, r[1] as number]))
 }
 
 /** Minutes jouées par jeu, toutes sessions confondues. */

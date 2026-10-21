@@ -40,7 +40,8 @@ let loading: Promise<void> | null = null
 /** Dernier essai : quand, et pour quel compte et quelle clé (une nouvelle clé est essayée tout de suite). */
 let lastTry = { at: 0, who: '' }
 let lastError: 'key' | 'offline' | null = null
-let minutesMemo: { from: OwnedCache; minutes: Record<string, number> } | null = null
+/** Temps de jeu et dernière partie par appid, recalculés seulement quand la liste change. */
+let memo: { from: OwnedCache; minutes: Record<string, number>; last: Record<string, number> } | null = null
 let onChange: () => void = () => {}
 let onInstalled: () => void = () => {}
 
@@ -106,18 +107,36 @@ function ownedGame(appId: string, [name, minutes, last]: [string, number, number
     storeId: appId,
     name,
     notInstalled: true,
-    ...(last ? { lastPlayed: last * 1000 } : {}),
+    ...(last ? { lastPlayed: last * 1000, lastPlayedSource: 'steam' as const } : {}),
     ...(minutes ? { playtime: minutes, playtimeSource: 'steam' as const } : {})
   }
 }
 
-/** Temps de jeu selon Steam (appid → minutes), pour le compte connecté ; vide sans clé Web API. */
-export function steamMinutes(): Record<string, number> {
+/** Relit la liste au besoin (en arrière-plan) et renvoie ses chiffres par appid. */
+function stats(): { minutes: Record<string, number>; last: Record<string, number> } | null {
   void ensure()
   const list = mine()
-  if (!list) return {}
-  if (minutesMemo?.from !== list) minutesMemo = { from: list, minutes: Object.fromEntries(Object.entries(list.games).map(([id, g]) => [id, g[1]])) }
-  return minutesMemo.minutes
+  if (!list) return null
+  if (memo?.from !== list) {
+    const minutes: Record<string, number> = {}
+    const last: Record<string, number> = {}
+    for (const [id, g] of Object.entries(list.games)) {
+      minutes[id] = g[1]
+      if (g[2] > 0) last[id] = g[2] * 1000
+    }
+    memo = { from: list, minutes, last }
+  }
+  return memo
+}
+
+/** Temps de jeu selon Steam (appid → minutes), pour le compte connecté ; vide sans clé Web API. */
+export function steamMinutes(): Record<string, number> {
+  return stats()?.minutes ?? {}
+}
+
+/** Dernière partie selon Steam (appid → ms), compte connecté ; vide sans clé Web API. */
+export function steamLastPlayed(): Record<string, number> {
+  return stats()?.last ?? {}
 }
 
 /** Jeux du compte Steam absents de `installed`, et pourquoi la liste manque le cas échéant. */

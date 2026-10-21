@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { cleanRawNews, decodeEntities, excerptOf, isPatchPost, parseNewsContents, safeUrl, toNewsPost } from './newsFormat.ts'
+import { cleanRawNews, decodeEntities, excerptOf, isPatchPost, parseNewsContents, safeUrl, toNewsPost, unescapeBrackets } from './newsFormat.ts'
 
 const textOf = (spans: { text: string }[]): string => spans.map((s) => s.text).join('')
 
@@ -159,4 +159,48 @@ test('annonce brute : champs vérifiés, date en millisecondes', () => {
   assert.equal(post.image, 'https://clan.akamai.steamstatic.com/images/1/a.jpg')
   assert.equal(post.excerpt, 'Body text')
   assert.equal(post.id, '5124356789012345678')
+})
+
+test('crochets échappés par Steam (Counter-Strike 2) : du texte, jamais une balise, ni une barre oblique affichée', () => {
+  const src =
+    '[p]\\[ MAPS ][/p][list][*][p]\\[ UI ] Demo/Replay viewer improvements: Added a progress bar[/p][/*][*][p][b]Fixed[/b] a bug where \\[b]tags\\[/b] showed up[/p][/*][/list]' +
+    '[p]\\[ MISC ] Read the [url=https://example.com/maps/de_dust2\\[1\\]]map notes[/url] and [url]https://example.com/a\\[2\\][/url][/p]'
+  const blocks = parseNewsContents(src)
+  assert.deepEqual(blocks[0], { type: 'heading', level: 3, spans: [{ text: 'MAPS' }] })
+  assert.deepEqual(blocks[1], {
+    type: 'list',
+    ordered: false,
+    items: [
+      { spans: [{ text: '[ UI ] Demo/Replay viewer improvements: Added a progress bar' }], depth: 0 },
+      { spans: [{ text: 'Fixed', bold: true }, { text: ' a bug where [b]tags[/b] showed up' }], depth: 0 }
+    ]
+  })
+  assert.deepEqual(blocks[2], {
+    type: 'paragraph',
+    spans: [
+      { text: '[ MISC ] Read the ' },
+      { text: 'map notes', href: 'https://example.com/maps/de_dust2[1]' },
+      { text: ' and ' },
+      { text: 'https://example.com/a[2]', href: 'https://example.com/a[2]' }
+    ]
+  })
+  assert.equal(blocks.length, 3)
+  // Ancien format sans [p] : intertitre retrouvé, extrait sans barre oblique.
+  const post = toNewsPost({
+    gid: '1',
+    title: '\\[ PATCH ] Counter-Strike 2 Update',
+    url: 'https://store.steampowered.com/news/app/730/view/1',
+    contents: '\\[ UI ]\n[list][*]Demo/Replay viewer improvements[/list]\n\\[ MISC ]\n[list][*]Added a ping icon[/list]',
+    date: 1_760_000_000_000,
+    tags: ['patchnotes']
+  })
+  assert.deepEqual(
+    post.blocks.filter((b) => b.type === 'heading').map((b) => (b.type === 'heading' ? b.spans[0].text : '')),
+    ['UI', 'MISC']
+  )
+  assert.equal(post.excerpt, 'Demo/Replay viewer improvements Added a ping icon')
+  assert.equal(cleanRawNews({ gid: '2', title: '\\[ UI ] Fixes', url: 'https://a.b/c', date: 1 })?.title, '[ UI ] Fixes')
+  // Une barre oblique devant autre chose reste du texte ; le contenu brut ([noparse]) aussi.
+  assert.deepEqual(parseNewsContents('C:\\Games\\CS2 \\* not a list [noparse]\\[raw][/noparse]'), [{ type: 'paragraph', spans: [{ text: 'C:\\Games\\CS2 \\* not a list \\[raw]' }] }])
+  assert.equal(unescapeBrackets('\\[x\\] \\y'), '[x] \\y')
 })

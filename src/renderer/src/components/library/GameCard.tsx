@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { capitalize, cleanName, formatPlaytime, timeAgo } from '@shared/text'
+import { cardMeta } from '@shared/played'
+import { cleanName } from '@shared/text'
 import type { Game } from '@shared/types'
 import type { LaunchFn } from '../../contracts'
 import { libraryMeta } from '../../launch/copy'
@@ -36,15 +37,6 @@ export function FavStar({ on, pop, size }: { on: boolean; pop: number; size: num
       <Icon name="star" size={size} filled={on} />
     </span>
   )
-}
-
-/** Méta courte : « 123 h · il y a 2 h », « En jeu · 45 h 45 », « Jamais lancé » ou « Pas installé · 52 h ». */
-export function cardMeta(game: Game): string {
-  if (game.running) return `En jeu${game.playtime ? ` · ${formatPlaytime(game.playtime)}` : ''}`
-  if (game.notInstalled) return `Pas installé${game.playtime ? ` · ${formatPlaytime(game.playtime)}` : ''}`
-  // La plateforme est déjà sur la carte : le temps de jeu passe devant quand on le connaît.
-  const when = game.lastPlayed ? timeAgo(game.lastPlayed) : 'jamais lancé'
-  return game.playtime ? `${formatPlaytime(game.playtime)} · ${when}` : capitalize(when)
 }
 
 interface GameCardProps {

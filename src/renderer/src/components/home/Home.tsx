@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { capitalize, cleanName, formatPlaytime, norm, plural, timeAgo } from '@shared/text'
+import { hasPlayed, PLAYED_SOURCE, playedBadge, playedOn } from '@shared/played'
+import { capitalize, cleanName, formatDate, formatPlaytime, norm, plural, timeAgo } from '@shared/text'
 import type { Friend, Game } from '@shared/types'
 import type { HomeProps, LaunchFn } from '../../contracts'
 import { PlayLabel } from '../../launch/PlayLabel'
@@ -19,10 +20,11 @@ export type { HomeProps }
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
 const byName = (a: Game, b: Game): number => collator.compare(cleanName(a.name), cleanName(b.name))
-const byRecent = (a: Game, b: Game): number => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0)
+/** Jeux en cours d'abord, puis la dernière partie la plus récente. */
+const byRecent = (a: Game, b: Game): number => Number(!!b.running) - Number(!!a.running) || (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0)
 const hasArt = (g: Game): boolean => !!(g.heroUrl || g.coverUrl)
 
-/** Jeu à la une : celui qui tourne, sinon le dernier lancé, sinon un favori (puis un jeu) avec une image. */
+/** Jeu à la une : celui qui tourne, sinon la dernière partie, sinon un favori (puis un jeu) avec une image. */
 function pickHero(games: Game[]): Game | null {
   // Plusieurs jeux en cours : le dernier démarré.
   let running: Game | null = null
@@ -31,21 +33,6 @@ function pickHero(games: Game[]): Game | null {
   let recent: Game | null = null
   for (const g of games) if (g.lastPlayed && (!recent || g.lastPlayed > (recent.lastPlayed ?? 0))) recent = g
   return recent ?? games.find((g) => g.favorite && hasArt(g)) ?? games.find(hasArt) ?? games[0] ?? null
-}
-
-const timeFmt = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' })
-const dayFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' })
-
-/** « Lancé aujourd'hui · 20:10 », « Lancé hier · 18:05 », « Lancé le 12 oct. · 14:00 » */
-export function launchedOn(ts: number, now = Date.now()): string {
-  const d = new Date(ts)
-  const day =
-    d.toDateString() === new Date(now).toDateString()
-      ? "aujourd'hui"
-      : d.toDateString() === new Date(now - 86_400_000).toDateString()
-        ? 'hier'
-        : `le ${dayFmt.format(d)}`
-  return `Lancé ${day} · ${timeFmt.format(d)}`
 }
 
 /** Amis (et membres Discord) en train de jouer à ce jeu. */
@@ -68,7 +55,7 @@ export function Home(props: HomeProps): React.JSX.Element {
   const hero = useMemo(() => pickHero(games), [games])
   const heroId = hero?.id
 
-  // « À reprendre » : les derniers lancés ; sans historique, les favoris puis les jeux qui ont une image.
+  // « À reprendre » : les dernières parties ; sans historique, les favoris puis les jeux qui ont une image.
   const { cards, resumed } = useMemo(() => {
     const rest = games.filter((g) => g.id !== heroId)
     const played = rest.filter((g) => g.lastPlayed).sort(byRecent)
@@ -101,7 +88,7 @@ export function Home(props: HomeProps): React.JSX.Element {
       {cards.length > 0 && (
         <ResumeRow
           title={resumed ? 'À reprendre' : 'Dans ta bibliothèque'}
-          sub={resumed ? 'Tes derniers jeux lancés' : 'Lance un jeu : il apparaîtra ici'}
+          sub={resumed ? 'Tes dernières parties' : 'Lance un jeu : il apparaîtra ici'}
           games={cards}
           friends={friends}
           onLaunch={onLaunch}
@@ -194,7 +181,8 @@ function HomeHero({ game, players, onLaunch, onOpen, onFavorite }: HeroProps): R
     onOpen(game)
   }
 
-  const sub = game.running ? 'Partie en cours' : game.lastPlayed ? "Reprends là où tu t'es arrêté" : 'Jamais lancé depuis Player X'
+  const sub = game.running ? 'Partie en cours' : hasPlayed(game) ? "Reprends là où tu t'es arrêté" : 'Jamais lancé depuis Player X'
+  const src = game.lastPlayedSource
 
   return (
     <section ref={root} className={`hh ${game.running ? 'is-live' : ''}`} aria-label={`À la une : ${name}`}>
@@ -269,13 +257,26 @@ function HomeHero({ game, players, onLaunch, onOpen, onFavorite }: HeroProps): R
           <dt>Temps de jeu</dt>
           <dd className="num">{game.playtime ? formatPlaytime(game.playtime) : '—'}</dd>
         </div>
+        {(game.launches ?? 0) > 0 && (
+          <div className="hh-k">
+            <dt>
+              Lancements<span className="sr-only"> depuis Player X</span>
+            </dt>
+            <dd className="num">{game.launches}</dd>
+          </div>
+        )}
         <div className="hh-k">
-          <dt>Lancements</dt>
-          <dd className="num">{game.launches ?? 0}</dd>
-        </div>
-        <div className="hh-k">
-          <dt>Dernier lancement</dt>
-          <dd>{game.running ? 'En cours' : game.lastPlayed ? capitalize(timeAgo(game.lastPlayed)) : 'Jamais'}</dd>
+          <dt>Dernière partie</dt>
+          {game.running ? (
+            <dd>En cours</dd>
+          ) : game.lastPlayed ? (
+            <dd title={formatDate(game.lastPlayed)}>
+              {capitalize(timeAgo(game.lastPlayed))}
+              {src && <span className="sr-only">, {PLAYED_SOURCE[src]}</span>}
+            </dd>
+          ) : (
+            <dd>—</dd>
+          )}
         </div>
         {players.length > 0 && (
           <div className="hh-k hh-friends" title={players.map((p) => p.name).join(', ')}>
@@ -376,7 +377,7 @@ function ResumeCard({ game, players, onLaunch, onOpen }: CardProps): React.JSX.E
   const lit = useRef(false)
   const name = cleanName(game.name)
   const image = game.heroUrl || game.coverUrl
-  const badge = game.running ? 'En cours' : game.lastPlayed ? capitalize(timeAgo(game.lastPlayed)) : 'Jamais lancé'
+  const badge = playedBadge(game)
   const meta = [game.launches ? plural(game.launches, 'lancement', 'lancements') : '', game.playtime ? formatPlaytime(game.playtime) : ''].filter(Boolean).join(' · ')
 
   // Fond de la page aux couleurs du jeu survolé ; rendu par cette carte seulement.
@@ -409,16 +410,18 @@ function ResumeCard({ game, players, onLaunch, onOpen }: CardProps): React.JSX.E
     >
       <button ref={art} className="rc-art" aria-label={`Fiche de ${name}`} title="Voir la fiche" onClick={open}>
         <Cover game={game} variant="landscape" showTitle={!image} />
-        <span className={`rc-badge ${game.running ? 'is-live' : ''}`}>
-          {!game.running && <Icon name="clock" size={13} />}
-          {badge}
-        </span>
+        {badge && (
+          <span className={`rc-badge ${game.running ? 'is-live' : ''}`}>
+            {!game.running && <Icon name="clock" size={13} />}
+            {badge}
+          </span>
+        )}
         <StoreTag kind={game.store} long className="rc-store" />
         {game.running && <LiveBadge className="rc-live" />}
         {game.newPatch && <NewsBadge patch={game.newPatch} className="rc-news" />}
       </button>
       <div className="rc-body">
-        <p className="rc-date">{game.lastPlayed ? launchedOn(game.lastPlayed) : KIND_LABEL[game.store]}</p>
+        <p className="rc-date">{game.lastPlayed ? playedOn(game.lastPlayed, game.lastPlayedSource) : KIND_LABEL[game.store]}</p>
         <h3 className="rc-name" title={name}>
           {name}
         </h3>

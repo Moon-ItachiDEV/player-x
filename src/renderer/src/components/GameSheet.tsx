@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { PLAYED_SOURCE } from '@shared/played'
 import { capitalize, cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
 import type { Friend, Game, NewsPost } from '@shared/types'
 import { isBf6Game, useBf6Summary } from './stats/bf6'
@@ -183,6 +184,8 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
   // Discord : membres en ligne d'un serveur, jamais des amis.
   const pals = playing.filter((f) => f.platform !== 'discord')
   const members = playing.filter((f) => f.platform === 'discord')
+  // D'où vient la dernière partie : en cours, c'est Player X qui la voit.
+  const playedSrc = game.running ? 'session' : game.lastPlayedSource
   const toggleFavorite = (): void => {
     if (!game.favorite) setPop((n) => n + 1)
     onFavorite(game)
@@ -264,15 +267,23 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
         {!game.notInstalled && <LaunchLine game={game} p={p} playRef={playRef} onLaunch={onLaunch} onRescan={onRescan} />}
 
         <div className="sheet-stats">
-          {game.lastPlayed ? (
-            <StatTile label="Dernier lancement" value={capitalize(timeAgo(game.lastPlayed))} caption={formatDate(game.lastPlayed)} />
+          {game.running || game.lastPlayed ? (
+            <StatTile
+              label="Dernière partie"
+              value={game.running || !game.lastPlayed ? 'En cours' : capitalize(timeAgo(game.lastPlayed))}
+              caption={playedSrc ? PLAYED_SOURCE[playedSrc] : undefined}
+              hint={!game.running && game.lastPlayed ? formatDate(game.lastPlayed) : undefined}
+            />
+          ) : game.notInstalled && !game.playtime ? (
+            <StatTile label="Dernière partie" value="Jamais" caption="selon Steam" />
           ) : (
-            <StatTile label="Dernier lancement" value="Jamais" caption={game.notInstalled ? 'selon Steam' : 'depuis Player X'} />
+            <StatTile label="Dernière partie" value="—" caption={game.playtime ? 'Date inconnue' : 'Aucune partie connue'} />
           )}
           {game.notInstalled ? (
             <StatTile label="Sur ce PC" value="Pas installé" caption="via Steam" />
           ) : (
-            <StatTile label="Lancements" value={String(game.launches ?? 0)} caption="depuis Player X" />
+            // Aucun lancement depuis Player X : pas de « 0 » (le jeu a pu être joué ailleurs).
+            (game.launches ?? 0) > 0 && <StatTile label="Lancements" value={String(game.launches)} caption="depuis Player X" />
           )}
           <StatTile
             label="Temps de jeu"
@@ -352,12 +363,13 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
   )
 }
 
-function StatTile(props: { label: string; value: string; caption?: string; countTo?: number; live?: boolean }): React.JSX.Element {
-  const { label, value, caption, countTo, live } = props
+/** `hint` : bulle du chiffre (la date exacte sous « Il y a 2 h »). */
+function StatTile(props: { label: string; value: string; caption?: string; hint?: string; countTo?: number; live?: boolean }): React.JSX.Element {
+  const { label, value, caption, hint, countTo, live } = props
   return (
     <div className="sheet-tile">
       <span className="sheet-tile-label">{label}</span>
-      <span className="sheet-tile-value num" title={value}>
+      <span className="sheet-tile-value num" title={hint ?? value}>
         {countTo ? <CountUp value={countTo} format={formatPlaytime} /> : value}
       </span>
       <span className={`sheet-tile-caption ${live ? 'is-live' : ''}`} title={caption}>

@@ -10,6 +10,7 @@ import {
 import { net } from 'electron'
 import type { Account, Friend, FriendPlatform, FriendsResult, FriendStatus } from '@shared/types'
 import { discordGuildIdFrom } from '@shared/text'
+import { memberKey } from './discordMembers'
 import { getAccounts, getSettings, saveAccount } from './settings'
 
 // ---------- Messages d'erreur ----------
@@ -158,13 +159,18 @@ async function discordServerMembers(rawId: string): Promise<Friend[]> {
   }
   const widget = (await res.json()) as Partial<DiscordWidget>
   const friends: Friend[] = []
+  // Les identifiants du widget sont anonymes et changent selon la position : l'identité d'un membre, c'est son pseudo
+  // (stable d'une récupération à l'autre, comme « Masquer »). Deux membres au même pseudo : « pseudo#2 »…
+  const seen = new Map<string, number>()
   for (const m of Array.isArray(widget.members) ? widget.members : []) {
-    const id = text(m?.id, 32)
     const name = text(m?.username)
-    if (!id || !name) continue
+    if (!name) continue
+    const key = memberKey(name)
+    const n = (seen.get(key) ?? 0) + 1
+    seen.set(key, n)
     const game = text(m.activity?.name)
     friends.push({
-      id: `discord:${id}`,
+      id: `discord:${n > 1 ? `${key}#${n}` : key}`,
       platform: 'discord',
       name,
       avatarUrl: httpsUrl(m.avatar_url),

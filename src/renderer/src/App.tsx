@@ -199,7 +199,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   useEffect(() => bindLaunchIpc(), [])
   useEffect(() => setLaunchDemo(!!settings?.demoMode), [settings?.demoMode])
   const pending = useLaunchPending()
-  // Les écrans voient la date de dernier lancement d'avant le clic tant que le lancement attend (rien ne bouge).
+  // Les écrans voient la dernière partie d'avant le clic tant que le lancement attend (rien ne bouge).
   const shownGames = useFrozenGames(games)
   const anyRunning = games.some((g) => g.running)
 

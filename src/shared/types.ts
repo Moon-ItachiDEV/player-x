@@ -2,6 +2,9 @@ import type { LaunchOpts, LaunchStatus } from './launch'
 
 export type Store = 'steam' | 'epic' | 'ea'
 
+/** D'où vient la dernière partie d'un jeu. */
+export type PlayedSource = 'launch' | 'session' | 'steam'
+
 export interface Game {
   id: string // `${store}:${storeId}`
   store: Store
@@ -12,8 +15,11 @@ export interface Game {
   exePath?: string
   coverUrl?: string
   heroUrl?: string
+  /** Dernière partie : la plus récente entre le dernier lancement depuis Player X, la dernière fois où Player X l'a vu tourner, et Steam. */
   lastPlayed?: number
-  /** Nombre de lancements depuis Plateforme Gaming. */
+  /** D'où vient `lastPlayed`. */
+  lastPlayedSource?: PlayedSource
+  /** Nombre de lancements depuis Player X. */
   launches?: number
   favorite?: boolean
   /** Temps de jeu en minutes : compteur Steam pour les jeux Steam, sinon mesuré par Player X. */
@@ -25,6 +31,8 @@ export interface Game {
   runningSince?: number
   /** Patch publié sur Steam ces 7 derniers jours et pas encore vu dans la fiche : badge « Nouveau patch ». */
   newPatch?: { id: string; title: string; at: number }
+  /** Dernières notes de patch publiées sur Steam (date de publication, pas celle du téléchargement), quel que soit leur âge et même déjà vues. Absent si les actus sont coupées, sans page Steam, ou si aucune des dernières annonces n'est un patch. */
+  lastPatch?: { id: string; title: string; at: number }
   /** Jeu du compte Steam qui n'est pas installé sur ce PC : « Installer » à la place de « Jouer ». */
   notInstalled?: boolean
 }
@@ -95,6 +103,17 @@ export interface FriendsResult {
   errors: Partial<Record<FriendPlatform, string>>
   /** Plateformes interrogées (compte relié ou serveur configuré). */
   queried?: FriendPlatform[]
+  /** Membres du serveur Discord masqués (bots connus, « Masquer »). */
+  hidden?: HiddenMember[]
+}
+
+/** Membre d'un serveur Discord retiré des listes : bot connu, ou masqué avec « Masquer ». */
+export interface HiddenMember {
+  name: string
+  reason: 'bot' | 'user'
+  /** Présent dans le widget lors de la dernière récupération. */
+  online: boolean
+  avatarUrl?: string
 }
 
 export interface ScanReport {
@@ -376,6 +395,33 @@ export interface GameNews {
   seenAt: number
 }
 
+/** Une annonce de la page Actus des jeux (relevé des titres, sans le texte). */
+export interface NewsFeedItem {
+  /** gid Steam de l'annonce. */
+  id: string
+  gameId: string
+  gameName: string
+  title: string
+  url: string
+  date: number
+  patch: boolean
+  /** Moins de 7 jours et pas encore vue (même règle que le badge « Nouveau patch »). */
+  isNew: boolean
+}
+
+export interface NewsFeed {
+  /** Les plus récentes d'abord, 200 au plus. */
+  items: NewsFeedItem[]
+  /** Jeux suivis : ceux de la bibliothèque qui ont une page Steam. */
+  tracked: number
+  /** Dernier relevé utilisé (0 : jamais). */
+  checkedAt: number
+  /** Premier relevé pas encore fait ou en cours. */
+  pending: boolean
+  /** Dernier passage : aucune réponse de Steam. */
+  offline: boolean
+}
+
 // ---------- Jeux du compte Steam (installés ou non) ----------
 
 /**
@@ -486,6 +532,8 @@ export interface LauncherApi {
   /** Prévient quand la bibliothèque change en arrière-plan (jaquettes récupérées…). Renvoie la fonction de désabonnement. */
   onGamesChanged(cb: () => void): () => void
   getFriends(): Promise<FriendsResult>
+  /** « Masquer » / « Afficher » un membre du serveur Discord ; renvoie la liste relue sans redemander à Discord. */
+  setMemberHidden(name: string, hidden: boolean): Promise<FriendsResult>
   getAccounts(): Promise<Account[]>
   login(platform: 'steam' | 'discord'): Promise<Account>
   connectPsn(): Promise<Account>
@@ -531,8 +579,14 @@ export interface LauncherApi {
   testFriendAlert(): Promise<void>
   /** Annonces officielles d'un jeu sur Steam (gardées 30 min, sauf `refresh`). */
   getGameNews(id: string, refresh?: boolean): Promise<GameNews>
-  /** Les actus de ce jeu ont été vues dans sa fiche : son badge « Nouveau patch » disparaît. */
-  markNewsSeen(id: string): Promise<void>
+  /** Les actus de ce jeu ont été vues dans sa fiche : son badge « Nouveau patch » disparaît. `upTo` : seulement jusqu'à cette date (une annonce lue). */
+  markNewsSeen(id: string, upTo?: number): Promise<void>
+  /** Page Actus des jeux : les dernières annonces de tous les jeux suivis, sans réseau. */
+  getNewsFeed(): Promise<NewsFeed>
+  /** « Actualiser » : redemande à Steam les annonces relevées il y a plus d'une minute, puis renvoie la page. */
+  refreshNewsFeed(): Promise<NewsFeed>
+  /** « Tout marquer comme lu » : plus aucun badge « Nouveau patch » jusqu'aux prochaines annonces. */
+  markAllNewsSeen(): Promise<void>
   /** Jeux du compte Steam non installés sur ce PC (liste gardée 1 h, sauf `refresh`). */
   getSteamLibrary(refresh?: boolean): Promise<SteamLibrary>
   /** Ouvre l'installation d'un jeu Steam non installé ; il rejoint la bibliothèque une fois téléchargé. */

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { PLAYED_SOURCE } from '@shared/played'
 import { capitalize, cleanName, formatDate, formatPlaytime, plural, timeAgo } from '@shared/text'
 import type { Account, FriendPlatform, FriendsResult, Game, Store } from '@shared/types'
 import type { LaunchFn, ProfileProps } from '../contracts'
@@ -55,7 +56,7 @@ export function Profile({ games, accounts, friends, onOpenGame, onLaunch, onMana
     }
   }, [games])
 
-  // Bannière : jeu le plus lancé, sinon dernier lancé, sinon dégradé de marque.
+  // Bannière : jeu le plus lancé, sinon le dernier joué, sinon dégradé de marque.
   const bannerUrls = [stats.mostLaunched?.heroUrl, stats.mostLaunched?.coverUrl, stats.last?.heroUrl, stats.last?.coverUrl].filter((u): u is string => !!u)
 
   return (
@@ -108,14 +109,16 @@ export function Profile({ games, accounts, friends, onOpenGame, onLaunch, onMana
         </StatTile>
 
         <StatTile
-          label="Dernier lancement"
+          label="Dernière partie"
           foot={<p className="caption">{stats.last?.lastPlayed ? capitalize(timeAgo(stats.last.lastPlayed)) : 'Lance un jeu pour commencer'}</p>}
         >
           {stats.last?.lastPlayed ? (
             <button
               className="prof-last"
               onClick={() => onOpenGame(stats.last!)}
-              title={`${cleanName(stats.last.name)} · ${formatDate(stats.last.lastPlayed)}`}
+              title={[cleanName(stats.last.name), formatDate(stats.last.lastPlayed), stats.last.lastPlayedSource && PLAYED_SOURCE[stats.last.lastPlayedSource]]
+                .filter(Boolean)
+                .join(' · ')}
             >
               {cleanName(stats.last.name)}
             </button>
@@ -151,7 +154,7 @@ export function Profile({ games, accounts, friends, onOpenGame, onLaunch, onMana
           {stats.recent.length > 0 && (
             <section className="prof-section" aria-labelledby="prof-recent-title">
               <h2 id="prof-recent-title" className="prof-section-title">
-                Lancés récemment
+                Joués récemment
               </h2>
               <div className="prof-recent">
                 {stats.recent.map((g) => (

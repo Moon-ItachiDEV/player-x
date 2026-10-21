@@ -3,8 +3,9 @@ import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { powerMonitor } from 'electron'
 import type { Game, Store } from '@shared/types'
-import { listGames, openSession, playtimeByGame, touchSessions } from '../db'
-import { steamMinutes } from './steamLibrary'
+import { lastPlayedOf } from '@shared/played'
+import { lastSeenByGame, listGames, openSession, playtimeByGame, touchSessions } from '../db'
+import { steamLastPlayed, steamMinutes } from './steamLibrary'
 import { coalesce, exeName, GENERIC_EXE, matchGames, memoAsync, parseProcLines, usableDir, watchNames, type Matchable, type RunningProcess } from './tracking'
 
 // Temps de jeu : toutes les minutes, on regarde quels programmes tournent et on les rattache au dossier
@@ -233,10 +234,13 @@ export async function exeNamesFor(game: Matchable, refresh: boolean): Promise<Se
   return names
 }
 
-/** Ajoute le temps de jeu et l'état « en jeu » à la vraie bibliothèque. */
+/** Ajoute le temps de jeu, la dernière partie et l'état « en jeu » à la vraie bibliothèque. */
 export function withPlaytime(games: Game[]): Game[] {
   const local = playtimeByGame()
   const steam = steamMinutes()
+  const seen = lastSeenByGame()
+  const steamLast = steamLastPlayed()
+  const now = Date.now()
   return games.map((g) => {
     const r = running.get(g.id)
     const mine = local.get(g.id) ?? 0
@@ -244,8 +248,12 @@ export function withPlaytime(games: Game[]): Game[] {
     // Le compteur Steam peut avoir une heure de retard sur une session en cours : on garde le plus grand.
     const useSteam = fromSteam !== undefined && fromSteam >= mine
     const playtime = useSteam ? fromSteam : mine
+    // Dernière partie : la plus récente des trois dates. Calculée ici seulement, jamais écrite dans games.last_played.
+    const played = lastPlayedOf({ launch: g.lastPlayed, session: seen.get(g.id), steam: g.store === 'steam' ? steamLast[g.storeId] : undefined }, now)
     return {
       ...g,
+      lastPlayed: played?.at,
+      ...(played ? { lastPlayedSource: played.source } : {}),
       ...(playtime > 0 ? { playtime, playtimeSource: useSteam ? ('steam' as const) : ('local' as const) } : {}),
       ...(r ? { running: true, runningSince: r.since } : {})
     }
