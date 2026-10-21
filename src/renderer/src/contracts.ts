@@ -67,8 +67,8 @@ export interface SideFriendsProps {
   onToggleOpen: () => void
   onRefresh: () => void
   onOpenAccounts: () => void
-  /** « Masquer » un membre du serveur Discord. */
-  onHideMember: (f: Friend) => void
+  /** « Masquer » un membre du serveur Discord ; false si Player X a refusé (le membre reste affiché). */
+  onHideMember: (f: Friend) => Promise<boolean>
   /** Ouvre Paramètres › Comptes › Membres masqués. */
   onManageHidden: () => void
 }

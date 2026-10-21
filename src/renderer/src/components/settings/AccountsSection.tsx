@@ -1,5 +1,5 @@
 // Section « Comptes » : une carte de connexion par plateforme.
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { plural } from '@shared/text'
 import type { Account, FriendPlatform, FriendsResult, HiddenMember, Settings } from '@shared/types'
 import type { LoginPlatform } from '../../contracts'
@@ -339,15 +339,25 @@ function HiddenMembers({ hidden, onShow, focus, onFocused }: HiddenProps): React
     onFocused()
   }, [focus, onFocused])
 
+  // « Afficher » : la ligne disparaît avec son bouton quand la liste relue arrive, après la fin de `onShow` (rendu suivant).
+  // C'est donc une fois la ligne retirée du DOM que le focus, tombé sur la page, revient au titre du bloc.
+  const refocus = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    const name = refocus.current
+    if (!name || hidden.some((m) => m.name === name)) return
+    refocus.current = null
+    const active = document.activeElement
+    if (!active || active === document.body || !active.isConnected) title.current?.focus({ preventScroll: true })
+  }, [hidden])
+
   const show = async (name: string): Promise<void> => {
     if (busy) return
     setBusy(name)
+    refocus.current = name
     try {
       await onShow(name)
     } finally {
       setBusy(null)
-      // La ligne a disparu avec son bouton : le focus revient au titre du bloc.
-      if (document.activeElement === document.body || document.activeElement === null) title.current?.focus({ preventScroll: true })
     }
   }
 

@@ -157,19 +157,25 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
   const masked = maskedLabel((result.hidden ?? []).filter((h) => h.online))
 
   // Après « Masquer », la ligne disparaît avec son bouton : le focus passe à l'œil du membre suivant (sinon du précédent,
-  // sinon à l'en-tête du groupe) une fois la liste relue.
-  const focusAfterHide = useRef<string | null>(null)
+  // sinon à l'en-tête du groupe) une fois la liste relue. On attend que le membre masqué ait quitté la liste, et on
+  // oublie la demande si « Masquer » a échoué : sinon un rafraîchissement plus tard volerait le focus.
+  const focusAfterHide = useRef<{ hidden: string; next: string } | null>(null)
   const hide = (e: Entry): void => {
     const i = members.findIndex((m) => m.friend.id === e.friend.id)
     const next = members[i + 1] ?? members[i - 1]
-    focusAfterHide.current = next ? next.friend.id : 'fold'
-    onHideMember(e.friend)
+    const pending = { hidden: e.friend.id, next: next ? next.friend.id : 'fold' }
+    focusAfterHide.current = pending
+    void onHideMember(e.friend).then((ok) => {
+      if (!ok && focusAfterHide.current === pending) focusAfterHide.current = null
+    })
   }
   useEffect(() => {
-    const id = focusAfterHide.current
-    const active = document.activeElement
-    if (!id || (active && active !== document.body)) return
+    const pending = focusAfterHide.current
+    if (!pending || members.some((m) => m.friend.id === pending.hidden)) return
     focusAfterHide.current = null
+    const active = document.activeElement
+    if (active && active !== document.body) return
+    const id = pending.next
     const target =
       id === 'fold'
         ? document.querySelector<HTMLElement>('.sf-fold-head[aria-controls="sf-fold-discord"], .sf-masked-btn')

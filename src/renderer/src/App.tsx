@@ -184,9 +184,11 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     [notify]
   )
   const hideMember = useCallback(
-    async (f: Friend) => {
-      if (await setMemberHidden(f.name, true))
+    async (f: Friend): Promise<boolean> => {
+      const ok = await setMemberHidden(f.name, true)
+      if (ok)
         notify(`${f.name} ne s'affiche plus dans Player X`, { id: 'member-hidden', action: { label: 'Annuler', onClick: () => void setMemberHidden(f.name, false) } })
+      return ok
     },
     [notify, setMemberHidden]
   )
