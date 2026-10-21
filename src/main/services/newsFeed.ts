@@ -31,15 +31,68 @@ export interface IndexEntry {
 
 export type NewsIndex = Record<string, IndexEntry>
 
-/** Relevé d'un jeu à partir de ses annonces (les plus récentes d'abord). Le dernier patch est cherché dans toutes. */
-export function entryFrom(raw: RawNews[], at: number): IndexEntry {
-  const patch = raw.find((n) => isPatchPost(n.title, n.tags))
+/**
+ * Relevé d'un jeu à partir de ses annonces (les plus récentes d'abord). Le dernier patch est cherché dans toutes ; s'il n'y
+ * en a aucun, celui du relevé précédent (`prev`) est gardé quand il est plus ancien que toutes les annonces lues : il est
+ * simplement sorti de la liste (un jeu qui publie beaucoup), il n'a pas disparu de Steam.
+ */
+export function entryFrom(raw: RawNews[], at: number, prev?: IndexEntry): IndexEntry {
+  const found = raw.find((n) => isPatchPost(n.title, n.tags))
+  const oldest = raw[raw.length - 1]?.date
+  const patch = found
+    ? { id: found.gid, title: found.title, date: found.date }
+    : prev?.patch && oldest !== undefined && prev.patch.date < oldest
+      ? prev.patch
+      : undefined
   return {
     at,
     latest: raw[0]?.date ?? 0,
-    ...(patch ? { patch: { id: patch.gid, title: patch.title, date: patch.date } } : {}),
+    ...(patch ? { patch } : {}),
     items: raw.slice(0, ITEMS_PER_GAME).map((n) => ({ id: n.gid, title: n.title, url: n.url, date: n.date, patch: isPatchPost(n.title, n.tags) }))
   }
+}
+
+/**
+ * Annonces de la fiche gardées en mémoire (`at` : lues à ce moment, `newest` : date de la plus récente) : encore bonnes
+ * si elles ont moins de `maxAge` et que le relevé (`known` : sa plus récente annonce) ne connaît rien de plus récent.
+ * Sinon une annonce trouvée par « Actualiser » s'ouvrirait sur « Cette annonce n'est plus dans les dernières actus ».
+ */
+export function postsStillFresh(cache: { at: number; newest: number } | undefined, known: number, now: number, maxAge: number): boolean {
+  return !!cache && now - cache.at < maxAge && known <= cache.newest
+}
+
+/**
+ * Relevé de plusieurs jeux, `parallel` à la fois. Une série où toutes les demandes échouent faute de réseau (`offline`) arrête
+ * tout : Steam qui ne répond pas coûterait sinon 15 s par série, plusieurs minutes pour une grande bibliothèque. Les jeux
+ * pas encore demandés comptent alors comme échoués (redemandés au prochain passage).
+ */
+export async function fetchAll<T>(
+  ids: string[],
+  parallel: number,
+  fetchOne: (id: string) => Promise<T>,
+  offline: (e: unknown) => boolean
+): Promise<{ results: Map<string, T>; ok: number; failed: number }> {
+  const results = new Map<string, T>()
+  let failed = 0
+  for (let i = 0; i < ids.length; i += parallel) {
+    const batch = ids.slice(i, i + parallel)
+    const down = await Promise.all(
+      batch.map(async (id) => {
+        try {
+          results.set(id, await fetchOne(id))
+          return false
+        } catch (e) {
+          failed++
+          return offline(e)
+        }
+      })
+    )
+    if (down.every(Boolean)) {
+      failed += ids.length - i - batch.length
+      break
+    }
+  }
+  return { results, ok: results.size, failed }
 }
 
 /** À relever : jamais relevé, relevé d'avant la 0.7.4 (sans annonces), ou plus vieux que `maxAge`. */

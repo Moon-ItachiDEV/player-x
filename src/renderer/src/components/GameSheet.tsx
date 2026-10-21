@@ -96,10 +96,12 @@ function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan
     window.launcher.markNewsSeen(game.id).catch(() => {})
   }, [game.id])
 
-  // Le bandeau du patch est en haut de la fiche : vu dès que les actus sont là.
+  // Le bandeau du patch est en haut de la fiche : vu dès que les actus sont là. Pas tant que la fiche montre une annonce
+  // ou les succès (bandeau caché) : ouverte sur une annonce plus ancienne, le patch plus récent garde « Nouveau ». Au retour
+  // à la fiche, le bandeau s'affiche et la règle s'applique.
   useEffect(() => {
-    if (patch && newsState.status === 'ready') markSeen()
-  }, [patch, newsState.status, markSeen])
+    if (patch && !reading && newsState.status === 'ready') markSeen()
+  }, [patch, reading, newsState.status, markSeen])
 
   // Annonce lue : vue jusqu'à elle (les plus récentes gardent « Nouveau »).
   useEffect(() => {

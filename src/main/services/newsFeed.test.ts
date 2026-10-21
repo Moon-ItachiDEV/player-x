@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import type { RawNews } from './newsFormat'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { buildFeed, entryFrom, FEED_MAX, needsRefresh, NEW_MS, nextSeen, patchFlags, type IndexEntry, type NewsIndex } from './newsFeed.ts'
+import { buildFeed, entryFrom, FEED_MAX, fetchAll, needsRefresh, NEW_MS, nextSeen, patchFlags, postsStillFresh, type IndexEntry, type NewsIndex } from './newsFeed.ts'
 // @ts-ignore TS5097
 import { cleanRawNews, isPatchPost } from './newsFormat.ts'
 // @ts-ignore TS5097
@@ -49,6 +49,63 @@ test('entryFrom : 5 annonces gardées, dernier patch cherché dans toutes, aucun
   assert.deepEqual(e.patch, { id: '6', title: 'Update 1.2.3', date: NOW - 6 * D })
   assert.deepEqual(entryFrom([], NOW), { at: NOW, latest: 0, items: [] })
   assert.equal(entryFrom([raw('9', 'Release notes', NOW, ['patchnotes'])], NOW).items?.[0].patch, true)
+})
+
+test('entryFrom : un patch sorti de la liste (jeu qui publie beaucoup) reste le dernier patch, pas un patch retiré', () => {
+  const prev: IndexEntry = { at: NOW - 7 * H, latest: NOW - 6 * D, patch: { id: 'p', title: 'Update 2.0', date: NOW - 9 * D } }
+  // Huit annonces plus récentes que le patch, aucune n'en est un : le patch du relevé précédent est gardé.
+  const busy = Array.from({ length: 8 }, (_, k) => raw(`n${k}`, `Weekly event ${k}`, NOW - (k + 1) * D))
+  assert.deepEqual(entryFrom(busy, NOW, prev).patch, prev.patch)
+  // Le patch tombait dans la période lue et n'y est plus (annonce retirée) : oublié.
+  const short = busy.slice(0, 3).concat(raw('old', 'Dev blog', NOW - 12 * D))
+  assert.equal(entryFrom(short, NOW, prev).patch, undefined)
+  // Un nouveau patch remplace l'ancien ; sans relevé précédent ni annonce, rien.
+  assert.equal(entryFrom([raw('q', 'Hotfix', NOW - H), ...busy], NOW, prev).patch?.id, 'q')
+  assert.equal(entryFrom(busy, NOW).patch, undefined)
+  assert.equal(entryFrom([], NOW, prev).patch, undefined)
+})
+
+test('postsStillFresh : la fiche relit ses annonces si le relevé en connaît une plus récente ou après 30 min', () => {
+  const max = 30 * 60_000
+  const cache = { at: NOW - 10 * 60_000, newest: NOW - 2 * H }
+  assert.equal(postsStillFresh(cache, NOW - 2 * H, NOW, max), true)
+  assert.equal(postsStillFresh(cache, 0, NOW, max), true)
+  // « Actualiser » a trouvé une annonce publiée après l'ouverture de la fiche.
+  assert.equal(postsStillFresh(cache, NOW - 20 * 60_000, NOW, max), false)
+  assert.equal(postsStillFresh({ ...cache, at: NOW - 31 * 60_000 }, NOW - 2 * H, NOW, max), false)
+  assert.equal(postsStillFresh(undefined, 0, NOW, max), false)
+})
+
+test('fetchAll : 4 à la fois, arrêt après une série entièrement hors ligne, pas après une erreur isolée', async () => {
+  const OFF = new Error('off')
+  const ids = Array.from({ length: 10 }, (_, i) => String(i))
+  const asked: string[] = []
+  const offline = (e: unknown): boolean => e === OFF
+  // Steam ne répond plus : une seule série demandée, les 6 autres jeux comptent comme échoués.
+  const down = await fetchAll(ids, 4, async (id) => (asked.push(id), Promise.reject(OFF)), offline)
+  assert.deepEqual(asked, ['0', '1', '2', '3'])
+  assert.deepEqual([down.ok, down.failed, down.results.size], [0, 10, 0])
+  // Un jeu en erreur (Steam refuse cet appid) ou une série en partie hors ligne : on continue.
+  asked.length = 0
+  const some = await fetchAll(
+    ids,
+    4,
+    async (id) => {
+      asked.push(id)
+      if (id === '1') throw new Error('500')
+      if (id === '4' || id === '5' || id === '6') throw OFF
+      return `entry ${id}`
+    },
+    offline
+  )
+  assert.equal(asked.length, 10)
+  assert.deepEqual([some.ok, some.failed], [6, 4])
+  assert.equal(some.results.get('9'), 'entry 9')
+  // Une série de service en panne (pas de réseau en cause) n'arrête pas non plus.
+  asked.length = 0
+  await fetchAll(ids, 4, async (id) => (asked.push(id), Promise.reject(new Error('500'))), offline)
+  assert.equal(asked.length, 10)
+  assert.deepEqual(await fetchAll([], 4, async () => 1, offline), { results: new Map(), ok: 0, failed: 0 })
 })
 
 test('needsRefresh : jamais relevé, relevé de la 0.7.2 sans annonces, trop vieux', () => {

@@ -145,9 +145,10 @@ const KNOWN = new Set([
 ])
 const LISTS = new Set(['list', 'olist'])
 
-// L'argument peut contenir des crochets échappés : « [url=https://exemple.fr/carte\[2\]] ».
-const TAG_RE = /\[(\/?)([a-z][a-z0-9]*|\*)(=(?:"(?:[^"\\\]]|\\.)*"|(?:[^\]\s\\]|\\.)*))?((?:\s+[a-z_]+=(?:"[^"]*"|[^\s\]]*))*)\s*\]/gi
-const ATTR_RE = /([a-z_]+)=(?:"([^"]*)"|([^\s\]]*))/gi
+// L'argument peut contenir des crochets échappés : « [url=https://exemple.fr/carte\[2\]] ». Les noms d'attributs peuvent
+// contenir des chiffres : « [video mp4=… webm=… poster=…] » des annonces d'événements.
+const TAG_RE = /\[(\/?)([a-z][a-z0-9]*|\*)(=(?:"(?:[^"\\\]]|\\.)*"|(?:[^\]\s\\]|\\.)*))?((?:\s+[a-z_][a-z0-9_]*=(?:"[^"]*"|[^\s\]]*))*)\s*\]/gi
+const ATTR_RE = /([a-z_][a-z0-9_]*)=(?:"([^"]*)"|([^\s\]]*))/gi
 
 const unquote = (s: string): string => s.replace(/^"([^"]*)"$/, '$1')
 
@@ -295,6 +296,8 @@ const BRACKET_TITLE = /^\[\s*([^[\]\n]{1,60}?)\s*\]$/
 
 class Builder {
   blocks: NewsBlock[] = []
+  /** Images qui ne sont que l'affiche d'une vidéo : vignette de l'annonce seulement s'il n'y a pas de vraie image. */
+  posters = new Set<string>()
   private spans: NewsSpan[] = []
   private size = 0
 
@@ -430,8 +433,8 @@ function walk(node: Node, b: Builder, marks: Marks): void {
         const items: { spans: NewsSpan[]; depth: number }[] = []
         addList(child, b, 0, items)
         if (items.length) b.add({ type: 'list', ordered: child.tag === 'olist', items }, items.reduce((n, it) => n + spansLength(it.spans), 0))
-        // Images rangées dans les points : après la liste.
-        for (const img of findAll(child, 'img')) addImage(img, b)
+        // Images et vidéos rangées dans les points : après la liste.
+        for (const media of findAll(child, MEDIA)) addMedia(media, b)
         break
       }
       case 'quote': {
@@ -443,7 +446,7 @@ function walk(node: Node, b: Builder, marks: Marks): void {
       case 'table':
         // Une ligne de tableau = un paragraphe, cellules séparées par « · ».
         b.flush()
-        for (const row of findAll(child, 'tr')) {
+        for (const row of findAll(child, ['tr'])) {
           const cells = row.children
             .filter((c): c is Node => typeof c !== 'string' && (c.tag === 'td' || c.tag === 'th'))
             .map((cell) => tidy(collectSpans(cell, cell.tag === 'th' ? { ...marks, bold: true } : marks)))
@@ -457,21 +460,11 @@ function walk(node: Node, b: Builder, marks: Marks): void {
         b.add({ type: 'rule' })
         break
       case 'img':
+      case 'video':
+      case 'previewyoutube':
         b.flush()
-        addImage(child, b)
+        addMedia(child, b)
         break
-      case 'video': {
-        b.flush()
-        const poster = safeUrl(child.attrs.poster)
-        if (poster) b.add({ type: 'image', src: poster })
-        break
-      }
-      case 'previewyoutube': {
-        b.flush()
-        const id = (child.arg ?? '').split(';')[0]
-        if (/^[\w-]{6,20}$/.test(id)) b.add({ type: 'video', url: `https://www.youtube.com/watch?v=${id}` })
-        break
-      }
       case 'code':
       case 'noparse':
         b.text(textOf(child), marks, true)
@@ -495,18 +488,34 @@ function walk(node: Node, b: Builder, marks: Marks): void {
   }
 }
 
-function findAll(node: Node, tag: string, out: Node[] = []): Node[] {
+function findAll(node: Node, tags: string[], out: Node[] = []): Node[] {
   for (const c of node.children) {
     if (typeof c === 'string') continue
-    if (c.tag === tag) out.push(c)
-    else findAll(c, tag, out)
+    if (tags.includes(c.tag)) out.push(c)
+    else findAll(c, tags, out)
   }
   return out
 }
 
-function addImage(node: Node, b: Builder): void {
-  const src = safeUrl(node.attrs.src ?? unescapeBrackets(textOf(node)))
-  if (src) b.add({ type: 'image', src })
+const MEDIA = ['img', 'video', 'previewyoutube']
+
+/**
+ * Image ; vidéo d'une annonce (« [video mp4=… poster=…][/video] ») : pas de lecteur, son affiche en image (sans affiche,
+ * rien) ; vidéo YouTube (« [previewyoutube=ID;full] ») : un lien.
+ */
+function addMedia(node: Node, b: Builder): void {
+  if (node.tag === 'img') {
+    const src = safeUrl(node.attrs.src ?? unescapeBrackets(textOf(node)))
+    if (src) b.add({ type: 'image', src })
+  } else if (node.tag === 'video') {
+    const src = safeUrl(node.attrs.poster)
+    if (!src) return
+    b.posters.add(src)
+    b.add({ type: 'image', src })
+  } else {
+    const id = (node.arg ?? '').split(';')[0]
+    if (/^[\w-]{6,20}$/.test(id)) b.add({ type: 'video', url: `https://www.youtube.com/watch?v=${id}` })
+  }
 }
 
 /** Balises HTML qui traînent dans certaines annonces : retirées (les retours à la ligne gardés). */
@@ -517,12 +526,16 @@ function stripHtml(s: string): string {
     .replace(/<\/?[a-z][a-z0-9]*(?:\s[^<>]*)?>/gi, '')
 }
 
-export function parseNewsContents(contents: string): NewsBlock[] {
+function parse(contents: string): Builder {
   const src = stripHtml(contents.replace(/\r\n?/g, '\n').replace(/\{STEAM_CLAN(?:_LOC)?_IMAGE\}/g, CLAN_IMAGES))
   const b = new Builder()
   walk(parseTree(src), b, {})
   b.flush()
-  return b.blocks
+  return b
+}
+
+export function parseNewsContents(contents: string): NewsBlock[] {
+  return parse(contents).blocks
 }
 
 /** Début du texte (paragraphes et points de liste), coupé à un mot. */
@@ -553,8 +566,10 @@ export function excerptOf(blocks: NewsBlock[], max = EXCERPT_LENGTH): string {
 }
 
 export function toNewsPost(raw: RawNews): NewsPost {
-  const blocks = parseNewsContents(raw.contents)
-  const image = blocks.find((bl): bl is Extract<NewsBlock, { type: 'image' }> => bl.type === 'image')?.src
+  const { blocks, posters } = parse(raw.contents)
+  // Vignette : la première vraie image, sinon l'affiche d'une vidéo.
+  const images = blocks.flatMap((bl) => (bl.type === 'image' ? [bl.src] : []))
+  const image = images.find((src) => !posters.has(src)) ?? images[0]
   return {
     id: raw.gid,
     title: raw.title,

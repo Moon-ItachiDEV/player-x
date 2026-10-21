@@ -52,7 +52,8 @@ test('déjà joué et méta des jaquettes : jamais « jamais lancé » à côté
   assert.equal(hasPlayed({ playtime: 540 }), true)
   assert.equal(hasPlayed({ launches: 3 }), true)
   assert.equal(hasPlayed({ lastPlayed: NOW - H }), true)
-  assert.equal(cardMeta({}, NOW), 'Pas encore joué')
+  // Rien de connu : jamais « Pas encore joué » (le jeu a pu être joué avant Player X ou sans clé Steam Web API).
+  assert.equal(cardMeta({}, NOW), 'Aucune partie connue')
   assert.equal(cardMeta({ playtime: 540 }, NOW), '9 h')
   assert.equal(cardMeta({ playtime: 540, lastPlayed: NOW - 2 * H }, NOW), '9 h · il y a 2 h')
   assert.equal(cardMeta({ lastPlayed: NOW - 2 * H }, NOW), 'Il y a 2 h')

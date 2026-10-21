@@ -53,13 +53,29 @@ test('membres jamais pris pour des bots', () => {
     '🎵',
     'Robot Lunaa',
     'Abbot',
-    '[BOTTE] Mira'
+    '[BOTTE] Mira',
+    // Pseudos de joueurs qui sont aussi des noms de bots : jamais masqués sans « Bot » ou une étiquette.
+    'Rover',
+    'rover',
+    'Rover 7',
+    'OwO',
+    'OwO 69',
+    'Tatsumaki',
+    'Nadeko',
+    'Dyno',
+    'Dyno 12',
+    'Loritta',
+    'Nekotina',
+    'Vexera',
+    'Lurkr'
   ]
   for (const n of no) assert.equal(isKnownBot(n), false, JSON.stringify(n))
 })
 
 test('noms de bots qui sont aussi des pseudos courants : seulement avec « Bot » ou une étiquette', () => {
-  for (const n of ['Hydra Bot', '[BOT] Craig', 'Sofi-bot', 'Arcane (bot)']) assert.equal(isKnownBot(n), true, n)
+  for (const n of ['Hydra Bot', '[BOT] Craig', 'Sofi-bot', 'Arcane (bot)', 'Dyno Bot', '[BOT] OwO', 'Rover Bot', 'Tatsumaki (bot)', 'Nadeko-bot']) {
+    assert.equal(isKnownBot(n), true, n)
+  }
   for (const n of ['Hydra', 'Sofi', 'Arcane', 'Craig', ...AMBIGUOUS_BOTS]) assert.equal(isKnownBot(n), false, n)
 })
 

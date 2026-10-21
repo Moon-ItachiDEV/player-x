@@ -12,7 +12,6 @@ export interface MemberPrefs {
 /** Bots courants des serveurs Discord, reconnus à leur pseudo exact (aux emojis, symboles et numéro d'instance près). */
 export const KNOWN_BOTS = [
   'MEE6',
-  'Dyno',
   'Carl-bot',
   'YAGPDB.xyz',
   'YAGPDB',
@@ -21,7 +20,6 @@ export const KNOWN_BOTS = [
   'Double Counter',
   'Captcha.bot',
   'DraftBot',
-  'Nadeko',
   'NadekoBot',
   'Ticket Tool',
   'Ticket King',
@@ -44,29 +42,48 @@ export const KNOWN_BOTS = [
   'Rythm',
   'FredBoat',
   'Jockie Music',
-  'Vexera',
   'Green-bot',
   'Soundboards.gg',
   'Dank Memer',
   'Mudae',
-  'Tatsumaki',
-  'OwO',
   'Pokétwo',
   'Pokecord',
-  'Lurkr',
   'Midjourney Bot',
   'Tupperbox',
   'PluralKit',
   'IdleRPG',
   'EPIC RPG',
-  'Bloxlink',
-  'RoVer',
-  'Loritta',
-  'Nekotina'
+  'Bloxlink'
 ]
 
-/** Bots dont le nom est aussi un pseudo courant : reconnus seulement avec « Bot » ou une étiquette [BOT], pour ne jamais cacher un vrai membre. */
-export const AMBIGUOUS_BOTS = ['Arcane', 'Sofi', 'Wick', 'Zira', 'Gaius', 'Kiai', 'Pancake', 'Craig', 'Hydra', 'Groovy', 'Tickets', 'Tatsu', 'Karuta']
+/**
+ * Bots dont le nom est aussi un pseudo courant (un prénom, un personnage, un mot, une frimousse) : reconnus seulement avec
+ * « Bot » ou une étiquette [BOT], pour ne jamais cacher un vrai membre. « Dyno » ou « OwO » tout court restent donc affichés.
+ */
+export const AMBIGUOUS_BOTS = [
+  'Arcane',
+  'Sofi',
+  'Wick',
+  'Zira',
+  'Gaius',
+  'Kiai',
+  'Pancake',
+  'Craig',
+  'Hydra',
+  'Groovy',
+  'Tickets',
+  'Tatsu',
+  'Tatsumaki',
+  'Karuta',
+  'Dyno',
+  'Nadeko',
+  'OwO',
+  'Rover',
+  'Loritta',
+  'Nekotina',
+  'Vexera',
+  'Lurkr'
+]
 
 /** Identité d'un membre : son pseudo sans accents, casse ni espaces en trop (Discord ne donne rien d'autre de stable). */
 export function memberKey(name: string): string {

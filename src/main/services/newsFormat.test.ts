@@ -204,3 +204,41 @@ test('crochets échappés par Steam (Counter-Strike 2) : du texte, jamais une ba
   assert.deepEqual(parseNewsContents('C:\\Games\\CS2 \\* not a list [noparse]\\[raw][/noparse]'), [{ type: 'paragraph', spans: [{ text: 'C:\\Games\\CS2 \\* not a list \\[raw]' }] }])
   assert.equal(unescapeBrackets('\\[x\\] \\y'), '[x] \\y')
 })
+
+test('vidéos des annonces d’événement : l’affiche en image, jamais la balise en texte', () => {
+  // Forme réelle de l'éditeur de Steam : attributs entre guillemets, noms avec des chiffres (mp4).
+  const steam =
+    '[video mp4="{STEAM_CLAN_IMAGE}/45/a1.mp4" webm="{STEAM_CLAN_IMAGE}/45/a1.webm" poster="{STEAM_CLAN_IMAGE}/45/a1.png" autoplay="true" controls="false"][/video]\n' +
+    '[p]Season 2 starts today.[/p]'
+  assert.deepEqual(parseNewsContents(steam), [
+    { type: 'image', src: 'https://clan.akamai.steamstatic.com/images/45/a1.png' },
+    { type: 'paragraph', spans: [{ text: 'Season 2 starts today.' }] }
+  ])
+  // Sans guillemets, en majuscules, dans un paragraphe ou un point de liste, ou sans affiche : jamais de texte « [video … ] ».
+  for (const src of [
+    '[VIDEO MP4=https://x.example/a.mp4 POSTER=https://x.example/a.png][/VIDEO] Live now',
+    '[p][video mp4="https://x.example/a.mp4" poster="https://x.example/a.png"][/video]Live now[/p]',
+    '[list][*]Live now [video webm="https://x.example/a.webm" poster="https://x.example/a.png"][/video][/list]',
+    '[video mp4="https://x.example/a.mp4" webm="https://x.example/a.webm"][/video]Live now'
+  ]) {
+    const blocks = parseNewsContents(src)
+    assert.equal(excerptOf(blocks), 'Live now', src)
+    assert.ok(!JSON.stringify(blocks).includes('video'), src)
+  }
+  // Une affiche non https est ignorée, comme une image.
+  assert.deepEqual(parseNewsContents('[video mp4="https://x.example/a.mp4" poster="http://x.example/a.png"][/video]'), [])
+  // YouTube dans un point de liste : le lien vient après la liste, l'identifiant n'apparaît pas dans le texte.
+  assert.deepEqual(parseNewsContents('[list][*]Trailer [previewyoutube=dQw4w9WgXcQ;full][/previewyoutube][/list]'), [
+    { type: 'list', ordered: false, items: [{ spans: [{ text: 'Trailer' }], depth: 0 }] },
+    { type: 'video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
+  ])
+})
+
+test('vignette : la première vraie image, sinon l’affiche d’une vidéo', () => {
+  const post = (contents: string) => toNewsPost({ gid: '1', title: 'Event', url: 'https://store.steampowered.com/news/app/1/view/1', contents, date: 1, tags: [] })
+  const video = '[video mp4="https://x.example/v.mp4" poster="https://x.example/poster.png"][/video]'
+  assert.equal(post(`${video}[p]Text[/p]`).image, 'https://x.example/poster.png')
+  assert.equal(post(`${video}[p]Text[/p][img src="https://x.example/real.png"][/img]`).image, 'https://x.example/real.png')
+  assert.equal(post('[p]Text[/p]').image, undefined)
+  assert.equal(post(`${video}[p]Text[/p]`).excerpt, 'Text')
+})

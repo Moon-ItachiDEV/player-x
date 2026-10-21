@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { capitalize, cleanName, plural, timeAgo } from '@shared/text'
 import type { Game, NewsFeed, NewsFeedItem } from '@shared/types'
 import type { NewsPageProps } from '../../contracts'
@@ -49,6 +49,12 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
   const [prefs, setPrefs] = useState<NewsPrefs>(loadPrefs)
   const [marking, setMarking] = useState(false)
   const now = useNow()
+  // Lecteurs d'écran : seulement la fin d'une action, jamais le « Relevé il y a N min » qui change chaque minute.
+  // Deux fois le même message : une espace insécable en plus, pour qu'il soit lu de nouveau.
+  const [status, setStatus] = useState('')
+  const announce = useCallback((msg: string) => setStatus((prev) => (prev === msg ? `${msg}\u00a0` : msg)), [])
+  const refreshRef = useRef<HTMLButtonElement>(null)
+  const focusAfterMark = useRef(false)
 
   const update = (patch: Partial<NewsPrefs>): void =>
     setPrefs((prev) => {
@@ -59,7 +65,9 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
 
   const feed = state.status === 'ready' ? state.feed : null
   const items = useMemo(() => feed?.items ?? [], [feed])
-  const gameList = useMemo(() => feedGames(items), [items])
+  // Menu « Jeu » : compté dans l'onglet affiché (dans « Patchs », les patchs seulement).
+  const tabItems = useMemo(() => filterFeed(items, { patchesOnly: prefs.tab === 'patches', gameId: null }), [items, prefs.tab])
+  const gameList = useMemo(() => feedGames(items, tabItems), [items, tabItems])
   // Un jeu choisi qui n'a plus d'annonce (désinstallé, mode démo basculé) : retour à « Tous ».
   const game = prefs.game !== ALL && gameList.some((g) => g.id === prefs.game) ? prefs.game : ALL
   const gameId = game === ALL ? null : game
@@ -69,6 +77,26 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
   )
   const shown = useMemo(() => filterFeed(items, { patchesOnly: prefs.tab === 'patches', gameId }), [items, prefs.tab, gameId])
   const byId = useMemo(() => new Map(games.map((g) => [g.id, g])), [games])
+  const anyNew = items.some((i) => i.isNew)
+
+  // « Tout marquer comme lu » avait le focus : il disparaît (plus rien de nouveau), le focus passe à « Actualiser »
+  // plutôt que de retomber en haut de la fenêtre. Marquage raté (le bouton reste) : rien à déplacer.
+  useLayoutEffect(() => {
+    if (anyNew || !focusAfterMark.current) return
+    focusAfterMark.current = false
+    refreshRef.current?.focus()
+  }, [anyNew])
+  useEffect(() => {
+    if (!marking && anyNew) focusAfterMark.current = false
+  }, [marking, anyNew])
+
+  // Premier relevé terminé pendant que la page est ouverte.
+  const wasPending = useRef(false)
+  useEffect(() => {
+    if (!feed) return
+    if (wasPending.current && !feed.pending) announce(afterRefresh(feed))
+    wasPending.current = feed.pending
+  }, [feed, announce])
 
   if (!enabled) {
     return (
@@ -99,7 +127,18 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
     />
   )
 
-  const retry = (): void => void refresh()
+  const retry = (): void => void refresh().then((f) => announce(f ? afterRefresh(f) : 'Actus indisponibles pour le moment.'))
+  const markAll = (e: React.MouseEvent<HTMLButtonElement>): void => {
+    if (marking) return
+    focusAfterMark.current = document.activeElement === e.currentTarget
+    setMarking(true)
+    markAllSeen()
+      .then(
+        () => announce('Toutes les actus sont marquées comme lues.'),
+        () => {}
+      )
+      .finally(() => setMarking(false))
+  }
   let body: React.ReactNode
   if (state.status === 'error') {
     body = <Empty icon="alert-circle" title="Actus indisponibles" text={state.message} action={{ label: 'Réessayer', icon: 'refresh', onClick: retry }} />
@@ -119,11 +158,16 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
       />
     )
   } else if (!shown.length) {
+    const picked = gameId ? gameList.find((g) => g.id === gameId) : undefined
     body = (
       <Empty
         icon="download"
         title="Aucun patch récent"
-        text="Tes jeux n'ont pas publié de notes de patch dans leurs dernières annonces."
+        text={
+          picked
+            ? `${cleanName(picked.name)} n'a pas publié de notes de patch dans ses dernières annonces.`
+            : "Tes jeux n'ont pas publié de notes de patch dans leurs dernières annonces."
+        }
         action={{ label: 'Voir toutes les actus', icon: 'list', onClick: () => update({ tab: 'all' }) }}
       />
     )
@@ -149,10 +193,12 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
     )
   }
 
-  const anyNew = items.some((i) => i.isNew)
   return (
     <div className="page nf-page">
       <h1 className="sr-only">Actus des jeux</h1>
+      <p className="sr-only" aria-live="polite">
+        {status}
+      </p>
       {tabs}
       {feed && feed.tracked > 0 && (
         <div className="nf-toolbar">
@@ -160,23 +206,15 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
             <PickMenu<string>
               label="Jeu"
               value={game}
-              options={[{ value: ALL, label: 'Tous', hint: items.length }, ...gameList.map((g) => ({ value: g.id, label: cleanName(g.name), hint: g.count }))]}
+              options={[{ value: ALL, label: 'Tous', hint: tabItems.length }, ...gameList.map((g) => ({ value: g.id, label: cleanName(g.name), hint: g.count }))]}
               onPick={(v) => update({ game: v })}
             />
           )}
-          <p className="nf-summary" aria-live="polite">
-            {summary(feed, now)}
-          </p>
+          <p className="nf-summary">{summary(feed, now)}</p>
           <div className="nf-actions">
             {anyNew && (
-              <button
-                className="btn btn-ghost btn-sm"
-                disabled={marking}
-                onClick={() => {
-                  setMarking(true)
-                  markAllSeen().finally(() => setMarking(false))
-                }}
-              >
+              // aria-disabled plutôt que disabled : un bouton désactivé perd le focus.
+              <button className="btn btn-ghost btn-sm" aria-disabled={marking || undefined} onClick={markAll}>
                 <Icon name="check" size={15} />
                 Tout marquer comme lu
               </button>
@@ -184,6 +222,7 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
             {/* Sans aucune annonce, l'état vide porte déjà « Réessayer » ou « Actualiser » : pas de second bouton. */}
             {items.length > 0 && (
               <button
+                ref={refreshRef}
                 className="btn btn-secondary btn-sm"
                 title="Redemander les dernières annonces à Steam"
                 aria-busy={refreshing}
@@ -205,6 +244,13 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
       </div>
     </div>
   )
+}
+
+/** Fin d'un relevé, pour les lecteurs d'écran : « Actus relevées : 2 annonces non lues », ou Steam qui ne répond pas. */
+function afterRefresh(feed: NewsFeed): string {
+  if (feed.offline) return feed.items.length ? 'Steam ne répond pas : voici les actus du dernier relevé.' : 'Steam ne répond pas : les actus arriveront dès que la connexion revient.'
+  const unread = feed.items.filter((i) => i.isNew).length
+  return unread ? `Actus relevées : ${plural(unread, 'annonce non lue', 'annonces non lues')}.` : 'Actus relevées : rien de nouveau.'
 }
 
 /** « Relevé il y a 2 h · 12 jeux suivis », ou « Premier relevé en cours… ». */

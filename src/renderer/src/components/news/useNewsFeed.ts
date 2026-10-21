@@ -8,8 +8,8 @@ export interface NewsFeedHook {
   state: FeedState
   /** « Actualiser » en cours. */
   refreshing: boolean
-  /** Redemande les dernières annonces à Steam. */
-  refresh: () => Promise<void>
+  /** Redemande les dernières annonces à Steam. Renvoie le relevé obtenu (null : erreur). */
+  refresh: () => Promise<NewsFeed | null>
   markAllSeen: () => Promise<void>
 }
 
@@ -24,14 +24,17 @@ export function useNewsFeed(enabled: boolean, demo: boolean): NewsFeedHook {
   // Numéro de la dernière demande : les changements arrivent en rafale, une réponse plus ancienne est ignorée.
   const seq = useRef(0)
 
-  const apply = useCallback((request: Promise<NewsFeed>): Promise<void> => {
+  // Renvoie le relevé reçu (même dépassé par une demande plus récente) ou null en cas d'erreur.
+  const apply = useCallback((request: Promise<NewsFeed>): Promise<NewsFeed | null> => {
     const n = ++seq.current
     return request.then(
       (feed) => {
         if (n === seq.current) setState({ status: 'ready', feed })
+        return feed
       },
       (e) => {
         if (n === seq.current) setState((prev) => (prev.status === 'ready' ? prev : { status: 'error', message: errorMessage(e) }))
+        return null
       }
     )
   }, [])
@@ -52,7 +55,7 @@ export function useNewsFeed(enabled: boolean, demo: boolean): NewsFeedHook {
   const refresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      await apply(window.launcher.refreshNewsFeed())
+      return await apply(window.launcher.refreshNewsFeed())
     } finally {
       setRefreshing(false)
     }

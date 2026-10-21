@@ -20,7 +20,7 @@ import { getScanReport, handoff, launchTarget, scanAllGames } from './services/g
 import { createLaunches, sanitizeOpts, type LaunchDeps, type Launches, type LaunchWindow, type Timers } from './services/launches'
 import { createWatcher } from './services/launchWatch'
 import { newMatches } from './services/launchWatchParse'
-import { getGameNews, markAllNewsSeen, markNewsSeen, newsFeed, refreshNewsIndex, startNewsWatcher, withNews } from './services/news'
+import { getGameNews, markAllNewsSeen, markNewsSeen, newsFeed, refreshNewsIndex, refreshNewsNow, startNewsWatcher, withNews } from './services/news'
 import { getAccounts, getMemberPrefs, getSettings, publicSettings, removeAccount, saveMemberPrefs, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { installSteamGame, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
@@ -275,8 +275,7 @@ function registerIpc(): void {
   // Page Actus des jeux : construite à partir du relevé, sans réseau.
   handle('news:feed', () => newsFeed(knownGames()))
   handle('news:refresh', async () => {
-    // 60 s : « Actualiser » redemande vraiment à Steam (avec 15 min, le bouton ne faisait rien juste après un relevé).
-    if (getSettings().gameNews) await refreshNewsIndex(knownGames(), { maxAge: 60_000 })
+    if (getSettings().gameNews) await refreshNewsNow(knownGames())
     return newsFeed(knownGames())
   })
   // Jeux du compte Steam pas installés sur ce PC (Bibliothèque › Non installés).

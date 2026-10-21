@@ -60,7 +60,10 @@ export function hasPlayed(g: Pick<Game, 'lastPlayed' | 'playtime' | 'launches'>)
   return !!(g.lastPlayed || g.playtime || g.launches)
 }
 
-/** Méta courte d'une jaquette : « 123 h · il y a 2 h », « En jeu · 45 h 45 », « 12 h », « Pas installé · 52 h » ou « Pas encore joué ». */
+/**
+ * Méta courte d'une jaquette : « 123 h · il y a 2 h », « En jeu · 45 h 45 », « 12 h », « Pas installé · 52 h » ou « Aucune
+ * partie connue » (comme la fiche : le jeu a pu être joué avant Player X, ou sans clé Steam Web API).
+ */
 export function cardMeta(game: Pick<Game, 'running' | 'notInstalled' | 'playtime' | 'lastPlayed'>, now = Date.now()): string {
   const time = game.playtime ? formatPlaytime(game.playtime) : ''
   if (game.running) return `En jeu${time ? ` · ${time}` : ''}`
@@ -68,5 +71,5 @@ export function cardMeta(game: Pick<Game, 'running' | 'notInstalled' | 'playtime
   // La plateforme est déjà sur la carte : le temps de jeu passe devant quand on le connaît.
   const when = game.lastPlayed ? timeAgo(game.lastPlayed, now) : ''
   if (time) return when ? `${time} · ${when}` : time
-  return when ? capitalize(when) : 'Pas encore joué'
+  return when ? capitalize(when) : 'Aucune partie connue'
 }

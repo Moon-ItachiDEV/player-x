@@ -214,6 +214,11 @@ button.nf-item:hover .nf-thumb .cover-img {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Un nom de jeu très long : seul le nom se raccourcit, la date et les étiquettes restent sur une ligne. */
+.nf-item .news-meta > :not(.nf-item-game) {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .nf-item-go {
   flex-shrink: 0;
   color: var(--text-3);

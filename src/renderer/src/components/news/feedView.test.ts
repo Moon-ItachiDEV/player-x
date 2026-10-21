@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import type { NewsFeedItem } from '@shared/types'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { bucketOf, feedGames, filterFeed, groupFeed, HOME_MAX, homeFeed } from './feedView.ts'
+import { BUCKET_LABEL, bucketOf, feedGames, filterFeed, groupFeed, HOME_MAX, homeFeed } from './feedView.ts'
 
 // Dates locales : les tests ne dépendent pas du fuseau horaire de la machine.
 const NOW = new Date(2026, 9, 21, 0, 30).getTime()
@@ -32,6 +32,10 @@ test('groupe par jour du calendrier local', () => {
   assert.equal(bucketOf(NOW - 20 * D, NOW), 'month')
   assert.equal(bucketOf(NOW - 45 * D, NOW), 'older')
   assert.equal(bucketOf(NOW + 2 * H, NOW), 'today')
+  // Groupes glissants : les titres ne parlent pas de la semaine ni du mois du calendrier.
+  assert.equal(BUCKET_LABEL[bucketOf(NOW - 6 * D, NOW)], 'Ces 7 derniers jours')
+  assert.equal(BUCKET_LABEL[bucketOf(NOW - 26 * D, NOW)], 'Ces 30 derniers jours')
+  assert.ok(!Object.values(BUCKET_LABEL).some((l) => /cette semaine|ce mois/i.test(l)))
 })
 
 test('rangée de l\'accueil : patchs de moins de 60 jours, 10 au plus, ordre gardé', () => {
@@ -100,4 +104,18 @@ test('jeux du menu « Jeu » : par nom (ordre français), avec leur nombre d\'an
     { id: 'steam:9', name: 'éclipse', count: 1 },
     { id: 'steam:1245620', name: 'ELDEN RING', count: 2 }
   ])
+  // Onglet « Patchs » : chaque jeu compte ses patchs seulement, et reste dans le menu avec 0 s'il n'en a pas.
+  const patches = filterFeed(list, { patchesOnly: true, gameId: null })
+  assert.deepEqual(
+    feedGames(list, patches).map((g) => [g.name, g.count]),
+    [
+      ["Baldur's Gate 3", 1],
+      ['Counter-Strike 2', 1],
+      ['éclipse', 1],
+      ['ELDEN RING', 1]
+    ]
+  )
+  const onlyNews = [item(NOW, false, 'steam:1145360', 'Hades'), ...list]
+  const hades = feedGames(onlyNews, filterFeed(onlyNews, { patchesOnly: true, gameId: null })).find((g) => g.name === 'Hades')
+  assert.deepEqual(hades, { id: 'steam:1145360', name: 'Hades', count: 0 })
 })

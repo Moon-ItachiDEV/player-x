@@ -91,7 +91,7 @@ test('contrastes : textes 1 à 3 ≥ 4,5 sur tous les fonds, pastilles de store 
 })
 
 test("couleurs d'avant la 0.7.4 : plus aucune en dur hors de tokens.css", () => {
-  const STALE = ['#06101c', '#09192a', '#040b15', '#071322', '#0b2036', '#0c1f33', '#0f2236', '#24456b', 'rgba(8, 26, 46', 'rgba(18, 40, 63', 'rgba(24, 52, 86', 'rgba(32, 68, 110', 'rgb(9 25 42']
+  const STALE = ['#06101c', '#09192a', '#040b15', '#071322', '#0b2036', '#0c1f33', '#0f2236', '#24456b', 'rgba(8, 26, 46', 'rgba(18, 40, 63', 'rgba(24, 52, 86', 'rgba(32, 68, 110', 'rgb(9 25 42', 'rgb(4 11 21', 'rgba(4, 11, 21']
   const sources = [...CSS.filter((f) => !f.path.endsWith('styles/tokens.css')), { path: MAIN_INDEX, text: readFileSync(MAIN_INDEX, 'utf8') }]
   const found: string[] = []
   for (const { path, text } of sources) {

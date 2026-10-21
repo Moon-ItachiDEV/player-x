@@ -99,7 +99,9 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 26px;
+  /* Calé au-dessus du bandeau (70 px, plus 19 px d'air) : un nom de jeu sur deux lignes monte au lieu de passer sous le
+     bandeau. Sur une ligne, l'affiche (225 px) le place à 26 px du haut. */
+  bottom: 89px;
   display: flex;
   align-items: flex-start;
   gap: 24px;
@@ -326,6 +328,11 @@
 @container (max-width: 820px) {
   .hh-poster {
     display: none;
+  }
+  /* Sans affiche et avec un titre à 50 px, deux lignes tiennent au-dessus du bandeau : calé en haut. */
+  .hh-in {
+    top: 26px;
+    bottom: auto;
   }
   .hh-title {
     font-size: 50px;

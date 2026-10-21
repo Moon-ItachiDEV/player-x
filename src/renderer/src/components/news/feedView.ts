@@ -14,11 +14,12 @@ export function homeFeed(items: NewsFeedItem[], now: number): NewsFeedItem[] {
 
 export type Bucket = 'today' | 'yesterday' | 'week' | 'month' | 'older'
 export const BUCKETS: Bucket[] = ['today', 'yesterday', 'week', 'month', 'older']
+/** Groupes glissants (7 et 30 jours), pas la semaine ni le mois du calendrier : les titres le disent. */
 export const BUCKET_LABEL: Record<Bucket, string> = {
   today: "Aujourd'hui",
   yesterday: 'Hier',
-  week: 'Cette semaine',
-  month: 'Ce mois-ci',
+  week: 'Ces 7 derniers jours',
+  month: 'Ces 30 derniers jours',
   older: 'Plus ancien'
 }
 
@@ -58,13 +59,16 @@ export function filterFeed(items: NewsFeedItem[], { patchesOnly, gameId }: { pat
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
 
-/** Jeux présents dans le relevé, pour le menu « Jeu » : par nom, avec leur nombre d'annonces. */
-export function feedGames(items: NewsFeedItem[]): { id: string; name: string; count: number }[] {
+/**
+ * Jeux présents dans le relevé, pour le menu « Jeu » : par nom, avec leur nombre d'annonces parmi `counted` (l'onglet
+ * affiché : dans « Patchs », seulement leurs patchs, 0 s'ils n'en ont pas).
+ */
+export function feedGames(items: NewsFeedItem[], counted: NewsFeedItem[] = items): { id: string; name: string; count: number }[] {
   const games = new Map<string, { id: string; name: string; count: number }>()
-  for (const i of items) {
+  for (const i of items) if (!games.has(i.gameId)) games.set(i.gameId, { id: i.gameId, name: i.gameName, count: 0 })
+  for (const i of counted) {
     const g = games.get(i.gameId)
     if (g) g.count++
-    else games.set(i.gameId, { id: i.gameId, name: i.gameName, count: 1 })
   }
   return [...games.values()].sort((a, b) => collator.compare(a.name, b.name))
 }

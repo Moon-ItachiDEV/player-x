@@ -113,7 +113,7 @@ export function AchievementsSection({ state, onOpenAll, onRetry }: SectionProps)
             </p>
           )}
           <button className="btn btn-secondary btn-sm ach-all" onClick={(e) => onOpenAll(e.currentTarget)}>
-            Voir les {data.total} succès
+            {data.total > 1 ? `Voir les ${data.total} succès` : 'Voir le succès'}
             <Icon name="chevron-right" size={14} />
           </button>
         </>

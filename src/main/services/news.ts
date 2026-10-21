@@ -2,7 +2,7 @@ import { net } from 'electron'
 import type { Game, GameNews, NewsFeed, NewsPost } from '@shared/types'
 import { getKv, setKv } from '../db'
 import { steamAppIds } from './artwork'
-import { buildFeed, entryFrom, needsRefresh, nextSeen, patchFlags, type NewsIndex } from './newsFeed'
+import { buildFeed, entryFrom, fetchAll, needsRefresh, nextSeen, patchFlags, postsStillFresh, type NewsIndex } from './newsFeed'
 import { cleanRawNews, toNewsPost, type RawNews } from './newsFormat'
 import { getSettings } from './settings'
 
@@ -24,6 +24,10 @@ const INDEX_FORGET_MS = 30 * 24 * 3600_000
 const FIRST_RUN_MS = 45_000
 const RUN_EVERY_MS = 3600_000
 const PARALLEL = 4
+/** « Actualiser » : tout ce qui a plus d'une minute est redemandé (avec 15 min, le bouton ne faisait rien juste après un relevé). */
+const REFRESH_MAX_AGE = 60_000
+/** … mais la page n'attend pas plus : un Steam qui traîne finit le relevé en arrière-plan. */
+const REFRESH_WAIT_MS = 20_000
 
 const NETWORK_ERROR = 'Connexion à Steam impossible : vérifie ta connexion internet.'
 const SERVICE_ERROR = 'Steam ne répond pas pour le moment. Réessaie dans quelques minutes.'
@@ -117,7 +121,10 @@ export async function getGameNews(game: Game, refresh = false): Promise<GameNews
   const seenAt = seenMap()[game.id] ?? 0
   if (!appId) return { appId: null, posts: [], seenAt }
   const cached = posts.get(appId)
-  if (cached && !refresh && Date.now() - cached.at < POSTS_MAX_AGE) return { appId, posts: cached.posts, seenAt }
+  const index = readIndex()
+  // Le relevé connaît une annonce plus récente (trouvée par « Actualiser ») : relue, sinon elle ne s'ouvrirait pas.
+  const fresh = postsStillFresh(cached && { at: cached.at, newest: cached.posts[0]?.date ?? 0 }, index[appId]?.latest ?? 0, Date.now(), POSTS_MAX_AGE)
+  if (cached && !refresh && fresh) return { appId, posts: cached.posts, seenAt }
   let raw: RawNews[]
   try {
     raw = await fetchNews(appId, POSTS_COUNT, 0)
@@ -130,7 +137,7 @@ export async function getGameNews(game: Game, refresh = false): Promise<GameNews
   const list = raw.map(toNewsPost)
   posts.set(appId, { at: now, posts: list })
   // Le badge suit ce qu'on vient de lire.
-  updateIndex({ [appId]: entryFrom(raw, now) })
+  updateIndex({ [appId]: entryFrom(raw, now, index[appId]) })
   return { appId, posts: list, seenAt }
 }
 
@@ -209,23 +216,16 @@ async function runIndex(games: Game[], maxAge: number): Promise<void> {
   const now = Date.now()
   const stale = [...new Set(steamAppIds(games).values())].filter((id) => needsRefresh(index[id], now, maxAge))
   if (!stale.length) return
-  const updates: NewsIndex = {}
-  let ok = 0
-  let failed = 0
-  for (let i = 0; i < stale.length; i += PARALLEL) {
-    await Promise.all(
-      stale.slice(i, i + PARALLEL).map(async (appId) => {
-        try {
-          // Titres seulement : le texte des annonces n'est lu qu'à l'ouverture de la fiche.
-          updates[appId] = entryFrom(await fetchNews(appId, 5, 1), Date.now())
-          ok++
-        } catch {
-          /* hors ligne ou Steam indisponible : au prochain passage */
-          failed++
-        }
-      })
-    )
-  }
+  // Titres seulement (le texte des annonces n'est lu qu'à l'ouverture de la fiche), mais autant d'annonces que la fiche :
+  // le dernier patch est cherché dans les mêmes, sinon il apparaissait et disparaissait selon qui avait relevé en dernier.
+  // Hors ligne ou Steam indisponible : redemandé au prochain passage.
+  const { results, ok, failed } = await fetchAll(
+    stale,
+    PARALLEL,
+    async (appId) => entryFrom(await fetchNews(appId, POSTS_COUNT, 1), Date.now(), index[appId]),
+    (e) => e instanceof UserError && e.message === NETWORK_ERROR
+  )
+  const updates: NewsIndex = Object.fromEntries(results)
   const first = lastRun === null
   lastRun = { at: Date.now(), ok, failed }
   const changed = Object.keys(updates).length > 0 && updateIndex(updates)
@@ -240,6 +240,28 @@ export async function refreshNewsIndex(games: Game[], { maxAge = INDEX_MAX_AGE }
   while (running) await running
   running = runIndex(games, maxAge).finally(() => (running = null))
   await running
+}
+
+/**
+ * « Actualiser » de la page Actus des jeux : relève tout ce qui a plus d'une minute. N'attend pas plus de 20 s : au-delà, le
+ * relevé continue en arrière-plan et la page est prévenue à la fin (comme pour le relevé de chaque heure).
+ */
+export async function refreshNewsNow(games: Game[]): Promise<void> {
+  let late = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const run = refreshNewsIndex(games, { maxAge: REFRESH_MAX_AGE })
+    .catch(() => {})
+    .then(() => {
+      if (late) onChange()
+    })
+  const wait = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      late = true
+      resolve()
+    }, REFRESH_WAIT_MS)
+  })
+  await Promise.race([run, wait])
+  clearTimeout(timer)
 }
 
 /** Page Actus des jeux : construite à partir du relevé, sans réseau. Ne rejette jamais. */
