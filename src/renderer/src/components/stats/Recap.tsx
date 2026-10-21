@@ -104,7 +104,7 @@ function Delta({ value, average, fmt }: { value: number; average: number; fmt: (
   const diff = value - average
   const dir = Math.abs(diff) < 0.005 ? 0 : Math.sign(diff)
   return (
-    <span className={`rc-delta ${dir > 0 ? 'is-up' : dir < 0 ? 'is-down' : ''}`}>
+    <span className={`recap-delta ${dir > 0 ? 'is-up' : dir < 0 ? 'is-down' : ''}`}>
       <Icon name={dir < 0 ? 'trend-down' : 'trend'} size={14} />
       {dir === 0 ? (
         <span>
@@ -148,41 +148,41 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
 
   return (
     <div className="dialog-scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dialog rc" role="dialog" aria-modal="true" aria-labelledby="rc-title">
-        <header className="rc-head">
-          <div className="rc-art" aria-hidden="true">
+      <div className="dialog recap" role="dialog" aria-modal="true" aria-labelledby="recap-title">
+        <header className="recap-head">
+          <div className="recap-art" aria-hidden="true">
             {art && <img src={art} alt="" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}
-            <span className="rc-mark">BF6</span>
-            <div className="rc-scrim" />
+            <span className="recap-mark">BF6</span>
+            <div className="recap-scrim" />
           </div>
-          <span className="overline rc-kicker">{r.sample ? 'Exemple · bilan de session' : 'Bilan de session'}</span>
-          <h2 id="rc-title" className="rc-title">
+          <span className="overline recap-kicker">{r.sample ? 'Exemple · bilan de session' : 'Bilan de session'}</span>
+          <h2 id="recap-title" className="recap-title">
             Battlefield 6
           </h2>
-          <p className="rc-meta">
+          <p className="recap-meta">
             <span className="num">
               {dayOf(r.endedAt)} · {hours(r)}
             </span>
             {r.sample ? (
-              <span className="rc-chip">Chiffres fictifs</span>
+              <span className="recap-chip">Chiffres fictifs</span>
             ) : (
               <>
-                <span className="rc-sep" aria-hidden="true" />
-                <span className="rc-account">{r.account.name}</span>
+                <span className="recap-sep" aria-hidden="true" />
+                <span className="recap-account">{r.account.name}</span>
                 <span className="bf-plat">{PLATFORM_LABEL[r.account.platform]}</span>
               </>
             )}
           </p>
         </header>
 
-        <div className="rc-body">
-          <section className="rc-main" aria-label="La session en chiffres">
-            <div className="rc-kd">
+        <div className="recap-body">
+          <section className="recap-main" aria-label="La session en chiffres">
+            <div className="recap-kd">
               <span className="overline">K/D de la session</span>
-              <b className="rc-kd-value num">{dec.format(r.killDeath)}</b>
+              <b className="recap-kd-value num">{dec.format(r.killDeath)}</b>
               <Delta value={r.killDeath} average={r.average.killDeath} fmt={dec.format} />
             </div>
-            <dl className="rc-big">
+            <dl className="recap-big">
               <div>
                 <dt>Éliminations</dt>
                 <dd className="num">{int.format(r.kills)}</dd>
@@ -211,21 +211,21 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
             </dl>
           </section>
 
-          <dl className="rc-tiles">
-            <div className="rc-tile">
+          <dl className="recap-tiles">
+            <div className="recap-tile">
               <dt>Élim. par minute</dt>
               <dd className="num">{r.killsPerMinute ? dec.format(r.killsPerMinute) : '–'}</dd>
               <span className="caption num">ta moyenne {dec.format(r.average.killsPerMinute)}</span>
             </div>
-            <div className="rc-tile">
+            <div className="recap-tile">
               <dt>Assistances</dt>
               <dd className="num">{int.format(r.assists)}</dd>
             </div>
-            <div className="rc-tile">
+            <div className="recap-tile">
               <dt>Réanimations</dt>
               <dd className="num">{int.format(r.revives)}</dd>
             </div>
-            <div className="rc-tile">
+            <div className="recap-tile">
               <dt>En partie</dt>
               <dd className="num">{r.secondsPlayed >= 60 ? playedFor(r.secondsPlayed) : '–'}</dd>
               {sessionSeconds >= 60 && <span className="caption num">sur {playedFor(sessionSeconds)} de jeu ouvert</span>}
@@ -233,15 +233,15 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
           </dl>
 
           {(r.weapon || r.role) && (
-            <div className="rc-pair">
+            <div className="recap-pair">
               {r.weapon && (
-                <article className="rc-card is-weapon">
-                  <span className="rc-card-vis" aria-hidden="true">
+                <article className="recap-card is-weapon">
+                  <span className="recap-card-vis" aria-hidden="true">
                     <Art image={r.weapon.image} name={r.weapon.name} />
                   </span>
-                  <span className="rc-card-body">
+                  <span className="recap-card-body">
                     <span className="overline">Arme de la session</span>
-                    <b className="rc-card-name" title={r.weapon.name}>
+                    <b className="recap-card-name" title={r.weapon.name}>
                       {r.weapon.name}
                     </b>
                     <span className="caption num">{plural(r.weapon.kills, 'élimination', 'éliminations')}</span>
@@ -249,13 +249,13 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
                 </article>
               )}
               {r.role && (
-                <article className={`rc-card is-role is-${classKind(r.role.name)}`}>
-                  <span className="rc-card-vis" aria-hidden="true">
+                <article className={`recap-card is-role is-${classKind(r.role.name)}`}>
+                  <span className="recap-card-vis" aria-hidden="true">
                     <ClassIcon name={r.role.name} size={30} />
                   </span>
-                  <span className="rc-card-body">
+                  <span className="recap-card-body">
                     <span className="overline">Classe la plus jouée</span>
-                    <b className="rc-card-name" title={r.role.name}>
+                    <b className="recap-card-name" title={r.role.name}>
                       {r.role.name}
                     </b>
                     <span className="caption num">
@@ -268,20 +268,20 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
           )}
 
           {maps.length > 0 && (
-            <section className="rc-places" aria-labelledby="rc-maps-title">
-              <h3 id="rc-maps-title" className="overline">
+            <section className="recap-places" aria-labelledby="recap-maps-title">
+              <h3 id="recap-maps-title" className="overline">
                 {maps.length > 1 ? 'Cartes jouées' : 'Carte jouée'}
-                {r.modes.length > 0 && <span className="rc-modes"> · {r.modes.map((m) => m.name).join(', ')}</span>}
+                {r.modes.length > 0 && <span className="recap-modes"> · {r.modes.map((m) => m.name).join(', ')}</span>}
               </h3>
-              <ul className="rc-maps">
+              <ul className="recap-maps">
                 {maps.map((m) => (
-                  <li key={m.name} className="rc-map">
+                  <li key={m.name} className="recap-map">
                     {m.image && <img src={m.image} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}
-                    <span className="rc-map-shade" aria-hidden="true" />
-                    <span className="rc-map-name" title={m.name}>
+                    <span className="recap-map-shade" aria-hidden="true" />
+                    <span className="recap-map-name" title={m.name}>
                       {m.name}
                     </span>
-                    <span className="rc-map-line num">
+                    <span className="recap-map-line num">
                       {plural(m.matches, 'partie', 'parties')} · {plural(m.wins, 'victoire', 'victoires')}
                     </span>
                   </li>
@@ -291,15 +291,15 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
           )}
 
           {r.partial && (
-            <p className="rc-note">
+            <p className="recap-note">
               <Icon name="info" size={14} />
               Suivi à partir de {timeFmt.format(r.startedAt)} : les parties terminées avant ne sont pas comptées.
             </p>
           )}
         </div>
 
-        <div className="dialog-actions rc-actions">
-          <span className="caption rc-source">
+        <div className="dialog-actions recap-actions">
+          <span className="caption recap-source">
             {r.sample ? 'Ton vrai bilan arrive quelques minutes après la fermeture du jeu.' : 'D’après gametools.network, relu après la partie.'}
           </span>
           {onOpenStats && (
@@ -422,7 +422,7 @@ function useRecapState(): Bf6RecapState | null {
 /** Chiffres d'un bilan sur une ligne : « K/D 1,53 · 23 élim. · 2/3 victoires ». */
 function Numbers({ r }: { r: Bf6Recap }): React.JSX.Element {
   return (
-    <dl className="rc-nums">
+    <dl className="recap-nums">
       <div>
         <dt>K/D</dt>
         <dd className="num">{dec.format(r.killDeath)}</dd>
@@ -451,17 +451,17 @@ export function LastSession(): React.JSX.Element | null {
   const [last, ...older] = recaps
 
   return (
-    <section className="rc-last" aria-labelledby="rc-last-title">
+    <section className="recap-last" aria-labelledby="recap-last-title">
       <div className="bf-row-head">
-        <h2 id="rc-last-title" className="h-section">
+        <h2 id="recap-last-title" className="h-section">
           Dernière session
         </h2>
         <span className="caption">· ton bilan quand tu quittes le jeu</span>
       </div>
 
       {pending && (
-        <p className={`rc-status ${pending.endedAt ? 'is-wait' : 'is-live'}`} role="status">
-          {pending.endedAt ? <span className="spinner" aria-hidden="true" /> : <span className="rc-live-dot" aria-hidden="true" />}
+        <p className={`recap-status ${pending.endedAt ? 'is-wait' : 'is-live'}`} role="status">
+          {pending.endedAt ? <span className="spinner" aria-hidden="true" /> : <span className="recap-live-dot" aria-hidden="true" />}
           {pending.endedAt ? (
             <span>
               <b>Bilan en préparation</b> · gametools.network met parfois quelques minutes à compter tes dernières parties
@@ -475,24 +475,24 @@ export function LastSession(): React.JSX.Element | null {
       )}
 
       {last ? (
-        <article className={`card-surface rc-last-card ${last.seen ? '' : 'is-new'}`}>
-          <div className="rc-last-when">
+        <article className={`card-surface recap-last-card ${last.seen ? '' : 'is-new'}`}>
+          <div className="recap-last-when">
             <span className="bf-overline">
               {dayOf(last.endedAt)}
-              {!last.seen && <span className="rc-new">Nouveau</span>}
+              {!last.seen && <span className="recap-new">Nouveau</span>}
             </span>
-            <span className="rc-last-hours num">{hours(last)}</span>
+            <span className="recap-last-hours num">{hours(last)}</span>
           </div>
           <Numbers r={last} />
-          <button className="btn btn-secondary btn-sm rc-last-open" onClick={() => openRecap(last)}>
+          <button className="btn btn-secondary btn-sm recap-last-open" onClick={() => openRecap(last)}>
             Voir le bilan
             <Icon name="chevron-right" size={14} />
           </button>
         </article>
       ) : (
         !pending && (
-          <article className="card-surface rc-last-card is-empty">
-            <span className="rc-last-icon" aria-hidden="true">
+          <article className="card-surface recap-last-card is-empty">
+            <span className="recap-last-icon" aria-hidden="true">
               <Icon name="chart" size={20} />
             </span>
             <p className="bf-text">
@@ -507,13 +507,13 @@ export function LastSession(): React.JSX.Element | null {
       )}
 
       {older.length > 0 && (
-        <ol className="rc-history" aria-label="Sessions précédentes">
+        <ol className="recap-history" aria-label="Sessions précédentes">
           {older.slice(0, MAX_HISTORY).map((r) => (
             <li key={r.id}>
-              <button className="rc-history-row" onClick={() => openRecap(r)}>
-                <span className="rc-history-day">{dayOf(r.endedAt)}</span>
+              <button className="recap-history-row" onClick={() => openRecap(r)}>
+                <span className="recap-history-day">{dayOf(r.endedAt)}</span>
                 <span className="caption num">{hours(r)}</span>
-                <span className="rc-history-nums num">
+                <span className="recap-history-nums num">
                   K/D <b>{dec.format(r.killDeath)}</b> · <b>{int.format(r.kills)}</b> élim.
                   {r.matches > 0 && (
                     <>

@@ -1,8 +1,9 @@
-/* Bilan de session Battlefield 6 (Recap.tsx) : carte de fin de session, encart « Dernière session » de la page Stats. */
+/* Bilan de session Battlefield 6 (Recap.tsx) : carte de fin de session, encart « Dernière session » de la page Stats.
+   Classes en .recap- : la CSS de l'interface est commune à toutes les pages, et .rc- appartient aux cartes « À reprendre » de l'accueil. */
 
 /* ---------- carte du bilan ---------- */
 
-.dialog.rc {
+.dialog.recap {
   display: flex;
   flex-direction: column;
   width: 620px;
@@ -11,7 +12,7 @@
   overflow: hidden;
 }
 
-.rc-head {
+.recap-head {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -24,7 +25,7 @@
   isolation: isolate;
   border-bottom: 1px solid var(--line-1);
 }
-.rc-art {
+.recap-art {
   position: absolute;
   inset: 0;
   z-index: -1;
@@ -34,7 +35,7 @@
     radial-gradient(60% 120% at 0% 0%, rgb(63 208 255 / 0.1) 0%, transparent 70%),
     var(--bg-1);
 }
-.rc-art img {
+.recap-art img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -43,7 +44,7 @@
   object-position: center 30%;
 }
 /* Sans visuel : le sigle du jeu en filigrane. */
-.rc-mark {
+.recap-mark {
   position: absolute;
   top: 10px;
   right: 22px;
@@ -52,18 +53,18 @@
   color: transparent;
   -webkit-text-stroke: 1px var(--line-3);
 }
-.rc-art img ~ .rc-mark {
+.recap-art img ~ .recap-mark {
   display: none;
 }
-.rc-scrim {
+.recap-scrim {
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, rgb(6 16 28 / 0.2) 0%, rgb(9 25 42 / 0.86) 72%, var(--bg-2) 100%);
 }
-.rc-kicker {
+.recap-kicker {
   color: var(--accent-text);
 }
-.dialog .rc-title {
+.dialog .recap-title {
   margin: 0;
   font: 800 30px/32px var(--font-display);
   letter-spacing: 0.02em;
@@ -71,7 +72,7 @@
   color: var(--text-1);
   text-shadow: 0 2px 16px rgb(0 0 0 / 0.5);
 }
-.dialog .rc-meta {
+.dialog .recap-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -80,17 +81,17 @@
   font: 500 13px/18px var(--font-ui);
   color: var(--text-2);
 }
-.rc-sep {
+.recap-sep {
   width: 3px;
   height: 3px;
   border-radius: 50%;
   background: var(--text-3);
 }
-.rc-account {
+.recap-account {
   font-weight: 700;
   color: var(--text-1);
 }
-.rc-chip {
+.recap-chip {
   display: inline-flex;
   align-items: center;
   height: 20px;
@@ -102,7 +103,7 @@
   color: var(--accent-text);
 }
 
-.rc-body {
+.recap-body {
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -112,23 +113,23 @@
 }
 
 /* K/D en grand, puis éliminations, morts et victoires. */
-.rc-main {
+.recap-main {
   display: grid;
   grid-template-columns: minmax(180px, 0.9fr) minmax(0, 1.6fr);
   align-items: start;
   gap: 20px;
 }
-.rc-kd {
+.recap-kd {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.rc-kd-value {
+.recap-kd-value {
   font: 800 60px/60px var(--font-display);
   letter-spacing: -0.01em;
   color: var(--accent);
 }
-.rc-delta {
+.recap-delta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -137,23 +138,23 @@
   font: 500 12px/16px var(--font-ui);
   color: var(--text-3);
 }
-.rc-delta > svg {
+.recap-delta > svg {
   flex-shrink: 0;
 }
-.rc-delta.is-up {
+.recap-delta.is-up {
   color: var(--st-online);
 }
-.rc-delta.is-down {
+.recap-delta.is-down {
   color: var(--st-away);
 }
-.rc-delta b {
+.recap-delta b {
   font: 700 14px/1 var(--font-display);
   color: var(--text-1);
 }
-.rc-delta span {
+.recap-delta span {
   color: var(--text-2);
 }
-.rc-big {
+.recap-big {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
@@ -161,35 +162,35 @@
   padding-left: 20px;
   border-left: 1px solid var(--line-1);
 }
-.rc-big > div {
+.recap-big > div {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
-.rc-big dt {
+.recap-big dt {
   font: 700 11px/14px var(--font-ui);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-3);
 }
-.rc-big dd {
+.recap-big dd {
   margin: 4px 0 0;
   font: 800 36px/40px var(--font-display);
   color: var(--text-1);
 }
-.rc-big dd small {
+.recap-big dd small {
   font-size: 22px;
   color: var(--text-3);
 }
 
-.rc-tiles {
+.recap-tiles {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin: 0;
 }
-.rc-tile {
+.recap-tile {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -199,30 +200,30 @@
   background: var(--surface-1);
   border: 1px solid var(--line-1);
 }
-.rc-tile dt {
+.recap-tile dt {
   font: 600 11px/14px var(--font-ui);
   color: var(--text-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.rc-tile dd {
+.recap-tile dd {
   margin: 2px 0 0;
   font: 700 22px/26px var(--font-display);
   color: var(--text-1);
 }
-.rc-tile .caption {
+.recap-tile .caption {
   font-size: 11px;
   line-height: 14px;
 }
 
 /* Arme de la session et classe la plus jouée. */
-.rc-pair {
+.recap-pair {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
 }
-.rc-card {
+.recap-card {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -232,7 +233,7 @@
   background: var(--card-bg);
   border: 1px solid var(--line-2);
 }
-.rc-card-vis {
+.recap-card-vis {
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -242,29 +243,29 @@
   border-radius: var(--r-sm);
   background: radial-gradient(60% 90% at 50% 100%, var(--live-soft), transparent 70%), var(--bg-1);
 }
-.rc-card-vis img {
+.recap-card-vis img {
   max-width: 88%;
   max-height: 46px;
   object-fit: contain;
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6));
 }
-.rc-card-vis .bf-weapon-ghost {
+.recap-card-vis .bf-weapon-ghost {
   font-size: 22px;
   -webkit-text-stroke-color: var(--line-3);
 }
-.rc-card.is-role .rc-card-vis {
+.recap-card.is-role .recap-card-vis {
   color: var(--live-text);
 }
-.rc-card-body {
+.recap-card-body {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
-.rc-card-body .overline {
+.recap-card-body .overline {
   font-size: 10px;
 }
-.rc-card-name {
+.recap-card-name {
   font: 700 18px/22px var(--font-display);
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -275,17 +276,17 @@
 }
 
 /* Cartes jouées : vignettes avec le visuel de la carte. */
-.rc-places {
+.recap-places {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.rc-modes {
+.recap-modes {
   letter-spacing: 0.02em;
   text-transform: none;
   font-weight: 500;
 }
-.rc-maps {
+.recap-maps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
@@ -293,7 +294,7 @@
   padding: 0;
   list-style: none;
 }
-.rc-map {
+.recap-map {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -308,7 +309,7 @@
   border: 1px solid var(--line-2);
   isolation: isolate;
 }
-.rc-map img {
+.recap-map img {
   position: absolute;
   inset: 0;
   z-index: -2;
@@ -316,13 +317,13 @@
   height: 100%;
   object-fit: cover;
 }
-.rc-map-shade {
+.recap-map-shade {
   position: absolute;
   inset: 0;
   z-index: -1;
   background: linear-gradient(180deg, transparent 10%, rgb(4 11 21 / 0.86) 100%);
 }
-.rc-map-name {
+.recap-map-name {
   font: 700 15px/18px var(--font-display);
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -331,12 +332,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.rc-map-line {
+.recap-map-line {
   font: 500 11.5px/14px var(--font-ui);
   color: var(--text-2);
 }
 
-.dialog .rc-note {
+.dialog .recap-note {
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -348,43 +349,43 @@
   font-size: 12.5px;
   line-height: 17px;
 }
-.rc-note > svg {
+.recap-note > svg {
   flex-shrink: 0;
   margin-top: 1px;
   color: var(--info);
 }
 
-.dialog-actions.rc-actions {
+.dialog-actions.recap-actions {
   align-items: center;
   flex-shrink: 0;
   margin-top: 0;
   padding: 16px 28px 20px;
 }
-.rc-source {
+.recap-source {
   margin-right: auto;
 }
 
 @media (max-width: 720px) {
-  .rc-main {
+  .recap-main {
     grid-template-columns: minmax(0, 1fr);
   }
-  .rc-big {
+  .recap-big {
     padding-left: 0;
     border-left: 0;
   }
-  .rc-tiles {
+  .recap-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 /* ---------- « Dernière session » (page Stats, vue d'ensemble) ---------- */
 
-.rc-last {
+.recap-last {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.rc-status {
+.recap-status {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -396,17 +397,17 @@
   font: 500 13px/18px var(--font-ui);
   color: var(--text-2);
 }
-.rc-status b {
+.recap-status b {
   color: var(--text-1);
 }
-.rc-status.is-live {
+.recap-status.is-live {
   background: var(--live-soft);
   border-color: rgb(63 208 255 / 0.3);
 }
-.rc-status.is-live b {
+.recap-status.is-live b {
   color: var(--live-text);
 }
-.rc-live-dot {
+.recap-live-dot {
   flex-shrink: 0;
   width: 8px;
   height: 8px;
@@ -414,38 +415,38 @@
   background: var(--live);
   box-shadow: 0 0 0 3px rgb(63 208 255 / 0.2);
 }
-.rc-status .spinner {
+.recap-status .spinner {
   width: 14px;
   height: 14px;
   color: var(--accent);
 }
 
-.rc-last-card {
+.recap-last-card {
   display: flex;
   align-items: center;
   gap: 24px;
   padding: 14px 16px 14px 18px;
 }
-.rc-last-card.is-new {
+.recap-last-card.is-new {
   border-color: var(--accent-line);
   box-shadow: inset 3px 0 0 var(--accent);
 }
-.rc-last-when {
+.recap-last-when {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 150px;
 }
-.rc-last-when .bf-overline {
+.recap-last-when .bf-overline {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-.rc-last-hours {
+.recap-last-hours {
   font: 700 17px/22px var(--font-display);
   color: var(--text-1);
 }
-.rc-new {
+.recap-new {
   display: inline-flex;
   align-items: center;
   height: 18px;
@@ -456,41 +457,41 @@
   font: 700 10px/1 var(--font-ui);
   letter-spacing: 0.06em;
 }
-.rc-nums {
+.recap-nums {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 28px;
   margin: 0;
 }
-.rc-nums > div {
+.recap-nums > div {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.rc-nums dt {
+.recap-nums dt {
   font: 600 11px/14px var(--font-ui);
   color: var(--text-3);
 }
-.rc-nums dd {
+.recap-nums dd {
   margin: 0;
   font: 700 22px/26px var(--font-display);
   color: var(--text-1);
 }
-.rc-nums > div:first-child dd {
+.recap-nums > div:first-child dd {
   color: var(--accent);
 }
-.rc-last-open {
+.recap-last-open {
   margin-left: auto;
   flex-shrink: 0;
 }
-.rc-last-card.is-empty {
+.recap-last-card.is-empty {
   gap: 14px;
 }
-.rc-last-card.is-empty .bf-text {
+.recap-last-card.is-empty .bf-text {
   flex: 1;
   margin: 0;
 }
-.rc-last-icon {
+.recap-last-icon {
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -501,7 +502,7 @@
   color: var(--accent);
 }
 
-.rc-history {
+.recap-history {
   display: flex;
   flex-direction: column;
   margin: 0;
@@ -511,10 +512,10 @@
   border: 1px solid var(--line-1);
   overflow: hidden;
 }
-.rc-history li + li {
+.recap-history li + li {
   border-top: 1px solid var(--line-1);
 }
-.rc-history-row {
+.recap-history-row {
   display: grid;
   grid-template-columns: minmax(130px, 0.8fr) 110px minmax(0, 2fr) auto;
   align-items: center;
@@ -526,37 +527,37 @@
   font: 500 13px/18px var(--font-ui);
   transition: background-color var(--d-1) var(--ease-out);
 }
-.rc-history-row:hover {
+.recap-history-row:hover {
   background: rgba(140, 190, 255, 0.05);
   color: var(--text-1);
 }
-.rc-history-row:hover > svg {
+.recap-history-row:hover > svg {
   color: var(--accent);
 }
-.rc-history-day {
+.recap-history-day {
   color: var(--text-1);
   font-weight: 600;
 }
-.rc-history-nums b {
+.recap-history-nums b {
   color: var(--text-1);
 }
 
 @container (max-width: 760px) {
-  .rc-last-card {
+  .recap-last-card {
     flex-wrap: wrap;
     gap: 14px;
   }
-  .rc-history-row {
+  .recap-history-row {
     grid-template-columns: minmax(0, 1fr) auto;
     row-gap: 2px;
   }
-  .rc-history-row .caption {
+  .recap-history-row .caption {
     display: none;
   }
-  .rc-history-nums {
+  .recap-history-nums {
     grid-row: 2;
   }
-  .rc-history-row > svg {
+  .recap-history-row > svg {
     grid-column: 2;
     grid-row: 1 / span 2;
   }
