@@ -149,7 +149,9 @@ export async function getGameAchievements(game: Game, refresh = false): Promise<
     if (cached) return cached.data
     throw new UserError(e instanceof UserError ? e.message : SERVICE_ERROR)
   }
-  if (player.kind === 'private') return empty('private')
+  // Steam répond aussi « Profile is not public » pour certains jeux d'un profil public (jeu prêté, retiré de la
+  // boutique…) : si la liste des jeux du compte est lisible, les détails de jeu sont publics et seul ce jeu est en cause.
+  if (player.kind === 'private') return empty(ownedSteamList() ? 'none' : 'private')
   if (player.kind === 'key') return empty('key-refused')
   if (player.kind === 'none') return empty('none')
   if (player.kind === 'error') {
@@ -201,14 +203,23 @@ async function runScan(key: string, id: string): Promise<void> {
   scan = { done: 0, total: todo.length }
   let stop: AchievementsOverviewState | null = null
   let failed = 0
+  let done = 0
+  /** Jeux pour lesquels Steam a répondu « Profile is not public ». */
+  let refused = 0
   let unsaved = 0
   for (let i = 0; i < todo.length && !stop; i += PARALLEL) {
     await Promise.all(
       todo.slice(i, i + PARALLEL).map(async (g) => {
         try {
           const player = await fetchPlayer(g.appId, key, id)
-          if (player.kind === 'private' || player.kind === 'key') {
-            stop = player.kind === 'private' ? 'private' : 'key-refused'
+          if (player.kind === 'key') {
+            stop = 'key-refused'
+            return
+          }
+          // Un seul jeu refusé ne veut pas dire que le profil est privé (voir getGameAchievements) : on le passe,
+          // sans le noter, pour le relire au prochain relevé.
+          if (player.kind === 'private') {
+            refused++
             return
           }
           if (player.kind === 'none') {
@@ -226,10 +237,13 @@ async function runScan(key: string, id: string): Promise<void> {
           failed++
         } finally {
           if (scan) scan.done++
+          done++
           unsaved++
         }
       })
     )
+    // Tous les jeux lus jusqu'ici refusés : là, c'est bien le profil qui est privé.
+    if (!stop && refused === done && (done >= 8 || done === todo.length)) stop = 'private'
     if (unsaved >= SAVE_EVERY) {
       unsaved = 0
       saveIndex({ ...loadIndex(id), games: { ...games } })
