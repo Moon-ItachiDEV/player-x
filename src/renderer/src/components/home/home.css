@@ -168,8 +168,9 @@
   color: var(--favorite);
 }
 
-/* Bandeau de chiffres en verre */
+/* Bandeau de chiffres en verre. --hh-cut : anneau des avatars, couleur du verre sous eux. */
 .hh-band {
+  --hh-cut: #0b2036;
   position: absolute;
   left: 20px;
   right: 20px;
@@ -182,6 +183,7 @@
   border: 1px solid var(--line-2);
   background: var(--glass);
   backdrop-filter: blur(16px);
+  overflow: hidden;
 }
 .no-blur .hh-band {
   backdrop-filter: none;
@@ -207,21 +209,84 @@
   color: #fff;
   white-space: nowrap;
 }
-.hh-friends {
-  margin-left: auto;
+/* À droite du bandeau : dernier patch, puis amis en ligne (calés à droite, un seul filet entre eux) */
+.hh-end {
   align-items: flex-end;
+  min-width: 0;
   border-right: 0;
 }
+.hh-k:not(.hh-end) + .hh-end {
+  margin-left: auto;
+}
+.hh-end + .hh-end {
+  border-left: 1px solid var(--line-2);
+}
+.hh-end dt {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hh-k-live {
+  color: var(--live-text);
+  font-weight: 600;
+}
+
+/* Dernier patch : toute la cellule ouvre les notes dans la fiche */
+.hh-patch {
+  position: relative;
+  transition: background-color var(--d-2) var(--ease-out);
+}
+.hh-patch:hover {
+  background: color-mix(in srgb, var(--info) 10%, transparent);
+}
+.hh-patch:has(.hh-patch-go:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+}
+.hh-patch-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+.hh-patch-go::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.hh-patch-go:focus-visible {
+  box-shadow: none;
+}
+.hh-patch-chev {
+  color: var(--text-3);
+  transition:
+    color var(--d-2) var(--ease-out),
+    translate var(--d-2) var(--ease-out);
+}
+.hh-patch:hover .hh-patch-chev {
+  color: var(--text-1);
+  translate: 2px 0;
+}
+
 .hh-friends dd {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 .hh-stack {
   display: flex;
 }
 .hh-stack .avatar {
-  box-shadow: 0 0 0 2.5px #0b2036;
+  box-shadow: 0 0 0 2.5px var(--hh-cut);
+}
+/* Ceux qui jouent à ce jeu : anneau cyan (« en direct ») */
+.hh-stack .avatar.is-here {
+  box-shadow:
+    0 0 0 2px var(--hh-cut),
+    0 0 0 3.5px var(--live);
 }
 .hh-stack .avatar + .avatar {
   margin-left: -8px;
@@ -240,6 +305,19 @@
   }
   .hh-k {
     padding: 0 16px;
+  }
+  .hh-k-live,
+  .hh-patch-chev {
+    display: none;
+  }
+}
+/* Fenêtre de 1024 px : cinq cellules tiennent dans le bandeau ; le chiffre garde le total des amis */
+@container (max-width: 720px) {
+  .hh-k {
+    padding: 0 12px;
+  }
+  .hh-stack .avatar:nth-child(n + 4) {
+    display: none;
   }
 }
 
@@ -391,6 +469,9 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .rc-name {
   font: 700 19px/22px var(--font-display);
@@ -404,6 +485,9 @@
 .rc-meta {
   font: 500 12px/16px var(--font-ui);
   color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .rc-actions {
   display: flex;
@@ -437,13 +521,6 @@
 .rc-foot-live {
   color: var(--live-text);
   font-weight: 600;
-}
-.rc-empty-ava {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1.5px dashed var(--line-3);
 }
 .rc-stack {
   display: flex;

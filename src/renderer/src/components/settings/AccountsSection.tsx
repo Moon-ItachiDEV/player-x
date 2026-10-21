@@ -1,14 +1,14 @@
 // Section « Comptes » : une carte de connexion par plateforme.
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { plural } from '@shared/text'
-import type { Account, FriendPlatform, FriendsResult, Settings } from '@shared/types'
+import type { Account, FriendPlatform, FriendsResult, HiddenMember, Settings } from '@shared/types'
 import type { LoginPlatform } from '../../contracts'
 import { Avatar } from '../ui/Avatar'
 import { Icon } from '../ui/Icon'
 import { Dialog } from '../ui/Overlay'
 import { StoreTag } from '../ui/StoreTag'
 import { errorMessage, useToast } from '../ui/Toasts'
-import { SectionHead } from './parts'
+import { prefersReducedMotion, SectionHead, SettingRow } from './parts'
 
 export const PLATFORMS: FriendPlatform[] = ['steam', 'discord', 'psn']
 
@@ -102,9 +102,14 @@ interface Props {
   onLogin: (p: LoginPlatform) => void
   onLogout: (p: FriendPlatform) => Promise<void>
   onConfigure: (p: FriendPlatform) => void
+  onShowMember: (name: string) => Promise<void>
+  /** « Gérer » de la liste d'amis : bloc « Membres masqués » à montrer et à focaliser. */
+  focus: 'hidden-members' | null
+  onFocused: () => void
 }
 
-export function AccountsSection({ settings, accounts, friends, loginPending, onLogin, onLogout, onConfigure }: Props): React.JSX.Element {
+export function AccountsSection(props: Props): React.JSX.Element {
+  const { settings, accounts, friends, loginPending, onLogin, onLogout, onConfigure, onShowMember, focus, onFocused } = props
   const notify = useToast()
   const [confirm, setConfirm] = useState<FriendPlatform | null>(null)
   const [busy, setBusy] = useState(false)
@@ -144,6 +149,7 @@ export function AccountsSection({ settings, accounts, friends, loginPending, onL
               account={account}
               state={connState(p, account, settings, friends.errors)}
               count={friends.friends.filter((f) => f.platform === p).length}
+              masked={p === 'discord' ? (friends.hidden ?? []).filter((h) => h.online).length : 0}
               settings={settings}
               loginPending={loginPending}
               onConnect={() => onLogin(p)}
@@ -156,6 +162,9 @@ export function AccountsSection({ settings, accounts, friends, loginPending, onL
           )
         })}
       </div>
+      {(settings.discordGuildId || settings.demoMode || (friends.hidden?.length ?? 0) > 0) && (
+        <HiddenMembers hidden={friends.hidden ?? []} onShow={onShowMember} focus={focus} onFocused={onFocused} />
+      )}
       <Dialog
         open={!!confirm}
         title={`Déconnecter ${PLATFORM_NAME[shown]} ?`}
@@ -183,6 +192,8 @@ interface CardProps {
   account?: Account
   state: ConnState
   count: number
+  /** Discord : membres en ligne masqués (bots connus, « Masquer »). */
+  masked: number
   settings: Settings
   loginPending: LoginPlatform | null
   onConnect: () => void
@@ -190,7 +201,7 @@ interface CardProps {
   onConfigure: () => void
 }
 
-function ConnectionCard({ platform, account, state, count, settings, loginPending, onConnect, onDisconnect, onConfigure }: CardProps): React.JSX.Element {
+function ConnectionCard({ platform, account, state, count, masked, settings, loginPending, onConnect, onDisconnect, onConfigure }: CardProps): React.JSX.Element {
   const name = PLATFORM_NAME[platform]
   const pending = loginPending === platform
   // Steam et Discord passent par le navigateur (même port de retour) : une connexion à la fois.
@@ -204,7 +215,7 @@ function ConnectionCard({ platform, account, state, count, settings, loginPendin
       ? state.label === 'Connecté'
         ? platform === 'discord'
           ? settings.discordGuildId
-            ? plural(count, 'membre en ligne', 'membres en ligne')
+            ? `${plural(count, 'membre en ligne', 'membres en ligne')}${masked ? ` · ${plural(masked, 'masqué', 'masqués')}` : ''}`
             : 'Aucun serveur choisi'
           : plural(count, 'ami', 'amis')
         : 'Amis indisponibles pour le moment'
@@ -303,6 +314,69 @@ function ConnectionCard({ platform, account, state, count, settings, loginPendin
         </div>
       </footer>
     </article>
+  )
+}
+
+const HIDDEN_VALUE: Record<HiddenMember['reason'], string> = { bot: 'Bot reconnu par Player X', user: 'Masqué à ta demande' }
+
+interface HiddenProps {
+  hidden: HiddenMember[]
+  onShow: (name: string) => Promise<void>
+  focus: 'hidden-members' | null
+  onFocused: () => void
+}
+
+/** Membres du serveur Discord retirés des listes : bots reconnus d'office et membres masqués avec l'œil barré. */
+function HiddenMembers({ hidden, onShow, focus, onFocused }: HiddenProps): React.JSX.Element {
+  const title = useRef<HTMLHeadingElement>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  // Arrivée depuis « Gérer » (liste d'amis) : le bloc se montre et prend le focus.
+  useEffect(() => {
+    if (focus !== 'hidden-members') return
+    title.current?.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+    title.current?.focus({ preventScroll: true })
+    onFocused()
+  }, [focus, onFocused])
+
+  const show = async (name: string): Promise<void> => {
+    if (busy) return
+    setBusy(name)
+    try {
+      await onShow(name)
+    } finally {
+      setBusy(null)
+      // La ligne a disparu avec son bouton : le focus revient au titre du bloc.
+      if (document.activeElement === document.body || document.activeElement === null) title.current?.focus({ preventScroll: true })
+    }
+  }
+
+  return (
+    <section aria-labelledby="set-hidden-title">
+      <h3 id="set-hidden-title" ref={title} className="set-block-title" tabIndex={-1}>
+        Membres masqués
+      </h3>
+      <div className="set-help-block">
+        <p className="set-help">
+          Le widget Discord ne dit pas qui est un bot : Player X masque d'office les bots connus (MEE6, MonitoRSS, PatchBot, Soundboards.gg…). Pour masquer
+          quelqu'un d'autre, survole-le dans la liste d'amis et clique sur l'œil barré. Discord ne donne que le pseudo : un membre qui en change réapparaît.
+        </p>
+        {hidden.length ? (
+          <div>
+            {hidden.map((m) => (
+              <SettingRow key={m.name} label={m.name} value={m.reason === 'user' && !m.online ? `${HIDDEN_VALUE.user} · hors ligne` : HIDDEN_VALUE[m.reason]}>
+                <button className="btn btn-secondary btn-sm" aria-label={`Afficher ${m.name}`} disabled={busy === m.name} onClick={() => void show(m.name)}>
+                  <Icon name="eye" size={15} />
+                  Afficher
+                </button>
+              </SettingRow>
+            ))}
+          </div>
+        ) : (
+          <p className="set-help">Aucun membre masqué pour le moment.</p>
+        )}
+      </div>
+    </section>
   )
 }
 

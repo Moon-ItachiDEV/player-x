@@ -452,7 +452,8 @@ function accountState(p: FriendPlatform, accounts: Account[], result: FriendsRes
     const setup = /param[eè]tres|ajoute|configur/i.test(error)
     return { label: setup ? 'À configurer' : 'Erreur', pill: setup ? 'pill-warning' : 'pill-danger', caption: error }
   }
-  const hasData = result.friends.some((f) => f.platform === p)
+  // Un serveur Discord dont tous les membres en ligne sont masqués (bots) répond bien.
+  const hasData = result.friends.some((f) => f.platform === p) || (p === 'discord' && !!result.hidden?.some((h) => h.online))
   if (account || hasData) {
     const caption = p === 'discord' && hasData ? [account?.name, 'Serveur Discord'].filter(Boolean).join(' · ') : account?.name
     return { label: 'Connecté', pill: 'pill-success', caption }

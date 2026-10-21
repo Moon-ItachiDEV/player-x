@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { hasPlayed, PLAYED_SOURCE, playedBadge, playedOn } from '@shared/played'
-import { capitalize, cleanName, formatDate, formatPlaytime, norm, plural, timeAgo } from '@shared/text'
+import { capitalize, cleanName, formatDate, formatPlaytime, plural, timeAgo } from '@shared/text'
 import type { Friend, Game } from '@shared/types'
 import type { HomeProps, LaunchFn } from '../../contracts'
 import { PlayLabel } from '../../launch/PlayLabel'
 import { usePlayState } from '../../launch/usePlayState'
-import { follow, fxOn, motionReduced, setArtBase, setArtFocus, setMorphSource } from '../../motion'
+import { follow, fxOn, setArtBase, setArtFocus, setMorphSource } from '../../motion'
 import { FavStar, usePop } from '../library/GameCard'
 import { NoGames } from '../library/NoGames'
 import { Avatar } from '../ui/Avatar'
@@ -14,6 +14,9 @@ import { Icon } from '../ui/Icon'
 import { LiveBadge } from '../ui/LiveBadge'
 import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
 import { NewsBadge } from '../news/NewsBadge'
+import { NewsFeedRow } from '../news/NewsFeedRow'
+import { aroundLabel, playersLabel, playersOf, whoIsAround, type Around } from './around'
+import { useRowScroll } from './rowScroll'
 import './home.css'
 
 export type { HomeProps }
@@ -35,23 +38,8 @@ function pickHero(games: Game[]): Game | null {
   return recent ?? games.find((g) => g.favorite && hasArt(g)) ?? games.find(hasArt) ?? games[0] ?? null
 }
 
-/** Amis (et membres Discord) en train de jouer à ce jeu. */
-function playersOf(game: Game, friends: Friend[]): Friend[] {
-  const key = norm(game.name)
-  return friends.filter((f) => f.status === 'in-game' && !!f.game && norm(f.game) === key)
-}
-
-/** « 2 amis y jouent », « 1 ami et 1 membre Discord y jouent ». Les membres d'un serveur Discord ne sont pas des amis. */
-export function playersLabel(players: Friend[]): string {
-  const n = players.length
-  const pals = players.filter((p) => p.platform !== 'discord').length
-  const members = n - pals
-  const parts = [pals ? plural(pals, 'ami', 'amis') : '', members ? plural(members, 'membre Discord', 'membres Discord') : ''].filter(Boolean)
-  return `${parts.join(' et ')} ${n > 1 ? 'y jouent' : 'y joue'}`
-}
-
 export function Home(props: HomeProps): React.JSX.Element {
-  const { games, friends, scanning, report, demo, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, onShowLibrary } = props
+  const { games, friends, scanning, report, demo, news, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, onShowLibrary, onReadNews, onShowNews } = props
   const hero = useMemo(() => pickHero(games), [games])
   const heroId = hero?.id
 
@@ -64,6 +52,8 @@ export function Home(props: HomeProps): React.JSX.Element {
     const others = rest.filter((g) => !g.favorite && hasArt(g)).sort(byName)
     return { cards: [...favs, ...others].slice(0, 12), resumed: false }
   }, [games, heroId])
+  // Bandeau : amis en ligne autour du jeu à la une.
+  const around = useMemo(() => (hero ? whoIsAround(hero, friends) : null), [hero, friends])
 
   if (games.length === 0 && scanning) return <HomeSkeleton />
 
@@ -80,7 +70,9 @@ export function Home(props: HomeProps): React.JSX.Element {
       <HomeHero
         key={hero.id}
         game={hero}
-        players={playersOf(hero, friends)}
+        around={around}
+        news={news}
+        onReadNews={onReadNews}
         onLaunch={onLaunch}
         onOpen={onOpen}
         onFavorite={onFavorite}
@@ -96,20 +88,24 @@ export function Home(props: HomeProps): React.JSX.Element {
           onShowLibrary={onShowLibrary}
         />
       )}
+      <NewsFeedRow games={games} enabled={news} demo={demo} onRead={onReadNews} onShowAll={onShowNews} />
     </div>
   )
 }
 
 interface HeroProps {
   game: Game
-  players: Friend[]
+  around: Around | null
+  /** Actus des jeux activées : cellule « Dernier patch ». */
+  news: boolean
+  onReadNews: (gameId: string, postId: string) => void
   onLaunch: LaunchFn
   onOpen: (g: Game) => void
   onFavorite: (g: Game) => void
 }
 
 /** Grande carte du jeu à la une : visuel, jaquette, titre, actions et bandeau de chiffres en verre. */
-function HomeHero({ game, players, onLaunch, onOpen, onFavorite }: HeroProps): React.JSX.Element {
+function HomeHero({ game, around, news, onReadNews, onLaunch, onOpen, onFavorite }: HeroProps): React.JSX.Element {
   const root = useRef<HTMLElement>(null)
   const poster = useRef<HTMLButtonElement>(null)
   const p = usePlayState(game, onLaunch)
@@ -183,6 +179,7 @@ function HomeHero({ game, players, onLaunch, onOpen, onFavorite }: HeroProps): R
 
   const sub = game.running ? 'Partie en cours' : hasPlayed(game) ? "Reprends là où tu t'es arrêté" : 'Jamais lancé depuis Player X'
   const src = game.lastPlayedSource
+  const patch = game.lastPatch
 
   return (
     <section ref={root} className={`hh ${game.running ? 'is-live' : ''}`} aria-label={`À la une : ${name}`}>
@@ -278,17 +275,43 @@ function HomeHero({ game, players, onLaunch, onOpen, onFavorite }: HeroProps): R
             <dd>—</dd>
           )}
         </div>
-        {players.length > 0 && (
-          <div className="hh-k hh-friends" title={players.map((p) => p.name).join(', ')}>
-            <dt>{players.some((p) => p.platform !== 'discord') ? 'Amis en jeu' : 'Membres en jeu'}</dt>
+        {/* À droite : le dernier patch du jeu (ouvre ses notes), puis les amis en ligne. */}
+        {news && patch && (
+          <div className="hh-k hh-end hh-patch" title={`${patch.title} · notes publiées sur Steam le ${formatDate(patch.at)}`}>
+            <dt>Dernier patch</dt>
             <dd>
-              <span className="num">{players.length}</span>
+              <button
+                className="hh-patch-go"
+                aria-label={`Lire les notes du dernier patch de ${name} : ${patch.title}, ${timeAgo(patch.at)}`}
+                onClick={() => onReadNews(game.id, patch.id)}
+              >
+                {capitalize(timeAgo(patch.at))}
+                <Icon name="chevron-right" size={16} className="hh-patch-chev" />
+              </button>
+            </dd>
+          </div>
+        )}
+        {around && (
+          <div className="hh-k hh-end hh-friends" title={around.people.map((p) => p.name).join(', ')}>
+            <dt>
+              {around.kind === 'friends' ? 'Amis en ligne' : 'Membres en ligne'}
+              {around.here.size > 0 && (
+                <span className="hh-k-live" aria-hidden="true">
+                  {' '}
+                  · {around.here.size} {around.here.size > 1 ? 'y jouent' : 'y joue'}
+                </span>
+              )}
+            </dt>
+            <dd>
+              <span className="num" aria-hidden="true">
+                {around.people.length}
+              </span>
               <span className="hh-stack" aria-hidden="true">
-                {players.slice(0, 4).map((p) => (
-                  <Avatar key={p.id} name={p.name} url={p.avatarUrl} size={28} />
+                {around.people.slice(0, 4).map((p) => (
+                  <Avatar key={p.id} name={p.name} url={p.avatarUrl} size={28} className={around.here.has(p.id) ? 'is-here' : ''} />
                 ))}
               </span>
-              <span className="sr-only">{playersLabel(players)}</span>
+              <span className="sr-only">{aroundLabel(around)}</span>
             </dd>
           </div>
         )}
@@ -309,31 +332,7 @@ interface RowProps {
 
 /** Rangée de cartes défilante, avec boutons précédent / suivant. */
 function ResumeRow({ title, sub, games, friends, onLaunch, onOpen, onShowLibrary }: RowProps): React.JSX.Element {
-  const track = useRef<HTMLDivElement>(null)
-  const [edges, setEdges] = useState({ start: false, end: false })
-
-  useEffect(() => {
-    const el = track.current
-    if (!el) return
-    const update = (): void => {
-      const max = el.scrollWidth - el.clientWidth
-      setEdges({ start: el.scrollLeft > 4, end: max - el.scrollLeft > 4 })
-    }
-    update()
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    el.addEventListener('scroll', update, { passive: true })
-    return () => {
-      ro.disconnect()
-      el.removeEventListener('scroll', update)
-    }
-  }, [games.length])
-
-  const scrollBy = (dir: 1 | -1): void => {
-    const el = track.current
-    if (!el) return
-    el.scrollBy({ left: dir * el.clientWidth, behavior: motionReduced() ? 'auto' : 'smooth' })
-  }
+  const { track, edges, scrollBy } = useRowScroll(games.length)
 
   return (
     <section className="hr" aria-labelledby="hr-title">
@@ -442,23 +441,17 @@ function ResumeCard({ game, players, onLaunch, onOpen }: CardProps): React.JSX.E
           </button>
         </div>
       </div>
-      <div className="rc-foot">
-        {players.length > 0 ? (
-          <>
-            <span className="rc-stack" aria-hidden="true">
-              {players.slice(0, 3).map((p) => (
-                <Avatar key={p.id} name={p.name} url={p.avatarUrl} size={22} />
-              ))}
-            </span>
-            <span className="rc-foot-live">{playersLabel(players)}</span>
-          </>
-        ) : (
-          <>
-            <span className="rc-empty-ava" aria-hidden="true" />
-            <span>Aucun ami dessus en ce moment</span>
-          </>
-        )}
-      </div>
+      {/* Pied de carte seulement si quelqu'un y joue : pas de ligne de remplissage. */}
+      {players.length > 0 && (
+        <div className="rc-foot" title={players.map((p) => p.name).join(', ')}>
+          <span className="rc-stack" aria-hidden="true">
+            {players.slice(0, 3).map((p) => (
+              <Avatar key={p.id} name={p.name} url={p.avatarUrl} size={22} />
+            ))}
+          </span>
+          <span className="rc-foot-live">{playersLabel(players)}</span>
+        </div>
+      )}
     </article>
   )
 }

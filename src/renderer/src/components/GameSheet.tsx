@@ -51,7 +51,7 @@ export function GameSheet(props: GameSheetProps): React.JSX.Element | null {
 
 type SheetProps = Omit<GameSheetProps, 'game'> & { game: Game; closing: boolean }
 
-function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFavorite, onOpenFolder, onInstall, onOpenStats }: SheetProps): React.JSX.Element {
+function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan, onFavorite, onOpenFolder, onInstall, onOpenStats }: SheetProps): React.JSX.Element {
   const panelRef = useRef<HTMLElement>(null)
   const posterRef = useRef<HTMLDivElement>(null)
   const playRef = useRef<HTMLButtonElement>(null)
@@ -71,12 +71,24 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
   const patch = news ? opened.patch : undefined
   // Succès Steam : lus à l'ouverture, pour les jeux Steam seulement. La liste complète s'ouvre comme une annonce (ACH_VIEW).
   const { state: achState, reload: reloadAch } = useAchievements(game.id, game.store === 'steam' && !closing)
-  // Annonce ouverte dans le lecteur (identifiant), et d'où on vient pour y revenir.
-  const [reading, setReading] = useState<string | null>(null)
+  // Annonce ouverte dans le lecteur (identifiant), et d'où on vient pour y revenir. Ouverte depuis l'accueil ou la page
+  // Actus des jeux (`post`) : la fiche s'ouvre directement sur le lecteur.
+  const [reading, setReading] = useState<string | null>(news && post ? post : null)
+  const readingRef = useRef(reading)
+  readingRef.current = reading
   const readerBack = useRef<HTMLButtonElement>(null)
   const readerOpener = useRef<HTMLElement | null>(null)
   const listScroll = useRef(0)
   const seenFor = useRef<string | null>(null)
+  const readSeen = useRef<string | null>(null)
+
+  // Autre jeu, ou fiche rouverte pendant l'animation de fermeture : on repart de l'annonce demandée (ou de la fiche).
+  // Pendant le rendu (et pas dans un effet) : l'effet de focus de l'ouverture doit déjà voir le bon état.
+  const [resetKey, setResetKey] = useState(`${game.id}|${closing}`)
+  if (resetKey !== `${game.id}|${closing}`) {
+    setResetKey(`${game.id}|${closing}`)
+    if (!closing) setReading(news && post ? post : null)
+  }
 
   const markSeen = useCallback(() => {
     if (seenFor.current === game.id) return
@@ -89,6 +101,16 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
     if (patch && newsState.status === 'ready') markSeen()
   }, [patch, newsState.status, markSeen])
 
+  // Annonce lue : vue jusqu'à elle (les plus récentes gardent « Nouveau »).
+  useEffect(() => {
+    if (!reading || reading === ACH_VIEW || newsState.status !== 'ready') return
+    const read = newsState.news.posts.find((p) => p.id === reading)
+    const key = `${game.id}:${reading}`
+    if (!read || readSeen.current === key) return
+    readSeen.current = key
+    window.launcher.markNewsSeen(game.id, read.date).catch(() => {})
+  }, [reading, newsState, game.id])
+
   const openPost = (id: string, opener: HTMLElement): void => {
     readerOpener.current = opener
     listScroll.current = panelRef.current?.scrollTop ?? 0
@@ -97,26 +119,29 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
   const closeReader = (): void => setReading(null)
 
   // Lecteur ouvert : en haut, focus sur « Retour ». Refermé : retour à la même hauteur, focus sur l'actu d'origine.
-  const wasReading = useRef(false)
+  // Ouvert depuis l'extérieur de la fiche (accueil, page Actus) : le focus est encore sur la carte cliquée, c'est l'effet
+  // d'ouverture qui le prend (et qui retient la carte pour y revenir) ; au retour, haut de la fiche et focus sur le tiroir.
+  // On retient le jeu dont le lecteur était ouvert : sur un autre jeu, pas de retour à la hauteur de l'ancien.
+  const wasReading = useRef<string | null>(null)
   useLayoutEffect(() => {
     const panel = panelRef.current
     if (!panel) return
     if (reading) {
       panel.scrollTop = 0
-      readerBack.current?.focus({ preventScroll: true })
-    } else if (wasReading.current) {
-      panel.scrollTop = listScroll.current
+      if (panel.contains(document.activeElement)) readerBack.current?.focus({ preventScroll: true })
+      else readerOpener.current = null
+    } else if (wasReading.current === game.id) {
       const opener = readerOpener.current
-      if (opener?.isConnected) opener.focus({ preventScroll: true })
+      if (opener?.isConnected) {
+        panel.scrollTop = listScroll.current
+        opener.focus({ preventScroll: true })
+      } else {
+        panel.scrollTop = 0
+        panel.focus({ preventScroll: true })
+      }
     }
-    wasReading.current = !!reading
-  }, [reading])
-
-  // Autre jeu : on quitte le lecteur (sans revenir à la hauteur de l'ancien jeu).
-  useEffect(() => {
-    wasReading.current = false
-    setReading(null)
-  }, [game.id])
+    wasReading.current = reading ? game.id : null
+  }, [reading, game.id])
 
   useEscape(!closing && !reading, onClose)
   useEscape(!closing && !!reading, closeReader)
@@ -134,11 +159,13 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
     onClose()
   }
 
-  // Focus : on entre dans le tiroir à l'ouverture, on rend la main à l'élément d'origine à la fermeture.
+  // Focus : on entre dans le tiroir à l'ouverture (sur « Retour » si elle s'ouvre sur une annonce), on rend la main à
+  // l'élément d'origine à la fermeture.
   useEffect(() => {
     if (closing) return
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    panelRef.current?.focus({ preventScroll: true })
+    const target = readingRef.current ? readerBack.current : panelRef.current
+    target?.focus({ preventScroll: true })
     return () => {
       if (opener?.isConnected && !panelRef.current?.contains(opener)) opener.focus({ preventScroll: true })
     }
@@ -296,23 +323,29 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
 
         {isBf6Game(game) && <Bf6Link onOpen={onOpenStats} />}
 
-        {patch && <NewsBanner patch={patch} onOpen={(opener) => openPost(patch.id, opener)} />}
+        {patch && (
+          <NewsBanner
+            patch={patch}
+            game={game}
+            image={newsState.status === 'ready' ? newsState.news.posts.find((p) => p.id === patch.id)?.image : undefined}
+            onOpen={(opener) => openPost(patch.id, opener)}
+          />
+        )}
 
-        <section className="sheet-section">
-          <h3 className="sheet-h">
-            Amis sur ce jeu
-            {pals.length > 0 && <span className="sheet-h-count num">{pals.length}</span>}
-          </h3>
-          {pals.length ? (
+        {/* Personne sur ce jeu : pas de section (pas de ligne de remplissage). */}
+        {pals.length > 0 && (
+          <section className="sheet-section">
+            <h3 className="sheet-h">
+              Amis sur ce jeu
+              <span className="sheet-h-count num">{pals.length}</span>
+            </h3>
             <ul className="sheet-friends">
               {pals.map((f) => (
                 <FriendRow key={f.id} friend={f} />
               ))}
             </ul>
-          ) : (
-            <p className="caption">Aucun ami n'y joue en ce moment.</p>
-          )}
-        </section>
+          </section>
+        )}
 
         {members.length > 0 && (
           <section className="sheet-section">
@@ -332,6 +365,7 @@ function Sheet({ game, friends, closing, news, onClose, onLaunch, onRescan, onFa
 
         {news && (
           <NewsSection
+            game={game}
             state={newsState}
             seenAt={newsState.status === 'ready' ? newsState.news.seenAt : 0}
             onRead={(post: NewsPost, opener) => openPost(post.id, opener)}

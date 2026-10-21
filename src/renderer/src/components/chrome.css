@@ -335,6 +335,11 @@
   color: var(--accent);
   font: 700 11px/1 var(--font-ui);
 }
+/* Nouveautés (patchs) : couleur d'information, pas le jaune des actions */
+.side-count.is-info {
+  background: color-mix(in srgb, var(--info) 16%, transparent);
+  color: var(--info);
+}
 
 .side-foot {
   display: flex;

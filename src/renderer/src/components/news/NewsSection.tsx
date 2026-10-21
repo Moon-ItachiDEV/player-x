@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { capitalize, timeAgo } from '@shared/text'
 import type { Game, NewsPost } from '@shared/types'
 import { Icon } from '../ui/Icon'
+import { NewsThumb } from './NewsThumb'
 import type { NewsState } from './useGameNews'
 import './news.css'
 
@@ -11,13 +12,22 @@ const NEW_MS = 7 * 24 * 3600_000
 
 export const steamNewsUrl = (appId: string): string => `https://store.steampowered.com/news/app/${appId}`
 
+type GameArt = Pick<Game, 'name' | 'coverUrl' | 'heroUrl'>
+
+interface BannerProps {
+  patch: NonNullable<Game['newPatch']>
+  /** Image du jeu, quand l'annonce n'en a pas (ou pas encore lue). */
+  game: GameArt
+  /** Première image de l'annonce, une fois les actus lues. */
+  image?: string
+  onOpen: (opener: HTMLElement) => void
+}
+
 /** En haut de la fiche : le patch qui a valu son badge au jeu. */
-export function NewsBanner({ patch, onOpen }: { patch: NonNullable<Game['newPatch']>; onOpen: (opener: HTMLElement) => void }): React.JSX.Element {
+export function NewsBanner({ patch, game, image, onOpen }: BannerProps): React.JSX.Element {
   return (
     <button className="news-banner" onClick={(e) => onOpen(e.currentTarget)}>
-      <span className="news-banner-icon">
-        <Icon name="download" size={20} />
-      </span>
+      <NewsThumb game={game} image={image} patch className="news-banner-thumb" />
       <span className="news-banner-text">
         <span className="news-banner-kicker">Nouveau patch · {timeAgo(patch.at)}</span>
         <span className="news-banner-title">{patch.title}</span>
@@ -28,6 +38,8 @@ export function NewsBanner({ patch, onOpen }: { patch: NonNullable<Game['newPatc
 }
 
 interface SectionProps {
+  /** Image du jeu, pour les annonces qui n'en ont pas. */
+  game: GameArt
   state: NewsState
   /** Les actus plus récentes que cette date (et de moins de 7 jours) sont marquées « Nouveau ». */
   seenAt: number
@@ -38,7 +50,7 @@ interface SectionProps {
 }
 
 /** Section « Actus » de la fiche : les dernières annonces officielles du jeu sur Steam. */
-export function NewsSection({ state, seenAt, onRead, onRetry, onSeen }: SectionProps): React.JSX.Element {
+export function NewsSection({ game, state, seenAt, onRead, onRetry, onSeen }: SectionProps): React.JSX.Element {
   const ref = useRef<HTMLElement>(null)
   const seenRef = useRef(onSeen)
   seenRef.current = onSeen
@@ -84,7 +96,7 @@ export function NewsSection({ state, seenAt, onRead, onRetry, onSeen }: SectionP
           <ul className="news-list">
             {news.posts.slice(0, LIST_MAX).map((post) => (
               <li key={post.id}>
-                <NewsItem post={post} isNew={post.date > seenAt && now - post.date < NEW_MS} onRead={onRead} />
+                <NewsItem post={post} game={game} isNew={post.date > seenAt && now - post.date < NEW_MS} onRead={onRead} />
               </li>
             ))}
           </ul>
@@ -98,8 +110,7 @@ export function NewsSection({ state, seenAt, onRead, onRetry, onSeen }: SectionP
   )
 }
 
-function NewsItem({ post, isNew, onRead }: { post: NewsPost; isNew: boolean; onRead: SectionProps['onRead'] }): React.JSX.Element {
-  const [imgFailed, setImgFailed] = useState(false)
+function NewsItem({ post, game, isNew, onRead }: { post: NewsPost; game: GameArt; isNew: boolean; onRead: SectionProps['onRead'] }): React.JSX.Element {
   const when = capitalize(timeAgo(post.date))
   return (
     <button
@@ -107,13 +118,7 @@ function NewsItem({ post, isNew, onRead }: { post: NewsPost; isNew: boolean; onR
       onClick={(e) => onRead(post, e.currentTarget)}
       aria-label={`${post.patch ? 'Patch : ' : ''}${post.title}, ${when.toLowerCase()}${isNew ? ', nouveau' : ''}`}
     >
-      <span className="news-thumb" aria-hidden="true">
-        {post.image && !imgFailed ? (
-          <img src={post.image} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" draggable={false} onError={() => setImgFailed(true)} />
-        ) : (
-          <Icon name={post.patch ? 'download' : 'info'} size={20} />
-        )}
-      </span>
+      <NewsThumb game={game} image={post.image} patch={post.patch} />
       <span className="news-item-text" aria-hidden="true">
         <span className="news-meta">
           {post.patch && <span className="news-tag">Patch</span>}
