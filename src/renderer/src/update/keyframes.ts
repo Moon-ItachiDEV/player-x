@@ -15,7 +15,8 @@ export interface KeyframeSet {
   opts: KeyframeAnimationOptions
 }
 
-const k = (frames: Keyframe[], duration: number, easing: string, delay = 0): KeyframeSet => ({
+/** Une animation à `fill: 'both'` (partagé avec les images clés du lancement, launch/keyframes.ts). */
+export const k = (frames: Keyframe[], duration: number, easing: string, delay = 0): KeyframeSet => ({
   frames,
   opts: { duration, easing, delay, fill: 'both' }
 })

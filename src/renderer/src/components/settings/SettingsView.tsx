@@ -1,10 +1,11 @@
-// Paramètres : navigation latérale + une section à la fois. Pas de bouton « Enregistrer » global : chaque réglage s'applique seul.
+// Paramètres : une section par onglet (barre du haut). Pas de bouton « Enregistrer » global : chaque réglage s'applique seul.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { timeAgo } from '@shared/text'
 import type { FriendAlertMode, FriendPlatform, ScanReport, Settings } from '@shared/types'
 import { COVER_MIN, type SettingsProps, type SettingsSection, type UiPrefs } from '../../contracts'
 import { useSystemReducedMotion } from '../../motion'
-import { Icon, type IconName } from '../ui/Icon'
+import { TopTabs } from '../TopTabs'
+import { Icon } from '../ui/Icon'
 import { Segmented, Switch } from '../ui/Overlay'
 import { STORE_LONG, StoreTag } from '../ui/StoreTag'
 import { errorMessage, useToast } from '../ui/Toasts'
@@ -14,17 +15,12 @@ import { AdvancedSection } from './AdvancedSection'
 import { Collapse, SectionHead, SettingRow, storeCaption, useNow } from './parts'
 import './settings.css'
 
-const NAV: { group: string; items: { id: SettingsSection; label: string; icon: IconName }[] }[] = [
-  { group: 'Compte', items: [{ id: 'accounts', label: 'Comptes', icon: 'users' }] },
-  {
-    group: 'Application',
-    items: [
-      { id: 'library', label: 'Bibliothèque', icon: 'library' },
-      { id: 'interface', label: 'Interface', icon: 'sliders' }
-    ]
-  },
-  { group: 'Avancé', items: [{ id: 'advanced', label: 'Avancé', icon: 'key' }] },
-  { group: 'Player X', items: [{ id: 'about', label: 'À propos', icon: 'info' }] }
+const SECTIONS: { id: SettingsSection; label: string }[] = [
+  { id: 'accounts', label: 'Comptes' },
+  { id: 'library', label: 'Bibliothèque' },
+  { id: 'interface', label: 'Interface' },
+  { id: 'advanced', label: 'Avancé' },
+  { id: 'about', label: 'À propos' }
 ]
 
 export function SettingsView(props: SettingsProps): React.JSX.Element {
@@ -57,31 +53,16 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
 
   return (
     <div className="set-page" ref={rootRef}>
+      <h1 className="sr-only">Paramètres</h1>
+      <TopTabs<SettingsSection>
+        label="Sections des paramètres"
+        idBase="set"
+        value={section}
+        onChange={onSection}
+        tabs={SECTIONS.map((t) => (t.id === 'accounts' && attention > 0 ? { ...t, alert: 'action requise' } : t))}
+      />
       <div className="set-layout">
-        <nav className="set-nav" aria-label="Sections des paramètres">
-          <h1 className="display-l set-nav-title">Paramètres</h1>
-          {NAV.map((g) => (
-            <div className="set-nav-group" key={g.group} role="group" aria-label={g.group}>
-              <div className="overline set-nav-heading" aria-hidden="true">
-                {g.group}
-              </div>
-              {g.items.map((it) => (
-                <button key={it.id} className="set-nav-item" aria-current={section === it.id ? 'page' : undefined} onClick={() => onSection(it.id)}>
-                  <Icon name={it.icon} size={16} />
-                  {it.label}
-                  {it.id === 'accounts' && attention > 0 && (
-                    <span className="set-nav-flag" title="Action requise">
-                      <Icon name="alert-circle" size={14} />
-                      <span className="sr-only">· action requise</span>
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          ))}
-        </nav>
-
-        <div className="set-main">
+        <div className="set-main" id="set-panel" role="tabpanel" aria-labelledby={`set-tab-${section}`}>
           {section === 'accounts' && (
             <AccountsSection
               settings={settings}
@@ -221,6 +202,17 @@ const ALERT_LABEL: Record<FriendAlertMode, string> = {
   off: 'Désactivées'
 }
 
+const IS_WINDOWS = window.launcher?.platform === 'win32'
+
+/** Légende de « Quand un jeu démarre » (spec launch-sequence.md §5). Player X ne passe jamais devant le jeu. */
+function launchWindowCaption(settings: Settings): string {
+  if (!IS_WINDOWS) return 'Disponible sur Windows'
+  if (settings.demoMode) return 'Sans effet en mode démo : rien n’est lancé'
+  return settings.launchWindow === 'minimize'
+    ? 'Se réduit quand le jeu est détecté et revient quand tu le quittes, sauf s’il était agrandi'
+    : 'Player X reste ouvert derrière le jeu, sans jamais passer devant'
+}
+
 interface InterfaceProps {
   ui: UiPrefs
   onUiChange: (patch: Partial<UiPrefs>) => void
@@ -236,15 +228,15 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
       <SectionHead title="Interface">Ces préférences s'appliquent tout de suite et restent sur ce PC.</SectionHead>
       <div className="set-rows">
         <SettingRow
-          label="Panneau d'amis"
-          value={ui.friendsPanel === 'open' ? 'Affiché à droite de la fenêtre' : 'Masqué · le bouton de la barre du haut le rouvre'}
+          label="Liste d'amis du menu"
+          value={ui.friendsPanel === 'open' ? 'Dépliée sous la navigation' : "Repliée · un clic sur « Amis » la déplie"}
         >
           <Segmented
-            label="Panneau d'amis"
+            label="Liste d'amis du menu"
             value={ui.friendsPanel}
             options={[
-              { value: 'open', label: 'Affiché' },
-              { value: 'hidden', label: 'Masqué' }
+              { value: 'open', label: 'Dépliée' },
+              { value: 'hidden', label: 'Repliée' }
             ]}
             onChange={(friendsPanel) => onUiChange({ friendsPanel })}
           />
@@ -293,6 +285,18 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
           value={ui.transparency ? 'Activés · flou derrière les barres et les notifications' : 'Désactivés · couleurs pleines, sans flou'}
         >
           <Switch checked={ui.transparency} onChange={(transparency) => onUiChange({ transparency })} label="Effets de transparence" />
+        </SettingRow>
+        <SettingRow label="Quand un jeu démarre" value={launchWindowCaption(settings)}>
+          <Segmented
+            label="Quand un jeu démarre"
+            value={settings.launchWindow}
+            disabled={!IS_WINDOWS}
+            options={[
+              { value: 'stay', label: 'Rester ouvert' },
+              { value: 'minimize', label: 'Se réduire' }
+            ]}
+            onChange={(launchWindow) => onSaveSettings({ launchWindow }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+          />
         </SettingRow>
         <SettingRow label="Alertes d'amis" value={ALERT_LABEL[settings.friendAlerts]}>
           <div className="set-inline">

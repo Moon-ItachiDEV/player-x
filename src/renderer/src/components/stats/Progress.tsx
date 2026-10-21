@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 're
 import { capitalize } from '@shared/text'
 import type { Bf6Account, Bf6Point } from '@shared/types'
 import { Segmented } from '../ui/Overlay'
+import { dec, inWindow, int, kdOf, pct, playedFor } from './bf6'
 import './progress.css'
 
 // Progression : un relevé de tes totaux par jour (pris à chaque ouverture de la page, et par Player X en arrière-plan),
@@ -12,9 +13,6 @@ const api = window.launcher
 type Metric = 'kd' | 'kpm' | 'win'
 type Range = '7' | '30' | 'all'
 
-const int = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
-const dec = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const pct = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
 const dayFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' })
 const longDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -23,7 +21,7 @@ const METRICS: Record<Metric, { label: string; short: string; value: (p: Bf6Poin
     kd: {
       label: 'Ratio K/D',
       short: 'K/D',
-      value: (p) => (p.deaths ? p.kills / p.deaths : p.kills),
+      value: kdOf,
       format: (n) => dec.format(n),
       signed: (n) => `${n >= 0 ? '+' : '−'}${dec.format(Math.abs(n))}`
     },
@@ -44,14 +42,6 @@ const METRICS: Record<Metric, { label: string; short: string; value: (p: Bf6Poin
   }
 
 const RANGE_DAYS: Record<Range, number> = { '7': 7, '30': 30, all: Infinity }
-
-/** Durée lisible pour un écart de temps de jeu. */
-function playedFor(seconds: number): string {
-  const m = Math.round(seconds / 60)
-  if (m < 60) return `${m} min`
-  const h = Math.floor(m / 60)
-  return m % 60 ? `${h} h ${String(m % 60).padStart(2, '0')}` : `${h} h`
-}
 
 /** Graduations « rondes » couvrant [min, max]. */
 function niceTicks(min: number, max: number, count = 4): number[] {
@@ -94,17 +84,7 @@ export function Progress({ account, fetchedAt }: { account: Bf6Account; fetchedA
     }
   }, [account, fetchedAt])
 
-  const points = useMemo(() => {
-    if (!history) return []
-    const days = RANGE_DAYS[range]
-    if (!Number.isFinite(days)) return history
-    const since = Date.now() - days * 86_400_000
-    const inRange = history.filter((p) => p.at >= since)
-    // Le relevé juste avant la période sert de point de départ, s'il n'est pas trop ancien
-    // (sinon « 7 j » afficherait des mois après une longue pause).
-    const before = history.filter((p) => p.at < since && p.at >= since - Math.max(2, days / 2) * 86_400_000).at(-1)
-    return before ? [before, ...inRange] : inRange
-  }, [history, range])
+  const points = useMemo(() => (history ? inWindow(history, RANGE_DAYS[range]) : []), [history, range])
 
   if (!history) return <div className="skel pg-skel" />
 

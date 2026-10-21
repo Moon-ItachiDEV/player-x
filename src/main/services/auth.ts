@@ -38,7 +38,7 @@ function waitForCallback(path: string, accept: (url: URL) => boolean): Promise<U
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
       res.end(
-        '<body style="background:#0b0d17;color:#e8eaff;font-family:sans-serif;display:grid;place-items:center;height:100vh">' +
+        '<body style="background:#06101c;color:#eaf3ff;font-family:sans-serif;display:grid;place-items:center;height:100vh">' +
           '<h2>Connexion réussie, tu peux revenir sur Player X.</h2></body>'
       )
       done()

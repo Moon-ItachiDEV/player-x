@@ -11,7 +11,8 @@ function defaults(): Settings {
     discordGuildId: '',
     psnNpsso: '',
     demoMode: false,
-    friendAlerts: 'all'
+    friendAlerts: 'all',
+    launchWindow: 'stay'
   }
 }
 
@@ -19,6 +20,7 @@ const TEXT_KEYS = ['steamApiKey', 'discordClientId', 'discordClientSecret', 'dis
 /** Clés et jetons : jamais envoyés à l'interface (voir publicSettings). */
 const SECRET_KEYS = ['steamApiKey', 'discordClientSecret', 'psnNpsso'] as const
 const ALERT_MODES = ['all', 'games', 'off']
+const WINDOW_MODES = ['stay', 'minimize']
 /** Bien au-delà des vraies valeurs (clé Steam 32, NPSSO 64, secret Discord 32 caractères). */
 const MAX_TEXT = 256
 
@@ -34,6 +36,7 @@ function cleanPatch(patch: unknown): Partial<Settings> {
   if (typeof clean.discordGuildId === 'string') clean.discordGuildId = discordGuildIdFrom(clean.discordGuildId)
   if (typeof p.demoMode === 'boolean') clean.demoMode = p.demoMode
   if (typeof p.friendAlerts === 'string' && ALERT_MODES.includes(p.friendAlerts)) clean.friendAlerts = p.friendAlerts as Settings['friendAlerts']
+  if (typeof p.launchWindow === 'string' && WINDOW_MODES.includes(p.launchWindow)) clean.launchWindow = p.launchWindow as Settings['launchWindow']
   return clean
 }
 

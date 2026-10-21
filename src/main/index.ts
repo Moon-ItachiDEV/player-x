@@ -1,6 +1,7 @@
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { app, BrowserWindow, Menu, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, powerMonitor, session, shell } from 'electron'
+import type { LaunchStatus } from '@shared/launch'
 import type { Friend, FriendPlatform, Game, Settings } from '@shared/types'
 import * as db from './db'
 import { handle } from './ipc'
@@ -9,11 +10,28 @@ import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
 import { DEMO_FRIENDS, DEMO_GAMES, demoGames } from './services/demo'
 import { connectPsn, getAllFriends, resetPsn } from './services/friends'
-import { getScanReport, launch, scanAllGames } from './services/games'
+import { getScanReport, handoff, launchTarget, scanAllGames } from './services/games'
+import { createLaunches, sanitizeOpts, type LaunchDeps, type Launches, type LaunchWindow, type Timers } from './services/launches'
+import { createWatcher } from './services/launchWatch'
+import { newMatches } from './services/launchWatchParse'
 import { getAccounts, getSettings, publicSettings, removeAccount, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
-import { nudgePlaytime, startPlaytimeTracker, withPlaytime } from './services/playtime'
+import {
+  exeNamesFor,
+  isRunning,
+  lastPollOk,
+  matchedNames,
+  nudgePlaytime,
+  onPlaytimeChange,
+  pollNow,
+  runningSince,
+  snapshotPids,
+  startPlaytimeTracker,
+  storeWasRunning,
+  withPlaytime
+} from './services/playtime'
 import { initUpdater, takeRelaunchBounds } from './services/updater'
+import type { LaunchSim } from './launchSim'
 
 // .env : clés de développement seulement, jamais lu par la version installée.
 if (!app.isPackaged) {
@@ -36,14 +54,14 @@ function createWindow(): void {
     show: !b?.maximized,
     minWidth: 1024,
     minHeight: 640,
-    backgroundColor: '#0b0d14',
+    backgroundColor: '#06101c',
     title: 'Player X',
     icon: join(app.getAppPath(), 'resources', 'icon.png'),
     autoHideMenuBar: true,
     // Barre de titre intégrée à l'interface ; Windows garde ses boutons natifs (réduire, agrandir, fermer).
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' as const }
-      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#0b0d14', symbolColor: '#a3a8bd', height: 48 } }),
+      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#09192a', symbolColor: '#a6bdd9', height: 48 } }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
@@ -83,6 +101,18 @@ function demoState(): DemoState {
   return { launches: {}, ...db.getKv<Partial<DemoState>>('demoState', {}) }
 }
 
+/** Lancement en mode démo : seul le compteur de démo change, jamais la vraie bibliothèque. */
+function recordDemoLaunch(id: string): void {
+  const state = demoState()
+  const count = (state.launches[id]?.count ?? 0) + 1
+  db.setKv('demoState', { ...state, launches: { ...state.launches, [id]: { count, last: Date.now() } } })
+}
+
+/** Lancements de jeux (services/launches.ts). Créé avant l'IPC, au démarrage. */
+let launches: Launches
+/** Simulateur de lancement (`npm run dev` avec PX_LAUNCH_SIM) : toujours null dans la version installée. */
+let launchSim: LaunchSim | null = null
+
 async function games(refresh = false): Promise<Game[]> {
   if (getSettings().demoMode) {
     const state = demoState()
@@ -92,7 +122,9 @@ async function games(refresh = false): Promise<Game[]> {
         ...g,
         favorite: state.favorites ? state.favorites.includes(g.id) : g.favorite,
         lastPlayed: l?.last ?? g.lastPlayed,
-        launches: (g.launches ?? 0) + (l?.count ?? 0)
+        launches: (g.launches ?? 0) + (l?.count ?? 0),
+        // Développement : « En jeu » d'après le faux relevé du simulateur de lancement.
+        ...(launchSim?.isRunning(g.id) ? { running: true, runningSince: launchSim.runningSince(g.id) } : {})
       }
     })
   }
@@ -114,20 +146,12 @@ async function games(refresh = false): Promise<Game[]> {
 
 function registerIpc(): void {
   handle('games:list', (_e, refresh?: boolean) => games(refresh))
-  handle('games:launch', async (_e, id: string) => {
-    const game = (await games()).find((g) => g.id === id)
-    if (!game) throw new Error('Jeu introuvable.')
-    if (getSettings().demoMode) {
-      const state = demoState()
-      const count = (state.launches[id]?.count ?? 0) + 1
-      db.setKv('demoState', { ...state, launches: { ...state.launches, [id]: { count, last: Date.now() } } })
-      return
-    }
-    // La session n'est comptée qu'une fois le jeu vraiment lancé.
-    await launch(game)
-    db.recordLaunch(id)
-    nudgePlaytime()
+  // Ne rejette jamais pour un échec de lancement : la phase le dit (failed, already…), en français.
+  handle('games:launch', (_e, id: unknown, opts: unknown) => launches.start(typeof id === 'string' ? id : '', sanitizeOpts(opts)))
+  handle('launch:cancel', (_e, launchId: unknown) => {
+    if (typeof launchId === 'string') launches.cancel(launchId)
   })
+  handle('launch:list', () => launches.list())
   handle('games:report', () => getScanReport())
   handle('games:open-folder', async (_e, id: string) => {
     if (getSettings().demoMode) throw new Error('Mode démo : ce dossier n’existe pas sur ton PC.')
@@ -197,6 +221,8 @@ function registerIpc(): void {
     if (next.psnNpsso !== before.psnNpsso) resetPsn()
     if (next.demoMode !== wasDemo) {
       resetFriendAlerts()
+      // Les lancements en cours (vrais ou de démo) s'arrêtent sans carte : l'interface vide aussi les siens.
+      launches.reset()
       // Au retour du mode démo, on rescanne la vraie bibliothèque.
       scanned = false
       // Jaquettes des jeux fictifs, aussi quand la démo s'active en cours de session.
@@ -214,6 +240,114 @@ function registerIpc(): void {
   handle('shell:open', (_e, url: unknown) => {
     if (typeof url === 'string' && url.startsWith('https://')) return shell.openExternal(url)
   })
+}
+
+// ---------- lancement d'un jeu ----------
+
+function emitLaunch(s: LaunchStatus): void {
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (w.isDestroyed()) continue
+    try {
+      w.webContents.send('launch:status', s)
+    } catch {
+      /* page en plein rechargement : elle relira launch:list */
+    }
+  }
+}
+
+/**
+ * Fenêtre principale vue par le lancement : lue, réduite, ou rouverte sans activation. Un « restore » qui ne vient pas de
+ * showInactive ci-dessous est celui de l'utilisateur : Player X ne reviendra plus tout seul.
+ */
+function launchWindow(): LaunchWindow {
+  const win = (): BrowserWindow | undefined => BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
+  let ownRestoreUntil = 0
+  let onUser = (): void => {}
+  app.on('browser-window-created', (_e, w) =>
+    w.on('restore', () => {
+      if (Date.now() < ownRestoreUntil) {
+        ownRestoreUntil = 0
+        return
+      }
+      onUser()
+    })
+  )
+  return {
+    focused: () => win()?.isFocused() ?? true,
+    minimized: () => win()?.isMinimized() ?? false,
+    maximized: () => win()?.isMaximized() ?? false,
+    minimize: () => win()?.minimize(),
+    showInactive: () => {
+      const w = win()
+      if (!w) return
+      ownRestoreUntil = Date.now() + 1000
+      w.showInactive()
+    },
+    onUserRestore: (cb) => {
+      onUser = cb
+    }
+  }
+}
+
+function launchDeps(): LaunchDeps {
+  const timers: Timers = { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (h) => clearTimeout(h as NodeJS.Timeout) }
+  // Journal de développement seulement : `[launch] …` dans le terminal de `npm run dev`.
+  const log = app.isPackaged ? (): void => {} : (msg: string): void => console.log(`[launch] ${msg}`)
+  return {
+    platform: process.platform,
+    now: Date.now,
+    timers,
+    findGame: async (id) => (await games()).find((g) => g.id === id),
+    demo: () => getSettings().demoMode,
+    target: launchTarget,
+    handoff,
+    handlerKnown: (url) => {
+      try {
+        return app.getApplicationNameForProtocol(url) !== ''
+      } catch {
+        return null
+      }
+    },
+    recordLaunch: db.recordLaunch,
+    recordDemoLaunch,
+    tracker: {
+      isRunning,
+      runningSince,
+      pollNow,
+      lastPollOk,
+      snapshotPids,
+      storeWasRunning,
+      exeNamesFor,
+      matchedNames,
+      nudge: nudgePlaytime,
+      onChange: onPlaytimeChange
+    },
+    watcher: (onDown) => createWatcher({ now: Date.now, timers, log, onDown }),
+    newMatches,
+    window: launchWindow(),
+    onBattery: () => powerMonitor.isOnBatteryPower(),
+    settings: getSettings,
+    emit: emitLaunch,
+    gamesChanged: notifyGamesChanged,
+    log
+  }
+}
+
+/** En développement, PX_LAUNCH_SIM branche le vrai orchestrateur sur un faux Windows (launchSim.ts, jamais dans l'installeur). */
+async function startLaunches(): Promise<Launches> {
+  const deps = launchDeps()
+  const mode = app.isPackaged ? undefined : process.env.PX_LAUNCH_SIM
+  if (mode) {
+    try {
+      const { createLaunchSim } = await import('./launchSim')
+      launchSim = createLaunchSim(mode, deps, process.env.PX_LAUNCH_SIM_FAST === '1')
+      launchSim.onChange(notifyGamesChanged)
+      return launchSim.launches
+    } catch (e) {
+      console.error('[launch]', e)
+    }
+  }
+  return createLaunches(deps)
 }
 
 /** Électron accorde par défaut caméra, micro, position… à la page : seul le presse-papiers sert à Player X. */
@@ -257,6 +391,10 @@ app.whenReady().then(async () => {
   if (!firstInstance) return
   await db.initDb()
   lockDown()
+  launches = await startLaunches()
+  // Avant le relevé du temps de jeu : à la mise en veille, les lancements s'arrêtent sans bruit avant qu'il ne coupe les sessions.
+  powerMonitor.on('suspend', () => launches.suspend())
+  app.on('will-quit', () => launches.shutdown())
   registerIpc()
   initUpdater()
   startPlaytimeTracker(notifyGamesChanged)

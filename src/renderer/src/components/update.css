@@ -5,10 +5,10 @@
 
 .upd-dock {
   position: fixed;
-  left: calc(var(--rail-w) + 20px);
+  left: calc(var(--nav-w) + 20px);
   bottom: 20px;
   z-index: calc(var(--z-scrim) - 5);
-  width: min(var(--upd-w), calc(100vw - var(--rail-w) - 40px));
+  width: min(var(--upd-w), calc(100vw - var(--nav-w) - 40px));
   pointer-events: none;
 }
 .upd-dock[data-mode='mini'] {
@@ -26,7 +26,7 @@
   padding-bottom: 68px;
 }
 /* Fenêtre étroite : les toasts (à droite, 420 px au plus) passeraient sur la carte (ou la frôleraient), on les monte au-dessus. */
-@media (max-width: 1311px) {
+@media (max-width: 1279px) {
   #root:has(.upd-dock[data-mode='card']) .toasts {
     bottom: 108px;
   }

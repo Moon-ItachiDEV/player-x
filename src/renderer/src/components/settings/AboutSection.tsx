@@ -6,7 +6,7 @@ import { BrandMark } from '../ui/Brand'
 import { Icon } from '../ui/Icon'
 import { errorMessage, useToast } from '../ui/Toasts'
 import { useUpdateState } from '../UpdateNotice'
-import { gameRunning, isRealUpdateBusy, lastUpdate, useStore } from '../../update/session'
+import { busyTitle, gameRunning, isRealUpdateBusy, lastUpdate, useStore } from '../../update/session'
 import { requestRestart, warpActive } from '../../update/stage'
 import { preview, startPreview } from '../../update/preview'
 import { fpGroups, mo, pair, pct } from '../../update/format'
@@ -127,7 +127,7 @@ export function AboutSection(): React.JSX.Element {
             className="btn btn-secondary"
             onClick={(e) => void startPreview({ from: 'about', trigger: e.currentTarget })}
             disabled={busyForPreview || previewing || inGame}
-            title={busyForPreview ? 'Indisponible pendant une vraie mise à jour' : inGame ? 'Indisponible pendant une partie' : undefined}
+            title={busyForPreview ? 'Indisponible pendant une vraie mise à jour' : inGame ? busyTitle() : undefined}
           >
             Voir l'aperçu
           </button>

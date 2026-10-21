@@ -83,13 +83,23 @@ interface SegmentedProps<T extends string> {
   onChange: (v: T) => void
   className?: string
   label?: string
+  /** Indisponible ici (réglage réservé à Windows). */
+  disabled?: boolean
 }
 
-export function Segmented<T extends string>({ value, options, onChange, className = '', label }: SegmentedProps<T>): React.JSX.Element {
+export function Segmented<T extends string>({ value, options, onChange, className = '', label, disabled }: SegmentedProps<T>): React.JSX.Element {
+  // Indisponible : reste focalisable et lisible (aria-disabled), le clic ne fait rien.
   return (
-    <div className={`seg ${className}`} role="radiogroup" aria-label={label}>
+    <div className={`seg ${className}`} role="radiogroup" aria-label={label} aria-disabled={disabled || undefined}>
       {options.map((o) => (
-        <button key={o.value} role="radio" aria-checked={value === o.value} className={value === o.value ? 'active' : ''} onClick={() => onChange(o.value)}>
+        <button
+          key={o.value}
+          role="radio"
+          aria-checked={value === o.value}
+          aria-disabled={disabled || undefined}
+          className={value === o.value ? 'active' : ''}
+          onClick={() => !disabled && onChange(o.value)}
+        >
           {o.label}
         </button>
       ))}

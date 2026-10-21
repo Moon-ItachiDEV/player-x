@@ -12,7 +12,7 @@ import { requestRestart, restartBlocked } from './stage'
 import { PREVIEW_COUNTDOWN, preview, stopPreview, type PreviewFrame } from './preview'
 
 export type CardPhase = 'hidden' | 'download' | 'verify' | 'lock' | 'armed' | 'refused' | 'interrupted' | 'installing'
-export type HoldReason = 'unfocused' | 'hover' | 'game' | 'blocked' | null
+export type HoldReason = 'unfocused' | 'hover' | 'game' | 'launch' | 'blocked' | null
 export type VerifyStep = 'signature' | 'hash' | 'check'
 
 export interface CardModel {
@@ -320,7 +320,8 @@ const cellIn = (j: number): KeyframeSet => kf([{ opacity: 0 }, { opacity: 1 }], 
 
 const litOf = (percent: number): number => Math.floor((percent * 24) / 100)
 
-function useWindowActive(): boolean {
+/** Fenêtre au premier plan (focus et page visible), mis à jour à chaque changement. */
+export function useWindowActive(): boolean {
   const [active, setActive] = useState(() => !isIdle())
   useEffect(() => {
     const set = (): void => setActive(!isIdle())
@@ -337,8 +338,14 @@ function useWindowActive(): boolean {
   return active
 }
 
-export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; cardRef: RefObject<HTMLDivElement | null> }): CardApi {
+export function useCardPhase(
+  real: UpdateState | null,
+  o: { inGame: boolean; launching?: boolean; cardRef: RefObject<HTMLDivElement | null> }
+): CardApi {
   const { inGame, cardRef } = o
+  const launching = !!o.launching
+  // Partie en cours, ou jeu en train de se lancer : la carte se fait discrète (pastille, pas d'entrée, compte en pause).
+  const quiet = inGame || launching
   const notify = useToast()
   const active = useWindowActive()
   const pv = useStore(preview)
@@ -366,8 +373,8 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
   const viewRef = useRef(view)
   const srcRef = useRef<Src | null>(null)
   const [wakeN, setWakeN] = useState(0)
-  const inGameRef = useRef(inGame)
-  inGameRef.current = inGame
+  const quietRef = useRef(quiet)
+  quietRef.current = quiet
 
   // Verrouillage en cours (clé de la vue « prête », texte déjà passé aux lignes « prête »).
   const [lock, setLock] = useState<{ key: string; tier: 'full' | 'sober'; swapped: boolean; dur: number; swap: number } | null>(null)
@@ -389,7 +396,7 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
       if (next.kind === 'ready' && prev.kind === 'verify' && prev.id === next.id && !locked.current.has(lk)) {
         locked.current.add(lk)
         const t = tier()
-        if (inGameRef.current || isIdle()) accentFor.current = t === 'reduced' ? null : next.key
+        if (quietRef.current || isIdle()) accentFor.current = t === 'reduced' ? null : next.key
         else if (t !== 'reduced') setLock({ key: next.key, tier: t, swapped: false, ...LOCK[t] })
       }
     }
@@ -440,10 +447,10 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
   const lockActive = !!lock && lock.key === view.key && view.kind === 'ready'
 
   const phase: CardPhase = hidden ? 'hidden' : view.kind === 'ready' ? (isRestarting ? 'installing' : lockActive ? 'lock' : 'armed') : view.kind
-  const mini = inGame && !view.preview && (phase === 'download' || phase === 'verify')
+  const mini = quiet && !view.preview && (phase === 'download' || phase === 'verify')
 
   const hold: HoldReason =
-    phase !== 'armed' ? null : blocked ? 'blocked' : inGame ? 'game' : !active ? 'unfocused' : hovered || focusWithin ? 'hover' : null
+    phase !== 'armed' ? null : blocked ? 'blocked' : inGame ? 'game' : launching ? 'launch' : !active ? 'unfocused' : hovered || focusWithin ? 'hover' : null
   const counting = phase === 'armed' && hold === null && !leaving
 
   // Pointeur ou focus restés sur une carte disparue : ils ne doivent pas geler la suivante. La même carte traverse
@@ -576,7 +583,7 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
       arrived.current.add(view.id)
       let played = false
       // En jeu, la carte apparaît sans entrée (§5.6) ; l'accent d'armement attend la fin de la partie.
-      if (t === 'full' && !inGame) {
+      if (t === 'full' && !quiet) {
         played = !!play(card, KF.cardIn)
         if (played && (phase === 'download' || phase === 'armed')) {
           play(q('.upd-sheen'), KF.sheen, { delay: 260 })
@@ -585,10 +592,10 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
           play(q('.upd-swap > .upd-text'), KF.textIn, { delay: 380 })
         }
         if (played && phase === 'verify') play(q('.rx-shield-svg'), KF.shieldIn)
-      } else if (t === 'sober' && !inGame) played = !!play(card, KF.cardInSober, { level: 'sober' })
+      } else if (t === 'sober' && !quiet) played = !!play(card, KF.cardInSober, { level: 'sober' })
       if (played && phase === 'refused') refusedCore(q, t, true)
       // Prête dès l'arrivée (état lu au lancement) sans entrée visible : l'accent attend le premier plan.
-      if (phase === 'armed' && !played && t === 'full' && (isIdle() || inGame)) accentFor.current = view.key
+      if (phase === 'armed' && !played && t === 'full' && (isIdle() || quiet)) accentFor.current = view.key
       return
     }
 
@@ -665,7 +672,7 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
 
   // Accent d'armement (§6.5) : prête arrivée fenêtre inactive ou en partie, joué au prochain retour, une fois par version.
   useEffect(() => {
-    if (accentFor.current !== view.key || phase !== 'armed' || !active || inGame) return
+    if (accentFor.current !== view.key || phase !== 'armed' || !active || quiet) return
     accentFor.current = null
     const card = cardRef.current
     if (!card || tier() !== 'full') return
@@ -673,7 +680,7 @@ export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; car
     play(card.querySelector('.rx-glow'), ACCENT_GLOW)
     card.querySelectorAll('.rx-cell-lit.on').forEach((el, j) => play(el, cellIn(j)))
     play(card.querySelector('.upd-sheen'), KF.sheen)
-  }, [active, inGame, phase, view.key, cardRef])
+  }, [active, quiet, phase, view.key, cardRef])
 
   // Remplissage de « Redémarrer » (§6.6) : une animation par version, pilotée par currentTime à chaque seconde,
   // en pause hors du compte. Fenêtre en arrière-plan : annulée, le style statique garde la même position.

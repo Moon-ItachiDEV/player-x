@@ -83,7 +83,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }): R
   )
 }
 
-export function ToastProvider({ children, right }: { children: React.ReactNode; right: string }): React.JSX.Element {
+export function ToastProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [toasts, setToasts] = useState<Toast[]>([])
 
   const notify = useCallback<Notify>((message, options = {}) => {
@@ -97,7 +97,7 @@ export function ToastProvider({ children, right }: { children: React.ReactNode; 
   return (
     <ToastContext.Provider value={notify}>
       {children}
-      <div className="toasts" style={{ ['--toast-right' as string]: right }}>
+      <div className="toasts">
         {toasts.map((t) => (
           <ToastItem key={t.key} toast={t} onClose={() => close(t.id)} />
         ))}

@@ -2,22 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Account, FriendPlatform, FriendsResult, Game, ScanReport, Settings } from '@shared/types'
 import { AccountMenu } from './components/AccountMenu'
 import { Ambient } from './components/Ambient'
+import { FavRail } from './components/FavRail'
 import { FriendAlerts } from './components/FriendAlerts'
-import { FriendsPanel } from './components/friends/FriendsPanel'
 import { GameSheet } from './components/GameSheet'
+import { Home } from './components/home/Home'
 import { Library } from './components/library/Library'
 import { Login } from './components/Login'
 import { Profile } from './components/Profile'
-import { Rail } from './components/Rail'
 import { SettingsView } from './components/settings/SettingsView'
 import { Setup } from './components/setup/Setup'
+import { Sidebar } from './components/Sidebar'
 import { Stats } from './components/stats/Stats'
 import { TopBar } from './components/TopBar'
+import { TopSlot } from './components/TopTabs'
 // Avant WhatsNew : lit pg.lastVersion et prépare le retour d'une mise à jour avant le premier rendu.
-import { gameRunning } from './update/session'
+import { gameRunning, launchBusy } from './update/session'
 import './update/stage'
 import { UpdateStage } from './update/UpdateStage'
 import { UpdateNotice } from './components/UpdateNotice'
+import { LaunchDock } from './launch/LaunchDock'
+import { LaunchStage } from './launch/LaunchStage'
+import { bindLaunchIpc, resetLaunches, setLaunchDemo, startLaunch, useFrozenGames, useLaunchPending } from './launch/store'
 import { WhatsNew } from './components/WhatsNew'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
 import { COVER_MIN, type LoginPlatform, type SettingsSection, type UiPrefs, type View } from './contracts'
@@ -30,6 +35,9 @@ const api = window.launcher
 const DEFAULT_UI: UiPrefs = { friendsPanel: 'open', coverSize: 'M', reduceMotion: false, transparency: true, visualFx: true }
 
 const SETUP_KEY = 'pg.setup'
+
+/** Titre de la barre du haut ; la bibliothèque, les stats et les paramètres y posent leurs onglets à la place. */
+const VIEW_TITLE: Partial<Record<View, string>> = { home: 'Accueil', profile: 'Profil' }
 
 function setupDone(): boolean {
   try {
@@ -49,8 +57,6 @@ function loadUi(): UiPrefs {
 
 export default function App(): React.JSX.Element {
   const [ui, setUi] = useState<UiPrefs>(loadUi)
-  // Remonté ici : les toasts ne laissent la place du panneau d'amis que quand la coque est affichée.
-  const [entered, setEntered] = useState(false)
   // Écran de démarrage (choix des favoris) : une fois après l'entrée, puis à la demande. `first` = premier passage.
   const [setup, setSetup] = useState<{ open: boolean; first: boolean }>(() => ({ open: !setupDone(), first: !setupDone() }))
   const systemReduced = useSystemReducedMotion()
@@ -77,9 +83,10 @@ export default function App(): React.JSX.Element {
   }, [ui, systemReduced])
 
   return (
-    <ToastProvider right={entered && !setup.open && ui.friendsPanel === 'open' ? 'var(--friends-w)' : '0px'}>
-      <Shell ui={ui} updateUi={updateUi} entered={entered} setEntered={setEntered} setup={setup} setSetup={setSetup} />
+    <ToastProvider>
+      <Shell ui={ui} updateUi={updateUi} setup={setup} setSetup={setSetup} />
       <UpdateStage />
+      <LaunchStage />
     </ToastProvider>
   )
 }
@@ -87,16 +94,15 @@ export default function App(): React.JSX.Element {
 interface ShellProps {
   ui: UiPrefs
   updateUi: (p: Partial<UiPrefs>) => void
-  entered: boolean
-  setEntered: (v: boolean) => void
   setup: { open: boolean; first: boolean }
   setSetup: (v: { open: boolean; first: boolean }) => void
 }
 
-function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProps): React.JSX.Element {
+function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element {
   const notify = useToast()
   const [ready, setReady] = useState(false)
-  const [view, setView] = useState<View>('library')
+  const [entered, setEntered] = useState(false)
+  const [view, setView] = useState<View>('home')
   const [section, setSection] = useState<SettingsSection>('accounts')
   const [settings, setSettings] = useState<Settings | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -108,15 +114,14 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
   const [friendsLoading, setFriendsLoading] = useState(false)
   const [query, setQuery] = useState('')
   const [openGameId, setOpenGameId] = useState<string | null>(null)
-  const [launchingId, setLaunchingId] = useState<string | null>(null)
   const [accountMenu, setAccountMenu] = useState(false)
+  // Emplacement des onglets de page dans la barre du haut (TopTabs).
+  const [tabSlot, setTabSlot] = useState<HTMLElement | null>(null)
   const [loginPending, setLoginPending] = useState<LoginPlatform | null>(null)
   const [loginError, setLoginError] = useState<string | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   // Seule la dernière connexion lancée met à jour l'état et le toast « login ».
   const loginSeq = useRef(0)
-  // Jeu en cours de lancement, lu sans attendre le rendu (double clic).
-  const launchingRef = useRef<string | null>(null)
   // Change à chaque bascule du mode démo : un scan lancé avant ne doit pas remplacer la nouvelle bibliothèque.
   const libraryEpoch = useRef(0)
 
@@ -164,11 +169,33 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
       setReady(true)
     })
     loadGames()
-    return api.onGamesChanged(() => api.getGames().then(setGames))
+    return api.onGamesChanged(() =>
+      api
+        .getGames()
+        .then(setGames)
+        .catch(() => {})
+    )
   }, [loadGames, setEntered])
 
-  // Un jeu en cours coupe l'aperçu de l'animation de mise à jour (rien n'anime pendant une partie).
-  useEffect(() => gameRunning.set(games.some((g) => g.running)), [games])
+  // Lancements : événements du processus principal, puis ceux déjà en cours (rechargement de l'interface).
+  useEffect(() => bindLaunchIpc(), [])
+  useEffect(() => setLaunchDemo(!!settings?.demoMode), [settings?.demoMode])
+  const pending = useLaunchPending()
+  // Les écrans voient la date de dernier lancement d'avant le clic tant que le lancement attend (rien ne bouge).
+  const shownGames = useFrozenGames(games)
+  const anyRunning = games.some((g) => g.running)
+
+  // Un jeu en cours (ou un vrai lancement) coupe l'aperçu de l'animation de mise à jour (rien n'anime pendant une partie).
+  useEffect(() => {
+    launchBusy.set(pending.real && !anyRunning)
+    gameRunning.set(anyRunning || pending.real)
+  }, [anyRunning, pending.real])
+  // Pendant un lancement, les boucles d'ambiance s'arrêtent (base.css :root[data-launching]).
+  useEffect(() => {
+    const root = document.documentElement
+    if (pending.any) root.dataset.launching = ''
+    else delete root.dataset.launching
+  }, [pending.any])
 
   // Les comptes comptent par identité : un pseudo ou un avatar mis à jour ne relance pas toute la récupération.
   const accountsKey = accounts.map((a) => `${a.platform}:${a.id}`).join('|')
@@ -179,8 +206,12 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     return () => clearInterval(timer)
   }, [entered, accountsKey, settings?.demoMode, settings?.discordGuildId, settings?.steamApiKey, settings?.psnNpsso, loadFriends])
 
-  // Clic sur une notification Windows d'un ami : on montre le panneau d'amis.
-  useEffect(() => api.onShowFriends(() => updateUi({ friendsPanel: 'open' })), [updateUi])
+  // Clic sur une notification Windows d'un ami (ou sur une alerte) : la liste d'amis du menu se déplie et se montre.
+  const showFriends = useCallback(() => {
+    updateUi({ friendsPanel: 'open' })
+    requestAnimationFrame(() => document.querySelector('.side-friends')?.scrollIntoView({ block: 'nearest' }))
+  }, [updateUi])
+  useEffect(() => api.onShowFriends(showFriends), [showFriends])
 
   // Ctrl+F / Ctrl+K : recherche.
   useEffect(() => {
@@ -201,6 +232,9 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     const next = await api.saveSettings(patch)
     setSettings(next)
     if ('demoMode' in patch) {
+      // Le processus principal a arrêté de suivre les lancements de l'autre bibliothèque.
+      setLaunchDemo(next.demoMode)
+      resetLaunches()
       libraryEpoch.current++
       setGames(await api.getGames())
       // Un scan encore en cours appartient à l'ancienne bibliothèque : il ne doit plus bloquer l'écran.
@@ -244,28 +278,6 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     [notify]
   )
 
-  const launch = useCallback(
-    async (game: Game) => {
-      // Déjà en cours de lancement : on ignore le second clic.
-      if (launchingRef.current === game.id) return
-      launchingRef.current = game.id
-      setLaunchingId(game.id)
-      try {
-        await api.launchGame(game.id)
-        notify(settings?.demoMode ? `Mode démo : ${game.name} serait lancé` : `Lancement de ${game.name}…`, { kind: 'info' })
-        setGames(await api.getGames())
-      } catch (e) {
-        notify(`Impossible de lancer ${game.name} : ${errorMessage(e)}`, { kind: 'error' })
-      } finally {
-        setTimeout(() => {
-          if (launchingRef.current === game.id) launchingRef.current = null
-          setLaunchingId((id) => (id === game.id ? null : id))
-        }, 1500)
-      }
-    },
-    [notify, settings?.demoMode]
-  )
-
   const toggleFavorite = useCallback(async (game: Game) => setGames(await api.toggleFavorite(game.id)), [])
 
   const openFolder = useCallback(
@@ -284,16 +296,16 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     setEntered(true)
   }, [saveSettings, setEntered])
 
-  /** Ferme l'écran de démarrage : vers la bibliothèque après un choix ou au premier passage, sinon on reste où on était (Paramètres). */
+  /** Ferme l'écran de démarrage : vers l'accueil après un choix ou au premier passage, sinon on reste où on était. */
   const closeSetup = useCallback(
-    (toLibrary: boolean) => {
+    (toHome: boolean) => {
       try {
         localStorage.setItem(SETUP_KEY, '1')
       } catch {
         /* stockage indisponible : l'écran reviendra au prochain lancement */
       }
       setSetup({ open: false, first: false })
-      if (toLibrary) setView('library')
+      if (toHome) setView('home')
       // Retour aux Paramètres : le focus revient sur le bouton qui a ouvert l'écran.
       else requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-open-setup]')?.focus())
     },
@@ -322,7 +334,7 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
     setAccountMenu(false)
   }
 
-  const openGame = useMemo(() => games.find((g) => g.id === openGameId) ?? null, [games, openGameId])
+  const openGame = useMemo(() => shownGames.find((g) => g.id === openGameId) ?? null, [shownGames, openGameId])
 
   // Ouverture et fermeture de la fiche : la jaquette (ou le visuel) d'origine se transforme en en-tête.
   const openSheet = useCallback((g: Game) => {
@@ -365,106 +377,120 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
   }
 
   const friendsOpen = ui.friendsPanel === 'open'
+  const go = (v: View): void => {
+    setView(v)
+    setAccountMenu(false)
+  }
 
   return (
-    <div className={`shell ${friendsOpen ? '' : 'friends-hidden'}`}>
-      <Rail
+    <div className="shell">
+      <FavRail games={shownGames} onLaunch={startLaunch} onOpen={openSheet} onEditFavorites={() => setSetup({ open: true, first: false })} />
+      <Sidebar
         view={view}
-        onView={(v) => {
-          setView(v)
-          setAccountMenu(false)
-        }}
+        onView={go}
+        gamesCount={games.length}
         accounts={accounts}
         demo={settings.demoMode}
         accountMenuOpen={accountMenu}
         onToggleAccountMenu={() => setAccountMenu((o) => !o)}
+        friends={{
+          result: friends,
+          accounts,
+          games,
+          demo: settings.demoMode,
+          discordConfigured: !!settings.discordGuildId,
+          loading: friendsLoading,
+          open: friendsOpen,
+          onToggleOpen: () => updateUi({ friendsPanel: friendsOpen ? 'hidden' : 'open' }),
+          onRefresh: loadFriends,
+          onOpenAccounts: () => goSettings('accounts')
+        }}
       />
       <TopBar
+        title={VIEW_TITLE[view]}
         query={query}
         onQueryChange={(q) => {
           setQuery(q)
           if (q && view !== 'library') setView('library')
         }}
         searchRef={searchRef}
-        friends={friends.friends}
-        friendsOpen={friendsOpen}
-        onToggleFriends={() => updateUi({ friendsPanel: friendsOpen ? 'hidden' : 'open' })}
+        slotRef={setTabSlot}
       />
       <Ambient />
-      <main className="content" key={view}>
-        {view === 'library' && (
-          <Library
-            games={games}
-            friends={friends.friends}
-            scanning={scanning}
-            report={report}
-            demo={settings.demoMode}
-            query={query}
-            onClearQuery={() => setQuery('')}
-            launchingId={launchingId}
-            onLaunch={launch}
-            onOpen={openSheet}
-            onFavorite={toggleFavorite}
-            onRescan={() => loadGames(true)}
-            onEnableDemo={enableDemo}
-          />
-        )}
-        {view === 'profile' && (
-          <Profile
-            games={games}
-            accounts={accounts}
-            friends={friends}
-            launchingId={launchingId}
-            onOpenGame={openSheet}
-            onLaunch={launch}
-            onManageAccounts={() => goSettings('accounts')}
-            onShowFriends={() => updateUi({ friendsPanel: 'open' })}
-          />
-        )}
-        {view === 'stats' && <Stats games={games} />}
-        {view === 'settings' && (
-          <SettingsView
-            section={section}
-            onSection={setSection}
-            settings={settings}
-            accounts={accounts}
-            friends={friends}
-            report={report}
-            scanning={scanning}
-            lastScanAt={lastScanAt}
-            gamesCount={games.length}
-            ui={ui}
-            onUiChange={updateUi}
-            onSaveSettings={saveSettings}
-            onLogin={login}
-            onLogout={logout}
-            onRescan={() => loadGames(true)}
-            onOpenSetup={() => setSetup({ open: true, first: false })}
-            loginPending={loginPending}
-          />
-        )}
-      </main>
-      {friendsOpen && (
-        <FriendsPanel
-          result={friends}
-          accounts={accounts}
-          games={games}
-          demo={settings.demoMode}
-          discordConfigured={!!settings.discordGuildId}
-          loading={friendsLoading}
-          onRefresh={loadFriends}
-          onHide={() => updateUi({ friendsPanel: 'hidden' })}
-          onOpenAccounts={() => goSettings('accounts')}
-        />
-      )}
+      <TopSlot.Provider value={tabSlot}>
+        <main className="content" key={view}>
+          {view === 'home' && (
+            <Home
+              games={shownGames}
+              friends={friends.friends}
+              scanning={scanning}
+              report={report}
+              demo={settings.demoMode}
+              onLaunch={startLaunch}
+              onOpen={openSheet}
+              onFavorite={toggleFavorite}
+              onRescan={() => loadGames(true)}
+              onEnableDemo={enableDemo}
+              onShowLibrary={() => go('library')}
+            />
+          )}
+          {view === 'library' && (
+            <Library
+              games={shownGames}
+              scanning={scanning}
+              report={report}
+              demo={settings.demoMode}
+              query={query}
+              onClearQuery={() => setQuery('')}
+              onLaunch={startLaunch}
+              onOpen={openSheet}
+              onFavorite={toggleFavorite}
+              onRescan={() => loadGames(true)}
+              onEnableDemo={enableDemo}
+              coverSize={ui.coverSize}
+              onCoverSize={(coverSize) => updateUi({ coverSize })}
+            />
+          )}
+          {view === 'profile' && (
+            <Profile
+              games={shownGames}
+              accounts={accounts}
+              friends={friends}
+              onOpenGame={openSheet}
+              onLaunch={startLaunch}
+              onManageAccounts={() => goSettings('accounts')}
+              onShowFriends={showFriends}
+            />
+          )}
+          {view === 'stats' && <Stats games={games} />}
+          {view === 'settings' && (
+            <SettingsView
+              section={section}
+              onSection={setSection}
+              settings={settings}
+              accounts={accounts}
+              friends={friends}
+              report={report}
+              scanning={scanning}
+              lastScanAt={lastScanAt}
+              gamesCount={games.length}
+              ui={ui}
+              onUiChange={updateUi}
+              onSaveSettings={saveSettings}
+              onLogin={login}
+              onLogout={logout}
+              onRescan={() => loadGames(true)}
+              onOpenSetup={() => setSetup({ open: true, first: false })}
+              loginPending={loginPending}
+            />
+          )}
+        </main>
+      </TopSlot.Provider>
       <AccountMenu
         open={accountMenu}
         accounts={accounts}
         onClose={() => setAccountMenu(false)}
-        onProfile={() => {
-          setView('profile')
-          setAccountMenu(false)
-        }}
+        onProfile={() => go('profile')}
         onAccounts={() => goSettings('accounts')}
         onSettings={() => goSettings('accounts')}
         onLogin={() => {
@@ -475,14 +501,19 @@ function Shell({ ui, updateUi, entered, setEntered, setup, setSetup }: ShellProp
       <GameSheet
         game={openGame}
         friends={friends.friends}
-        launching={!!openGame && launchingId === openGame.id}
         onClose={closeSheet}
-        onLaunch={launch}
+        onLaunch={startLaunch}
+        onRescan={() => loadGames(true)}
         onFavorite={toggleFavorite}
         onOpenFolder={openFolder}
+        onOpenStats={() => {
+          setOpenGameId(null)
+          go('stats')
+        }}
       />
-      <FriendAlerts games={games} onShowFriends={() => updateUi({ friendsPanel: 'open' })} />
-      <UpdateNotice onOpenAbout={() => goSettings('about')} inGame={games.some((g) => g.running)} />
+      <FriendAlerts games={games} onShowFriends={showFriends} />
+      <UpdateNotice onOpenAbout={() => goSettings('about')} inGame={anyRunning} launching={pending.real && !anyRunning} />
+      <LaunchDock onRescan={() => loadGames(true)} />
       <WhatsNew />
     </div>
   )

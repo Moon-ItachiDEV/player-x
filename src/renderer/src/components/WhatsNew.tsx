@@ -6,7 +6,7 @@ import type { LastUpdate } from '@shared/types'
 import { useEscape } from './ui/Overlay'
 import { BrandMark } from './ui/Brand'
 import { Icon } from './ui/Icon'
-import { anim, gameRunning, isRealUpdateBusy, lastUpdate, PREVIOUS_VERSION, thisBootUpdate, useStore, useUpdateState, VERSION } from '../update/session'
+import { anim, busyTitle, gameRunning, isRealUpdateBusy, lastUpdate, PREVIOUS_VERSION, thisBootUpdate, useStore, useUpdateState, VERSION } from '../update/session'
 import { revealDone } from '../update/stage'
 import { preview, PREVIEW_INTRO, startPreview, stopPreview } from '../update/preview'
 import { duration } from '../update/format'
@@ -199,7 +199,7 @@ export function WhatsNew(): React.JSX.Element | null {
                 isRealUpdateBusy(upd)
                   ? 'Indisponible pendant une vraie mise à jour'
                   : inGame
-                    ? 'Indisponible pendant une partie'
+                    ? busyTitle()
                     : "Rejoue l'animation de mise à jour, sans rien installer"
               }
               onClick={() => {

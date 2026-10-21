@@ -31,7 +31,7 @@ The update is one continuous object: the **reactor**, a 52 px core in a fixed-si
 | From | Taken |
 |---|---|
 | **Séquence Réacteur** (base) | Reactor, shield, energy cells, hyperspace warp, match cut across the NSIS gap, boot reveal, main-owned clamped restart delay with failsafe, kv handoff with measured « de retour en N s », `initialTier()`, step queue, stall handling, refused-shield card. |
-| **Métamorphose** | Motion is data (zero infinite animations while downloading), translate-not-scale fills, `anim()` tier gate for WAAPI, mark flying into `.rail-logo .brand-mark` at the end of the reveal, `PX_UPDATE_SIM` dev simulator, no ETA, data lines in `--text-2`, preview never invents a target version. |
+| **Métamorphose** | Motion is data (zero infinite animations while downloading), translate-not-scale fills, `anim()` tier gate for WAAPI, mark flying into `.favrail-logo .brand-mark` at the end of the reveal, `PX_UPDATE_SIM` dev simulator, no ETA, data lines in `--text-2`, preview never invents a target version. |
 | **Overdrive** | Counter-translated gradient bar, zero-animation mini pill while a game runs, celebration deferred to the next focus, mandatory hover and focus-within countdown pause, WAAPI charge fill inside « Redémarrer », error tone by code, `check()` guard, WhatsNew stat chips, « Voir l'aperçu » in the shipping WhatsNew, « Copier l'empreinte », « Plus tard » toast, 1 MiB hashing chunks, `gotProgress` rule, `win.setProgressBar`. |
 | **New here** | The implosion uses a **View Transition snapshot** instead of animating `.shell`. `install()` returns an `InstallResult` and the renderer has its own watchdog, which fixes the stuck UI. The reveal holds a static frame until `.boot` is gone. Relaunch restores the window bounds. SVG "line draws" are replaced by transform/opacity stamps. |
 
@@ -748,9 +748,11 @@ App
    ├─ Shell
    │   └─ .shell
    │       ├─ … (rail, topbar, backdrop, content, friends)
-   │       ├─ UpdateNotice inGame={games.some(g => g.running)}   ← dock (card | mini) + live region
+   │       ├─ UpdateNotice inGame={anyRunning} launching={realPending && !anyRunning}   ← dock (card | mini) + live region
+   │       ├─ LaunchDock                                         ← 0.7.0: launch card, stacked above (§6.10)
    │       └─ WhatsNew                                           ← waits for revealDone
-   └─ UpdateStage                                                ← portal to body, z --z-warp; warp + reveal
+   ├─ UpdateStage                                                ← portal to body, z --z-warp; warp + reveal
+   └─ LaunchStage                                                ← 0.7.0: portal to body, z --z-launch (launch-sequence.md)
 ```
 
 `UpdateStage` sits inside `ToastProvider`, so it can raise the abort toast, and outside `.shell`, so `inert` on the shell never reaches it.
@@ -861,15 +863,15 @@ The longest ready sub is « En pause jusqu'à ton retour » (27 chars ≈ 176 px
 ```css
 .upd-dock {
   position: fixed;
-  left: calc(var(--rail-w) + 20px);
+  left: calc(var(--nav-w) + 20px);       /* 0.7.0: rail + sidebar */
   bottom: 20px;
   z-index: calc(var(--z-scrim) - 5);
-  width: min(var(--upd-w), calc(100vw - var(--rail-w) - 40px));
+  width: min(var(--upd-w), calc(100vw - var(--nav-w) - 40px));
 }
 .upd-dock[data-mode='mini'] { width: auto; }
 .shell:has(.upd-dock[data-mode='card']) > .content { padding-bottom: 104px; }
 .shell:has(.upd-dock[data-mode='mini']) > .content { padding-bottom: 68px; }
-@media (max-width: 1311px) {
+@media (max-width: 1279px) {         /* 0.7.0 breakpoint */
   #root:has(.upd-dock[data-mode='card']) .toasts { bottom: 108px; }
   #root:has(.upd-dock[data-mode='mini']) .toasts { bottom: 72px; }
 }
@@ -918,6 +920,8 @@ The longest ready sub is « En pause jusqu'à ton retour » (27 chars ≈ 176 px
 /* No transition at all while the window is in the background (zero frames between events). */
 :root[data-window='idle'] .upd-dock *, :root[data-window='idle'] .upd-dock *::before { transition: none !important; }
 ```
+
+**With the launch card (0.7.0).** The launch card (`.launch-dock`, `launch-sequence.md` §4.2) has the same corner, width and height. The update dock never moves: the launch card stacks above it, at `bottom: calc(20px + var(--upd-h) + 10px)` (106 px) when the full card shows (during a launch that is the armed, refused or interrupted card) and at `70px` above the mini pill. The reserved room grows to `padding-bottom` 190 px (154 px with the mini pill), and narrow-window toasts rise to 194 px (158 px).
 
 `.upd-sheen` is a real span (it was `::after`), so it can be replayed by WAAPI:
 
@@ -1153,7 +1157,7 @@ When `swapKey` changes, the previous rows stay in an absolutely positioned `.upd
 
 The sub row alone (percent, bytes, seconds) changes text in place, without a swap.
 
-### 5.8 Mini pill (a game is running, phase `download` or `verify`)
+### 5.8 Mini pill (a game is running or a launch is pending, phase `download` or `verify`)
 
 ```
 ╭──────────────────────────────╮ 188 × 40, r pill, --surface-3, 1 px --line-2
@@ -1181,7 +1185,7 @@ The sub row alone (percent, bytes, seconds) changes text in place, without a swa
 .upd-mini:focus-visible { box-shadow: var(--focus); }
 ```
 
-The contract is that `document.getAnimations().filter(a => a.effect?.target?.closest?.('.upd-dock')).length === 0` while the mini pill is shown. Switching between card and pill is instant in both directions. The pill never expands on hover. `ready`, `refused` and `interrupted` always use the full card, even in game, because they carry buttons. They are static while idle, and the countdown is paused in game (§6.6).
+The contract is that `document.getAnimations().filter(a => a.effect?.target?.closest?.('.upd-dock')).length === 0` while the mini pill is shown. Switching between card and pill is instant in both directions. The pill never expands on hover. `ready`, `refused` and `interrupted` always use the full card, even in game or during a launch, because they carry buttons. They are static while idle, and the countdown is paused in game and during a launch (§6.6, §6.10).
 
 
 ---
@@ -1192,11 +1196,11 @@ The contract is that `document.getAnimations().filter(a => a.effect?.target?.clo
 
 ```ts
 export type CardPhase = 'hidden' | 'download' | 'verify' | 'lock' | 'armed' | 'refused' | 'interrupted' | 'installing'
-export type HoldReason = 'unfocused' | 'hover' | 'game' | 'blocked' | null
+export type HoldReason = 'unfocused' | 'hover' | 'game' | 'launch' | 'blocked' | null   // 'launch': 0.7.0 (§6.10)
 
 export interface CardModel {
   phase: CardPhase
-  mini: boolean                      // inGame && (download | verify)
+  mini: boolean                      // quiet && (download | verify), quiet = inGame || launching (§6.10)
   version: string
   percent: number                    // download
   p: number                          // 0..1 written to --p
@@ -1211,7 +1215,7 @@ export interface CardModel {
   preview: boolean
 }
 
-export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; cardRef: RefObject<HTMLElement> }): {
+export function useCardPhase(real: UpdateState | null, o: { inGame: boolean; launching: boolean; cardRef: RefObject<HTMLElement> }): {
   model: CardModel
   restart(origin?: DOMRect | null): void
   later(): void
@@ -1309,11 +1313,11 @@ If the app starts already `ready` (the state was fetched at boot), the card ente
 const D = 10 // RESTART_DELAY, unchanged
 const counting =
   phase === 'armed' && !dismissed && !blocked && !installing && !preview?.stopped &&
-  focused && !hovered && !focusWithin && !inGame && lockDone
+  focused && !hovered && !focusWithin && !quiet && lockDone   // quiet = inGame || launching (§6.10)
 ```
 
 - **Existing rules are unchanged.** 10 s, counted only while the window is focused, and restarting from 10 for each new version.
-- **New rules can only delay a restart.** The countdown pauses while the pointer is over the card or focus is inside it (WCAG 2.2.1), and while a game is running. After a failed restart (`blocked`) it does not run again for that version.
+- **New rules can only delay a restart.** The countdown pauses while the pointer is over the card or focus is inside it (WCAG 2.2.1), while a game is running, and while a launch is pending. After a failed restart (`blocked`) it does not run again for that version.
 - Ticks come from a `setTimeout` chain of 1000 ms, restarted on resume, so the next tick is a full second after resuming. `left` keeps its value through pauses, as it does today.
 - At `left === 0`: `restart(reactorRect)`.
 
@@ -1339,6 +1343,7 @@ Hold states (no countdown, no motion):
 | `unfocused` | `pause` icon (crossfade 120 ms) | « En pause jusqu'à ton retour » |
 | `hover` | digit at opacity .5 (`.is-held`) | « Redémarrage en pause » |
 | `game` | `pause` icon | « En pause pendant ta partie » |
+| `launch` | `pause` icon | « En pause pendant le lancement » |
 | `blocked` | `check` icon | « Redémarre quand tu veux » |
 
 ### 6.7 « Plus tard »
@@ -1367,6 +1372,15 @@ Neither card has any motion after its entrance: no jolt, no shatter, no loop. In
 ### 6.9 Installing (card)
 
 Buttons are disabled and the sub reads « Redémarrage… ». The centre shows the `check` icon. No animation.
+
+### 6.10 During a game launch (0.7.0)
+
+A launch from Player X (`launch-sequence.md`) gets the in-game contract before the game is confirmed running.
+
+- **Inputs.** `UpdateNotice` gets `inGame = games.some(g => g.running)` and `launching = realPending && !inGame`, where `realPending` means a non-demo launch in `checking`, `sending`, `waiting` or `relay` (`useLaunchPending().real`). `useCardPhase` takes `{ inGame, launching, cardRef }` and works from `quiet = inGame || launching`.
+- **Mini pill** only in `download` and `verify`: `mini = quiet && !view.preview && (phase === 'download' || phase === 'verify')`. The entrance is suppressed on `quiet`, as it is in game.
+- **Hold:** `inGame ? 'game' : launching ? 'launch' : …`. `HOLD_SUB.launch` is « En pause pendant le lancement ». The armed card stays full size and the launch card stacks above it (§5.1).
+- **Preview:** `gameRunning` (`update/session.ts`) is true while a game runs **or a real launch is pending**, so the preview is refused during a launch, as in game. A demo launch never sets it: the preview and the countdown are untouched.
 
 ---
 
@@ -1585,12 +1599,12 @@ No record at all (for example the first update **into** 0.6.0, done by 0.5.1, wh
 | 1400–1640 | `.stage-text` | opacity 1 → 0, `scale(1) → scale(.98)` | `--ease-in` |
 | 1400–1800 | `.stage-ring` | `scale(1)` opacity 1 → `scale(1.3)` opacity 0 | `--ease-in` |
 | 1400–1900 | `.stage-shock` (160 px ring, 1.5 px `--accent-line`) | `scale(.3)` opacity .5 → `scale(2.6)` opacity 0 | `--ease-out` |
-| 1400–2000 | `.stage-mark` | **FLIP to `.rail-logo .brand-mark`**: `translate(dx, dy) scale(18 / 40)`. Rects are read once at 1400 ms. | `--ease-glide` |
+| 1400–2000 | `.stage-mark` | **FLIP to `.favrail-logo .brand-mark`**: `translate(dx, dy) scale(15 / 40)`. Rects are read once at 1400 ms. | `--ease-glide` |
 | 1450–1950 | `.stage-veil` | opacity 1 → 0: the UI appears under the flying mark | `--ease-out` |
 | 1400 | `.stage` | `pointer-events` stays `none`; the skip listeners are removed, so input reaches the UI from here on | — |
 | 2000 | — | remove `html.px-revealing` (the real logo shows exactly where the flying mark lands), unmount the stage, `revealDone.set(true)` | — |
 
-If `.rail-logo .brand-mark` is missing (macOS, Login or Setup on screen), the mark fades in place instead: `scale(1) → scale(.9)`, opacity → 0, 400 ms.
+If `.favrail-logo .brand-mark` is missing (macOS, Login or Setup on screen), the mark fades in place instead: `scale(1) → scale(.9)`, opacity → 0, 400 ms.
 
 Data:
 
@@ -1663,7 +1677,7 @@ createPortal(
 .stage-skip { position: absolute; left: 0; right: 0; bottom: 32px; text-align: center; font: 400 12px/16px var(--font-ui); color: var(--text-3); opacity: 0; }
 .stage-badge { position: absolute; top: 60px; left: 50%; translate: -50% 0; height: 24px; padding: 0 10px; border-radius: var(--r-pill);
   background: var(--accent-soft); color: var(--accent-text); font: 600 11px/24px var(--font-ui); letter-spacing: .06em; text-transform: uppercase; }
-html.px-revealing .rail-logo .brand-mark { opacity: 0; }
+html.px-revealing .favrail-logo .brand-mark { opacity: 0; }
 /* Reveal: hidden during the hold; WAAPI entrances use fill 'both', so a skipped animation (anim() → null) just shows the element. */
 .stage[data-mode='reveal'][data-phase='hold'] :is(.stage-text, .stage-skip, .stage-ring) { opacity: 0; }
 .stage[data-mode='reveal'][data-phase='run'][data-tier='full'] .stage-ring { opacity: 1; }
@@ -1827,6 +1841,7 @@ Kickers are written in sentence case. CSS sets uppercase. `{v}` is the version, 
 | sub, unfocused | « En pause jusqu'à ton retour » |
 | sub, hover or focus | « Redémarrage en pause » |
 | sub, game | « En pause pendant ta partie » |
+| sub, launch | « En pause pendant le lancement » |
 | sub, blocked | « Redémarre quand tu veux » |
 | sub, installing | « Redémarrage… » |
 | primary | « Redémarrer » (`title` « Installer la {v} maintenant ») |
@@ -1911,7 +1926,7 @@ Release note bullet (`docs/release-notes/0.6.0.md`, under the first section):
 ## 14. Accessibility
 
 1. **Live region.** One `sr-only` polite `role="status"` per dock, written only on phase changes (§13.9). The countdown is never announced each second, and `role="status"` is removed from the card. The stage has its own region for the warp and reveal. Toasts keep their own.
-2. **Timing (WCAG 2.2.1).** The countdown pauses on hover, focus-within, an unfocused window and a running game. « Plus tard » turns it off for this version. A restart is always available from À propos. A failed restart never retries on its own.
+2. **Timing (WCAG 2.2.1).** The countdown pauses on hover, focus-within, an unfocused window, a running game and a pending launch. « Plus tard » turns it off for this version. A restart is always available from À propos. A failed restart never retries on its own.
 3. **Motion (WCAG 2.2.2, 2.3.1).** During the download there are no infinite animations. The only loop is the signature spinner, an activity indicator, `.fx-loop`, which pauses when idle. There is one flash, 200 ms, under 3 per second.
 4. **Vestibular.** Full-window radial motion is limited to ≤ 1.0 s (warp) and ≤ 0.6 s (arrival). Alpha ≤ .7, the snapshot shrinks only to .92, and there is no camera zoom in the reveal. Turning off « Effets visuels » removes the streaks (Sober). « Réduire les animations », or Windows' animation setting, gives Reduced: nothing moves and every value stays (card text, WhatsNew chips).
 5. **Focus.** Nothing in the card auto-focuses, which would pause the countdown. During the warp the shell is `inert`, and focus goes back to the trigger on abort. The reveal never takes focus. Its skip swallows the skip event and, when it is a modifier (Ctrl+K…), the chord key that follows. WhatsNew keeps `autoFocus` on « C'est parti ».
@@ -2031,7 +2046,7 @@ Helpers in `update-anim.mjs`:
 | S12 | Warp, Full | click « Redémarrer » | `calls.length === 1`, `opts.delayMs === 1200`, `calls[0].at` ≤ the start of the first stage animation; `html.vt-warp` during the transition; `.shell[inert]`; all stage anims `finished` by `quitAt − 120`; no rAF from streaks afterwards; canvas `width === 0` | screencast 0–1200 ms (check that the snapshot recedes **over** the veil; if not, log it as the documented degradation); final-frame screenshot. In the mock nothing quits, so end the scenario before the watchdog aborts at 11.2 s. |
 | S13 | Warp, other tiers | Sober (`pg.ui.visualFx = false`), Reduced, `document.hidden` | delayMs 450 / 150 / 0; Sober: no canvas, no `vt-warp`; Reduced: 0 stage anims, final frame at once; hidden: no stage | screencast Sober; screenshot Reduced |
 | S14 | Warp failures | `installResult` `{ok:false}`; `'reject'`; `'hang'` + clock `delay + 10 s`; ok then emit `ready` | each: stage gone ≤ 300 ms; no `inert`; focus on « Redémarrer »; sub « Redémarre quand tu veux »; error toast; countdown never restarts for that version | screenshot after abort |
-| S15 | Reveal, cinematic | `pg.lastVersion = '0.5.1'`; `lastUpdate = {from:'0.5.1', to:'0.6.0', fingerprint, downloadMs:38000, backMs:12000, relaunch:true, thisBoot:true, installedAt}`; reload | first frame = veil + mark at M (pixel diff of the mark region vs the S12 final frame < 2 %); hold until `.boot` is gone; timeline; at 2000 ms the flying mark rect equals `.rail-logo .brand-mark` rect ± 1 px; `px-revealing` removed; WhatsNew opens with 4 chips | screencast 0–2200 ms; WhatsNew screenshot |
+| S15 | Reveal, cinematic | `pg.lastVersion = '0.5.1'`; `lastUpdate = {from:'0.5.1', to:'0.6.0', fingerprint, downloadMs:38000, backMs:12000, relaunch:true, thisBoot:true, installedAt}`; reload | first frame = veil + mark at M (pixel diff of the mark region vs the S12 final frame < 2 %); hold until `.boot` is gone; timeline; at 2000 ms the flying mark rect equals `.favrail-logo .brand-mark` rect ± 1 px; `px-revealing` removed; WhatsNew opens with 4 chips | screencast 0–2200 ms; WhatsNew screenshot |
 | S16 | Reveal variants | `relaunch:false`; unfocused; Reduced; no record; skip by key (with a `keydown` spy on `document`); reload after reveal | Sober ≈ 1.06 s; quiet 260 ms; Reduced: no `.stage`, WhatsNew at once; no record: versions only, no chips; skip: exit ≤ 300 ms and the spy is **not** called; reload: no reveal (`pg.update.revealed`) | screencasts |
 | S17 | Preview | À propos › « Voir l'aperçu »; let it run; repeat with Esc in each phase; repeat with a real `downloading` mid-way | `calls` stays empty; every card kicker starts with « Aperçu »; the only version text is `VERSION`; Esc cleans up (no `inert`, no `vt-warp`, no `.stage`, no `px-revealing`); a real event stops it | full video; screenshots per phase |
 | S18 | À propos | each state; copy the fingerprint (grant `clipboard-write`) | phrases per §13.8; `canCheck` false in verifying and installing; clipboard = 128 hex; toast « Empreinte copiée »; the preview button is disabled during real states | screenshots |
@@ -2094,7 +2109,7 @@ Run with `node --experimental-strip-types --test src/main/services/updateHandoff
 | 9 | Preview (card + warp + reveal + WhatsNew preview) and the À propos row | P0 (it is how the user sees it now) |
 | 10 | À propos new states and track | P0 |
 | 11 | QA harness S1–S19, main tests | P0 |
-| 12 | Mark FLIP into `.rail-logo` | P1 |
+| 12 | Mark FLIP into `.favrail-logo` | P1 |
 | 13 | WhatsNew chips, `VersionRoll`, « Voir l'aperçu » (`PREVIEW_INTRO`) | P1 |
 | 14 | Fingerprint row and « Copier l'empreinte » | P1 |
 | 15 | Window bounds restore, `setProgressBar` | P1 |

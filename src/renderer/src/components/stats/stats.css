@@ -1,42 +1,51 @@
-/* Page Stats de jeu (Battlefield 6) : en-tête plein cadre, chiffres clés, armes et classes, détail, podium. */
+/* Page Stats de jeu (Battlefield 6) : onglets dans la barre du haut. Vue d'ensemble = carte profil (rang, bandeau vitré),
+   « En bref » et chiffres clés ; puis Progression, Arsenal, Cartes et modes, Classement. */
 
 .bf {
-  --bf-pad-x: 32px; /* doit suivre le padding horizontal de .page */
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  max-width: 1200px;
+  gap: 22px;
+  max-width: 1320px;
   margin: 0 auto;
   container-type: inline-size;
 }
-@media (max-width: 1200px) {
-  .bf {
-    --bf-pad-x: 24px;
-  }
+.bf-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
 }
 
-/* ---------- en-tête plein cadre ---------- */
+.bf-overline {
+  font: 700 11px/14px var(--font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* ---------- carte profil ---------- */
 
 .bf-hero {
   position: relative;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 32px;
-  min-height: 300px;
-  margin: -24px calc(var(--bf-pad-x) * -1) 0;
-  padding: 72px var(--bf-pad-x) 28px;
+  min-height: 236px;
+  padding: 28px 28px 30px;
+  border-radius: var(--r-xl);
   isolation: isolate;
-  overflow: clip;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px var(--line-2),
+    0 30px 60px -36px rgba(0, 0, 0, 0.9);
+}
+.bf-hero.is-profile {
+  min-height: 272px;
+  padding-bottom: 112px;
 }
 .bf-hero-art {
   position: absolute;
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(80% 120% at 85% 0%, color-mix(in srgb, var(--brand-violet) 38%, transparent) 0%, transparent 60%),
-    radial-gradient(60% 90% at 10% 10%, color-mix(in srgb, #4f7cff 18%, transparent) 0%, transparent 70%), var(--bg-1);
-  mask-image: linear-gradient(180deg, #000 60%, transparent 100%);
+    radial-gradient(60% 120% at 85% 0%, rgba(46, 120, 210, 0.32) 0%, transparent 60%),
+    radial-gradient(50% 90% at 10% 10%, rgba(63, 208, 255, 0.1) 0%, transparent 70%), var(--bg-2);
 }
 .bf-hero-art img {
   position: absolute;
@@ -45,17 +54,17 @@
   height: 100%;
   object-fit: cover;
   object-position: 50% 30%;
-  filter: saturate(1.1) brightness(0.6);
+  filter: saturate(1.05) brightness(0.8);
 }
 /* Sans visuel du jeu : grand « BF6 » en filigrane et trame tactique. */
 .bf-hero-mark {
   position: absolute;
   right: 3%;
-  top: 22px;
+  top: 14px;
   font: 800 180px/1 var(--font-display);
-  letter-spacing: -0.04em;
+  letter-spacing: -0.02em;
   color: transparent;
-  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.07);
+  -webkit-text-stroke: 1px rgba(140, 190, 255, 0.1);
   user-select: none;
 }
 .bf-hero.has-art .bf-hero-mark {
@@ -64,28 +73,44 @@
 .bf-hero-grid {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(140, 190, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(140, 190, 255, 0.04) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(70% 90% at 70% 20%, #000 0%, transparent 75%);
 }
+.bf-hero.has-art .bf-hero-grid {
+  display: none;
+}
+/* Voile : lisible à gauche, trame de balayage discrète (comme l'Accueil). */
 .bf-hero-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--bg-1) 80%, transparent) 0%, transparent 70%);
+  background:
+    repeating-linear-gradient(0deg, rgba(140, 190, 255, 0.035) 0 1px, transparent 1px 4px),
+    linear-gradient(90deg, rgba(6, 16, 28, 0.92) 0%, rgba(6, 16, 28, 0.6) 40%, rgba(6, 16, 28, 0) 72%);
 }
 .bf-hero-body {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
+  max-width: calc(100% - 320px);
+}
+.bf-hero:not(.is-profile) .bf-hero-body {
+  max-width: none;
+  padding-top: 64px;
 }
 .bf-kicker {
+  font: 700 11px/14px var(--font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--accent);
 }
 .bf-hero-title {
-  font: 700 40px/44px var(--font-display);
-  letter-spacing: -0.02em;
-  color: var(--text-1);
+  font: 800 44px/1 var(--font-display);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -94,20 +119,18 @@
 /* Identité */
 .bf-id {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 20px;
   min-width: 0;
 }
 .bf-id-avatar {
   display: flex;
   flex-shrink: 0;
-  padding: 3px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-solid) 100%);
-  box-shadow: 0 10px 30px -8px rgba(124, 58, 237, 0.7);
-}
-.bf-id-avatar .avatar {
-  box-shadow: 0 0 0 3px var(--bg-1);
+  box-shadow:
+    0 0 0 4px var(--bg-2),
+    0 0 0 6px var(--live),
+    0 12px 30px -10px rgba(63, 208, 255, 0.55);
 }
 .bf-id-avatar .avatar-initial {
   font: 700 30px/1 var(--font-display);
@@ -122,75 +145,160 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 14px;
-  font: 500 13px/18px var(--font-ui);
+  gap: 6px 10px;
+  font: 500 12px/16px var(--font-ui);
   color: var(--text-2);
-}
-.bf-meta-item .num {
-  color: var(--text-1);
-  font-weight: 600;
 }
 .bf-id-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   margin-top: 4px;
 }
 
-/* Chiffres phares */
-.bf-headline {
+/* Carte du classement, en haut à droite */
+.bf-rank-card {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 288px;
   display: flex;
-  flex-shrink: 0;
-  margin: 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
   border-radius: var(--r-lg);
-  background: color-mix(in srgb, var(--surface-1) 72%, transparent);
+  background: var(--glass);
   border: 1px solid var(--line-2);
-  backdrop-filter: blur(14px);
-  box-shadow: var(--sh-2);
+  backdrop-filter: blur(16px);
 }
-:root.no-blur .bf-headline {
+:root.no-blur .bf-rank-card {
   backdrop-filter: none;
   background: var(--surface-1);
 }
-.bf-headline-item {
+.bf-rank-value {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 18px 26px;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-2);
 }
-.bf-headline-item + .bf-headline-item {
-  border-left: 1px solid var(--line-1);
+.bf-rank-value b {
+  flex-shrink: 0;
+  font: 800 42px/1 var(--font-display);
+  color: #fff;
 }
-.bf-headline dd {
+.bf-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bf-rank-open {
+  margin-left: auto;
+}
+.bf-stack {
+  display: flex;
+}
+.bf-stack > span {
+  display: flex;
+  margin-left: -8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2.5px #0b2036;
+}
+.bf-stack > span:first-child {
+  margin-left: 0;
+}
+.bf-stack > span.is-me {
+  z-index: 1;
+  box-shadow:
+    0 0 0 2.5px #0b2036,
+    0 0 0 4.5px var(--live);
+}
+
+/* Bandeau vitré au bas de la carte */
+.bf-band {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  height: 70px;
   margin: 0;
-  font: 700 30px/34px var(--font-display);
-  letter-spacing: -0.02em;
+  border-radius: var(--r-lg);
+  background: var(--glass);
+  border: 1px solid var(--line-2);
+  backdrop-filter: blur(16px);
+}
+:root.no-blur .bf-band {
+  backdrop-filter: none;
+  background: var(--surface-1);
+}
+.bf-band-item {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  padding: 0 24px;
+  border-right: 1px solid var(--line-2);
+}
+.bf-band-item dd {
+  margin: 0;
+  font: 800 21px/26px var(--font-display);
+  color: #fff;
+}
+.bf-band-item.is-main dd {
+  color: var(--accent);
+}
+.bf-band-item dt {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-2);
+}
+.bf-trend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 0 24px;
+  color: var(--text-3);
+}
+.bf-trend.is-up {
+  color: var(--st-online);
+}
+.bf-trend.is-down {
+  color: var(--st-away);
+}
+.bf-trend b {
+  font: 700 15px/1 var(--font-display);
   color: var(--text-1);
 }
-.bf-headline-item.is-main dd {
-  font-size: 44px;
-  line-height: 48px;
-  background: linear-gradient(135deg, #fff 0%, var(--accent-text) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.bf-trend span {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-2);
 }
-.bf-headline-item.is-main dt {
-  color: var(--accent-text);
-}
-/* Place du bandeau pendant le chargement : mêmes dimensions, le héros ne bouge pas quand les chiffres arrivent. */
-.bf-headline-skel {
-  flex-shrink: 0;
-  width: min(404px, 100%);
-  height: 106px;
+/* Place du bandeau pendant le chargement : la carte ne bouge pas quand les chiffres arrivent. */
+.bf-band-skel {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  height: 70px;
   border-radius: var(--r-lg);
 }
 
-@container (max-width: 860px) {
-  .bf-hero {
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-end;
+@container (max-width: 900px) {
+  .bf-rank-card {
+    display: none;
+  }
+  .bf-hero-body {
+    max-width: none;
+  }
+}
+@container (max-width: 640px) {
+  .bf-trend {
+    display: none;
+  }
+  .bf-band-item {
+    padding: 0 16px;
   }
 }
 
@@ -203,6 +311,197 @@
   border-radius: var(--r-md);
   background: var(--surface-1);
   border: 1px solid var(--line-1);
+}
+
+/* ---------- en bref ---------- */
+
+.bf-brief {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.bf-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.bf-row-head .caption {
+  color: var(--text-3);
+}
+.bf-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+@container (max-width: 980px) {
+  .bf-brief-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.bf-brief-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--card-bg);
+  border: 1px solid var(--line-2);
+  box-shadow: 0 22px 40px -28px rgba(0, 0, 0, 0.9);
+}
+.bf-brief-vis {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 76px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line-1);
+  background: var(--bg-1);
+}
+.bf-brief-vis.is-weapon {
+  grid-template-columns: minmax(0, 1fr);
+  background: radial-gradient(60% 90% at 50% 100%, var(--live-soft), transparent 70%), var(--bg-1);
+}
+.bf-brief-vis.is-weapon img {
+  max-width: 80%;
+  max-height: 60px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6));
+}
+.bf-brief-vis.is-weapon .bf-weapon-ghost {
+  font-size: 40px;
+  -webkit-text-stroke-color: var(--line-3);
+}
+.bf-brief-rank {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: var(--badge-bg);
+  color: var(--text-1);
+  font: 800 11px/1 var(--font-ui);
+}
+.bf-brief-vis.is-classes {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: 8px;
+  padding: 0 14px;
+}
+.bf-split {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.bf-split i {
+  display: block;
+  flex-basis: 0;
+  height: 100%;
+  background: var(--line-3);
+}
+.bf-split i.is-0 {
+  background: var(--meter);
+}
+.bf-split i.is-1 {
+  background: var(--meter-2);
+}
+.bf-split i.is-2 {
+  background: color-mix(in srgb, var(--meter-2) 55%, var(--bg-1));
+}
+.bf-brief-vis.is-map img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bf-brief-vis.is-spark {
+  display: block;
+  padding: 10px 14px 0;
+}
+.bf-brief-vis.is-spark svg {
+  display: block;
+  width: 100%;
+  height: 64px;
+}
+.bf-spark-area {
+  fill: var(--accent);
+  opacity: 0.14;
+}
+.bf-spark-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.bf-spark-empty {
+  fill: none;
+  stroke: var(--line-3);
+  stroke-width: 2;
+  stroke-dasharray: 4 5;
+  vector-effect: non-scaling-stroke;
+}
+.bf-brief-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  min-width: 0;
+}
+.bf-brief-body .bf-overline {
+  font-size: 10px;
+  color: var(--text-3);
+}
+.bf-brief-name {
+  font: 700 17px/22px var(--font-display);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bf-brief-line {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bf-brief-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: auto;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line-1);
+  color: var(--text-2);
+  font: 600 12px/16px var(--font-ui);
+  transition:
+    color var(--d-1) var(--ease-out),
+    background-color var(--d-1) var(--ease-out);
+}
+.bf-brief-foot:hover {
+  color: var(--text-1);
+  background: rgba(140, 190, 255, 0.05);
+}
+.bf-brief-foot svg {
+  transition: translate var(--d-2) var(--ease-out);
+}
+.bf-brief-foot:hover svg {
+  translate: 2px 0;
+  color: var(--accent);
 }
 
 /* ---------- cartes ---------- */
@@ -221,7 +520,9 @@
   gap: 12px;
 }
 .bf-card-title {
-  font: 600 16px/22px var(--font-display);
+  font: 700 17px/22px var(--font-display);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   color: var(--text-1);
 }
 .bf-text {
@@ -603,8 +904,8 @@
   background: var(--line-3);
 }
 .bf-step.is-1 .bf-step-avatar {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-solid) 100%);
-  box-shadow: 0 10px 30px -10px rgba(124, 58, 237, 0.8);
+  background: var(--accent);
+  box-shadow: 0 10px 30px -10px rgba(255, 210, 63, 0.6);
 }
 .bf-step-avatar .avatar {
   box-shadow: 0 0 0 2px var(--surface-1);
@@ -625,6 +926,7 @@
 }
 .bf-step.is-1 .bf-step-rank {
   background: var(--accent-solid);
+  color: var(--on-accent);
 }
 .bf-step-name {
   max-width: 100%;
@@ -651,7 +953,7 @@
 }
 .bf-step.is-1 .bf-step-block {
   height: 56px;
-  background: linear-gradient(180deg, rgba(139, 92, 246, 0.3) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(255, 210, 63, 0.16) 0%, transparent 100%);
   border-top: 2px solid var(--accent);
 }
 .bf-step.is-2 .bf-step-block {
@@ -827,7 +1129,7 @@
   background: var(--accent-soft);
   border: 1px solid var(--accent-line);
   color: var(--accent-text);
-  box-shadow: 0 8px 22px -10px rgba(124, 58, 237, 0.8);
+  box-shadow: 0 8px 22px -10px rgba(255, 210, 63, 0.45);
 }
 
 /* Cartes jouées */
@@ -863,7 +1165,7 @@
   background:
     linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px) 0 0 / 24px 24px,
     linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px) 0 0 / 24px 24px,
-    radial-gradient(120% 120% at 100% 0%, color-mix(in srgb, var(--brand-violet) 35%, transparent), transparent 60%),
+    radial-gradient(120% 120% at 100% 0%, rgba(46, 120, 210, 0.3), transparent 60%),
     var(--surface-1);
 }
 .bf-map img {
@@ -879,7 +1181,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(0deg, rgba(8, 9, 14, 0.92) 0%, rgba(8, 9, 14, 0.2) 65%, transparent 100%);
+  background: linear-gradient(0deg, rgba(4, 11, 21, 0.92) 0%, rgba(4, 11, 21, 0.2) 65%, transparent 100%);
 }
 :root[data-fx='on'] .bf-map:hover img {
   scale: 1.05;
@@ -895,13 +1197,14 @@
   height: 22px;
   padding: 0 6px;
   border-radius: var(--r-pill);
-  background: rgba(8, 9, 14, 0.6);
+  background: rgba(4, 11, 21, 0.6);
   backdrop-filter: blur(8px);
   font: 700 11px/1 var(--font-display);
   color: var(--text-1);
 }
 .bf-map:first-child .bf-map-rank {
   background: var(--accent-solid);
+  color: var(--on-accent);
 }
 .bf-map-text {
   display: flex;
@@ -954,12 +1257,12 @@
 /* Voile de marque : la mosaïque se lit comme une seule carte, pas comme quatre. */
 .bf-map.is-total .bf-map-shade {
   background:
-    linear-gradient(0deg, rgba(8, 9, 14, 0.92) 0%, rgba(8, 9, 14, 0.25) 65%, transparent 100%),
+    linear-gradient(0deg, rgba(4, 11, 21, 0.92) 0%, rgba(4, 11, 21, 0.25) 65%, transparent 100%),
     linear-gradient(120deg, color-mix(in srgb, var(--accent) 35%, transparent), transparent 60%);
 }
 .bf-map-all {
   background: var(--accent-solid);
-  color: var(--text-1);
+  color: var(--on-accent);
 }
 .bf-map.is-total > :not(.bf-mosaic) {
   pointer-events: none;

@@ -20,7 +20,8 @@ import {
   type AnimOpts,
   type Tier
 } from './session'
-import { runStreaks, stopAllStreaks, type StreakRun } from './streaks'
+import { Run } from './run'
+import { runStreaks, stopAllStreaks } from './streaks'
 
 export type StageMode = 'idle' | 'warp' | 'reveal'
 export type StagePhase = 'hold' | 'run' | 'exit'
@@ -215,47 +216,6 @@ const twoFrames = (): Promise<void> =>
       })
     )
   })
-
-/** Minuteries, animations, écouteurs et traînées d'une course de la scène : tout se range d'un coup. */
-class Run {
-  anims: Animation[] = []
-  streaks: StreakRun | null = null
-  private timers: ReturnType<typeof setTimeout>[] = []
-  private offs: (() => void)[] = []
-
-  play(el: Element | null | undefined, k: KeyframeSet, o: AnimOpts = {}): Animation | null {
-    const a = anim(el, k.frames, { ...k.opts, ...o })
-    if (a) this.anims.push(a)
-    return a
-  }
-
-  later(ms: number, fn: () => void): void {
-    this.timers.push(setTimeout(fn, Math.max(0, ms)))
-  }
-
-  on(off: () => void): void {
-    this.offs.push(off)
-  }
-
-  settle(how: 'finish' | 'cancel'): void {
-    this.streaks?.stop()
-    for (const a of this.anims) {
-      try {
-        if (how === 'finish') a.finish()
-        else a.cancel()
-      } catch {
-        /* pseudo-élément déjà disparu */
-      }
-    }
-  }
-
-  dispose(): void {
-    for (const t of this.timers) clearTimeout(t)
-    this.timers = []
-    for (const off of this.offs.splice(0)) off()
-    this.streaks?.stop()
-  }
-}
 
 // ---------- saut (§7) ----------
 
@@ -775,11 +735,11 @@ function exitReveal(r: Reveal, fast: boolean): void {
   r.run.later(flight, () => finishReveal(r))
 }
 
-/** FLIP vers .rail-logo .brand-mark (rectangles lus une fois, maintenant) ; sans logo dans le rail, fondu sur place. */
+/** FLIP vers .favrail-logo .brand-mark (rectangles lus une fois, maintenant) ; sans logo dans le rail, fondu sur place. */
 function flyToRail(r: Reveal, mark: HTMLElement | null, ms: number, o: AnimOpts): void {
   if (!mark) return
   const a = mark.getBoundingClientRect()
-  const b = document.querySelector('.rail-logo .brand-mark')?.getBoundingClientRect()
+  const b = document.querySelector('.favrail-logo .brand-mark')?.getBoundingClientRect()
   if (b && b.width > 0 && b.height > 0 && a.height > 0) {
     const dx = b.left + b.width / 2 - (a.left + a.width / 2)
     const dy = b.top + b.height / 2 - (a.top + a.height / 2)

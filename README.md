@@ -2,7 +2,7 @@
 
 Launcher de bureau qui regroupe tes jeux **Steam, Epic Games et EA**, compte ton **temps de jeu**, te prévient quand **tes amis se connectent** (Steam, PlayStation, serveur Discord) et suit ta **progression Battlefield 6**.
 
-![Bibliothèque](docs/screenshots/bibliotheque.png)
+![Accueil](docs/screenshots/accueil.png)
 
 > Les captures sont faites en mode démo : jeux, amis et joueurs fictifs, visuels de remplacement.
 
@@ -20,6 +20,12 @@ Sur l’écran d’accueil, **Essayer le mode démo** remplit l’interface avec
 
 Pour fabriquer l’installeur Windows : `npm run dist` (sortie dans `dist/`). Depuis Linux, il faut `wine64` et `wine32:i386`.
 
+## Bibliothèque
+
+![Bibliothèque](docs/screenshots/bibliotheque.png)
+
+Player X détecte les jeux installés sur ton PC (Steam, Epic Games, EA app). Filtre par store, trie par récents, nom, plus lancés ou plus joués, et choisis la taille des jaquettes. Tes favoris restent dans le rail de gauche, sur toutes les pages : un clic lance le jeu, un clic droit ouvre sa fiche.
+
 ## Temps de jeu
 
 ![Fiche d'un jeu en cours](docs/screenshots/fiche-en-jeu.png)
@@ -36,11 +42,11 @@ Quand un ami Steam ou PlayStation se connecte ou lance un jeu, une carte appara�
 
 ![Stats Battlefield 6](docs/screenshots/stats-bf6.png)
 
-Cherche ton pseudo EA, Steam, PlayStation ou Xbox : la page montre ratio K/D, kills par minute, victoires, précision, temps de jeu, classe préférée, puis le détail par arme, véhicule, classe, mode et carte. Ajoute des **rivaux** pour comparer vos stats dans un classement entre amis.
+Cherche ton pseudo EA, Steam, PlayStation ou Xbox. La **Vue d’ensemble** montre ratio K/D, kills par minute, victoires, précision, temps de jeu et tes temps forts : arme, classe et carte préférées, évolution de ton K/D sur 30 jours. Les onglets **Arsenal** et **Cartes et modes** détaillent chaque arme, véhicule, classe, mode et carte. Ajoute des **rivaux** pour comparer vos stats dans l’onglet **Classement**.
 
 ![Détail par arme](docs/screenshots/stats-bf6-armes.png)
 
-**Progression** : Player X garde un relevé de tes stats par jour (à chaque visite de la page, et en arrière-plan si le dernier date de plus de 20 heures) et trace ta courbe de K/D, d'éliminations par minute ou de victoires, sur 7 jours, 30 jours ou depuis le début, avec tes éliminations, tes parties et ton temps de jeu sur la période. Les relevés restent sur ton PC.
+**Progression** (onglet du même nom) : Player X garde un relevé de tes stats par jour (à chaque visite de la page, et en arrière-plan si le dernier date de plus de 20 heures) et trace ta courbe de K/D, d'éliminations par minute ou de victoires, sur 7 jours, 30 jours ou depuis le début, avec tes éliminations, tes parties et ton temps de jeu sur la période. Les relevés restent sur ton PC.
 
 ![Progression Battlefield 6](docs/screenshots/progression-bf6.png)
 
@@ -56,7 +62,7 @@ Ton temps de jeu total, tes jeux les plus joués, tes jeux par plateforme et tes
 
 Player X vérifie les [GitHub Releases](https://github.com/Moon-ItachiDEV/player-x/releases) au démarrage puis toutes les 6 heures. Seule la version installée se met à jour, pas `npm run dev`.
 
-1. **Téléchargement** en arrière-plan, avec la progression de 0 à 100 % dans un bandeau en bas de l’écran.
+1. **Téléchargement** en arrière-plan, avec la progression de 0 à 100 % dans une carte en bas de l’écran.
 
    ![Téléchargement de la mise à jour](docs/screenshots/maj-telechargement.png)
 
@@ -116,7 +122,7 @@ Tout se règle dans **Paramètres** de l’appli (ou, en développement seulemen
 
 ## Design
 
-Direction « Nuit Néon » : fond graphite, violet comme seule couleur de marque, cyan réservé à « en jeu ». Titres en Sora, interface en Inter, logo PX et nom en Michroma. Les effets riches (survol, lueurs, animations) se coupent dans **Paramètres** et respectent « réduire les animations » du système. Inspirée de Blitz.gg, GOG Galaxy, Steam, Discord et de concepts Dribbble. La spec complète, la critique et les recherches sont dans [`docs/design/`](docs/design/).
+Direction « Arène · Abysse » depuis la 0.7.0 : bleu nuit, jaune réservé à l’action principale (**Jouer**), cyan réservé à « en jeu ». Le rail des favoris, le menu latéral (navigation et amis) et la barre du haut à onglets restent en place sur toutes les pages. Titres en Barlow Condensed majuscules, interface en Barlow, logo PX et nom en Michroma. Les couleurs du logo (violet vers cyan) ne servent plus qu’au logo et à l’animation de mise à jour. Les effets riches (survol, lueurs, animations) se coupent dans **Paramètres** et respectent « réduire les animations » du système. Les règles sont dans [`docs/design/arene-abysse.md`](docs/design/arene-abysse.md) ; l’ancienne direction « Nuit Néon », la critique et les recherches restent dans [`docs/design/`](docs/design/).
 
 ## Choix techniques
 
@@ -132,9 +138,11 @@ src/
     services/    games.ts, artwork.ts, auth.ts, friends.ts, alerts.ts, playtime.ts, stats.ts, settings.ts, demo.ts, updater.ts
   preload/       pont sécurisé main ↔ interface
   renderer/src/
-    components/  library/, friends/, stats/, settings/, setup/, ui/, GameSheet, Profile, Login, Rail, TopBar,
-                 UpdateNotice (bandeau de mise à jour), WhatsNew (fenêtre « Quoi de neuf »), FriendAlerts (alertes d’amis)
-    styles/      tokens.css, base.css, shell.css
+    components/  home/, library/, friends/, stats/, settings/, setup/, ui/, FavRail (rail des favoris), Sidebar (menu et amis),
+                 TopBar et TopTabs (barre du haut à onglets), GameSheet, Profile, Login,
+                 UpdateNotice (carte de mise à jour), WhatsNew (fenêtre « Quoi de neuf »), FriendAlerts (alertes d’amis)
+    update/      animation de mise à jour « Séquence Réacteur »
+    styles/      tokens.css, base.css, shell.css, transitions.css
   shared/        types et fonctions de texte communs
 docs/
   release-notes/ notes de chaque version (release GitHub + « Quoi de neuf »)

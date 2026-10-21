@@ -31,13 +31,14 @@ const HOLD_SUB = {
   unfocused: 'En pause jusqu’à ton retour',
   hover: 'Redémarrage en pause',
   game: 'En pause pendant ta partie',
+  launch: 'En pause pendant le lancement',
   blocked: 'Redémarre quand tu veux'
 } as const
 
-export function UpdateNotice({ onOpenAbout, inGame }: UpdateNoticeProps): React.JSX.Element {
+export function UpdateNotice({ onOpenAbout, inGame, launching }: UpdateNoticeProps): React.JSX.Element {
   const [state] = useUpdateState()
   const cardRef = useRef<HTMLDivElement>(null)
-  const api = useCardPhase(state, { inGame, cardRef })
+  const api = useCardPhase(state, { inGame, launching, cardRef })
   const m = api.model
   const announce = useAnnouncement(m)
   const mode = m.phase === 'hidden' ? 'none' : m.mini ? 'mini' : 'card'
@@ -71,7 +72,7 @@ function Card({ m, api, cardRef, onOpenAbout }: CardProps): React.JSX.Element {
   let center: ReactorCenter = 'none'
   if (phase === 'download' || phase === 'verify') center = 'pct'
   else if (phase === 'lock') center = 'sec'
-  else if (phase === 'armed') center = m.hold === 'unfocused' || m.hold === 'game' ? 'pause' : m.hold === 'blocked' ? 'check' : 'sec'
+  else if (phase === 'armed') center = m.hold === 'unfocused' || m.hold === 'game' || m.hold === 'launch' ? 'pause' : m.hold === 'blocked' ? 'check' : 'sec'
   else if (phase === 'installing') center = 'check'
   else if (phase === 'interrupted') center = 'alert'
 
@@ -314,7 +315,7 @@ function useAnnouncement(m: CardModel): string {
   const last = useRef('')
   const v = m.version
   // Prête pendant une partie : le compte attend la fin de la partie, l'annonce le dit (puis annonce le compte à la reprise).
-  const ready = m.phase === 'armed' && m.hold === 'game' ? 'ready-game' : 'ready'
+  const ready = m.phase === 'armed' && m.hold === 'game' ? 'ready-game' : m.phase === 'armed' && m.hold === 'launch' ? 'ready-launch' : 'ready'
   const group = m.preview ? '' : m.phase === 'lock' || m.phase === 'armed' ? ready : m.phase === 'installing' || m.phase === 'hidden' ? '' : m.phase
   useEffect(() => {
     if (!group || `${group}:${v}` === last.current) return
@@ -326,6 +327,8 @@ function useAnnouncement(m: CardModel): string {
           ? `Vérification de la mise à jour ${v}.`
           : group === 'ready-game'
             ? `Player X ${v} est prête et signée. Le redémarrage attendra la fin de ta partie, ou choisis Plus tard.`
+            : group === 'ready-launch'
+              ? `Player X ${v} est prête et signée. Le redémarrage attendra la fin du lancement, ou choisis Plus tard.`
             : group === 'ready'
               ? `Player X ${v} est prête et signée. Redémarrage automatique dans 10 secondes, ou choisis Plus tard.`
               : group === 'refused'

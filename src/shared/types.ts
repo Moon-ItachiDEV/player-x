@@ -1,3 +1,5 @@
+import type { LaunchOpts, LaunchStatus } from './launch'
+
 export type Store = 'steam' | 'epic' | 'ea'
 
 export interface Game {
@@ -19,6 +21,8 @@ export interface Game {
   playtimeSource?: 'steam' | 'local'
   /** Le jeu tourne en ce moment sur ce PC. */
   running?: boolean
+  /** Début de la partie en cours (premier relevé qui l'a vu), quand `running`. */
+  runningSince?: number
 }
 
 export type FriendPlatform = 'steam' | 'discord' | 'psn'
@@ -54,9 +58,12 @@ export interface Settings {
   demoMode: boolean
   /** Alertes quand un ami Steam ou PlayStation se connecte (`all`) ou seulement quand il lance un jeu (`games`). */
   friendAlerts: FriendAlertMode
+  /** Quand un jeu lancé depuis Player X démarre : Player X reste ouvert derrière (`stay`) ou se réduit (`minimize`). */
+  launchWindow: LaunchWindowMode
 }
 
 export type FriendAlertMode = 'all' | 'games' | 'off'
+export type LaunchWindowMode = 'stay' | 'minimize'
 
 /** Un ami vient de se connecter ou de lancer un jeu. */
 export interface FriendAlert {
@@ -242,7 +249,17 @@ export interface Bf6Tracked {
 
 export interface LauncherApi {
   getGames(refresh?: boolean): Promise<Game[]>
-  launchGame(id: string): Promise<void>
+  /**
+   * Lance un jeu. Ne rejette jamais pour un échec de lancement : la phase le dit (`failed`, `already`…).
+   * Répond une fois le lien transmis par Windows ; les phases suivantes arrivent par onLaunchStatus.
+   */
+  launchGame(id: string, opts: LaunchOpts): Promise<LaunchStatus>
+  /** « Ne plus attendre » : Player X arrête de suivre ce lancement (rien n'est fermé). */
+  cancelLaunch(launchId: string): Promise<void>
+  /** Lancements en cours et terminés depuis moins de 15 min (rechargement de l'interface). */
+  listLaunches(): Promise<LaunchStatus[]>
+  /** Chaque changement de phase d'un lancement. Renvoie la fonction de désabonnement. */
+  onLaunchStatus(cb: (s: LaunchStatus) => void): () => void
   toggleFavorite(id: string): Promise<Game[]>
   /** Remplace d'un coup la liste des favoris (écran de démarrage). Renvoie la bibliothèque à jour. */
   setFavorites(ids: string[]): Promise<Game[]>

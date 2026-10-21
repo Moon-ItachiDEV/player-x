@@ -1,6 +1,6 @@
 {
   "name": "plateforme-gaming",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Player X : lance tes jeux Steam, Epic et EA et vois tes amis en ligne.",
   "main": "out/main/index.js",
   "private": true,
@@ -10,6 +10,7 @@
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:update": "node --experimental-strip-types --test src/main/services/updateHandoff.test.ts",
+    "test:launch": "node --experimental-strip-types --test src/main/services/tracking.test.ts src/main/services/launchWatchParse.test.ts src/main/services/launches.test.ts && node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/main/services/launchWatch.test.ts src/renderer/src/launch/*.test.ts",
     "dist": "electron-vite build && electron-builder --win --x64 --publish never",
     "release": "electron-vite build && electron-builder --win --x64 --publish always",
     "postinstall": "node node_modules/electron/install.js"
@@ -20,6 +21,7 @@
     "files": [
       "out/**/*",
       "!out/main/updateSim-*.js",
+      "!out/main/launchSim-*.js",
       "resources/icon.png"
     ],
     "directories": {
@@ -55,8 +57,8 @@
     "icon": "resources/icon.png"
   },
   "dependencies": {
-    "@fontsource-variable/inter": "^5.3.0",
-    "@fontsource-variable/sora": "^5.3.0",
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/barlow-condensed": "^5.3.0",
     "@fontsource/michroma": "^5.3.0",
     "electron-updater": "^6.8.9",
     "psn-api": "^2.18.1",

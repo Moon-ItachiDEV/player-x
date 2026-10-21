@@ -4,6 +4,7 @@ import { readFile, readdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { shell } from 'electron'
+import type { LaunchFail } from '@shared/launch'
 import type { Game, ScanReport, Store } from '@shared/types'
 
 const isWin = process.platform === 'win32'
@@ -378,13 +379,56 @@ export function launchUrl(game: Game): string | null {
   }
 }
 
-export async function launch(game: Game): Promise<void> {
+/** Ce que Windows doit ouvrir : le lien du client du store, ou l'exécutable du jeu (EA sans contentID). */
+export type LaunchTarget = { kind: 'url'; url: string; route: Store } | { kind: 'exe'; path: string }
+
+export function launchTarget(game: Game): LaunchTarget | null {
   const url = launchUrl(game)
-  if (url) return shell.openExternal(url)
-  if (game.exePath) {
-    const err = await shell.openPath(game.exePath)
-    if (err) throw new Error('Exécutable introuvable : il a peut-être été déplacé ou supprimé.')
+  if (url) return { kind: 'url', url, route: game.store }
+  if (game.exePath) return { kind: 'exe', path: game.exePath }
+  return null
+}
+
+/** Envoi refusé par Windows. `reason` choisit le texte français de la carte ; `detail` (message de Windows) ne sert qu'à l'infobulle. */
+export class LaunchError extends Error {
+  readonly reason: LaunchFail
+  readonly detail?: string
+
+  constructor(reason: LaunchFail, detail?: string) {
+    super(reason)
+    this.name = 'LaunchError'
+    this.reason = reason
+    this.detail = detail
+  }
+}
+
+/** Message de Windows sans le préfixe anglais d'Electron (« Failed to open: … ») ; rien si ce n'en est pas un. */
+function windowsMessage(e: unknown): string | undefined {
+  const raw = e instanceof Error ? e.message : typeof e === 'string' ? e : ''
+  const msg = raw.match(/^\s*Failed to open:\s*([\s\S]+)$/i)?.[1].replace(/[\u0000-\u001f]+/g, ' ').trim()
+  return msg ? msg.slice(0, 300) : undefined
+}
+
+/**
+ * Confie le lien ou l'exécutable à Windows (l'appel part tout de suite, avant toute autre lecture). Ne rejette qu'avec
+ * LaunchError : jamais un message anglais d'Electron.
+ */
+export async function handoff(target: LaunchTarget): Promise<void> {
+  if (target.kind === 'url') {
+    try {
+      await shell.openExternal(target.url)
+    } catch (e) {
+      // Aucun programme pour ce protocole : store pas installé, ou lien d'un store désinstallé.
+      throw new LaunchError('no-handler', windowsMessage(e))
+    }
     return
   }
-  throw new Error(`Impossible de lancer ${game.name}.`)
+  let err: string
+  try {
+    err = await shell.openPath(target.path)
+  } catch {
+    throw new LaunchError('other')
+  }
+  // Fichier présent mais refusé (droits, antivirus) : ce n'est pas un exécutable introuvable.
+  if (err) throw new LaunchError(existsSync(target.path) ? 'other' : 'exe-missing')
 }

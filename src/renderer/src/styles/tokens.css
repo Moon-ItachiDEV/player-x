@@ -1,71 +1,88 @@
-/* Player X — direction « Nuit Néon » : graphite-marine, filets fins, violet de marque, cyan réservé au « en jeu ». */
+/* Player X — direction « Abysse » : bleu nuit, filets bleutés, jaune pour l'action principale, cyan réservé au « en jeu ». */
 :root {
   /* Fonds (du plus sombre au plus clair) */
-  --bg-0: #0b0d14; /* fenêtre, barre du haut, champs, connexion */
-  --bg-1: #0e1018; /* contenu principal */
-  --bg-2: #11131c; /* barre latérale + panneau amis */
+  --bg-0: #040b15; /* champs, connexion, fonds encastrés */
+  --bg-1: #06101c; /* contenu principal */
+  --bg-2: #09192a; /* menu latéral, barre du haut, panneaux */
+  --bg-rail: #071322; /* rail des favoris */
   /* Surfaces */
-  --surface-1: #161924; /* cartes, tuiles, panneaux */
-  --surface-2: #1c2030; /* survol, boutons secondaires */
-  --surface-3: #252a3c; /* pressé, popovers, toasts */
-  --scrim: rgba(6, 7, 12, 0.6);
+  --surface-1: #0c1d30; /* cartes, tuiles, panneaux */
+  --surface-2: #12283f; /* survol, boutons secondaires */
+  --surface-3: #183250; /* pressé, popovers, toasts */
+  --card-bg: linear-gradient(180deg, rgba(17, 42, 70, 0.85) 0%, rgba(9, 25, 42, 0.95) 100%);
+  --field-bg: rgba(24, 52, 86, 0.45);
+  --glass: rgba(8, 26, 46, 0.62); /* bandeaux et pastilles posés sur une image, toujours avec un flou */
+  --badge-bg: rgba(6, 16, 28, 0.72);
+  --scrim: rgba(3, 8, 15, 0.66);
   /* Filets */
-  --line-1: rgba(255, 255, 255, 0.06);
-  --line-2: rgba(255, 255, 255, 0.1);
-  --line-3: rgba(255, 255, 255, 0.16);
+  --line-1: rgba(140, 190, 255, 0.08);
+  --line-2: rgba(140, 190, 255, 0.14);
+  --line-3: rgba(140, 190, 255, 0.28);
   /* Texte */
-  --text-1: #f2f3f8;
-  --text-2: #a3a8bd;
-  --text-3: #8a90a8;
-  --text-4: #4a4f63; /* désactivé uniquement */
-  /* Marque (couleurs du logo PX) */
+  --text-1: #eaf3ff;
+  --text-2: #a6bdd9;
+  --text-3: #7f98b8;
+  --text-4: #4a5f7a; /* désactivé uniquement */
+  /* Marque (couleurs du logo PX : animation de mise à jour, monogramme) */
   --brand-violet: #7c3aed;
   --brand-cyan: #22d3ee;
-  --accent: #9b6cff; /* texte, icônes, indicateurs, focus */
-  --accent-solid: #7c3aed; /* boutons pleins : texte blanc 5.7:1 */
-  --accent-solid-hover: #6d28d9;
-  --accent-soft: rgba(139, 92, 246, 0.14);
-  --accent-line: rgba(139, 92, 246, 0.45);
-  --accent-text: #c4b5fd;
-  --brand-gradient: linear-gradient(135deg, #7c3aed 0%, #4f7cff 55%, #22d3ee 100%); /* logo, barres de progression, bannière profil */
-  /* « En direct » */
-  --live: #22d3ee;
-  --live-soft: rgba(34, 211, 238, 0.12);
+  --brand-gradient: linear-gradient(135deg, #3fd0ff 0%, #2f7cf6 55%, #1d4ed8 100%); /* avatars, bannières */
+  /* Action : jaune, texte sombre */
+  --accent: #ffd23f; /* icônes actives, indicateurs, focus */
+  --accent-solid: #ffd23f; /* boutons pleins : texte --on-accent 13:1 */
+  --accent-solid-hover: #ffdc66;
+  --on-accent: #161200;
+  --accent-soft: rgba(255, 210, 63, 0.14);
+  --accent-line: rgba(255, 210, 63, 0.45);
+  --accent-text: #ffe07a;
+  /* Sélection (menu, onglets) */
+  --nav-on-bg: rgba(140, 190, 255, 0.09);
+  --nav-on-line: rgba(140, 190, 255, 0.3);
+  /* « En direct » : partie en cours, jauges */
+  --live: #3fd0ff;
+  --live-soft: rgba(63, 208, 255, 0.14);
+  --live-text: #7edfff;
+  --live-line: rgba(63, 208, 255, 0.45); /* jumeau de --accent-line */
+  --on-live: #04121f;
+  --meter: #3fd0ff;
+  --meter-2: #7fa6d6;
   /* Présence (toujours accompagnée d'une forme) */
-  --st-ingame: #22d3ee;
-  --st-online: #3bd67f;
-  --st-away: #f5b544;
-  --st-offline: #5c6178;
+  --st-ingame: #3fd0ff;
+  --st-online: #34d399;
+  --st-away: #f5a524;
+  --st-offline: #5b708c;
   /* Sémantique */
-  --success: #3bd67f;
-  --success-soft: rgba(59, 214, 127, 0.12);
-  --warning: #f5b544;
-  --warning-soft: rgba(245, 181, 68, 0.12);
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.12);
+  --warning: #f5a524;
+  --warning-soft: rgba(245, 165, 36, 0.12);
   --danger: #ff5468;
   --danger-soft: rgba(255, 84, 104, 0.12);
   --danger-text: #ff8593;
   --danger-solid-hover: #c93446;
   --info: #5aa9ff;
-  --favorite: #f5b544;
+  --favorite: #ffd23f;
   /* Stores / plateformes : teintes et monogrammes, jamais de logos */
   --store-steam: #66c0f4;
   --store-epic: #e4e6ee;
   --store-ea: #ff4d5e;
   --pf-discord: #7983f5;
   --pf-psn: #4a8cff;
-  /* Rayons */
-  --r-xs: 4px;
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 14px;
-  --r-xl: 18px;
+  /* Rayons : angles plus vifs */
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 14px;
   --r-pill: 999px;
   /* Élévation */
-  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --sh-2: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --sh-3: 0 24px 56px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--line-2);
-  --sh-card-hover: 0 16px 32px -8px rgba(0, 0, 0, 0.65);
-  --glow-accent: 0 0 0 1px rgba(139, 92, 246, 0.55), 0 8px 28px -4px rgba(124, 58, 237, 0.6); /* survol du bouton principal uniquement */
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --sh-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --sh-3: 0 24px 56px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--line-2);
+  --sh-card: 0 22px 40px -28px rgba(0, 0, 0, 0.9);
+  --sh-card-hover: 0 18px 36px -12px rgba(0, 0, 0, 0.75);
+  --glow-accent: 0 12px 28px -12px rgba(255, 210, 63, 0.7); /* bouton principal */
+  --glow-live: 0 0 0 1px var(--live), 0 16px 36px -18px var(--live);
   --focus: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--accent);
   /* Espacements */
   --sp-1: 4px;
@@ -77,10 +94,10 @@
   --sp-8: 32px;
   --sp-10: 40px;
   --sp-12: 48px;
-  /* Typo */
-  --font-display: 'Sora Variable', 'Inter Variable', system-ui, sans-serif;
-  --font-ui: 'Inter Variable', system-ui, 'Segoe UI', sans-serif;
-  --font-brand: 'Michroma', 'Sora Variable', sans-serif; /* mot « PLAYER X » uniquement */
+  /* Typo : titres condensés en majuscules, interface en Barlow */
+  --font-display: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+  --font-ui: 'Barlow', system-ui, 'Segoe UI', sans-serif;
+  --font-brand: 'Michroma', 'Barlow', sans-serif; /* mot « PLAYER X » uniquement */
   /* Mouvement */
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
@@ -101,11 +118,12 @@
   --upd-w: 480px;
   --upd-h: 76px;
   --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  /* Mise en page */
-  --rail-w: 72px;
+  /* Mise en page : rail des favoris, menu latéral, contenu */
+  --rail-w: 64px;
+  --side-w: 248px;
+  --nav-w: calc(var(--rail-w) + var(--side-w));
   --topbar-h: 48px;
-  --friends-w: 288px;
-  --sheet-w: 560px;
+  --sheet-w: 480px;
   --cover-min: 164px;
   /* Plans */
   --z-sticky: 10;
@@ -115,5 +133,6 @@
   --z-popover: 60;
   --z-modal: 70;
   --z-toast: 80;
+  --z-launch: 75; /* mise à feu d'un jeu : au-dessus des dialogues, sous les toasts et le saut */
   --z-warp: 100; /* au-dessus des toasts : redémarrage et retour d'une mise à jour */
 }

@@ -1,15 +1,15 @@
-/* Bibliothèque : barre d'outils collante, grille de jaquettes, états vides. Héros et étagère : hero.css, shelf.css. */
+/* Bibliothèque : barre d'outils collante, grille de cartes, états vides. Onglets Tous / Favoris : barre du haut (TopTabs). */
 
 .lib {
-  --lib-pad-x: 32px; /* doit suivre le padding horizontal de .page */
+  --lib-pad-x: 28px; /* doit suivre le padding horizontal de .page */
   display: flex;
   flex-direction: column;
-  gap: 32px;
   min-height: 100%;
+  padding-top: 14px;
 }
 @media (max-width: 1200px) {
   .lib {
-    --lib-pad-x: 24px;
+    --lib-pad-x: 20px;
   }
 }
 
@@ -30,11 +30,6 @@
 
 /* ---------- barre d'outils collante ---------- */
 
-.lib-collection {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
 .lib-sentinel {
   height: 1px;
   margin-bottom: -1px;
@@ -47,77 +42,61 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 16px;
-  min-height: 54px;
+  min-height: 60px;
   margin: 0 calc(var(--lib-pad-x) * -1);
   padding: 12px var(--lib-pad-x);
-  background: color-mix(in srgb, var(--bg-1) 82%, transparent);
-  backdrop-filter: blur(14px) saturate(140%);
   border-bottom: 1px solid transparent;
-  transition: border-color var(--d-1) var(--ease-out);
+  transition:
+    border-color var(--d-1) var(--ease-out),
+    background-color var(--d-1) var(--ease-out);
 }
-.no-blur .lib-toolbar {
-  background: var(--bg-1);
-}
+/* Fond et flou seulement une fois collée en haut : au repos, la barre laisse voir le décor */
 .lib-toolbar.is-stuck {
+  background: color-mix(in srgb, var(--bg-1) 84%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
   border-bottom-color: var(--line-1);
 }
-.lib-tb-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  max-width: 100%;
+.no-blur .lib-toolbar.is-stuck {
+  background: var(--bg-1);
 }
-.lib-tb-title h2 {
-  font: 600 16px/22px var(--font-ui);
-  letter-spacing: -0.005em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-.lib-tb-count {
-  font-size: 13px;
-  color: var(--text-3);
-}
-.lib-chips {
+.lib-picks {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
-.lib-chip-star {
-  color: var(--favorite);
+.lib-tb-end {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  margin-left: auto;
 }
-.lib-tb-actions {
+.lib-tb-summary {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
+  min-width: 0;
+  font: 500 12.5px/16px var(--font-ui);
+  color: var(--text-3);
+  white-space: nowrap;
 }
-.lib-sort {
-  color: var(--text-2);
-  font-weight: 500;
-}
-.lib-sort strong {
+.lib-tb-query {
+  min-width: 0;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-1);
   font-weight: 600;
 }
-.lib-sort-chevron,
+.link-btn.lib-tb-clear {
+  margin-left: 8px;
+  font-size: 12.5px;
+}
 .lib-chevron {
   transition: transform var(--d-2) var(--ease-out);
 }
-.lib-sort-chevron.is-open,
 .lib-chevron.is-open {
   transform: rotate(180deg);
-}
-.lib-menu-check {
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-}
-.lib-sort-menu .menu-item[aria-checked='true'] svg {
-  color: var(--accent);
 }
 
 /* ---------- grille ---------- */
@@ -125,8 +104,8 @@
 .lib-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--cover-min), 1fr));
-  gap: 24px 16px;
-  margin-top: 16px;
+  gap: 18px 16px;
+  margin-top: 8px;
 }
 
 /*
@@ -141,10 +120,9 @@
   z-index: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
   min-width: 0;
   cursor: pointer;
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
 }
 .lib-card:hover,
 .lib-card:focus-visible,
@@ -166,7 +144,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   box-shadow: 0 26px 44px -16px rgb(0 0 0 / 0.8);
   opacity: 0;
   pointer-events: none;
@@ -201,14 +179,16 @@
   object-fit: cover;
 }
 
+/* Carte encadrée (jaquette + nom) : c'est elle qui s'incline */
 .lib-card-box {
   position: relative;
-  aspect-ratio: 2 / 3;
-  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-lg);
   overflow: hidden;
   isolation: isolate;
-  background: var(--surface-1);
-  box-shadow: var(--sh-1);
+  background: var(--card-bg);
+  box-shadow: var(--sh-card);
   /* transform : retour à plat quand l'inclinaison s'arrête ; pendant le survol, la boucle rAF le pilote */
   transition:
     translate var(--d-out) var(--ease-out),
@@ -220,21 +200,30 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: inset 0 0 0 1px var(--line-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
   pointer-events: none;
   z-index: 3;
 }
-.lib-card-box .cover {
+.lib-card-cover {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: var(--surface-1);
+}
+.lib-card-cover .cover {
   height: 100%;
   scale: 1;
   transition: scale 400ms var(--ease-out);
 }
 .lib-card-tag.store-tag {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 2;
-  background: color-mix(in srgb, var(--bg-0) 78%, transparent);
+  flex-shrink: 0;
+  min-width: 22px;
+  width: auto !important;
+  padding: 0 4px;
+  color: var(--text-3);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  letter-spacing: 0.03em;
 }
 .lib-card-overlay {
   position: absolute;
@@ -269,8 +258,8 @@
   mask-composite: exclude;
   background: radial-gradient(
     200px circle at calc(var(--px) * 100%) calc(var(--py) * 100%),
-    rgb(196 181 253 / 0.95),
-    rgb(124 58 237 / 0.6) 38%,
+    rgb(255 224 122 / 0.95),
+    rgb(63 208 255 / 0.55) 38%,
     rgb(255 255 255 / 0.06) 70%
   );
   opacity: 0;
@@ -288,16 +277,16 @@
   justify-content: center;
   gap: 6px;
   height: 34px;
-  border-radius: 9px;
-  font: 700 12.5px/1 var(--font-ui);
+  border-radius: var(--r-md);
+  font: 800 12.5px/1 var(--font-ui);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent-solid);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    0 6px 16px -6px rgb(124 58 237 / 0.7);
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    0 8px 18px -8px rgb(255 210 63 / 0.7);
   opacity: 0;
   translate: 0 10px;
   pointer-events: none;
@@ -310,22 +299,52 @@
   width: 14px;
   height: 14px;
 }
-.lib-card-play:hover:not(:disabled) {
+.lib-card-play:hover:not([aria-disabled='true'], .is-sending, .is-waiting, .is-live) {
   background: var(--accent-solid-hover);
+}
+/* En attente : jaune clair sur verre (rien ne tourne) ; en jeu : cyan. Les couleurs changent d'un coup. */
+.lib-card-play:is(.is-waiting, .is-live) {
+  backdrop-filter: blur(8px);
+  transition:
+    opacity 180ms var(--ease-out),
+    translate 260ms var(--ease-glide);
+}
+.lib-card-play.is-waiting {
+  color: var(--accent-text);
+  background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--badge-bg);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.lib-card-play.is-live {
+  color: var(--live-text);
+  background: linear-gradient(var(--live-soft), var(--live-soft)), var(--badge-bg);
+  box-shadow: inset 0 0 0 1px var(--live-line);
+}
+.lib-card-play.is-live:hover {
+  background: linear-gradient(color-mix(in srgb, var(--live) 22%, transparent), color-mix(in srgb, var(--live) 22%, transparent)), var(--badge-bg);
 }
 .lib-card-fav {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 8px;
+  right: 8px;
   z-index: 3;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-md);
   color: var(--text-1);
-  background: color-mix(in srgb, var(--bg-0) 60%, transparent);
+  background: var(--badge-bg);
   opacity: 0;
+  /* Le flou part à la fin du fondu de sortie. */
+  transition:
+    opacity var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    backdrop-filter 0s linear var(--d-1);
+}
+/* Flou seulement quand l'étoile se voit : une étoile invisible n'est pas un calque composité (300 jaquettes en
+   faisaient plus de 1 000, relayoutés à chaque repaint de la page, compteur du lancement compris). */
+.lib-card:is(.is-fav, :hover, :focus-within) .lib-card-fav {
+  backdrop-filter: blur(8px);
   transition:
     opacity var(--d-1) var(--ease-out),
     color var(--d-1) var(--ease-out);
@@ -361,7 +380,7 @@
 .lib-card:is(:hover, :focus-visible) .lib-card-box::after {
   box-shadow: inset 0 0 0 1px var(--line-3);
 }
-.lib-card:is(:hover, :focus-visible) .lib-card-box .cover {
+.lib-card:is(:hover, :focus-visible) .lib-card-cover .cover {
   scale: 1.04;
 }
 .lib-card:is(:hover, :focus-visible, [data-tilt], .is-launching) .lib-card-overlay {
@@ -376,15 +395,18 @@
     translate 260ms var(--ease-glide) 40ms,
     background-color var(--d-1) var(--ease-out);
 }
-.lib-card.is-launching .lib-card-play:disabled {
-  opacity: 0.85;
+/* En attente, en jeu : les couleurs changent d'un coup, même pastille forcée visible. */
+.lib-card:is(:hover, :focus-visible, .is-launching) .lib-card-play:is(.is-waiting, .is-live) {
+  transition:
+    opacity 180ms var(--ease-out) 40ms,
+    translate 260ms var(--ease-glide) 40ms;
 }
 
 /* Complet : inclinaison, reflet et anneau sous la souris (sans transition CSS sur transform : la boucle rAF lisse) */
 :root[data-fx='on'] .lib-card[data-tilt] .lib-card-box {
-  transform: rotateX(calc((0.5 - var(--py)) * 9deg)) rotateY(calc((var(--px) - 0.5) * 12deg));
+  transform: rotateX(calc((0.5 - var(--py)) * 8deg)) rotateY(calc((var(--px) - 0.5) * 11deg));
   translate: 0 -6px;
-  scale: 1.05;
+  scale: 1.04;
   transition:
     translate var(--d-in) var(--ease-glide),
     scale var(--d-in) var(--ease-glide);
@@ -392,22 +414,22 @@
 /* Focus clavier : même élévation, pas d'inclinaison */
 :root[data-fx='on'] .lib-card:focus-visible .lib-card-box {
   translate: 0 -6px;
-  scale: 1.05;
+  scale: 1.04;
 }
 :root[data-fx='on'] .lib-card:is([data-tilt], :focus-visible) .lib-card-media::before {
   opacity: 1;
   translate: 0 -6px;
-  scale: 1.05;
+  scale: 1.04;
   transition:
     opacity var(--d-in) var(--ease-glide),
     translate var(--d-in) var(--ease-glide),
     scale var(--d-in) var(--ease-glide);
 }
 /* Parallaxe interne : l'image glisse à l'opposé du pointeur ; revient au centre avec --px/--py */
-:root[data-fx='on'] .lib-card-box .cover {
+:root[data-fx='on'] .lib-card-cover .cover {
   translate: calc((0.5 - var(--px)) * 10px) calc((0.5 - var(--py)) * 10px);
 }
-:root[data-fx='on'] .lib-card:is([data-tilt], :focus-visible) .lib-card-box .cover {
+:root[data-fx='on'] .lib-card:is([data-tilt], :focus-visible) .lib-card-cover .cover {
   scale: 1.08;
 }
 :root[data-fx='on'] .lib-card[data-tilt] .lib-card-glare {
@@ -419,7 +441,7 @@
 }
 :root[data-fx='on'] .lib-card:focus-visible .lib-card-ring {
   opacity: 1;
-  background: conic-gradient(from var(--ring-angle), rgb(155 108 255 / 0.3), #c4b5fd 18%, rgb(155 108 255 / 0.3) 36%, rgb(155 108 255 / 0.3));
+  background: conic-gradient(from var(--ring-angle), rgb(255 210 63 / 0.3), #ffe07a 18%, rgb(255 210 63 / 0.3) 36%, rgb(255 210 63 / 0.3));
   animation: lib-ring-spin 4s linear infinite;
 }
 :root[data-fx='on'] .lib-card:is([data-tilt], :focus-visible) .lib-card-glow {
@@ -468,36 +490,64 @@
 
 .lib-card-text {
   display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px 11px;
+  border-top: 1px solid var(--line-1);
+}
+.lib-card-words {
+  display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
   min-width: 0;
-  padding: 0 2px;
 }
 .lib-card-title {
-  font: 600 13.5px/18px var(--font-ui);
+  font: 700 15px/18px var(--font-display);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .lib-card-meta {
+  font: 500 11.5px/15px var(--font-ui);
+  color: var(--text-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.lib-card.is-running .lib-card-meta {
+  color: var(--live-text);
+  font-weight: 600;
+}
 .lib-card.is-launching .lib-card-meta {
   color: var(--accent-text);
 }
+.lib-card[data-launch='demo-running'] .lib-card-meta {
+  color: var(--live-text);
+}
 
-/* Squelettes de jaquettes */
+/* Squelettes de cartes */
 .lib-card-skel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-1);
+  background: var(--card-bg);
 }
 .lib-skel-cover.skel {
   aspect-ratio: 2 / 3;
-  border-radius: var(--r-md);
+  border-radius: 0;
+}
+.lib-skel-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
 }
 .lib-skel-line.skel {
   height: 12px;
@@ -571,7 +621,7 @@
   margin-top: 12px;
 }
 
-/* Jeu en cours sur ce PC : pastille cyan et filet cyan autour de la jaquette */
+/* Jeu en cours sur ce PC : pastille cyan et filet cyan autour de la carte */
 .lib-card-live {
   position: absolute;
   left: 8px;
@@ -579,9 +629,7 @@
   z-index: 2;
 }
 .lib-card.is-running:not(:focus-visible) .lib-card-box {
-  box-shadow:
-    0 0 0 1.5px color-mix(in srgb, var(--st-ingame) 60%, transparent),
-    0 10px 28px -12px color-mix(in srgb, var(--st-ingame) 45%, transparent);
+  box-shadow: var(--glow-live);
 }
 .lib-card.is-running:is(:hover, :focus-visible) .lib-card-live {
   opacity: 0;

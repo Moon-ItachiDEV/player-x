@@ -10,7 +10,7 @@ import './chrome.css'
 export type { AccountMenuProps }
 
 const PLATFORMS: FriendPlatform[] = ['steam', 'discord', 'psn']
-const MENU_STYLE: React.CSSProperties = { left: 'calc(var(--rail-w) + 8px)', bottom: 12, width: 288 }
+const MENU_STYLE: React.CSSProperties = { left: 'calc(var(--rail-w) + 10px)', top: 72, width: 288 }
 
 /** Compte principal : Steam, puis Discord, puis PSN. */
 function primaryAccount(accounts: Account[]): Account | undefined {
@@ -21,7 +21,7 @@ function primaryAccount(accounts: Account[]): Account | undefined {
   return accounts[0]
 }
 
-/** Popover du compte, ancré au bas de la barre latérale. */
+/** Popover du compte, ancré sous la salutation du menu latéral. */
 export function AccountMenu({ open, accounts, onClose, onProfile, onAccounts, onSettings, onLogin }: AccountMenuProps): React.JSX.Element | null {
   const bodyRef = useRef<HTMLDivElement>(null)
 

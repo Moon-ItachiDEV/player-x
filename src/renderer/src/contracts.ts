@@ -1,13 +1,15 @@
 // Contrats entre App.tsx et les écrans. Chaque écran exporte un composant nommé qui reçoit exactement ces props.
 import type { RefObject } from 'react'
+import type { LaunchVia } from '@shared/launch'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings } from '@shared/types'
 
-export type View = 'library' | 'profile' | 'stats' | 'settings'
+export type View = 'home' | 'library' | 'profile' | 'stats' | 'settings'
 export type SettingsSection = 'accounts' | 'library' | 'interface' | 'advanced' | 'about'
 export type LoginPlatform = 'steam' | 'discord' | 'psn'
 
 /** Préférences d'interface, propres à ce PC (localStorage `pg.ui`). */
 export interface UiPrefs {
+  /** Liste d'amis du menu latéral : dépliée ou repliée sur son en-tête. */
   friendsPanel: 'open' | 'hidden'
   coverSize: 'S' | 'M' | 'L'
   reduceMotion: boolean
@@ -18,28 +20,64 @@ export interface UiPrefs {
 
 export const COVER_MIN: Record<UiPrefs['coverSize'], number> = { S: 136, M: 164, L: 200 }
 
-/** components/Rail.tsx → `export function Rail` */
-export interface RailProps {
+/**
+ * Lance un jeu (launch/store.ts startLaunch). `from` : l'image cliquée, d'où part la jaquette de la mise à feu.
+ * Pendant l'attente, ramène la carte du lancement devant au lieu de renvoyer le lien.
+ */
+export type LaunchFn = (g: Game, from?: HTMLElement | null, via?: LaunchVia) => void
+
+/** components/FavRail.tsx → `export function FavRail` (rail des jeux favoris, tout à gauche) */
+export interface FavRailProps {
+  games: Game[]
+  /** Clic : lance le jeu. */
+  onLaunch: LaunchFn
+  /** Clic droit ou touche Menu : ouvre la fiche. */
+  onOpen: (g: Game) => void
+  /** « + » : rouvre le choix des favoris. */
+  onEditFavorites: () => void
+}
+
+/** components/Sidebar.tsx → `export function Sidebar` (salutation, navigation, amis, paramètres) */
+export interface SidebarProps {
   view: View
   onView: (v: View) => void
+  gamesCount: number
   accounts: Account[]
   demo: boolean
   accountMenuOpen: boolean
   onToggleAccountMenu: () => void
+  friends: SideFriendsProps
+}
+
+/** components/friends/SideFriends.tsx → `export function SideFriends` (liste d'amis du menu latéral) */
+export interface SideFriendsProps {
+  result: FriendsResult
+  accounts: Account[]
+  games: Game[]
+  demo: boolean
+  /** Un serveur Discord est renseigné (ses membres s'affichent même sans compte). */
+  discordConfigured: boolean
+  loading: boolean
+  /** Liste dépliée (préférence `friendsPanel`). */
+  open: boolean
+  onToggleOpen: () => void
+  onRefresh: () => void
+  onOpenAccounts: () => void
 }
 
 /** components/TopBar.tsx → `export function TopBar` */
 export interface TopBarProps {
+  /** Titre de la page ; absent quand la page pose ses onglets dans la barre (TopTabs). */
+  title?: string
   /** Recherche globale : filtre la bibliothèque (bascule sur Bibliothèque quand on tape). */
   query: string
   onQueryChange: (q: string) => void
   searchRef: RefObject<HTMLInputElement | null>
-  friends: Friend[]
-  friendsOpen: boolean
-  onToggleFriends: () => void
+  /** Reçoit l'élément où les pages posent leurs onglets. */
+  slotRef: (el: HTMLElement | null) => void
 }
 
-/** components/AccountMenu.tsx → `export function AccountMenu` (popover ancré au bas de la barre latérale) */
+/** components/AccountMenu.tsx → `export function AccountMenu` (popover ancré sous la salutation du menu latéral) */
 export interface AccountMenuProps {
   open: boolean
   accounts: Account[]
@@ -50,47 +88,52 @@ export interface AccountMenuProps {
   onLogin: () => void
 }
 
+/** components/home/Home.tsx → `export function Home` (accueil : jeu à la une, « À reprendre ») */
+export interface HomeProps {
+  games: Game[]
+  friends: Friend[]
+  scanning: boolean
+  report: ScanReport[]
+  demo: boolean
+  onLaunch: LaunchFn
+  onOpen: (g: Game) => void
+  onFavorite: (g: Game) => void
+  onRescan: () => void
+  onEnableDemo: () => void
+  onShowLibrary: () => void
+}
+
 /** components/library/Library.tsx → `export function Library` */
 export interface LibraryProps {
   games: Game[]
-  friends: Friend[]
   scanning: boolean
   report: ScanReport[]
   demo: boolean
   /** Texte de la recherche du haut (déjà appliqué par Library au filtrage). */
   query: string
   onClearQuery: () => void
-  launchingId: string | null
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
   onOpen: (g: Game) => void
   onFavorite: (g: Game) => void
   onRescan: () => void
   onEnableDemo: () => void
+  /** Taille des jaquettes (menu « Taille »), partagée avec Paramètres › Interface. */
+  coverSize: UiPrefs['coverSize']
+  onCoverSize: (s: UiPrefs['coverSize']) => void
 }
 
 /** components/GameSheet.tsx → `export function GameSheet` (tiroir à droite ; `game === null` = fermé) */
 export interface GameSheetProps {
   game: Game | null
   friends: Friend[]
-  launching: boolean
   onClose: () => void
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
+  /** « Réanalyser » (exécutable introuvable) : relance l'analyse de la bibliothèque. */
+  onRescan?: () => void
   onFavorite: (g: Game) => void
   onOpenFolder: (g: Game) => void
-}
-
-/** components/friends/FriendsPanel.tsx → `export function FriendsPanel` */
-export interface FriendsPanelProps {
-  result: FriendsResult
-  accounts: Account[]
-  games: Game[]
-  demo: boolean
-  /** Un serveur Discord est renseigné (ses membres s'affichent même sans compte). */
-  discordConfigured: boolean
-  loading: boolean
-  onRefresh: () => void
-  onHide: () => void
-  onOpenAccounts: () => void
+  /** Raccourci « Tes stats Battlefield 6 » (fiche de Battlefield 6 seulement). */
+  onOpenStats: () => void
 }
 
 /** components/Profile.tsx → `export function Profile` */
@@ -98,9 +141,8 @@ export interface ProfileProps {
   games: Game[]
   accounts: Account[]
   friends: FriendsResult
-  launchingId: string | null
   onOpenGame: (g: Game) => void
-  onLaunch: (g: Game) => void
+  onLaunch: LaunchFn
   onManageAccounts: () => void
   onShowFriends: () => void
 }
@@ -172,4 +214,6 @@ export interface UpdateNoticeProps {
   onOpenAbout: () => void
   /** Un jeu tourne : la carte devient une pastille immobile et le compte à rebours se met en pause. */
   inGame: boolean
+  /** Un vrai jeu est en train de se lancer : même discrétion, compte « En pause pendant le lancement ». */
+  launching?: boolean
 }

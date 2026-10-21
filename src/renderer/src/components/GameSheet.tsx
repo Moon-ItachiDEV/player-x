@@ -1,7 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { capitalize, cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
 import type { Friend, Game } from '@shared/types'
-import type { GameSheetProps } from '../contracts'
+import { isBf6Game, useBf6Summary } from './stats/bf6'
+import type { GameSheetProps, LaunchFn } from '../contracts'
+import { sheetLine } from '../launch/copy'
+import { isPending } from '../launch/phase'
+import { PlayLabel } from '../launch/PlayLabel'
+import { useWindowActive } from '../update/useCardPhase'
+import { usePlayState, type PlayInfo } from '../launch/usePlayState'
 import { Avatar } from './ui/Avatar'
 import { CountUp } from './ui/CountUp'
 import { Cover } from './ui/Cover'
@@ -38,8 +44,11 @@ export function GameSheet(props: GameSheetProps): React.JSX.Element | null {
 
 type SheetProps = Omit<GameSheetProps, 'game'> & { game: Game; closing: boolean }
 
-function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorite, onOpenFolder }: SheetProps): React.JSX.Element {
+function Sheet({ game, friends, closing, onClose, onLaunch, onRescan, onFavorite, onOpenFolder, onOpenStats }: SheetProps): React.JSX.Element {
   const panelRef = useRef<HTMLElement>(null)
+  const posterRef = useRef<HTMLDivElement>(null)
+  const playRef = useRef<HTMLButtonElement>(null)
+  const p = usePlayState(game, onLaunch)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(false)
   const [pop, setPop] = useState(0)
@@ -57,7 +66,7 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
   // Ouverte autrement (« Détails », vignette), un double-clic est seulement ignoré.
   const onScrimClick = (e: React.MouseEvent): void => {
     const justOpened = performance.now() - openedAt.current < DBL_CLICK_MS
-    if (justOpened && e.detail === 2 && !launching && openedByCard(DBL_CLICK_MS)) onLaunch(game)
+    if (justOpened && e.detail === 2 && p.state === 'idle' && openedByCard(DBL_CLICK_MS)) p.activate(posterRef.current)
     if (justOpened || e.detail > 1) return
     onClose()
   }
@@ -120,43 +129,39 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
       <aside ref={panelRef} className="sheet-panel" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={trapFocus}>
         <header className="sheet-art">
           <Cover key={game.id} game={game} variant="landscape" showTitle={false} />
-          <div className="sheet-poster">
-            <Cover key={`p-${game.id}`} game={game} variant="portrait" showTitle={false} />
-          </div>
           <div className="sheet-art-shade" />
           <button className="icon-btn sheet-close" onClick={onClose} aria-label="Fermer" title="Fermer (Échap)">
             <Icon name="x" size={18} />
           </button>
+        </header>
+        <div className="sheet-head">
+          <div ref={posterRef} className="sheet-poster">
+            <Cover key={`p-${game.id}`} game={game} variant="portrait" showTitle={false} />
+          </div>
           <div className="sheet-heading">
-            <h2 id={titleId} className="display-l sheet-title">
-              {title}
-            </h2>
             <span className="sheet-tags">
               <StoreTag kind={game.store} long />
               {game.running && <LiveBadge />}
             </span>
+            <h2 id={titleId} className="sheet-title">
+              {title}
+            </h2>
           </div>
-        </header>
+        </div>
 
         <div ref={sentinelRef} className="sheet-sentinel" />
         <div className={`sheet-actions ${stuck ? 'is-stuck' : ''}`}>
           <button
-            className={`btn btn-primary btn-play sheet-play ${launching ? 'is-launching' : ''}`}
-            onClick={() => onLaunch(game)}
-            disabled={launching}
-            data-magnetic
+            ref={playRef}
+            className={`btn btn-primary btn-play sheet-play ${p.className}`}
+            onClick={() => p.activate(posterRef.current)}
+            aria-disabled={p.inert || undefined}
+            aria-busy={p.busy || undefined}
+            aria-label={p.ariaLabel}
+            title={p.state === 'idle' ? undefined : p.title}
+            data-magnetic={p.state === 'idle' ? '' : undefined}
           >
-            {launching ? (
-              <>
-                <span className="spinner" aria-hidden="true" />
-                Lancement…
-              </>
-            ) : (
-              <>
-                <Icon name="play" size={18} />
-                Jouer
-              </>
-            )}
+            <PlayLabel p={p} size={18} />
           </button>
           <button
             className={`btn btn-secondary sheet-square ${game.favorite ? 'is-fav' : ''}`}
@@ -180,6 +185,8 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
           </button>
         </div>
 
+        <LaunchLine game={game} p={p} playRef={playRef} onLaunch={onLaunch} onRescan={onRescan} />
+
         <div className="sheet-stats">
           {game.lastPlayed ? (
             <StatTile label="Dernier lancement" value={capitalize(timeAgo(game.lastPlayed))} caption={formatDate(game.lastPlayed)} />
@@ -192,8 +199,11 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
             value={game.playtime ? formatPlaytime(game.playtime) : '0 min'}
             countTo={game.playtime}
             caption={game.running ? 'Partie en cours' : game.playtimeSource === 'steam' ? 'selon Steam' : 'mesuré par Player X'}
+            live={game.running}
           />
         </div>
+
+        {isBf6Game(game) && <Bf6Link onOpen={onOpenStats} />}
 
         <section className="sheet-section">
           <h3 className="sheet-h">
@@ -225,28 +235,50 @@ function Sheet({ game, friends, launching, closing, onClose, onLaunch, onFavorit
           </section>
         )}
 
-        <section className="sheet-section">
+        <section className="sheet-section sheet-install">
           <h3 className="sheet-h">Installation</h3>
           <InstallPath game={game} onOpenFolder={onOpenFolder} />
         </section>
-
-        <p className="caption sheet-id">ID : {game.id}</p>
       </aside>
     </div>
   )
 }
 
-function StatTile({ label, value, caption, countTo }: { label: string; value: string; caption?: string; countTo?: number }): React.JSX.Element {
+function StatTile(props: { label: string; value: string; caption?: string; countTo?: number; live?: boolean }): React.JSX.Element {
+  const { label, value, caption, countTo, live } = props
   return (
     <div className="sheet-tile">
-      <span className="overline">{label}</span>
+      <span className="sheet-tile-label">{label}</span>
       <span className="sheet-tile-value num" title={value}>
         {countTo ? <CountUp value={countTo} format={formatPlaytime} /> : value}
       </span>
-      <span className="caption sheet-tile-caption" title={caption}>
+      <span className={`sheet-tile-caption ${live ? 'is-live' : ''}`} title={caption}>
         {caption}
       </span>
     </div>
+  )
+}
+
+/** Raccourci vers la page Stats, sur la fiche de Battlefield 6 : ton K/D et tes victoires si ton compte est relié. */
+function Bf6Link({ onOpen }: { onOpen: () => void }): React.JSX.Element {
+  const summary = useBf6Summary()
+  const sub =
+    summary === undefined
+      ? 'Chargement…'
+      : summary === null
+        ? 'Relie ton profil pour voir ton K/D, tes armes et tes cartes'
+        : [summary.kd, summary.win, summary.name].filter(Boolean).join(' · ')
+  return (
+    <button className="sheet-link" onClick={onOpen}>
+      <span className="sheet-link-icon">
+        <Icon name="chart" size={20} />
+      </span>
+      <span className="sheet-link-text">
+        <span className="sheet-link-title">{summary === null ? 'Stats Battlefield 6' : 'Tes stats Battlefield 6'}</span>
+        <span className="sheet-link-sub">{sub}</span>
+      </span>
+      <Icon name="chevron-right" size={16} className="sheet-link-go" />
+    </button>
   )
 }
 
@@ -267,8 +299,15 @@ function InstallPath({ game, onOpenFolder }: { game: Game; onOpenFolder: (g: Gam
   const notify = useToast()
   const dir = game.installDir
 
+  const id = <span className="sheet-id">ID : {game.id}</span>
+
   if (!dir) {
-    return <p className="caption sheet-unknown">Dossier inconnu&nbsp;: c'est le lanceur {STORE_LONG[game.store]} qui gère l'installation.</p>
+    return (
+      <>
+        <p className="sheet-unknown">Dossier inconnu&nbsp;: c'est le lanceur {STORE_LONG[game.store]} qui gère l'installation.</p>
+        <div className="sheet-path-actions">{id}</div>
+      </>
+    )
   }
 
   const copy = (): void => {
@@ -290,6 +329,7 @@ function InstallPath({ game, onOpenFolder }: { game: Game; onOpenFolder: (g: Gam
           <Icon name="copy" size={16} />
           Copier
         </button>
+        {id}
       </div>
     </>
   )
@@ -346,4 +386,59 @@ function middleEllipsis(text: string, max: number, measure: (s: string) => numbe
     else hi = mid - 1
   }
   return cut(lo)
+}
+
+/**
+ * Ligne sous « Jouer » (spec launch-sequence.md §3.3) : où en est le lancement, compteur compris. Pas une région
+ * annoncée (la carte du lancement s'en charge). Un échec reste affiché jusqu'à la fermeture de la fiche.
+ */
+interface LaunchLineProps {
+  game: Game
+  p: PlayInfo
+  /** « Jouer » de la fiche : toujours monté et focalisable (aria-disabled), il reprend le focus du lien qui disparaît. */
+  playRef: React.RefObject<HTMLButtonElement | null>
+  onLaunch: LaunchFn
+  onRescan?: () => void
+}
+
+function LaunchLine({ game, p, playRef, onLaunch, onRescan }: LaunchLineProps): React.JSX.Element | null {
+  const active = useWindowActive()
+  const [now, setNow] = useState(() => Date.now())
+  // Ouverture de la fiche : un lancement terminé avant n'y est pas rappelé.
+  const [openedAt] = useState(() => Date.now())
+  const v = p.launch
+  const s = v?.status
+  const pending = !!s && isPending(s.phase)
+  useEffect(() => {
+    if (!pending || !active || !s) return
+    const at = Date.now()
+    const id = setTimeout(() => setNow(Date.now()), 1000 - ((at - s.clickAt) % 1000) + 8)
+    return () => clearTimeout(id)
+  }, [pending, active, s, now])
+  // La partie simulée de la démo tient lieu de « Partie en cours » : dite même si elle a commencé avant l'ouverture.
+  const demoRunning = !!s?.demo && s.phase === 'running'
+  if (!v || !s || v.checking || (!pending && !demoRunning && v.changedAt < openedAt)) return null
+  const line = sheetLine(s, { name: cleanName(game.name), now: active ? Date.now() : now })
+  if (!line?.text) return null
+  const act = line.action
+  return (
+    <p className={`sheet-launch-line ${line.tone === 'danger' ? 'is-danger' : ''}`}>
+      {line.icon && <Icon name={line.icon} size={14} />}
+      <span className="num">{line.text}</span>
+      {act && (act.kind !== 'rescan' || onRescan) && (
+        <button
+          className="link-btn"
+          onClick={() => {
+            if (act.kind === 'rescan') return onRescan?.()
+            // La ligne du nouveau lancement n'a pas de lien : le focus passe d'abord sur « Jouer » (il ne tombe pas sur
+            // <body> dans la fiche modale), qui devient aussi le contrôle d'origine du lancement.
+            playRef.current?.focus({ preventScroll: true })
+            onLaunch(game, null, act.kind)
+          }}
+        >
+          {act.label}
+        </button>
+      )}
+    </p>
+  )
 }
