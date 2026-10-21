@@ -30,7 +30,7 @@ import { bindLaunchIpc, resetLaunches, setLaunchDemo, startLaunch, useFrozenGame
 import { WhatsNew } from './components/WhatsNew'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
 import { COVER_MIN, type LoginPlatform, type SettingsSection, type UiPrefs, type View } from './contracts'
-import { closeTarget, takeMorphSource, useSystemReducedMotion, useWindowActivity, withViewTransition } from './motion'
+import { closeTarget, takeMorphSource, useSystemReducedMotion, useSystemReducedTransparency, useWindowActivity, withViewTransition } from './motion'
 import './styles/shell.css'
 import './styles/transitions.css'
 
@@ -64,6 +64,7 @@ export default function App(): React.JSX.Element {
   // Écran de démarrage (choix des favoris) : une fois après l'entrée, puis à la demande. `first` = premier passage.
   const [setup, setSetup] = useState<{ open: boolean; first: boolean }>(() => ({ open: !setupDone(), first: !setupDone() }))
   const systemReduced = useSystemReducedMotion()
+  const systemOpaque = useSystemReducedTransparency()
   useWindowActivity()
   const updateUi = useCallback((patch: Partial<UiPrefs>) => {
     setUi((prev) => {
@@ -80,11 +81,12 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     const root = document.documentElement
     root.classList.toggle('reduce-motion', ui.reduceMotion)
-    root.classList.toggle('no-blur', !ui.transparency)
+    // Sans transparence (Paramètres ou Windows) : couleurs pleines, aucun flou.
+    root.classList.toggle('no-blur', !ui.transparency || systemOpaque)
     root.style.setProperty('--cover-min', `${COVER_MIN[ui.coverSize]}px`)
     // Seul interrupteur des effets riches (CSS :root[data-fx='on'], JS fxOn()).
     root.dataset.fx = ui.visualFx && !ui.reduceMotion && !systemReduced ? 'on' : 'off'
-  }, [ui, systemReduced])
+  }, [ui, systemReduced, systemOpaque])
 
   return (
     <ToastProvider>

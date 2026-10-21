@@ -64,14 +64,15 @@ function createWindow(): void {
     show: !b?.maximized && !startHidden,
     minWidth: 1024,
     minHeight: 640,
-    backgroundColor: '#06101c',
+    backgroundColor: '#0a182b',
     title: 'Player X',
     icon: join(app.getAppPath(), 'resources', 'icon.png'),
     autoHideMenuBar: true,
-    // Barre de titre intégrée à l'interface ; Windows garde ses boutons natifs (réduire, agrandir, fermer).
+    // Barre de titre intégrée à l'interface ; Windows garde ses boutons natifs (réduire, agrandir, fermer),
+    // sur un fond transparent : la barre du haut, en verre, passe dessous (repli possible : couleur pleine '#142743').
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' as const }
-      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#09192a', symbolColor: '#a6bdd9', height: 48 } }),
+      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#00000000', symbolColor: '#d6e3f3', height: 48 } }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,

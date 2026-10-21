@@ -46,8 +46,13 @@ export function LibraryToolbar(props: ToolbarProps): React.JSX.Element {
   useEffect(() => {
     const el = sentinel.current
     if (!el) return
-    const root = el.closest('.content')
-    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.top < (e.rootBounds?.top ?? 0)), { root })
+    const root = el.closest<HTMLElement>('.content')
+    // Le contenu défile sous la barre du haut (son padding) : la zone observée commence sous la barre.
+    const bar = root ? parseFloat(getComputedStyle(root).paddingTop) || 0 : 0
+    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.top < (e.rootBounds?.top ?? 0)), {
+      root,
+      rootMargin: `-${bar}px 0px 0px 0px`
+    })
     io.observe(el)
     return () => io.disconnect()
   }, [])

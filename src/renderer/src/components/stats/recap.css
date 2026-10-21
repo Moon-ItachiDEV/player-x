@@ -59,7 +59,7 @@
 .recap-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgb(6 16 28 / 0.2) 0%, rgb(9 25 42 / 0.86) 72%, var(--bg-2) 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 20%, transparent) 0%, color-mix(in srgb, var(--bg-2) 86%, transparent) 72%, var(--bg-2) 100%);
 }
 .recap-kicker {
   color: var(--accent-text);
@@ -321,7 +321,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, transparent 10%, rgb(4 11 21 / 0.86) 100%);
+  background: linear-gradient(180deg, transparent 10%, color-mix(in srgb, var(--ink) 86%, transparent) 100%);
 }
 .recap-map-name {
   font: 700 15px/18px var(--font-display);

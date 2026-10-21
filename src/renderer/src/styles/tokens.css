@@ -1,28 +1,47 @@
 /* Player X — direction « Abysse » : bleu nuit, filets bleutés, jaune pour l'action principale, cyan réservé au « en jeu ». */
 :root {
   /* Fonds (du plus sombre au plus clair) */
-  --bg-0: #040b15; /* champs, connexion, fonds encastrés */
-  --bg-1: #06101c; /* contenu principal */
-  --bg-2: #09192a; /* menu latéral, barre du haut, panneaux */
-  --bg-rail: #071322; /* rail des favoris */
+  --bg-0: #0a182b; /* champs, connexion, fonds encastrés */
+  --bg-1: #10233b; /* contenu principal */
+  --bg-2: #162c48; /* menu latéral, panneaux, barre du haut sans transparence */
+  --bg-rail: #0d1e35; /* rail des favoris */
+  /* Fond des pages : halos bleus et dégradé vertical, du plus clair (haut) au plus sombre (bas). Peint une fois, sous le contenu. */
+  --page-bg:
+    radial-gradient(1100px 560px at 84% -10%, rgba(74, 146, 236, 0.2), transparent 70%),
+    radial-gradient(900px 600px at -6% 112%, rgba(40, 104, 196, 0.12), transparent 70%),
+    linear-gradient(180deg, #13284a 0%, var(--bg-1) 50%, #0c1c31 100%);
   /* Surfaces */
-  --surface-1: #0c1d30; /* cartes, tuiles, panneaux */
-  --surface-2: #12283f; /* survol, boutons secondaires */
-  --surface-3: #183250; /* pressé, popovers, toasts */
-  --card-bg: linear-gradient(180deg, rgba(17, 42, 70, 0.85) 0%, rgba(9, 25, 42, 0.95) 100%);
-  --field-bg: rgba(24, 52, 86, 0.45);
-  --glass: rgba(8, 26, 46, 0.62); /* bandeaux et pastilles posés sur une image, toujours avec un flou */
-  --badge-bg: rgba(6, 16, 28, 0.72);
-  --scrim: rgba(3, 8, 15, 0.66);
+  --surface-1: #1b3352; /* cartes, tuiles, panneaux */
+  --surface-2: #223d5f; /* survol, boutons secondaires */
+  --surface-3: #29486b; /* pressé, popovers, toasts */
+  --card-bg: linear-gradient(180deg, rgba(40, 62, 95, 0.88) 0%, rgba(27, 46, 73, 0.94) 100%);
+  --field-bg: rgba(8, 20, 38, 0.42);
+  --glass: rgba(24, 44, 72, 0.62); /* bandeaux et pastilles posés sur une image, toujours avec un flou */
+  --badge-bg: rgba(8, 21, 42, 0.72);
+  --scrim: rgba(5, 13, 26, 0.6);
+  /* Verre : la barre du haut, le bandeau du héros et la barre collante de la bibliothèque (seuls à flouter pour de vrai) */
+  --glass-bar: rgba(22, 40, 64, 0.66);
+  --glass-blur: blur(18px) saturate(140%);
+  --glass-line: rgba(170, 205, 255, 0.14); /* bord des panneaux en verre */
+  --glass-hi: rgba(255, 255, 255, 0.06); /* reflet du bord haut */
+  /* Encre : voiles sur les images (bleu nuit, jamais noir) */
+  --ink: #08152a;
+  /* Anneau des avatars : la couleur opaque sous eux */
+  --cut-card: #162740; /* pied des cartes « À reprendre » */
+  --cut-hover: #253f5e; /* menu latéral survolé */
+  /* Boutons secondaires */
+  --btn2-bg: rgba(44, 74, 112, 0.55);
+  --btn2-line: rgba(150, 195, 255, 0.24);
+  --btn2-bg-hover: rgba(56, 92, 138, 0.72);
   /* Filets */
-  --line-1: rgba(140, 190, 255, 0.08);
-  --line-2: rgba(140, 190, 255, 0.14);
-  --line-3: rgba(140, 190, 255, 0.28);
+  --line-1: rgba(150, 195, 255, 0.1);
+  --line-2: rgba(150, 195, 255, 0.16);
+  --line-3: rgba(150, 195, 255, 0.3);
   /* Texte */
-  --text-1: #eaf3ff;
-  --text-2: #a6bdd9;
-  --text-3: #7f98b8;
-  --text-4: #4a5f7a; /* désactivé uniquement */
+  --text-1: #eef5ff;
+  --text-2: #bccee6;
+  --text-3: #9cb2d0;
+  --text-4: #5f7696; /* désactivé uniquement */
   /* Marque (couleurs du logo PX : animation de mise à jour, monogramme) */
   --brand-violet: #7c3aed;
   --brand-cyan: #22d3ee;
@@ -36,8 +55,8 @@
   --accent-line: rgba(255, 210, 63, 0.45);
   --accent-text: #ffe07a;
   /* Sélection (menu, onglets) */
-  --nav-on-bg: rgba(140, 190, 255, 0.09);
-  --nav-on-line: rgba(140, 190, 255, 0.3);
+  --nav-on-bg: rgba(150, 200, 255, 0.12);
+  --nav-on-line: rgba(150, 200, 255, 0.32);
   /* « En direct » : partie en cours, jauges */
   --live: #3fd0ff;
   --live-soft: rgba(63, 208, 255, 0.14);
@@ -50,7 +69,7 @@
   --st-ingame: #3fd0ff;
   --st-online: #34d399;
   --st-away: #f5a524;
-  --st-offline: #5b708c;
+  --st-offline: #6f86a6;
   /* Sémantique */
   --success: #34d399;
   --success-soft: rgba(52, 211, 153, 0.12);
@@ -75,12 +94,13 @@
   --r-lg: 12px;
   --r-xl: 14px;
   --r-pill: 999px;
-  /* Élévation */
-  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --sh-2: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --sh-3: 0 24px 56px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--line-2);
-  --sh-card: 0 22px 40px -28px rgba(0, 0, 0, 0.9);
-  --sh-card-hover: 0 18px 36px -12px rgba(0, 0, 0, 0.75);
+  /* Élévation : ombres bleu nuit, pas noires */
+  --sh-1: 0 1px 2px rgba(2, 8, 20, 0.45);
+  --sh-2: 0 8px 24px rgba(2, 8, 20, 0.5);
+  --sh-3: 0 24px 56px rgba(2, 8, 20, 0.6), 0 0 0 1px var(--line-2);
+  /* Cartes : aspect du verre sans flou, reflet du bord haut compris */
+  --sh-card: inset 0 1px 0 var(--glass-hi), 0 22px 40px -28px rgba(2, 8, 20, 0.9);
+  --sh-card-hover: inset 0 1px 0 var(--glass-hi), 0 18px 36px -12px rgba(2, 8, 20, 0.75);
   --glow-accent: 0 12px 28px -12px rgba(255, 210, 63, 0.7); /* bouton principal */
   --glow-live: 0 0 0 1px var(--live), 0 16px 36px -18px var(--live);
   --focus: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--accent);
@@ -127,6 +147,7 @@
   --cover-min: 164px;
   /* Plans */
   --z-sticky: 10;
+  --z-topbar: 15; /* le contenu défile sous la barre du haut */
   --z-rail: 20;
   --z-scrim: 40;
   --z-sheet: 50;

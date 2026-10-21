@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { clipBox, flipFrom, ratioMismatch, usableSource, visibleShare } from './flip.ts'
+import { belowBar, clipBox, flipFrom, ratioMismatch, usableSource, visibleShare } from './flip.ts'
 
 const VP = { width: 1440, height: 900 }
 
@@ -61,4 +61,21 @@ test('source : à moitié sous la barre du haut ou la barre d’outils collante,
   // Hors de la zone : rien.
   assert.equal(visibleShare({ left: 0, top: 0, width: 40, height: 40 }, clip), 0)
   assert.deepEqual(clipBox({ left: 0, top: 0, width: 10, height: 10 }, { left: 20, top: 20, width: 5, height: 5 }).width, 0)
+})
+
+test('sous la barre du haut : le contenu défile derrière la barre en verre, seule la partie dessous compte', () => {
+  // Le contenu prend toute la hauteur (0 → 900) ; la barre du haut s'arrête à 48 px.
+  const content = { left: 312, top: 0, width: 1118, height: 900 }
+  assert.deepEqual(belowBar(content, 48), { left: 312, top: 48, width: 1118, height: 852 })
+  // Entièrement sous la barre : rien ne dépasse.
+  assert.deepEqual(belowBar({ left: 336, top: 300, width: 168, height: 251 }, 48), { left: 336, top: 300, width: 168, height: 251 })
+  // À moitié dessous : rognée en haut.
+  assert.deepEqual(belowBar({ left: 336, top: 10, width: 168, height: 100 }, 48), { left: 336, top: 48, width: 168, height: 62 })
+  // Entièrement derrière la barre : hauteur 0, jamais négative.
+  assert.deepEqual(belowBar({ left: 336, top: 0, width: 168, height: 40 }, 48), { left: 336, top: 48, width: 168, height: 0 })
+  // Une jaquette aux deux tiers derrière la barre ne vole pas ; juste dessous, elle vole.
+  const clip = belowBar(content, 48)
+  assert.equal(usableSource({ left: 336, top: -60, width: 168, height: 251 }, VP), true) // dans la fenêtre…
+  assert.equal(usableSource({ left: 336, top: -60, width: 168, height: 251 }, VP, clip), false) // … mais cachée sous la barre
+  assert.equal(usableSource({ left: 336, top: 52, width: 168, height: 251 }, VP, clip), true)
 })

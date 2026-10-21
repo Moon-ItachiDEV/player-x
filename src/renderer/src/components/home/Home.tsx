@@ -104,12 +104,11 @@ interface HeroProps {
   onFavorite: (g: Game) => void
 }
 
-/** Grande carte du jeu à la une : visuel, jaquette, titre, actions et bandeau de chiffres en verre. */
+/** Jeu à la une : visuel d'un bord à l'autre (il remonte sous la barre du haut), jaquette, titre, actions et bandeau de chiffres en verre. */
 function HomeHero({ game, around, news, onReadNews, onLaunch, onOpen, onFavorite }: HeroProps): React.JSX.Element {
   const root = useRef<HTMLElement>(null)
   const poster = useRef<HTMLButtonElement>(null)
   const p = usePlayState(game, onLaunch)
-  const art = useRef<HTMLDivElement>(null)
   const [heroFailed, setHeroFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [pop, firePop] = usePop()
@@ -172,8 +171,9 @@ function HomeHero({ game, around, news, onReadNews, onLaunch, onOpen, onFavorite
     }
   }, [])
 
+  // Le visuel déborde sous la barre du haut : la jaquette sert de point de départ au morphing vers la fiche.
   const open = (): void => {
-    setMorphSource(art.current, game.id, 'art')
+    setMorphSource(poster.current, game.id, 'cover')
     onOpen(game)
   }
 
@@ -183,21 +183,23 @@ function HomeHero({ game, around, news, onReadNews, onLaunch, onOpen, onFavorite
 
   return (
     <section ref={root} className={`hh ${game.running ? 'is-live' : ''}`} aria-label={`À la une : ${name}`}>
-      <div ref={art} className="hh-art" aria-hidden="true" style={{ background: generatedBackground(game.name) }}>
-        {backUrl && (
-          <img
-            key={backUrl}
-            className={`hh-img ${heroUrl ? 'fx-loop' : 'hh-img-blur'} ${loaded ? 'is-loaded' : ''}`}
-            src={backUrl}
-            alt=""
-            draggable={false}
-            decoding="async"
-            onLoad={() => setLoaded(true)}
-            onError={() => (heroUrl ? setHeroFailed(true) : undefined)}
-          />
-        )}
+      <div className="hh-bleed" aria-hidden="true">
+        <div className="hh-art" style={{ background: generatedBackground(game.name) }}>
+          {backUrl && (
+            <img
+              key={backUrl}
+              className={`hh-img ${heroUrl ? '' : 'hh-img-blur'} ${loaded ? 'is-loaded' : ''}`}
+              src={backUrl}
+              alt=""
+              draggable={false}
+              decoding="async"
+              onLoad={() => setLoaded(true)}
+              onError={() => (heroUrl ? setHeroFailed(true) : undefined)}
+            />
+          )}
+        </div>
+        <div className="hh-scrim" />
       </div>
-      <div className="hh-scrim" aria-hidden="true" />
 
       <div className="hh-in">
         <button ref={poster} className="hh-poster" tabIndex={-1} aria-hidden="true" onClick={open}>

@@ -8,7 +8,7 @@ import type { Game } from '@shared/types'
 import { KF } from '../update/keyframes'
 import { Run } from '../update/run'
 import { anim, createStore, fx, tier } from '../update/session'
-import { clipBox, flipFrom, ratioMismatch, usableSource, type Box } from './flip'
+import { belowBar, clipBox, flipFrom, ratioMismatch, usableSource, type Box } from './flip'
 import { LKF } from './keyframes'
 import type { LaunchView } from './store'
 
@@ -53,6 +53,8 @@ let current: { launchId: string; fade: () => void } | null = null
 const cardEl = (id: string): HTMLElement | null => document.querySelector<HTMLElement>(`.launch-card[data-launch-id="${CSS.escape(id)}"]`)
 const viewport = (): { width: number; height: number } => ({ width: innerWidth, height: innerHeight })
 const box = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height })
+/** Bas de la barre du haut : le contenu défile dessous (verre), ce qui y passe n'est pas visible. */
+const barBottom = (): number => document.querySelector('.shell > .topbar')?.getBoundingClientRect().bottom ?? 0
 
 /**
  * Ce qu'on voit vraiment autour de la source : la fenêtre, coupée par la zone qui défile (le contenu sous la barre du
@@ -62,7 +64,8 @@ function visibleClip(from: HTMLElement): Box {
   let clip: Box = { left: 0, top: 0, ...viewport() }
   const scroller = from.closest('.shell > .content, .favrail-list')
   if (!scroller) return clip
-  clip = clipBox(clip, box(scroller.getBoundingClientRect()))
+  const r = box(scroller.getBoundingClientRect())
+  clip = clipBox(clip, scroller.matches('.content') ? belowBar(r, barBottom()) : r)
   const bar = scroller.querySelector('.lib-toolbar')
   // Seulement ce qui vient après la barre dans la page peut passer dessous.
   if (bar && bar.compareDocumentPosition(from) & Node.DOCUMENT_POSITION_FOLLOWING) {
@@ -175,7 +178,8 @@ function playStage(ctx: VisualCtx): void {
   const contentEl = document.querySelector('.shell > .content')
   // Une autre mise à feu finit son fondu : la nouvelle ne reprend pas sa scène (même DOM, fondu compris), elle glisse.
   if (!contentEl || launchStage.get()?.mode === 'stage') return playGlide(ctx)
-  const content = box(contentEl.getBoundingClientRect())
+  // Le voile couvre le contenu, jamais la barre du haut (le contenu commence dessous mais défile derrière).
+  const content = belowBar(box(contentEl.getBoundingClientRect()), barBottom())
   const src = sourceBox(ctx.from)
   const g = ctx.game
   const bandUrl = decoded(g.heroUrl) ? g.heroUrl! : decoded(g.coverUrl) ? g.coverUrl! : null

@@ -1,16 +1,11 @@
 /* Bibliothèque : barre d'outils collante, grille de cartes, états vides. Onglets Tous / Favoris : barre du haut (TopTabs). */
 
 .lib {
-  --lib-pad-x: 28px; /* doit suivre le padding horizontal de .page */
+  --lib-pad-x: var(--page-x); /* padding horizontal de .page */
   display: flex;
   flex-direction: column;
   min-height: 100%;
   padding-top: 14px;
-}
-@media (max-width: 1200px) {
-  .lib {
-    --lib-pad-x: 20px;
-  }
 }
 
 /* ---------- étoile favorite ---------- */
@@ -36,6 +31,7 @@
 }
 .lib-toolbar {
   position: sticky;
+  /* Le contenu défile sous la barre du haut ; son padding (la hauteur de la barre) compte déjà : top 0 la colle juste dessous. */
   top: 0;
   z-index: var(--z-sticky);
   display: flex;
@@ -50,14 +46,14 @@
     border-color var(--d-1) var(--ease-out),
     background-color var(--d-1) var(--ease-out);
 }
-/* Fond et flou seulement une fois collée en haut : au repos, la barre laisse voir le décor */
+/* Verre seulement une fois collée sous la barre du haut : au repos, la barre laisse voir le décor */
 .lib-toolbar.is-stuck {
-  background: color-mix(in srgb, var(--bg-1) 84%, transparent);
-  backdrop-filter: blur(14px) saturate(140%);
-  border-bottom-color: var(--line-1);
+  background: var(--glass-bar);
+  backdrop-filter: var(--glass-blur);
+  border-bottom-color: var(--glass-line);
 }
 .no-blur .lib-toolbar.is-stuck {
-  background: var(--bg-1);
+  background: var(--bg-2);
 }
 .lib-picks {
   display: flex;

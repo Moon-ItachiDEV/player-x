@@ -114,7 +114,7 @@
   background: var(--nav-on-bg);
 }
 .sf-row:hover .avatar {
-  --cut: #0f2236;
+  --cut: var(--cut-hover);
 }
 .sf-av {
   position: relative;
