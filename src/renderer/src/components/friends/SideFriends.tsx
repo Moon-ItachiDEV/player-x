@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { cleanName, norm } from '@shared/text'
-import type { Friend, FriendPlatform, FriendStatus, Game } from '@shared/types'
+import { cleanName, norm, plural } from '@shared/text'
+import type { Friend, FriendPlatform, FriendStatus, Game, HiddenMember } from '@shared/types'
 import type { SideFriendsProps } from '../../contracts'
 import { Avatar } from '../ui/Avatar'
 import { Icon } from '../ui/Icon'
@@ -127,9 +127,17 @@ function useInGamePulse(entries: Entry[]): ReadonlySet<string> {
   return pulsing
 }
 
+/** « 4 bots masqués », « 1 membre masqué », « 4 bots et 1 membre masqués » ; vide si personne. */
+function maskedLabel(hidden: HiddenMember[]): string {
+  const bots = hidden.filter((h) => h.reason === 'bot').length
+  const users = hidden.length - bots
+  const parts = [bots ? plural(bots, 'bot', 'bots') : '', users ? plural(users, 'membre', 'membres') : ''].filter(Boolean)
+  return parts.length ? `${parts.join(' et ')} masqué${hidden.length > 1 ? 's' : ''}` : ''
+}
+
 /** Liste d'amis du menu latéral : en jeu, en ligne et absents visibles ; hors ligne et serveur Discord repliables. */
 export function SideFriends(props: SideFriendsProps): React.JSX.Element {
-  const { result, accounts, games, demo, discordConfigured, loading, open, onToggleOpen, onRefresh, onOpenAccounts } = props
+  const { result, accounts, games, demo, discordConfigured, loading, open, onToggleOpen, onRefresh, onOpenAccounts, onHideMember, onManageHidden } = props
   const [folded, setFolded] = useState<Folded>(readFolded)
 
   const library = useMemo(() => libraryIndex(games), [games])
@@ -145,6 +153,35 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
     }
   }, [entries])
   const inGame = pals.filter((e) => e.status === 'in-game').length
+  // Membres masqués présents sur le serveur (bots connus, « Masquer ») : une ligne discrète pour les retrouver.
+  const masked = maskedLabel((result.hidden ?? []).filter((h) => h.online))
+
+  // Après « Masquer », la ligne disparaît avec son bouton : le focus passe à l'œil du membre suivant (sinon du précédent,
+  // sinon à l'en-tête du groupe) une fois la liste relue. On attend que le membre masqué ait quitté la liste, et on
+  // oublie la demande si « Masquer » a échoué : sinon un rafraîchissement plus tard volerait le focus.
+  const focusAfterHide = useRef<{ hidden: string; next: string } | null>(null)
+  const hide = (e: Entry): void => {
+    const i = members.findIndex((m) => m.friend.id === e.friend.id)
+    const next = members[i + 1] ?? members[i - 1]
+    const pending = { hidden: e.friend.id, next: next ? next.friend.id : 'fold' }
+    focusAfterHide.current = pending
+    void onHideMember(e.friend).then((ok) => {
+      if (!ok && focusAfterHide.current === pending) focusAfterHide.current = null
+    })
+  }
+  useEffect(() => {
+    const pending = focusAfterHide.current
+    if (!pending || members.some((m) => m.friend.id === pending.hidden)) return
+    focusAfterHide.current = null
+    const active = document.activeElement
+    if (active && active !== document.body) return
+    const id = pending.next
+    const target =
+      id === 'fold'
+        ? document.querySelector<HTMLElement>('.sf-fold-head[aria-controls="sf-fold-discord"], .sf-masked-btn')
+        : document.querySelector<HTMLElement>(`[data-member="${CSS.escape(id)}"] .sf-hide`)
+    target?.focus({ preventScroll: true })
+  }, [members])
 
   const hasData = result.friends.length > 0 || Object.values(result.errors).some(Boolean)
   const settled = useSettled(loading, hasData)
@@ -198,9 +235,19 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
         {members.length > 0 && (
           <Fold id="discord" label="Serveur Discord" count={members.length} folded={folded.discord} onToggle={() => toggle('discord')} discord>
             {members.map((e) => (
-              <Row key={e.friend.id} entry={e} pulse={pulsing.has(e.friend.id)} />
+              <Row key={e.friend.id} entry={e} pulse={pulsing.has(e.friend.id)} onHide={() => hide(e)} />
             ))}
+            {masked && (
+              <li className="sf-masked">
+                <MaskedButton text={masked} onClick={onManageHidden} />
+              </li>
+            )}
           </Fold>
+        )}
+        {members.length === 0 && masked && (
+          <div className="sf-masked">
+            <MaskedButton text={masked} onClick={onManageHidden} />
+          </div>
         )}
       </>
     )
@@ -265,11 +312,12 @@ function Fold({ id, label, count, folded, onToggle, discord, children }: FoldPro
   )
 }
 
-function Row({ entry, pulse }: { entry: Entry; pulse: boolean }): React.JSX.Element {
+/** `onHide` : membre du serveur Discord, qu'on peut masquer (jamais un ami Steam ou PlayStation). */
+function Row({ entry, pulse, onHide }: { entry: Entry; pulse: boolean; onHide?: () => void }): React.JSX.Element {
   const { friend, status } = entry
   const sub = subLine(entry)
   return (
-    <li className={`sf-row st-${status}`}>
+    <li className={`sf-row st-${status}`} data-member={onHide ? friend.id : undefined}>
       <span className={`sf-av ${status === 'in-game' ? 'fx-loop' : ''} ${pulse ? 'is-pulsing' : ''}`}>
         <Avatar name={friend.name} url={friend.avatarUrl} size={30} status={status} />
       </span>
@@ -281,8 +329,24 @@ function Row({ entry, pulse }: { entry: Entry; pulse: boolean }): React.JSX.Elem
           {sub}
         </span>
       </span>
+      {onHide && (
+        <button className="icon-btn icon-btn-sm sf-hide" aria-label={`Masquer ${friend.name}`} title="Masquer de la liste" onClick={onHide}>
+          <Icon name="eye-off" size={14} />
+        </button>
+      )}
       {friend.platform !== 'discord' && <StoreTag kind={friend.platform} size={18} className="sf-tag" />}
     </li>
+  )
+}
+
+/** « 4 bots masqués · Gérer » : vers Paramètres › Comptes › Membres masqués. */
+function MaskedButton({ text, onClick }: { text: string; onClick: () => void }): React.JSX.Element {
+  return (
+    <button className="sf-masked-btn" onClick={onClick} aria-label={`${text}. Gérer les membres masqués dans Paramètres`}>
+      <Icon name="eye-off" size={13} />
+      <span className="sf-masked-text">{text}</span>
+      <span className="sf-masked-link">Gérer</span>
+    </button>
   )
 }
 

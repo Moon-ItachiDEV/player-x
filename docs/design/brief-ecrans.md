@@ -39,10 +39,11 @@ Shell layout CSS lives in `styles/shell.css`. Its `.page` class gives the standa
 ## Product decisions (they override the spec)
 - The app is now called **Player X**. Its brand colors are violet `#7C3AED` → cyan `#22D3EE`, from the PX logo. tokens.css already encodes this: `--accent`, `--accent-solid`, `--brand-gradient` and `--live`. Use the tokens, not the spec's `#8B6CFF`.
 - All user-facing copy is **French** and uses "tu". Never write "Plateforme Gaming"; write "Player X".
-- `lastPlayed` and `launches` only count launches made through Player X. Use these wordings:
-  - "Lancé il y a 2 h" (sentence form: `capitalize(timeAgo(ts))`, e.g. "Il y a 2 h")
-  - "DERNIER LANCEMENT"
-  - "Jamais lancé depuis Player X"
+- `lastPlayed` is the last play (since 0.7.4): the most recent of a launch through Player X, a session Player X saw running, and Steam's `rtime_last_played`, with `lastPlayedSource` saying which one (`src/shared/played.ts`). It is merged at read time and never written back. `launches` only counts launches made through Player X. Use these wordings:
+  - "DERNIÈRE PARTIE", with the source as caption ("lancé depuis Player X", "vu en jeu par Player X", "selon Steam")
+  - "Lancé …" only when the source is a Player X launch, "Joué …" otherwise; badges in sentence form: `capitalize(timeAgo(ts))`, e.g. "Il y a 2 h"
+  - never "Jamais" next to a playtime; with no date, hide the field or show "—"
+  - a "Lancements" figure only when it is above 0
 - Do not build Steam logo-image URLs. Titles are always text (Sora).
 - Show no fake data: no playtime, achievements or ranks. Hide anything that is unknown.
 - **Out of scope** (do not build): onboarding, command palette, library list view, recent games in the rail, the 72px collapsed friends mode, the SecretField "Tester" button, right-click menus, friend hover cards. A static or slowly drifting login mosaic is fine.

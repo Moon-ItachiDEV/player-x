@@ -49,8 +49,15 @@ export function NewsReader({ gameName, state, postId, backRef, onBack, onClose, 
         </div>
       )}
       {state.status === 'ready' && !post && (
-        <div className="news-article">
-          <p className="caption">Cette annonce n'est plus disponible sur Steam.</p>
+        // Ouverte depuis le relevé (accueil, page Actus) : elle peut être sortie des dernières annonces lues par la fiche.
+        <div className="news-article news-error">
+          <p className="caption">{state.news.appId ? "Cette annonce n'est plus dans les dernières actus du jeu." : "Cette annonce n'est plus disponible sur Steam."}</p>
+          {state.news.appId && (
+            <button className="btn btn-secondary btn-sm" onClick={() => open(`https://store.steampowered.com/news/app/${state.news.appId}/view/${postId}`)}>
+              Lire sur Steam
+              <Icon name="external-link" size={14} />
+            </button>
+          )}
         </div>
       )}
       {post && (

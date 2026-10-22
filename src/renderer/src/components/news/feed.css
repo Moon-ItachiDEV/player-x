@@ -1,0 +1,238 @@
+/* Relevé des actus : rangée « Mises à jour de tes jeux » de l'accueil (.nf-row, cartes .nf-card) et page Actus des jeux
+   (.nf-page, lignes .nf-item). Couleurs par jetons seulement ; pas de flou : les étiquettes sont posées sur des images fixes. */
+
+/* ---------- rangée de l'accueil ---------- */
+
+/* Mêmes en-tête et piste que « À reprendre » (.hr-*) ; une carte de plus par ligne (cartes plus basses). */
+.hr-track.nf-track {
+  --cols: 5;
+}
+@container (max-width: 1200px) {
+  .hr-track.nf-track {
+    --cols: 4;
+  }
+}
+@container (max-width: 900px) {
+  .hr-track.nf-track {
+    --cols: 3;
+  }
+}
+@container (max-width: 640px) {
+  .hr-track.nf-track {
+    --cols: 2;
+  }
+}
+
+.nf-card {
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--card-bg);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--sh-card);
+  text-align: left;
+  transition:
+    translate 220ms var(--ease-glide),
+    border-color var(--d-2) var(--ease-out),
+    box-shadow var(--d-2) var(--ease-out);
+}
+.nf-card:hover,
+.nf-card:focus-visible {
+  translate: 0 -3px;
+  border-color: var(--line-3);
+  box-shadow: var(--sh-card-hover);
+}
+.nf-card:focus-visible {
+  box-shadow: var(--focus), var(--sh-card-hover);
+}
+.nf-art {
+  position: relative;
+  display: block;
+  height: 104px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line-1);
+}
+.nf-art .cover {
+  height: 100%;
+  aspect-ratio: auto;
+}
+.nf-art .cover-img {
+  transition:
+    opacity 240ms var(--ease-out),
+    scale 400ms var(--ease-glide);
+}
+.nf-card:hover .nf-art .cover-img {
+  scale: 1.05;
+}
+.news-tag.nf-tag {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  height: 20px;
+  padding: 0 7px;
+  background: var(--badge-bg);
+  border: 1px solid color-mix(in srgb, var(--info) 45%, transparent);
+}
+.news-badge.nf-new {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}
+.nf-card .news-badge {
+  backdrop-filter: none;
+}
+.nf-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 11px 14px 13px;
+}
+.nf-game {
+  font: 700 11px/14px var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nf-title {
+  min-height: 36px;
+  font: 700 14px/18px var(--font-ui);
+  color: var(--text-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.nf-when {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-2);
+}
+
+/* ---------- page Actus des jeux ---------- */
+
+.nf-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.nf-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+.nf-summary {
+  min-width: 0;
+  font: 500 12.5px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.nf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+.nf-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 4px;
+}
+.nf-offline {
+  color: var(--warning);
+}
+.nf-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.nf-group-h {
+  padding-left: 2px;
+}
+.nf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nf-item {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 16px 10px 10px;
+  border-radius: var(--r-lg);
+  background: var(--card-bg);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--sh-card);
+  text-align: left;
+  transition:
+    translate 220ms var(--ease-glide),
+    border-color var(--d-2) var(--ease-out),
+    box-shadow var(--d-2) var(--ease-out);
+}
+button.nf-item:hover,
+button.nf-item:focus-visible {
+  translate: 0 -3px;
+  border-color: var(--line-3);
+  box-shadow: var(--sh-card-hover);
+}
+button.nf-item:focus-visible {
+  box-shadow: var(--focus), var(--sh-card-hover);
+}
+.nf-item .nf-thumb {
+  width: 112px;
+  height: 63px;
+  border-radius: var(--r-md);
+}
+button.nf-item:hover .nf-thumb .cover-img {
+  scale: 1.04;
+}
+.nf-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.nf-item-game {
+  min-width: 0;
+  color: var(--text-2);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Un nom de jeu très long : seul le nom se raccourcit, la date et les étiquettes restent sur une ligne. */
+.nf-item .news-meta > :not(.nf-item-game) {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.nf-item-go {
+  flex-shrink: 0;
+  color: var(--text-3);
+  transition:
+    color var(--d-1) var(--ease-out),
+    translate var(--d-2) var(--ease-out);
+}
+button.nf-item:hover .nf-item-go {
+  color: var(--text-1);
+  translate: 2px 0;
+}
+.nf-skel {
+  pointer-events: none;
+}
+.nf-skel .nf-item-text {
+  gap: 9px;
+}

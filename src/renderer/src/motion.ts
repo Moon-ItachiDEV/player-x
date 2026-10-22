@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { flushSync } from 'react-dom'
 
 const REDUCED = '(prefers-reduced-motion: reduce)'
+const OPAQUE = '(prefers-reduced-transparency: reduce)'
 
 /** « Réduire les animations » ou réglage d'accessibilité de Windows. */
 export function motionReduced(): boolean {
@@ -25,6 +26,18 @@ export function useSystemReducedMotion(): boolean {
     return () => mq.removeEventListener('change', onChange)
   }, [])
   return reduced
+}
+
+/** Suit « Effets de transparence » de Windows : coupés, Player X passe en couleurs pleines (classe no-blur). */
+export function useSystemReducedTransparency(): boolean {
+  const [opaque, setOpaque] = useState(() => matchMedia(OPAQUE).matches)
+  useEffect(() => {
+    const mq = matchMedia(OPAQUE)
+    const onChange = (): void => setOpaque(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return opaque
 }
 
 /** Fenêtre inactive (masquée ou sans focus) : `<html data-window='idle'>`, base.css met alors les boucles .fx-loop en pause. Sur tous les écrans. */
@@ -150,10 +163,15 @@ export interface MorphSource {
 let morph: MorphSource | null = null
 let opened: MorphSource | null = null
 
+/** Bas de la barre du haut : le contenu défile dessous (verre). */
+const barBottom = (): number => document.querySelector('.shell > .topbar')?.getBoundingClientRect().bottom ?? 0
+
 const onScreen = (el: HTMLElement): boolean => {
   if (!el.isConnected) return false
   const r = el.getBoundingClientRect()
-  return r.width > 24 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth
+  // Dans le contenu, un élément passé sous la barre du haut n'est plus à l'écran.
+  const top = el.closest('.shell > .content') ? barBottom() : 0
+  return r.width > 24 && r.bottom > top && r.right > 0 && r.top < innerHeight && r.left < innerWidth
 }
 
 /** À appeler juste avant onOpen(game) : l'élément (jaquette 2:3 ou visuel paysage) qui deviendra l'en-tête de la fiche. */
@@ -190,7 +208,7 @@ function visibleCards(): HTMLElement[] {
   const grid = document.querySelector('.lib-grid')
   if (!content || !grid) return []
   const view = content.getBoundingClientRect()
-  const top = Math.max(view.top, document.querySelector('.lib-toolbar')?.getBoundingClientRect().bottom ?? view.top)
+  const top = Math.max(view.top, barBottom(), document.querySelector('.lib-toolbar')?.getBoundingClientRect().bottom ?? view.top)
   const out: HTMLElement[] = []
   for (const el of grid.querySelectorAll<HTMLElement>(':scope > .lib-card')) {
     const r = el.getBoundingClientRect()

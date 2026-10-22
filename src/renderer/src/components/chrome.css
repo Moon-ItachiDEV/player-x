@@ -130,7 +130,7 @@
   display: grid;
   place-items: center;
   border-radius: inherit;
-  background: rgba(4, 11, 21, 0.6);
+  background: color-mix(in srgb, var(--ink) 60%, transparent);
   color: var(--text-1);
 }
 .favrail-add {
@@ -189,7 +189,7 @@
 }
 .favrail-tip-hint {
   font: 500 11.5px/15px var(--font-ui);
-  color: var(--text-3);
+  color: var(--text-2);
   white-space: nowrap;
 }
 @keyframes favrail-tip-in {
@@ -205,8 +205,10 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* Opaque (il porte beaucoup de texte) : un filet de verre et une ombre douce le détachent du contenu. */
   background: var(--bg-2);
-  border-right: 1px solid var(--line-1);
+  border-right: 1px solid var(--glass-line);
+  box-shadow: 10px 0 30px -18px rgba(2, 8, 20, 0.7);
 }
 
 .side-head {
@@ -239,7 +241,7 @@
 }
 .side-me:hover .avatar,
 .side-me[aria-expanded='true'] .avatar {
-  --cut: #0f2236;
+  --cut: var(--cut-hover);
 }
 .side-hi {
   display: flex;
@@ -307,7 +309,7 @@
     scale 160ms var(--ease-glide);
 }
 .side-nav-btn:hover {
-  background: rgba(140, 190, 255, 0.05);
+  background: rgba(150, 195, 255, 0.06);
   color: var(--text-1);
 }
 .side-nav-btn:hover svg {
@@ -334,6 +336,11 @@
   background: var(--accent-soft);
   color: var(--accent);
   font: 700 11px/1 var(--font-ui);
+}
+/* Nouveautés (patchs) : couleur d'information, pas le jaune des actions */
+.side-count.is-info {
+  background: color-mix(in srgb, var(--info) 16%, transparent);
+  color: var(--info);
 }
 
 .side-foot {
@@ -375,9 +382,16 @@
   height: var(--topbar-h);
   /* À droite : place pour les boutons natifs de Windows (réduire, agrandir, fermer) */
   padding: 0 150px 0 24px;
-  background: var(--bg-2);
-  border-bottom: 1px solid var(--line-1);
+  /* Verre : le contenu (et le visuel du héros) défile dessous, flouté. */
+  background: var(--glass-bar);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-line);
+  box-shadow: inset 0 1px 0 var(--glass-hi);
   -webkit-app-region: drag;
+}
+/* Sans transparence (Paramètres ou Windows) : couleur pleine */
+.no-blur .topbar {
+  background: var(--bg-2);
 }
 .topbar.is-mac {
   padding-right: 24px;

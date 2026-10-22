@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { plural } from '@shared/text'
 import type { Account, FriendPlatform } from '@shared/types'
 import type { SidebarProps, View } from '../contracts'
 import { SideFriends } from './friends/SideFriends'
@@ -38,22 +39,26 @@ const NAV: { view: View; icon: IconName; label: string }[] = [
   { view: 'library', icon: 'grid', label: 'Bibliothèque' },
   { view: 'stats', icon: 'chart', label: 'Stats de jeu' },
   { view: 'trophies', icon: 'trophy', label: 'Trophées' },
+  // Seulement avec les actus des jeux (Paramètres › Bibliothèque).
+  { view: 'news', icon: 'news', label: 'Actus des jeux' },
   { view: 'profile', icon: 'user', label: 'Profil' }
 ]
 
 /** Menu latéral : salutation et compte, navigation, amis, paramètres. */
-export function Sidebar({ view, onView, gamesCount, accounts, demo, accountMenuOpen, onToggleAccountMenu, friends }: SidebarProps): React.JSX.Element {
+export function Sidebar(props: SidebarProps): React.JSX.Element {
+  const { view, onView, gamesCount, accounts, demo, accountMenuOpen, onToggleAccountMenu, friends, news, newsCount } = props
   const greeting = useGreeting()
   const account = primaryAccount(accounts)
   const name = account?.name ?? 'Joueur'
   const accountLabel = account ? `Mon compte (${name})` : 'Compte invité'
 
-  const navButton = (v: View, icon: IconName, label: string, count?: number): React.JSX.Element => (
+  /** `count` : pastille (lue `countLabel`) ; `info` : en bleu, pour une nouveauté (patchs) plutôt qu'un total. */
+  const navButton = (v: View, icon: IconName, label: string, count?: number, countLabel = `${count} jeux`, info = false): React.JSX.Element => (
     <button key={v} className="side-nav-btn" aria-current={view === v ? 'page' : undefined} onClick={() => onView(v)}>
       <Icon name={icon} size={18} />
       <span className="side-nav-label">{label}</span>
       {count !== undefined && count > 0 && (
-        <span className="side-count num" aria-label={`${count} jeux`}>
+        <span className={`side-count num ${info ? 'is-info' : ''}`} aria-label={countLabel}>
           {count}
         </span>
       )}
@@ -83,7 +88,11 @@ export function Sidebar({ view, onView, gamesCount, accounts, demo, accountMenuO
 
       <nav className="side-nav" aria-label="Navigation principale">
         <p className="side-label">Navigation</p>
-        {NAV.map((n) => navButton(n.view, n.icon, n.label, n.view === 'library' ? gamesCount : undefined))}
+        {NAV.filter((n) => n.view !== 'news' || news).map((n) =>
+          n.view === 'news'
+            ? navButton(n.view, n.icon, n.label, newsCount, plural(newsCount, 'nouveau patch', 'nouveaux patchs'), true)
+            : navButton(n.view, n.icon, n.label, n.view === 'library' ? gamesCount : undefined)
+        )}
       </nav>
 
       <SideFriends {...friends} />

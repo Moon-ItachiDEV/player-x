@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cleanName } from '@shared/text'
-import type { Account, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
+import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 import { AccountMenu } from './components/AccountMenu'
 import { Trophies } from './components/achievements/Trophies'
 import { Ambient } from './components/Ambient'
@@ -10,6 +10,7 @@ import { GameSheet } from './components/GameSheet'
 import { Home } from './components/home/Home'
 import { Library } from './components/library/Library'
 import { Login } from './components/Login'
+import { NewsPage } from './components/news/NewsPage'
 import { Profile } from './components/Profile'
 import { SettingsView } from './components/settings/SettingsView'
 import { Setup } from './components/setup/Setup'
@@ -29,7 +30,7 @@ import { bindLaunchIpc, resetLaunches, setLaunchDemo, startLaunch, useFrozenGame
 import { WhatsNew } from './components/WhatsNew'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
 import { COVER_MIN, type LoginPlatform, type SettingsSection, type UiPrefs, type View } from './contracts'
-import { closeTarget, takeMorphSource, useSystemReducedMotion, useWindowActivity, withViewTransition } from './motion'
+import { closeTarget, takeMorphSource, useSystemReducedMotion, useSystemReducedTransparency, useWindowActivity, withViewTransition } from './motion'
 import './styles/shell.css'
 import './styles/transitions.css'
 
@@ -63,6 +64,7 @@ export default function App(): React.JSX.Element {
   // Écran de démarrage (choix des favoris) : une fois après l'entrée, puis à la demande. `first` = premier passage.
   const [setup, setSetup] = useState<{ open: boolean; first: boolean }>(() => ({ open: !setupDone(), first: !setupDone() }))
   const systemReduced = useSystemReducedMotion()
+  const systemOpaque = useSystemReducedTransparency()
   useWindowActivity()
   const updateUi = useCallback((patch: Partial<UiPrefs>) => {
     setUi((prev) => {
@@ -79,11 +81,12 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     const root = document.documentElement
     root.classList.toggle('reduce-motion', ui.reduceMotion)
-    root.classList.toggle('no-blur', !ui.transparency)
+    // Sans transparence (Paramètres ou Windows) : couleurs pleines, aucun flou.
+    root.classList.toggle('no-blur', !ui.transparency || systemOpaque)
     root.style.setProperty('--cover-min', `${COVER_MIN[ui.coverSize]}px`)
     // Seul interrupteur des effets riches (CSS :root[data-fx='on'], JS fxOn()).
     root.dataset.fx = ui.visualFx && !ui.reduceMotion && !systemReduced ? 'on' : 'off'
-  }, [ui, systemReduced])
+  }, [ui, systemReduced, systemOpaque])
 
   return (
     <ToastProvider>
@@ -118,6 +121,10 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   const [friendsLoading, setFriendsLoading] = useState(false)
   const [query, setQuery] = useState('')
   const [openGameId, setOpenGameId] = useState<string | null>(null)
+  // Annonce à ouvrir dans le lecteur de la fiche (accueil, page Actus des jeux).
+  const [openPostId, setOpenPostId] = useState<string | null>(null)
+  // Paramètres : bloc à montrer en arrivant (« Gérer » des membres masqués).
+  const [settingsFocus, setSettingsFocus] = useState<'hidden-members' | null>(null)
   const [accountMenu, setAccountMenu] = useState(false)
   // Emplacement des onglets de page dans la barre du haut (TopTabs).
   const [tabSlot, setTabSlot] = useState<HTMLElement | null>(null)
@@ -165,6 +172,35 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     [notify, loadSteamLib]
   )
 
+  // « Masquer » / « Afficher » un membre du serveur Discord : la liste relue revient tout de suite.
+  const setMemberHidden = useCallback(
+    async (name: string, hidden: boolean): Promise<boolean> => {
+      try {
+        setFriends(await api.setMemberHidden(name, hidden))
+        return true
+      } catch (e) {
+        notify(errorMessage(e), { kind: 'error' })
+        return false
+      }
+    },
+    [notify]
+  )
+  const hideMember = useCallback(
+    async (f: Friend): Promise<boolean> => {
+      const ok = await setMemberHidden(f.name, true)
+      if (ok)
+        notify(`${f.name} ne s'affiche plus dans Player X`, { id: 'member-hidden', action: { label: 'Annuler', onClick: () => void setMemberHidden(f.name, false) } })
+      return ok
+    },
+    [notify, setMemberHidden]
+  )
+  const showMember = useCallback(
+    async (name: string) => {
+      if (await setMemberHidden(name, false)) notify(`${name} s'affiche de nouveau`, { kind: 'success', id: 'member-hidden' })
+    },
+    [notify, setMemberHidden]
+  )
+
   const loadFriends = useCallback(async () => {
     setFriendsLoading(true)
     try {
@@ -199,7 +235,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   useEffect(() => bindLaunchIpc(), [])
   useEffect(() => setLaunchDemo(!!settings?.demoMode), [settings?.demoMode])
   const pending = useLaunchPending()
-  // Les écrans voient la date de dernier lancement d'avant le clic tant que le lancement attend (rien ne bouge).
+  // Les écrans voient la dernière partie d'avant le clic tant que le lancement attend (rien ne bouge).
   const shownGames = useFrozenGames(games)
   const anyRunning = games.some((g) => g.running)
 
@@ -385,11 +421,33 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
 
   // Ouverture et fermeture de la fiche : la jaquette (ou le visuel) d'origine se transforme en en-tête.
   const openSheet = useCallback((g: Game) => {
-    withViewTransition(() => setOpenGameId(g.id), { kind: 'open', source: takeMorphSource(g.id) })
+    withViewTransition(
+      () => {
+        setOpenPostId(null)
+        setOpenGameId(g.id)
+      },
+      { kind: 'open', source: takeMorphSource(g.id) }
+    )
   }, [])
   const closeSheet = useCallback(() => {
-    withViewTransition(() => setOpenGameId(null), { kind: 'close', source: openGameId ? closeTarget(openGameId) : null })
+    withViewTransition(
+      () => {
+        setOpenPostId(null)
+        setOpenGameId(null)
+      },
+      { kind: 'close', source: openGameId ? closeTarget(openGameId) : null }
+    )
   }, [openGameId])
+  // Fiche ouverte directement sur une annonce : sans transition de vue (l'en-tête de la fiche est caché dans le lecteur).
+  const readNews = useCallback(
+    (gameId: string, postId: string) => {
+      const g = shownGames.find((x) => x.id === gameId)
+      if (!g) return
+      setOpenPostId(postId)
+      setOpenGameId(g.id)
+    },
+    [shownGames]
+  )
 
   if (!ready || !settings) return <div className="boot" />
 
@@ -450,8 +508,15 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
           open: friendsOpen,
           onToggleOpen: () => updateUi({ friendsPanel: friendsOpen ? 'hidden' : 'open' }),
           onRefresh: loadFriends,
-          onOpenAccounts: () => goSettings('accounts')
+          onOpenAccounts: () => goSettings('accounts'),
+          onHideMember: hideMember,
+          onManageHidden: () => {
+            setSettingsFocus('hidden-members')
+            goSettings('accounts')
+          }
         }}
+        news={settings.gameNews}
+        newsCount={games.filter((g) => g.newPatch).length}
       />
       <TopBar
         title={VIEW_TITLE[view]}
@@ -479,6 +544,9 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               onRescan={() => loadGames(true)}
               onEnableDemo={enableDemo}
               onShowLibrary={() => go('library')}
+              news={settings.gameNews}
+              onReadNews={readNews}
+              onShowNews={() => go('news')}
             />
           )}
           {view === 'library' && (
@@ -513,6 +581,9 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
           )}
           {view === 'stats' && <Stats games={games} />}
           {view === 'trophies' && <Trophies games={shownGames} notInstalled={notInstalled} onOpen={openSheet} onOpenAccounts={() => goSettings('accounts')} />}
+          {view === 'news' && (
+            <NewsPage games={shownGames} enabled={settings.gameNews} demo={settings.demoMode} onRead={readNews} onOpenSettings={() => goSettings('library')} />
+          )}
           {view === 'settings' && (
             <SettingsView
               section={section}
@@ -534,6 +605,9 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               steamLibrary={steamLib}
               onRefreshSteamLibrary={() => loadSteamLib(true)}
               loginPending={loginPending}
+              onShowMember={showMember}
+              focus={settingsFocus}
+              onFocused={() => setSettingsFocus(null)}
             />
           )}
         </main>
@@ -560,15 +634,18 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         onOpenFolder={openFolder}
         onInstall={install}
         onOpenStats={() => {
+          setOpenPostId(null)
           setOpenGameId(null)
           go('stats')
         }}
         news={settings.gameNews}
+        post={openPostId}
       />
       <FriendAlerts games={games} onShowFriends={showFriends} />
       <RecapHost
         games={games}
         onOpenStats={() => {
+          setOpenPostId(null)
           setOpenGameId(null)
           go('stats')
         }}

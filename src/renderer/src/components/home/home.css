@@ -1,4 +1,4 @@
-/* Accueil (Home.tsx) : carte du jeu à la une (.hh-) et rangée « À reprendre » (.hr-, cartes .rc-). */
+/* Accueil (Home.tsx) : jeu à la une (.hh-) et rangée « À reprendre » (.hr-, cartes .rc-). */
 
 .home {
   display: flex;
@@ -6,26 +6,22 @@
   gap: 26px;
   container-type: inline-size;
 }
+/* La traîne du visuel (.hh-bleed) passe sous la suite de la page : positionnés, les blocs suivants se peignent par-dessus.
+   Sauf .sr-only (squelette de chargement) : il doit rester en position absolue, hors du flux. */
+.home > :not(.hh):not(.sr-only) {
+  position: relative;
+}
 
 /* ---------- jeu à la une ---------- */
 
+/* Pas de carte : le visuel remonte sous la barre du haut et va d'un bord à l'autre du contenu (.hh-bleed). */
 .hh {
+  --hh-top: calc(var(--topbar-h) + var(--page-top)); /* du haut de la fenêtre au haut du héros */
+  --hh-tail: 120px; /* le visuel déborde sous la rangée suivante, en fondu */
   position: relative;
   flex: none;
   height: 340px;
-  overflow: hidden;
-  border-radius: var(--r-xl);
-  background: var(--bg-0);
-  box-shadow:
-    0 0 0 1px var(--line-2),
-    0 30px 60px -36px rgba(0, 0, 0, 0.9);
   isolation: isolate;
-  animation: hh-in 420ms var(--ease-arrive) both;
-}
-.hh.is-live {
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--live) 60%, transparent),
-    0 30px 60px -36px rgba(0, 0, 0, 0.9);
 }
 @keyframes hh-in {
   from {
@@ -33,11 +29,38 @@
     translate: 0 8px;
   }
 }
+@keyframes hh-fade {
+  from {
+    opacity: 0;
+  }
+}
 
+.hh-bleed {
+  position: absolute;
+  top: calc(var(--hh-top) * -1);
+  left: calc(var(--page-x) * -1);
+  right: calc(var(--page-x) * -1);
+  height: calc(var(--hh-top) + 100% + var(--hh-tail));
+  contain: strict;
+  pointer-events: none;
+  mask-image: linear-gradient(180deg, #000 calc(var(--hh-top) + 300px), transparent);
+  animation: hh-fade 600ms var(--ease-out) both;
+}
 .hh-art {
   position: absolute;
   inset: 0;
   overflow: hidden;
+}
+/* Parallaxe au défilement : le visuel glisse moins vite que la page (effets visuels seulement). */
+:root[data-fx='on'] .hh-art {
+  animation: hh-scroll linear both;
+  animation-timeline: --px-content;
+  animation-range: 0 440px;
+}
+@keyframes hh-scroll {
+  to {
+    translate: 0 110px;
+  }
 }
 .hh-img {
   position: absolute;
@@ -57,34 +80,35 @@
   filter: blur(24px) saturate(1.3) brightness(0.7);
   scale: 1.2;
 }
-/* Dérive lente du visuel (effets visuels ; en pause quand la fenêtre est inactive) */
-:root[data-fx='on'] .hh-img.fx-loop {
-  animation: hh-drift 26s var(--ease-drift) infinite alternate;
-}
-@keyframes hh-drift {
-  to {
-    scale: 1.06;
-  }
-}
+/* Pas de dérive en boucle : sous la barre du haut et le bandeau en verre, chaque image refaisait les deux flous
+   (deux fois moins d'images par seconde au repos). La parallaxe au pointeur et au défilement reste. */
 
-/* Trame fine et voile depuis la gauche : le texte reste lisible sur n'importe quel visuel */
+/* Trame fine et trois voiles d'encre : sous la barre du haut (titre, recherche, boutons de Windows), depuis la gauche
+   (titre et actions), vers le bas (bandeau de chiffres). Ne pas les éclaircir : le texte doit rester lisible sur un visuel blanc. */
 .hh-scrim {
   position: absolute;
   inset: 0;
   background:
-    repeating-linear-gradient(0deg, rgba(140, 190, 255, 0.035) 0 1px, rgba(140, 190, 255, 0) 1px 4px),
-    linear-gradient(90deg, rgba(6, 16, 28, 0.94) 0%, rgba(6, 16, 28, 0.66) 40%, rgba(6, 16, 28, 0) 74%),
-    linear-gradient(0deg, rgba(6, 16, 28, 0.75) 0%, rgba(6, 16, 28, 0) 42%);
+    repeating-linear-gradient(0deg, rgba(150, 195, 255, 0.035) 0 1px, rgba(150, 195, 255, 0) 1px 4px),
+    linear-gradient(180deg, color-mix(in srgb, var(--ink) 60%, transparent) 0, transparent calc(var(--hh-top) + 60px)),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 94%, transparent) 0%, color-mix(in srgb, var(--ink) 65%, transparent) 40%, transparent 74%),
+    linear-gradient(0deg, color-mix(in srgb, var(--ink) 65%, transparent) var(--hh-tail), transparent calc(var(--hh-tail) + 180px));
 }
 
 .hh-in {
   position: absolute;
-  left: 28px;
-  right: 28px;
-  top: 26px;
+  left: 0;
+  right: 0;
+  /* Calé au-dessus du bandeau (70 px, plus 19 px d'air) : un nom de jeu sur deux lignes monte au lieu de passer sous le
+     bandeau. Sur une ligne, l'affiche (225 px) le place à 26 px du haut. */
+  bottom: 89px;
   display: flex;
   align-items: flex-start;
   gap: 24px;
+}
+.hh-in,
+.hh-band {
+  animation: hh-in 420ms var(--ease-arrive) both;
 }
 .hh-poster {
   flex: none;
@@ -116,7 +140,7 @@
   height: 24px;
   padding: 0 9px;
   border-radius: 7px;
-  background: rgba(6, 16, 28, 0.6);
+  background: var(--badge-bg);
   border: 1px solid var(--line-2);
   color: var(--text-1);
   font: 700 11px/1 var(--font-ui);
@@ -168,24 +192,31 @@
   color: var(--favorite);
 }
 
-/* Bandeau de chiffres en verre */
+/* Bandeau de chiffres en verre. --hh-cut : anneau des avatars, couleur du verre sous eux. */
 .hh-band {
+  --hh-cut: color-mix(in srgb, var(--ink) 85%, transparent);
   position: absolute;
-  left: 20px;
-  right: 20px;
-  bottom: 20px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   height: 70px;
   margin: 0;
   border-radius: var(--r-lg);
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--glass-line);
   background: var(--glass);
-  backdrop-filter: blur(16px);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--sh-card);
+  overflow: hidden;
 }
 .no-blur .hh-band {
   backdrop-filter: none;
-  background: rgba(8, 26, 46, 0.94);
+  background: color-mix(in srgb, var(--bg-2) 96%, transparent);
+}
+/* En jeu : le bandeau garde un rappel cyan (le héros n'a plus de cadre) */
+.hh.is-live .hh-band {
+  border-color: color-mix(in srgb, var(--live) 60%, transparent);
 }
 .hh-k {
   display: flex;
@@ -207,39 +238,120 @@
   color: #fff;
   white-space: nowrap;
 }
-.hh-friends {
-  margin-left: auto;
+/* À droite du bandeau : dernier patch, puis amis en ligne (calés à droite, un seul filet entre eux) */
+.hh-end {
   align-items: flex-end;
+  min-width: 0;
   border-right: 0;
 }
+.hh-k:not(.hh-end) + .hh-end {
+  margin-left: auto;
+}
+.hh-end + .hh-end {
+  border-left: 1px solid var(--line-2);
+}
+.hh-end dt {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hh-k-live {
+  color: var(--live-text);
+  font-weight: 600;
+}
+
+/* Dernier patch : toute la cellule ouvre les notes dans la fiche */
+.hh-patch {
+  position: relative;
+  transition: background-color var(--d-2) var(--ease-out);
+}
+.hh-patch:hover {
+  background: color-mix(in srgb, var(--info) 10%, transparent);
+}
+.hh-patch:has(.hh-patch-go:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+}
+.hh-patch-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+.hh-patch-go::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.hh-patch-go:focus-visible {
+  box-shadow: none;
+}
+.hh-patch-chev {
+  color: var(--text-3);
+  transition:
+    color var(--d-2) var(--ease-out),
+    translate var(--d-2) var(--ease-out);
+}
+.hh-patch:hover .hh-patch-chev {
+  color: var(--text-1);
+  translate: 2px 0;
+}
+
 .hh-friends dd {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 .hh-stack {
   display: flex;
 }
 .hh-stack .avatar {
-  box-shadow: 0 0 0 2.5px #0b2036;
+  box-shadow: 0 0 0 2.5px var(--hh-cut);
+}
+/* Ceux qui jouent à ce jeu : anneau cyan (« en direct ») */
+.hh-stack .avatar.is-here {
+  box-shadow:
+    0 0 0 2px var(--hh-cut),
+    0 0 0 3.5px var(--live);
 }
 .hh-stack .avatar + .avatar {
   margin-left: -8px;
 }
 
 .hh-skel {
-  animation: none;
+  border-radius: var(--r-xl);
 }
 
 @container (max-width: 820px) {
   .hh-poster {
     display: none;
   }
+  /* Sans affiche et avec un titre à 50 px, deux lignes tiennent au-dessus du bandeau : calé en haut. */
+  .hh-in {
+    top: 26px;
+    bottom: auto;
+  }
   .hh-title {
     font-size: 50px;
   }
   .hh-k {
     padding: 0 16px;
+  }
+  .hh-k-live,
+  .hh-patch-chev {
+    display: none;
+  }
+}
+/* Fenêtre de 1024 px : cinq cellules tiennent dans le bandeau ; le chiffre garde le total des amis */
+@container (max-width: 720px) {
+  .hh-k {
+    padding: 0 12px;
+  }
+  .hh-stack .avatar:nth-child(n + 4) {
+    display: none;
   }
 }
 
@@ -297,6 +409,7 @@
   }
 }
 
+/* Cartes : aspect du verre sans flou (filet clair, reflet du bord haut, ombre bleu nuit). */
 .rc {
   scroll-snap-align: start;
   display: flex;
@@ -305,7 +418,7 @@
   overflow: hidden;
   border-radius: var(--r-lg);
   background: var(--card-bg);
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--glass-line);
   box-shadow: var(--sh-card);
   transition:
     translate 220ms var(--ease-glide),
@@ -391,6 +504,9 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .rc-name {
   font: 700 19px/22px var(--font-display);
@@ -404,6 +520,9 @@
 .rc-meta {
   font: 500 12px/16px var(--font-ui);
   color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .rc-actions {
   display: flex;
@@ -418,6 +537,7 @@
 }
 
 .rc-foot {
+  --cut: var(--cut-card);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -425,6 +545,7 @@
   margin-top: auto;
   padding: 0 14px;
   border-top: 1px solid var(--line-1);
+  background: color-mix(in srgb, var(--ink) 25%, transparent);
   font: 500 12px/16px var(--font-ui);
   color: var(--text-3);
 }
@@ -438,19 +559,12 @@
   color: var(--live-text);
   font-weight: 600;
 }
-.rc-empty-ava {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1.5px dashed var(--line-3);
-}
 .rc-stack {
   display: flex;
   flex-shrink: 0;
 }
 .rc-stack .avatar {
-  box-shadow: 0 0 0 2px #0c1f33;
+  box-shadow: 0 0 0 2px var(--cut);
 }
 .rc-stack .avatar + .avatar {
   margin-left: -6px;

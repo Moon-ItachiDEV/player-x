@@ -33,7 +33,7 @@
   overflow: hidden;
   box-shadow:
     0 0 0 1px var(--line-2),
-    0 30px 60px -36px rgba(0, 0, 0, 0.9);
+    0 30px 60px -36px rgba(2, 8, 20, 0.9);
 }
 .bf-hero.is-profile {
   min-height: 272px;
@@ -85,8 +85,8 @@
   position: absolute;
   inset: 0;
   background:
-    repeating-linear-gradient(0deg, rgba(140, 190, 255, 0.035) 0 1px, transparent 1px 4px),
-    linear-gradient(90deg, rgba(6, 16, 28, 0.92) 0%, rgba(6, 16, 28, 0.6) 40%, rgba(6, 16, 28, 0) 72%);
+    repeating-linear-gradient(0deg, rgba(150, 195, 255, 0.035) 0 1px, transparent 1px 4px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 92%, transparent) 0%, color-mix(in srgb, var(--ink) 60%, transparent) 40%, transparent 72%);
 }
 .bf-hero-body {
   position: relative;
@@ -156,8 +156,9 @@
   margin-top: 4px;
 }
 
-/* Carte du classement, en haut à droite */
+/* Carte du classement, en haut à droite. --bf-cut : anneau des avatars, couleur du verre sous eux. */
 .bf-rank-card {
+  --bf-cut: color-mix(in srgb, var(--ink) 85%, transparent);
   position: absolute;
   top: 24px;
   right: 24px;
@@ -168,8 +169,9 @@
   padding: 14px 16px;
   border-radius: var(--r-lg);
   background: var(--glass);
-  border: 1px solid var(--line-2);
-  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-line);
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+  backdrop-filter: var(--glass-blur);
 }
 :root.no-blur .bf-rank-card {
   backdrop-filter: none;
@@ -203,7 +205,7 @@
   display: flex;
   margin-left: -8px;
   border-radius: 50%;
-  box-shadow: 0 0 0 2.5px #0b2036;
+  box-shadow: 0 0 0 2.5px var(--bf-cut);
 }
 .bf-stack > span:first-child {
   margin-left: 0;
@@ -211,7 +213,7 @@
 .bf-stack > span.is-me {
   z-index: 1;
   box-shadow:
-    0 0 0 2.5px #0b2036,
+    0 0 0 2.5px var(--bf-cut),
     0 0 0 4.5px var(--live);
 }
 
@@ -227,8 +229,9 @@
   margin: 0;
   border-radius: var(--r-lg);
   background: var(--glass);
-  border: 1px solid var(--line-2);
-  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-line);
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+  backdrop-filter: var(--glass-blur);
 }
 :root.no-blur .bf-band {
   backdrop-filter: none;
@@ -346,7 +349,7 @@
   border-radius: var(--r-lg);
   background: var(--card-bg);
   border: 1px solid var(--line-2);
-  box-shadow: 0 22px 40px -28px rgba(0, 0, 0, 0.9);
+  box-shadow: var(--sh-card);
 }
 .bf-brief-vis {
   position: relative;
@@ -1181,7 +1184,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(0deg, rgba(4, 11, 21, 0.92) 0%, rgba(4, 11, 21, 0.2) 65%, transparent 100%);
+  background: linear-gradient(0deg, color-mix(in srgb, var(--ink) 92%, transparent) 0%, color-mix(in srgb, var(--ink) 20%, transparent) 65%, transparent 100%);
 }
 :root[data-fx='on'] .bf-map:hover img {
   scale: 1.05;
@@ -1197,7 +1200,7 @@
   height: 22px;
   padding: 0 6px;
   border-radius: var(--r-pill);
-  background: rgba(4, 11, 21, 0.6);
+  background: var(--badge-bg);
   backdrop-filter: blur(8px);
   font: 700 11px/1 var(--font-display);
   color: var(--text-1);
@@ -1257,7 +1260,7 @@
 /* Voile de marque : la mosaïque se lit comme une seule carte, pas comme quatre. */
 .bf-map.is-total .bf-map-shade {
   background:
-    linear-gradient(0deg, rgba(4, 11, 21, 0.92) 0%, rgba(4, 11, 21, 0.25) 65%, transparent 100%),
+    linear-gradient(0deg, color-mix(in srgb, var(--ink) 92%, transparent) 0%, color-mix(in srgb, var(--ink) 25%, transparent) 65%, transparent 100%),
     linear-gradient(120deg, color-mix(in srgb, var(--accent) 35%, transparent), transparent 60%);
 }
 .bf-map-all {

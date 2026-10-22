@@ -22,8 +22,8 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgb(6 16 28 / 0.62) 0%, rgb(6 16 28 / 0.74) 40%, var(--bg-1) 88%),
-    radial-gradient(120% 90% at 50% 0%, transparent 40%, rgb(4 11 21 / 0.55) 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--ink) 62%, transparent) 0%, color-mix(in srgb, var(--ink) 74%, transparent) 40%, var(--bg-1) 88%),
+    radial-gradient(120% 90% at 50% 0%, transparent 40%, color-mix(in srgb, var(--ink) 55%, transparent) 100%);
   opacity: 0;
   transition: opacity var(--d-5) var(--ease-in-out);
 }

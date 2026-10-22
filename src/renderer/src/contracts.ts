@@ -3,7 +3,7 @@ import type { RefObject } from 'react'
 import type { LaunchVia } from '@shared/launch'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 
-export type View = 'home' | 'library' | 'profile' | 'stats' | 'trophies' | 'settings'
+export type View = 'home' | 'library' | 'profile' | 'stats' | 'trophies' | 'settings' | 'news'
 export type SettingsSection = 'accounts' | 'library' | 'interface' | 'advanced' | 'about'
 export type LoginPlatform = 'steam' | 'discord' | 'psn'
 
@@ -47,6 +47,10 @@ export interface SidebarProps {
   accountMenuOpen: boolean
   onToggleAccountMenu: () => void
   friends: SideFriendsProps
+  /** Actus des jeux activées : entrée « Actus des jeux » du menu. */
+  news: boolean
+  /** Jeux qui portent le badge « Nouveau patch ». */
+  newsCount: number
 }
 
 /** components/friends/SideFriends.tsx → `export function SideFriends` (liste d'amis du menu latéral) */
@@ -63,6 +67,10 @@ export interface SideFriendsProps {
   onToggleOpen: () => void
   onRefresh: () => void
   onOpenAccounts: () => void
+  /** « Masquer » un membre du serveur Discord ; false si Player X a refusé (le membre reste affiché). */
+  onHideMember: (f: Friend) => Promise<boolean>
+  /** Ouvre Paramètres › Comptes › Membres masqués. */
+  onManageHidden: () => void
 }
 
 /** components/TopBar.tsx → `export function TopBar` */
@@ -101,6 +109,12 @@ export interface HomeProps {
   onRescan: () => void
   onEnableDemo: () => void
   onShowLibrary: () => void
+  /** Actus des jeux activées : « Dernier patch » du bandeau et rangée « Mises à jour de tes jeux ». */
+  news: boolean
+  /** Ouvre la fiche du jeu directement sur cette annonce (lecteur). */
+  onReadNews: (gameId: string, postId: string) => void
+  /** « Tout voir » : page Actus des jeux. */
+  onShowNews: () => void
 }
 
 /** components/library/Library.tsx → `export function Library` */
@@ -141,6 +155,8 @@ export interface GameSheetProps {
   onOpenStats: () => void
   /** Actus des jeux activées (Paramètres › Bibliothèque) : section « Actus » et bandeau du nouveau patch. */
   news: boolean
+  /** Annonce à ouvrir directement dans le lecteur. */
+  post?: string | null
 }
 
 /** components/Profile.tsx → `export function Profile` */
@@ -194,6 +210,22 @@ export interface SettingsProps {
   steamLibrary: SteamLibrary | null
   onRefreshSteamLibrary: () => Promise<void>
   loginPending: LoginPlatform | null
+  /** « Afficher » un membre masqué du serveur Discord. */
+  onShowMember: (name: string) => Promise<void>
+  /** Bloc à montrer et à focaliser en arrivant (« Gérer » de la liste d'amis). */
+  focus: 'hidden-members' | null
+  onFocused: () => void
+}
+
+/** components/news/NewsPage.tsx → `export function NewsPage` (page Actus des jeux) */
+export interface NewsPageProps {
+  games: Game[]
+  enabled: boolean
+  demo: boolean
+  /** Ouvre la fiche du jeu sur cette annonce. */
+  onRead: (gameId: string, postId: string) => void
+  /** Actus coupées : vers Paramètres › Bibliothèque. */
+  onOpenSettings: () => void
 }
 
 /** components/Login.tsx → `export function Login` (plein écran, hors coque) */

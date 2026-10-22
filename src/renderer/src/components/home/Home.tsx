@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { capitalize, cleanName, formatPlaytime, norm, plural, timeAgo } from '@shared/text'
+import { hasPlayed, PLAYED_SOURCE, playedBadge, playedOn } from '@shared/played'
+import { capitalize, cleanName, formatDate, formatPlaytime, plural, timeAgo } from '@shared/text'
 import type { Friend, Game } from '@shared/types'
 import type { HomeProps, LaunchFn } from '../../contracts'
 import { PlayLabel } from '../../launch/PlayLabel'
 import { usePlayState } from '../../launch/usePlayState'
-import { follow, fxOn, motionReduced, setArtBase, setArtFocus, setMorphSource } from '../../motion'
+import { follow, fxOn, setArtBase, setArtFocus, setMorphSource } from '../../motion'
 import { FavStar, usePop } from '../library/GameCard'
 import { NoGames } from '../library/NoGames'
 import { Avatar } from '../ui/Avatar'
@@ -13,16 +14,20 @@ import { Icon } from '../ui/Icon'
 import { LiveBadge } from '../ui/LiveBadge'
 import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
 import { NewsBadge } from '../news/NewsBadge'
+import { NewsFeedRow } from '../news/NewsFeedRow'
+import { aroundLabel, playersLabel, playersOf, whoIsAround, type Around } from './around'
+import { useRowScroll } from './rowScroll'
 import './home.css'
 
 export type { HomeProps }
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
 const byName = (a: Game, b: Game): number => collator.compare(cleanName(a.name), cleanName(b.name))
-const byRecent = (a: Game, b: Game): number => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0)
+/** Jeux en cours d'abord, puis la dernière partie la plus récente. */
+const byRecent = (a: Game, b: Game): number => Number(!!b.running) - Number(!!a.running) || (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0)
 const hasArt = (g: Game): boolean => !!(g.heroUrl || g.coverUrl)
 
-/** Jeu à la une : celui qui tourne, sinon le dernier lancé, sinon un favori (puis un jeu) avec une image. */
+/** Jeu à la une : celui qui tourne, sinon la dernière partie, sinon un favori (puis un jeu) avec une image. */
 function pickHero(games: Game[]): Game | null {
   // Plusieurs jeux en cours : le dernier démarré.
   let running: Game | null = null
@@ -33,42 +38,12 @@ function pickHero(games: Game[]): Game | null {
   return recent ?? games.find((g) => g.favorite && hasArt(g)) ?? games.find(hasArt) ?? games[0] ?? null
 }
 
-const timeFmt = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' })
-const dayFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' })
-
-/** « Lancé aujourd'hui · 20:10 », « Lancé hier · 18:05 », « Lancé le 12 oct. · 14:00 » */
-export function launchedOn(ts: number, now = Date.now()): string {
-  const d = new Date(ts)
-  const day =
-    d.toDateString() === new Date(now).toDateString()
-      ? "aujourd'hui"
-      : d.toDateString() === new Date(now - 86_400_000).toDateString()
-        ? 'hier'
-        : `le ${dayFmt.format(d)}`
-  return `Lancé ${day} · ${timeFmt.format(d)}`
-}
-
-/** Amis (et membres Discord) en train de jouer à ce jeu. */
-function playersOf(game: Game, friends: Friend[]): Friend[] {
-  const key = norm(game.name)
-  return friends.filter((f) => f.status === 'in-game' && !!f.game && norm(f.game) === key)
-}
-
-/** « 2 amis y jouent », « 1 ami et 1 membre Discord y jouent ». Les membres d'un serveur Discord ne sont pas des amis. */
-export function playersLabel(players: Friend[]): string {
-  const n = players.length
-  const pals = players.filter((p) => p.platform !== 'discord').length
-  const members = n - pals
-  const parts = [pals ? plural(pals, 'ami', 'amis') : '', members ? plural(members, 'membre Discord', 'membres Discord') : ''].filter(Boolean)
-  return `${parts.join(' et ')} ${n > 1 ? 'y jouent' : 'y joue'}`
-}
-
 export function Home(props: HomeProps): React.JSX.Element {
-  const { games, friends, scanning, report, demo, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, onShowLibrary } = props
+  const { games, friends, scanning, report, demo, news, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, onShowLibrary, onReadNews, onShowNews } = props
   const hero = useMemo(() => pickHero(games), [games])
   const heroId = hero?.id
 
-  // « À reprendre » : les derniers lancés ; sans historique, les favoris puis les jeux qui ont une image.
+  // « À reprendre » : les dernières parties ; sans historique, les favoris puis les jeux qui ont une image.
   const { cards, resumed } = useMemo(() => {
     const rest = games.filter((g) => g.id !== heroId)
     const played = rest.filter((g) => g.lastPlayed).sort(byRecent)
@@ -77,6 +52,8 @@ export function Home(props: HomeProps): React.JSX.Element {
     const others = rest.filter((g) => !g.favorite && hasArt(g)).sort(byName)
     return { cards: [...favs, ...others].slice(0, 12), resumed: false }
   }, [games, heroId])
+  // Bandeau : amis en ligne autour du jeu à la une.
+  const around = useMemo(() => (hero ? whoIsAround(hero, friends) : null), [hero, friends])
 
   if (games.length === 0 && scanning) return <HomeSkeleton />
 
@@ -93,7 +70,9 @@ export function Home(props: HomeProps): React.JSX.Element {
       <HomeHero
         key={hero.id}
         game={hero}
-        players={playersOf(hero, friends)}
+        around={around}
+        news={news}
+        onReadNews={onReadNews}
         onLaunch={onLaunch}
         onOpen={onOpen}
         onFavorite={onFavorite}
@@ -101,7 +80,7 @@ export function Home(props: HomeProps): React.JSX.Element {
       {cards.length > 0 && (
         <ResumeRow
           title={resumed ? 'À reprendre' : 'Dans ta bibliothèque'}
-          sub={resumed ? 'Tes derniers jeux lancés' : 'Lance un jeu : il apparaîtra ici'}
+          sub={resumed ? 'Tes dernières parties' : 'Lance un jeu : il apparaîtra ici'}
           games={cards}
           friends={friends}
           onLaunch={onLaunch}
@@ -109,24 +88,27 @@ export function Home(props: HomeProps): React.JSX.Element {
           onShowLibrary={onShowLibrary}
         />
       )}
+      <NewsFeedRow games={games} enabled={news} demo={demo} onRead={onReadNews} onShowAll={onShowNews} />
     </div>
   )
 }
 
 interface HeroProps {
   game: Game
-  players: Friend[]
+  around: Around | null
+  /** Actus des jeux activées : cellule « Dernier patch ». */
+  news: boolean
+  onReadNews: (gameId: string, postId: string) => void
   onLaunch: LaunchFn
   onOpen: (g: Game) => void
   onFavorite: (g: Game) => void
 }
 
-/** Grande carte du jeu à la une : visuel, jaquette, titre, actions et bandeau de chiffres en verre. */
-function HomeHero({ game, players, onLaunch, onOpen, onFavorite }: HeroProps): React.JSX.Element {
+/** Jeu à la une : visuel d'un bord à l'autre (il remonte sous la barre du haut), jaquette, titre, actions et bandeau de chiffres en verre. */
+function HomeHero({ game, around, news, onReadNews, onLaunch, onOpen, onFavorite }: HeroProps): React.JSX.Element {
   const root = useRef<HTMLElement>(null)
   const poster = useRef<HTMLButtonElement>(null)
   const p = usePlayState(game, onLaunch)
-  const art = useRef<HTMLDivElement>(null)
   const [heroFailed, setHeroFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [pop, firePop] = usePop()
@@ -189,30 +171,35 @@ function HomeHero({ game, players, onLaunch, onOpen, onFavorite }: HeroProps): R
     }
   }, [])
 
+  // Le visuel déborde sous la barre du haut : la jaquette sert de point de départ au morphing vers la fiche.
   const open = (): void => {
-    setMorphSource(art.current, game.id, 'art')
+    setMorphSource(poster.current, game.id, 'cover')
     onOpen(game)
   }
 
-  const sub = game.running ? 'Partie en cours' : game.lastPlayed ? "Reprends là où tu t'es arrêté" : 'Jamais lancé depuis Player X'
+  const sub = game.running ? 'Partie en cours' : hasPlayed(game) ? "Reprends là où tu t'es arrêté" : 'Jamais lancé depuis Player X'
+  const src = game.lastPlayedSource
+  const patch = game.lastPatch
 
   return (
     <section ref={root} className={`hh ${game.running ? 'is-live' : ''}`} aria-label={`À la une : ${name}`}>
-      <div ref={art} className="hh-art" aria-hidden="true" style={{ background: generatedBackground(game.name) }}>
-        {backUrl && (
-          <img
-            key={backUrl}
-            className={`hh-img ${heroUrl ? 'fx-loop' : 'hh-img-blur'} ${loaded ? 'is-loaded' : ''}`}
-            src={backUrl}
-            alt=""
-            draggable={false}
-            decoding="async"
-            onLoad={() => setLoaded(true)}
-            onError={() => (heroUrl ? setHeroFailed(true) : undefined)}
-          />
-        )}
+      <div className="hh-bleed" aria-hidden="true">
+        <div className="hh-art" style={{ background: generatedBackground(game.name) }}>
+          {backUrl && (
+            <img
+              key={backUrl}
+              className={`hh-img ${heroUrl ? '' : 'hh-img-blur'} ${loaded ? 'is-loaded' : ''}`}
+              src={backUrl}
+              alt=""
+              draggable={false}
+              decoding="async"
+              onLoad={() => setLoaded(true)}
+              onError={() => (heroUrl ? setHeroFailed(true) : undefined)}
+            />
+          )}
+        </div>
+        <div className="hh-scrim" />
       </div>
-      <div className="hh-scrim" aria-hidden="true" />
 
       <div className="hh-in">
         <button ref={poster} className="hh-poster" tabIndex={-1} aria-hidden="true" onClick={open}>
@@ -269,25 +256,64 @@ function HomeHero({ game, players, onLaunch, onOpen, onFavorite }: HeroProps): R
           <dt>Temps de jeu</dt>
           <dd className="num">{game.playtime ? formatPlaytime(game.playtime) : '—'}</dd>
         </div>
+        {(game.launches ?? 0) > 0 && (
+          <div className="hh-k">
+            <dt>
+              Lancements<span className="sr-only"> depuis Player X</span>
+            </dt>
+            <dd className="num">{game.launches}</dd>
+          </div>
+        )}
         <div className="hh-k">
-          <dt>Lancements</dt>
-          <dd className="num">{game.launches ?? 0}</dd>
+          <dt>Dernière partie</dt>
+          {game.running ? (
+            <dd>En cours</dd>
+          ) : game.lastPlayed ? (
+            <dd title={formatDate(game.lastPlayed)}>
+              {capitalize(timeAgo(game.lastPlayed))}
+              {src && <span className="sr-only">, {PLAYED_SOURCE[src]}</span>}
+            </dd>
+          ) : (
+            <dd>—</dd>
+          )}
         </div>
-        <div className="hh-k">
-          <dt>Dernier lancement</dt>
-          <dd>{game.running ? 'En cours' : game.lastPlayed ? capitalize(timeAgo(game.lastPlayed)) : 'Jamais'}</dd>
-        </div>
-        {players.length > 0 && (
-          <div className="hh-k hh-friends" title={players.map((p) => p.name).join(', ')}>
-            <dt>{players.some((p) => p.platform !== 'discord') ? 'Amis en jeu' : 'Membres en jeu'}</dt>
+        {/* À droite : le dernier patch du jeu (ouvre ses notes), puis les amis en ligne. */}
+        {news && patch && (
+          <div className="hh-k hh-end hh-patch" title={`${patch.title} · notes publiées sur Steam le ${formatDate(patch.at)}`}>
+            <dt>Dernier patch</dt>
             <dd>
-              <span className="num">{players.length}</span>
+              <button
+                className="hh-patch-go"
+                aria-label={`Lire les notes du dernier patch de ${name} : ${patch.title}, ${timeAgo(patch.at)}`}
+                onClick={() => onReadNews(game.id, patch.id)}
+              >
+                {capitalize(timeAgo(patch.at))}
+                <Icon name="chevron-right" size={16} className="hh-patch-chev" />
+              </button>
+            </dd>
+          </div>
+        )}
+        {around && (
+          <div className="hh-k hh-end hh-friends" title={around.people.map((p) => p.name).join(', ')}>
+            <dt>
+              {around.kind === 'friends' ? 'Amis en ligne' : 'Membres en ligne'}
+              {around.here.size > 0 && (
+                <span className="hh-k-live" aria-hidden="true">
+                  {' '}
+                  · {around.here.size} {around.here.size > 1 ? 'y jouent' : 'y joue'}
+                </span>
+              )}
+            </dt>
+            <dd>
+              <span className="num" aria-hidden="true">
+                {around.people.length}
+              </span>
               <span className="hh-stack" aria-hidden="true">
-                {players.slice(0, 4).map((p) => (
-                  <Avatar key={p.id} name={p.name} url={p.avatarUrl} size={28} />
+                {around.people.slice(0, 4).map((p) => (
+                  <Avatar key={p.id} name={p.name} url={p.avatarUrl} size={28} className={around.here.has(p.id) ? 'is-here' : ''} />
                 ))}
               </span>
-              <span className="sr-only">{playersLabel(players)}</span>
+              <span className="sr-only">{aroundLabel(around)}</span>
             </dd>
           </div>
         )}
@@ -308,31 +334,7 @@ interface RowProps {
 
 /** Rangée de cartes défilante, avec boutons précédent / suivant. */
 function ResumeRow({ title, sub, games, friends, onLaunch, onOpen, onShowLibrary }: RowProps): React.JSX.Element {
-  const track = useRef<HTMLDivElement>(null)
-  const [edges, setEdges] = useState({ start: false, end: false })
-
-  useEffect(() => {
-    const el = track.current
-    if (!el) return
-    const update = (): void => {
-      const max = el.scrollWidth - el.clientWidth
-      setEdges({ start: el.scrollLeft > 4, end: max - el.scrollLeft > 4 })
-    }
-    update()
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    el.addEventListener('scroll', update, { passive: true })
-    return () => {
-      ro.disconnect()
-      el.removeEventListener('scroll', update)
-    }
-  }, [games.length])
-
-  const scrollBy = (dir: 1 | -1): void => {
-    const el = track.current
-    if (!el) return
-    el.scrollBy({ left: dir * el.clientWidth, behavior: motionReduced() ? 'auto' : 'smooth' })
-  }
+  const { track, edges, scrollBy } = useRowScroll(games.length)
 
   return (
     <section className="hr" aria-labelledby="hr-title">
@@ -376,7 +378,7 @@ function ResumeCard({ game, players, onLaunch, onOpen }: CardProps): React.JSX.E
   const lit = useRef(false)
   const name = cleanName(game.name)
   const image = game.heroUrl || game.coverUrl
-  const badge = game.running ? 'En cours' : game.lastPlayed ? capitalize(timeAgo(game.lastPlayed)) : 'Jamais lancé'
+  const badge = playedBadge(game)
   const meta = [game.launches ? plural(game.launches, 'lancement', 'lancements') : '', game.playtime ? formatPlaytime(game.playtime) : ''].filter(Boolean).join(' · ')
 
   // Fond de la page aux couleurs du jeu survolé ; rendu par cette carte seulement.
@@ -409,16 +411,18 @@ function ResumeCard({ game, players, onLaunch, onOpen }: CardProps): React.JSX.E
     >
       <button ref={art} className="rc-art" aria-label={`Fiche de ${name}`} title="Voir la fiche" onClick={open}>
         <Cover game={game} variant="landscape" showTitle={!image} />
-        <span className={`rc-badge ${game.running ? 'is-live' : ''}`}>
-          {!game.running && <Icon name="clock" size={13} />}
-          {badge}
-        </span>
+        {badge && (
+          <span className={`rc-badge ${game.running ? 'is-live' : ''}`}>
+            {!game.running && <Icon name="clock" size={13} />}
+            {badge}
+          </span>
+        )}
         <StoreTag kind={game.store} long className="rc-store" />
         {game.running && <LiveBadge className="rc-live" />}
         {game.newPatch && <NewsBadge patch={game.newPatch} className="rc-news" />}
       </button>
       <div className="rc-body">
-        <p className="rc-date">{game.lastPlayed ? launchedOn(game.lastPlayed) : KIND_LABEL[game.store]}</p>
+        <p className="rc-date">{game.lastPlayed ? playedOn(game.lastPlayed, game.lastPlayedSource) : KIND_LABEL[game.store]}</p>
         <h3 className="rc-name" title={name}>
           {name}
         </h3>
@@ -439,23 +443,17 @@ function ResumeCard({ game, players, onLaunch, onOpen }: CardProps): React.JSX.E
           </button>
         </div>
       </div>
-      <div className="rc-foot">
-        {players.length > 0 ? (
-          <>
-            <span className="rc-stack" aria-hidden="true">
-              {players.slice(0, 3).map((p) => (
-                <Avatar key={p.id} name={p.name} url={p.avatarUrl} size={22} />
-              ))}
-            </span>
-            <span className="rc-foot-live">{playersLabel(players)}</span>
-          </>
-        ) : (
-          <>
-            <span className="rc-empty-ava" aria-hidden="true" />
-            <span>Aucun ami dessus en ce moment</span>
-          </>
-        )}
-      </div>
+      {/* Pied de carte seulement si quelqu'un y joue : pas de ligne de remplissage. */}
+      {players.length > 0 && (
+        <div className="rc-foot" title={players.map((p) => p.name).join(', ')}>
+          <span className="rc-stack" aria-hidden="true">
+            {players.slice(0, 3).map((p) => (
+              <Avatar key={p.id} name={p.name} url={p.avatarUrl} size={22} />
+            ))}
+          </span>
+          <span className="rc-foot-live">{playersLabel(players)}</span>
+        </div>
+      )}
     </article>
   )
 }

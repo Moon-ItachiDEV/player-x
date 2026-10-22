@@ -67,15 +67,11 @@
   border-color: color-mix(in srgb, var(--info) 55%, transparent);
   background: color-mix(in srgb, var(--info) 11%, var(--surface-1));
 }
-.news-banner-icon {
-  display: grid;
-  place-items: center;
+.news-thumb.news-banner-thumb {
   flex-shrink: 0;
-  width: 40px;
+  width: 72px;
   height: 40px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--info) 16%, transparent);
-  color: var(--info);
+  border-radius: 8px;
 }
 .news-banner-text {
   display: flex;
@@ -136,7 +132,9 @@
 button.news-item:hover {
   background: var(--surface-1);
 }
+/* Vignette : image de l'annonce, sinon celle du jeu (NewsThumb.tsx) */
 .news-thumb {
+  position: relative;
   display: grid;
   place-items: center;
   width: 96px;
@@ -145,6 +143,24 @@ button.news-item:hover {
   overflow: hidden;
   background: var(--surface-2);
   color: var(--text-3);
+}
+.news-thumb .cover {
+  height: 100%;
+  aspect-ratio: auto;
+}
+/* Marque « patch » sur l'image du jeu (pas de flou : l'image ne bouge pas) */
+.news-glyph {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--badge-bg);
+  border: 1px solid color-mix(in srgb, var(--info) 50%, transparent);
+  color: var(--info);
 }
 .news-thumb img {
   width: 100%;

@@ -38,11 +38,33 @@ const HISTORY: [string, number, number, boolean, number][] = [
   ['steam:413150', 500, 4, false, 385]
 ]
 
+// Parties jouées hors de Player X : [id, il y a combien d'heures, source, minutes jouées]
+const PLAYED_ELSEWHERE: [string, number, 'steam' | 'session', number][] = [
+  ['steam:1091500', 31, 'steam', 4_210], // Cyberpunk 2077 : hier, via Steam
+  ['epic:Fortnite', 70, 'session', 540], // lancé depuis Epic, vu par Player X
+  ['steam:1145360', 216, 'steam', 1_420], // Hades
+  ['ea:apex', 290, 'session', 610],
+  ['steam:570', 960, 'steam', 15_600], // Dota 2
+  ['steam:892970', 1_800, 'steam', 2_900] // Valheim
+]
+
 export function demoGames(now = Date.now()): Game[] {
   return BASE_GAMES.map((g) => {
     const h = HISTORY.find(([id]) => id === g.id)
-    if (!h) return { ...g, launches: 0 }
-    return { ...g, lastPlayed: now - h[1] * 3600_000, launches: h[2], favorite: h[3], playtime: h[4], playtimeSource: g.store === 'steam' ? 'steam' : 'local' }
+    if (h)
+      return {
+        ...g,
+        lastPlayed: now - h[1] * 3600_000,
+        lastPlayedSource: 'launch' as const,
+        launches: h[2],
+        favorite: h[3],
+        playtime: h[4],
+        playtimeSource: g.store === 'steam' ? 'steam' : 'local'
+      }
+    const e = PLAYED_ELSEWHERE.find(([id]) => id === g.id)
+    if (e) return { ...g, lastPlayed: now - e[1] * 3600_000, lastPlayedSource: e[2], launches: 0, playtime: e[3], playtimeSource: e[2] === 'steam' ? 'steam' : 'local' }
+    // Alan Wake 2, EA SPORTS FC 27 : aucune partie connue.
+    return { ...g, launches: 0 }
   })
 }
 
@@ -71,7 +93,7 @@ export function demoNotInstalled(now = Date.now()): Game[] {
     storeId: appId,
     name,
     notInstalled: true,
-    ...(days ? { lastPlayed: now - days * 24 * 3600_000 } : {}),
+    ...(days ? { lastPlayed: now - days * 24 * 3600_000, lastPlayedSource: 'steam' as const } : {}),
     ...(minutes ? { playtime: minutes, playtimeSource: 'steam' as const } : {})
   }))
 }
@@ -89,5 +111,11 @@ export const DEMO_FRIENDS: Friend[] = [
   { id: 'steam:6', platform: 'steam', name: 'Draxx', avatarUrl: avatar('Draxx'), status: 'away' },
   { id: 'psn:7', platform: 'psn', name: 'KenjiPlays', avatarUrl: avatar('Kenji'), status: 'offline' },
   { id: 'steam:8', platform: 'steam', name: 'Orbit', avatarUrl: avatar('Orbit'), status: 'offline' },
-  { id: 'steam:11', platform: 'steam', name: 'Nova', avatarUrl: avatar('Nova'), status: 'offline' }
+  { id: 'steam:11', platform: 'steam', name: 'Nova', avatarUrl: avatar('Nova'), status: 'offline' },
+  { id: 'steam:12', platform: 'steam', name: 'Rook', avatarUrl: avatar('Rook'), status: 'in-game', game: 'Counter-Strike 2' },
+  // Bots d'un serveur Discord : masqués d'office (discordMembers.ts), listés dans Paramètres › Comptes.
+  { id: 'discord:12', platform: 'discord', name: 'MonitoRSS', avatarUrl: avatar('MonitoRSS'), status: 'online' },
+  { id: 'discord:13', platform: 'discord', name: 'PatchBot', avatarUrl: avatar('PatchBot'), status: 'online' },
+  { id: 'discord:14', platform: 'discord', name: 'Soundboards.gg', avatarUrl: avatar('Soundboards'), status: 'online' },
+  { id: 'discord:15', platform: 'discord', name: 'MEE6', avatarUrl: avatar('MEE6'), status: 'online' }
 ]

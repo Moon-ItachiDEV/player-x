@@ -171,8 +171,8 @@ export function resetLaunches(): void {
 
 /** Jeux connus de l'interface (nom d'un lancement qui arrive par événement). Tenu à jour par useFrozenGames. */
 const gamesById = new Map<string, Game>()
-/** Dernière date de lancement de chaque jeu au moment du clic : gelée tant que le lancement est en cours. */
-const frozen = new Map<string, number | undefined>()
+/** Dernière partie de chaque jeu au moment du clic (date et source) : gelée tant que le lancement est en cours. */
+const frozen = new Map<string, Pick<Game, 'lastPlayed' | 'lastPlayedSource'>>()
 /** Dernière mise à feu jouée par jeu (performance.now()) : pas deux fois en 10 min. */
 const lastStageAt = new Map<string, number>()
 /**
@@ -261,7 +261,7 @@ export function startLaunch(game: Game, from?: HTMLElement | null, via: LaunchVi
   const otherPending = Object.values(all).some((v) => v.gameId !== game.id && isBusy(v))
   const entrance = chooseEntrance(game, from, via, checking, otherPending)
   if (entrance === 'stage') lastStageAt.set(game.id, performance.now())
-  frozen.set(game.id, game.lastPlayed)
+  frozen.set(game.id, { lastPlayed: game.lastPlayed, lastPlayedSource: game.lastPlayedSource })
   gamesById.set(game.id, game)
   const active = document.activeElement
   // Parti d'une carte (« Réessayer », « Relancer quand même ») : son bouton disparaît avec elle, le nouveau lancement
@@ -388,7 +388,7 @@ const frozenKey = (): string =>
     .join('|')
 
 /**
- * Bibliothèque montrée aux écrans : la date de dernier lancement d'un jeu qui se lance reste celle d'avant le clic,
+ * Bibliothèque montrée aux écrans : la dernière partie d'un jeu qui se lance reste celle d'avant le clic (date et source),
  * pour que ni l'accueil ni « Récents » ne bougent sous le curseur. Levée dès que le jeu est détecté (un relais ne la
  * remet pas : la date fraîche est déjà affichée), ou que le lancement s'arrête.
  */
@@ -398,6 +398,9 @@ export function useFrozenGames(games: Game[]): Game[] {
   return useMemo(() => {
     if (!busy) return games
     const ids = new Set(busy.split('|'))
-    return games.map((g) => (ids.has(g.id) && frozen.has(g.id) && g.lastPlayed !== frozen.get(g.id) ? { ...g, lastPlayed: frozen.get(g.id) } : g))
+    return games.map((g) => {
+      const f = ids.has(g.id) ? frozen.get(g.id) : undefined
+      return f && g.lastPlayed !== f.lastPlayed ? { ...g, ...f } : g
+    })
   }, [games, busy])
 }

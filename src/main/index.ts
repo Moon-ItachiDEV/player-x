@@ -2,8 +2,9 @@ import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app, BrowserWindow, Menu, powerMonitor, session, shell } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
+import { lastPlayedOf, type PlayedDates } from '@shared/played'
 import { cleanName, isBf6Name } from '@shared/text'
-import type { Friend, FriendPlatform, Game, Settings, SteamLibrary } from '@shared/types'
+import type { Friend, FriendPlatform, FriendsResult, Game, Settings, SteamLibrary } from '@shared/types'
 import * as db from './db'
 import { handle } from './ipc'
 import { getAchievementsOverview, getGameAchievements, startAchievementsWatcher } from './services/achievements'
@@ -13,13 +14,14 @@ import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
 import { bf6RecapState, markBf6RecapSeen, setBf6Running, startBf6Recaps, syncBf6Recaps } from './services/bf6Recap'
 import { DEMO_FRIENDS, DEMO_GAMES, demoGames, demoNotInstalled } from './services/demo'
+import { hideMembers, withMemberHidden } from './services/discordMembers'
 import { connectPsn, getAllFriends, resetPsn } from './services/friends'
 import { getScanReport, handoff, launchTarget, scanAllGames } from './services/games'
 import { createLaunches, sanitizeOpts, type LaunchDeps, type Launches, type LaunchWindow, type Timers } from './services/launches'
 import { createWatcher } from './services/launchWatch'
 import { newMatches } from './services/launchWatchParse'
-import { getGameNews, markNewsSeen, refreshNewsIndex, startNewsWatcher, withNews } from './services/news'
-import { getAccounts, getSettings, publicSettings, removeAccount, saveSettings } from './services/settings'
+import { getGameNews, markAllNewsSeen, markNewsSeen, newsFeed, refreshNewsIndex, refreshNewsNow, startNewsWatcher, withNews } from './services/news'
+import { getAccounts, getMemberPrefs, getSettings, publicSettings, removeAccount, saveMemberPrefs, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { installSteamGame, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
 import {
@@ -62,14 +64,15 @@ function createWindow(): void {
     show: !b?.maximized && !startHidden,
     minWidth: 1024,
     minHeight: 640,
-    backgroundColor: '#06101c',
+    backgroundColor: '#0a182b',
     title: 'Player X',
     icon: join(app.getAppPath(), 'resources', 'icon.png'),
     autoHideMenuBar: true,
-    // Barre de titre intégrée à l'interface ; Windows garde ses boutons natifs (réduire, agrandir, fermer).
+    // Barre de titre intégrée à l'interface ; Windows garde ses boutons natifs (réduire, agrandir, fermer),
+    // sur un fond transparent : la barre du haut, en verre, passe dessous (repli possible : couleur pleine '#142743').
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' as const }
-      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#09192a', symbolColor: '#a6bdd9', height: 48 } }),
+      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#00000000', symbolColor: '#d6e3f3', height: 48 } }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
@@ -94,6 +97,8 @@ function createWindow(): void {
 let scanned = false
 /** Dernière liste d'amis réelle, pour l'alerte d'essai. */
 let lastFriends: Friend[] = []
+/** Dernière liste réelle avant le retrait des membres Discord masqués : « Masquer » / « Afficher » la refiltre sans redemander à Discord. */
+let lastRaw: FriendsResult = { friends: [], errors: {} }
 
 function notifyGamesChanged(): void {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send('games:changed')
@@ -138,10 +143,15 @@ async function games(refresh = false): Promise<Game[]> {
     return withNews(
       applyArtwork(demoGames()).map((g) => {
         const l = state.launches[g.id]
+        // Dernière partie : la date fictive (avec sa source) ou un lancement de démo, le plus récent des deux.
+        const dates: PlayedDates = g.lastPlayed && g.lastPlayedSource ? { [g.lastPlayedSource]: g.lastPlayed } : {}
+        if (l?.last) dates.launch = Math.max(dates.launch ?? 0, l.last)
+        const played = lastPlayedOf(dates)
         return {
           ...g,
           favorite: state.favorites ? state.favorites.includes(g.id) : g.favorite,
-          lastPlayed: l?.last ?? g.lastPlayed,
+          lastPlayed: played?.at,
+          lastPlayedSource: played?.source,
           launches: (g.launches ?? 0) + (l?.count ?? 0),
           // Développement : « En jeu » d'après le faux relevé du simulateur de lancement.
           ...(launchSim?.isRunning(g.id) ? { running: true, runningSince: launchSim.runningSince(g.id) } : {})
@@ -228,15 +238,26 @@ function registerIpc(): void {
     else db.setFavorites(favorites)
     return games()
   })
+  // Membres Discord masqués (bots connus, « Masquer ») retirés ici : aucun écran ne les voit.
   handle('friends:list', async () => {
     if (getSettings().demoMode) {
       demoFriendAlert(DEMO_FRIENDS)
-      return { friends: DEMO_FRIENDS, errors: {} }
+      return hideMembers({ friends: DEMO_FRIENDS, errors: {} }, getMemberPrefs(true))
     }
-    const result = await getAllFriends()
+    const raw = await getAllFriends()
+    lastRaw = raw
+    // Filtré après l'attente : un « Masquer » envoyé pendant la récupération compte déjà.
+    const result = hideMembers(raw, getMemberPrefs(false))
     checkFriends(result)
-    lastFriends = result.friends
+    lastFriends = raw.friends
     return result
+  })
+  handle('friends:hide-member', (_e, name: unknown, hidden: unknown) => {
+    const clean = typeof name === 'string' ? name.trim() : ''
+    if (!clean || clean.length > 128 || typeof hidden !== 'boolean') throw new Error('Membre inconnu.')
+    const demo = getSettings().demoMode
+    saveMemberPrefs(demo, withMemberHidden(getMemberPrefs(demo), clean, hidden))
+    return hideMembers(demo ? { friends: DEMO_FRIENDS, errors: {} } : lastRaw, getMemberPrefs(demo))
   })
   handle('friends:test-alert', () => testFriendAlert(getSettings().demoMode ? DEMO_FRIENDS : lastFriends))
   // Actus des jeux : l'appid Steam est retrouvé ici, à partir de la bibliothèque, jamais reçu de l'interface.
@@ -246,9 +267,16 @@ function registerIpc(): void {
     if (!game) throw new Error('Jeu introuvable.')
     return getGameNews(game, refresh === true)
   })
-  handle('news:seen', (_e, id: unknown) => {
+  handle('news:seen', (_e, id: unknown, upTo?: unknown) => {
     const game = findGame(id)
-    if (game) markNewsSeen(game)
+    if (game) markNewsSeen(game, typeof upTo === 'number' ? upTo : undefined, knownGames().filter((g) => g.id !== game.id))
+  })
+  handle('news:seen-all', () => markAllNewsSeen(knownGames()))
+  // Page Actus des jeux : construite à partir du relevé, sans réseau.
+  handle('news:feed', () => newsFeed(knownGames()))
+  handle('news:refresh', async () => {
+    if (getSettings().gameNews) await refreshNewsNow(knownGames())
+    return newsFeed(knownGames())
   })
   // Jeux du compte Steam pas installés sur ce PC (Bibliothèque › Non installés).
   handle('steam:library', async (_e, refresh?: unknown): Promise<SteamLibrary> => {
@@ -317,6 +345,8 @@ function registerIpc(): void {
       scanned = false
       // Jaquettes des jeux fictifs, aussi quand la démo s'active en cours de session.
       if (next.demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())
+      // Actus de l'autre bibliothèque tout de suite, sans attendre le relevé de l'heure suivante.
+      if (next.gameNews) refreshNewsIndex(knownGames()).catch(() => {})
     }
     return publicSettings(next)
   })
@@ -502,6 +532,16 @@ app.whenReady().then(async () => {
   startPlaytimeTracker(notifyGamesChanged)
   startBf6Recorder()
   startNewsWatcher(knownGames, notifyGamesChanged)
+  // Développement seulement : PX_NEWS_SIM simule les annonces Steam (newsSim.ts, jamais dans l'installeur).
+  if (!app.isPackaged && process.env.PX_NEWS_SIM) {
+    const mode = process.env.PX_NEWS_SIM
+    import('./services/newsSim')
+      .then(({ startNewsSim }) => {
+        startNewsSim(mode)
+        return refreshNewsIndex(knownGames())
+      })
+      .catch((e) => console.warn('[news-sim]', e))
+  }
   startAchievementsWatcher(() => getSettings().demoMode)
   // Un jeu installé avec « Installer » : nouveau scan, il passe des « Non installés » à la bibliothèque.
   startSteamLibrary(notifyGamesChanged, () => {

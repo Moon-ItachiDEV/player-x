@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { timeAgo } from '@shared/text'
 import type { FriendAlertMode, FriendPlatform, ScanReport, Settings, SteamLibrary, SteamLibraryState } from '@shared/types'
 import { COVER_MIN, type SettingsProps, type SettingsSection, type UiPrefs } from '../../contracts'
-import { useSystemReducedMotion } from '../../motion'
+import { useSystemReducedMotion, useSystemReducedTransparency } from '../../motion'
 import { TopTabs } from '../TopTabs'
 import { Icon } from '../ui/Icon'
 import { Segmented, Switch } from '../ui/Overlay'
@@ -29,10 +29,10 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
   const { section, onSection, settings, accounts, friends } = props
   const rootRef = useRef<HTMLDivElement>(null)
   const [focusCard, setFocusCard] = useState<FriendPlatform | null>(null)
-  const focusRef = useRef(focusCard)
-  focusRef.current = focusCard
+  const focusRef = useRef(focusCard || props.focus)
+  focusRef.current = focusCard || props.focus
 
-  // Nouvelle section : on remonte en haut (sauf si une carte d'Avancé doit être montrée).
+  // Nouvelle section : on remonte en haut (sauf si une carte d'Avancé ou un bloc de Comptes doit être montré).
   useEffect(() => {
     if (!focusRef.current) rootRef.current?.closest('.content')?.scrollTo({ top: 0 })
   }, [section])
@@ -74,6 +74,9 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
               onLogin={props.onLogin}
               onLogout={props.onLogout}
               onConfigure={configure}
+              onShowMember={props.onShowMember}
+              focus={props.focus}
+              onFocused={props.onFocused}
             />
           )}
           {section === 'library' && (
@@ -174,7 +177,7 @@ function LibrarySection(props: LibraryProps): React.JSX.Element {
         label="Actus des jeux"
         value={
           settings.gameNews
-            ? 'Activées · annonces officielles de Steam dans la fiche, badge « Nouveau patch » sur les jeux mis à jour cette semaine'
+            ? 'Activées · annonces officielles de Steam dans la fiche et dans Actus des jeux, badge « Nouveau patch » sur les jeux mis à jour cette semaine'
             : 'Désactivées · Player X ne demande plus les actus de tes jeux à Steam'
         }
       >
@@ -323,6 +326,7 @@ interface InterfaceProps {
 
 function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: InterfaceProps): React.JSX.Element {
   const systemReduced = useSystemReducedMotion()
+  const systemOpaque = useSystemReducedTransparency()
   const notify = useToast()
   return (
     <>
@@ -383,7 +387,13 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
         </SettingRow>
         <SettingRow
           label="Effets de transparence"
-          value={ui.transparency ? 'Activés · flou derrière les barres et les notifications' : 'Désactivés · couleurs pleines, sans flou'}
+          value={
+            !ui.transparency
+              ? 'Désactivés · couleurs pleines, sans flou'
+              : systemOpaque
+                ? "En pause · Windows demande moins de transparence, c'est respecté"
+                : 'Activés · barres et bandeaux en verre, flou derrière'
+          }
         >
           <Switch checked={ui.transparency} onChange={(transparency) => onUiChange({ transparency })} label="Effets de transparence" />
         </SettingRow>

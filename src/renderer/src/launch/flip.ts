@@ -35,6 +35,15 @@ export function clipBox(a: Box, b: Box): Box {
   return { left, top, width, height }
 }
 
+/**
+ * La partie de `r` sous la barre du haut (`barBottom` : bas de la barre, en px de fenêtre). Le contenu défile sous la
+ * barre en verre : ce qui passe dessous ne compte plus comme visible. Hauteur 0 si tout est caché.
+ */
+export function belowBar(r: Box, barBottom: number): Box {
+  const top = Math.max(r.top, barBottom)
+  return { left: r.left, top, width: r.width, height: Math.max(0, r.top + r.height - top) }
+}
+
 /** Part visible de `r` dans `clip`, de 0 à 1. */
 export function visibleShare(r: Box, clip: Box): number {
   const c = clipBox(r, clip)

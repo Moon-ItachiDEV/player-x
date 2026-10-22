@@ -1,6 +1,7 @@
 import { discordGuildIdFrom } from '@shared/text'
 import type { Account, FriendPlatform, Settings } from '@shared/types'
 import { deleteKv, getKv, setKv } from '../db'
+import { cleanMemberPrefs, type MemberPrefs } from './discordMembers'
 
 // Lu à chaque appel : le .env est chargé après l'import de ce module.
 function defaults(): Settings {
@@ -83,4 +84,19 @@ export function removeAccount(platform: FriendPlatform): Account[] {
   if (rest.length) setKv('accounts', rest, true)
   else deleteKv('accounts')
   return rest
+}
+
+// Membres du serveur Discord masqués : hors des réglages (jamais envoyés à l'interface avec publicSettings).
+// Le mode démo a les siens, pour ne jamais toucher aux vrais.
+
+function memberKv(demo: boolean): string {
+  return demo ? 'demoDiscordMembers' : 'discordMembers'
+}
+
+export function getMemberPrefs(demo: boolean): MemberPrefs {
+  return cleanMemberPrefs(getKv<unknown>(memberKv(demo), null))
+}
+
+export function saveMemberPrefs(demo: boolean, prefs: MemberPrefs): void {
+  setKv(memberKv(demo), cleanMemberPrefs(prefs))
 }

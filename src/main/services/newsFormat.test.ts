@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { cleanRawNews, decodeEntities, excerptOf, isPatchPost, parseNewsContents, safeUrl, toNewsPost } from './newsFormat.ts'
+import { cleanRawNews, decodeEntities, excerptOf, isPatchPost, parseNewsContents, safeUrl, toNewsPost, unescapeBrackets } from './newsFormat.ts'
 
 const textOf = (spans: { text: string }[]): string => spans.map((s) => s.text).join('')
 
@@ -159,4 +159,86 @@ test('annonce brute : champs vérifiés, date en millisecondes', () => {
   assert.equal(post.image, 'https://clan.akamai.steamstatic.com/images/1/a.jpg')
   assert.equal(post.excerpt, 'Body text')
   assert.equal(post.id, '5124356789012345678')
+})
+
+test('crochets échappés par Steam (Counter-Strike 2) : du texte, jamais une balise, ni une barre oblique affichée', () => {
+  const src =
+    '[p]\\[ MAPS ][/p][list][*][p]\\[ UI ] Demo/Replay viewer improvements: Added a progress bar[/p][/*][*][p][b]Fixed[/b] a bug where \\[b]tags\\[/b] showed up[/p][/*][/list]' +
+    '[p]\\[ MISC ] Read the [url=https://example.com/maps/de_dust2\\[1\\]]map notes[/url] and [url]https://example.com/a\\[2\\][/url][/p]'
+  const blocks = parseNewsContents(src)
+  assert.deepEqual(blocks[0], { type: 'heading', level: 3, spans: [{ text: 'MAPS' }] })
+  assert.deepEqual(blocks[1], {
+    type: 'list',
+    ordered: false,
+    items: [
+      { spans: [{ text: '[ UI ] Demo/Replay viewer improvements: Added a progress bar' }], depth: 0 },
+      { spans: [{ text: 'Fixed', bold: true }, { text: ' a bug where [b]tags[/b] showed up' }], depth: 0 }
+    ]
+  })
+  assert.deepEqual(blocks[2], {
+    type: 'paragraph',
+    spans: [
+      { text: '[ MISC ] Read the ' },
+      { text: 'map notes', href: 'https://example.com/maps/de_dust2[1]' },
+      { text: ' and ' },
+      { text: 'https://example.com/a[2]', href: 'https://example.com/a[2]' }
+    ]
+  })
+  assert.equal(blocks.length, 3)
+  // Ancien format sans [p] : intertitre retrouvé, extrait sans barre oblique.
+  const post = toNewsPost({
+    gid: '1',
+    title: '\\[ PATCH ] Counter-Strike 2 Update',
+    url: 'https://store.steampowered.com/news/app/730/view/1',
+    contents: '\\[ UI ]\n[list][*]Demo/Replay viewer improvements[/list]\n\\[ MISC ]\n[list][*]Added a ping icon[/list]',
+    date: 1_760_000_000_000,
+    tags: ['patchnotes']
+  })
+  assert.deepEqual(
+    post.blocks.filter((b) => b.type === 'heading').map((b) => (b.type === 'heading' ? b.spans[0].text : '')),
+    ['UI', 'MISC']
+  )
+  assert.equal(post.excerpt, 'Demo/Replay viewer improvements Added a ping icon')
+  assert.equal(cleanRawNews({ gid: '2', title: '\\[ UI ] Fixes', url: 'https://a.b/c', date: 1 })?.title, '[ UI ] Fixes')
+  // Une barre oblique devant autre chose reste du texte ; le contenu brut ([noparse]) aussi.
+  assert.deepEqual(parseNewsContents('C:\\Games\\CS2 \\* not a list [noparse]\\[raw][/noparse]'), [{ type: 'paragraph', spans: [{ text: 'C:\\Games\\CS2 \\* not a list \\[raw]' }] }])
+  assert.equal(unescapeBrackets('\\[x\\] \\y'), '[x] \\y')
+})
+
+test('vidéos des annonces d’événement : l’affiche en image, jamais la balise en texte', () => {
+  // Forme réelle de l'éditeur de Steam : attributs entre guillemets, noms avec des chiffres (mp4).
+  const steam =
+    '[video mp4="{STEAM_CLAN_IMAGE}/45/a1.mp4" webm="{STEAM_CLAN_IMAGE}/45/a1.webm" poster="{STEAM_CLAN_IMAGE}/45/a1.png" autoplay="true" controls="false"][/video]\n' +
+    '[p]Season 2 starts today.[/p]'
+  assert.deepEqual(parseNewsContents(steam), [
+    { type: 'image', src: 'https://clan.akamai.steamstatic.com/images/45/a1.png' },
+    { type: 'paragraph', spans: [{ text: 'Season 2 starts today.' }] }
+  ])
+  // Sans guillemets, en majuscules, dans un paragraphe ou un point de liste, ou sans affiche : jamais de texte « [video … ] ».
+  for (const src of [
+    '[VIDEO MP4=https://x.example/a.mp4 POSTER=https://x.example/a.png][/VIDEO] Live now',
+    '[p][video mp4="https://x.example/a.mp4" poster="https://x.example/a.png"][/video]Live now[/p]',
+    '[list][*]Live now [video webm="https://x.example/a.webm" poster="https://x.example/a.png"][/video][/list]',
+    '[video mp4="https://x.example/a.mp4" webm="https://x.example/a.webm"][/video]Live now'
+  ]) {
+    const blocks = parseNewsContents(src)
+    assert.equal(excerptOf(blocks), 'Live now', src)
+    assert.ok(!JSON.stringify(blocks).includes('video'), src)
+  }
+  // Une affiche non https est ignorée, comme une image.
+  assert.deepEqual(parseNewsContents('[video mp4="https://x.example/a.mp4" poster="http://x.example/a.png"][/video]'), [])
+  // YouTube dans un point de liste : le lien vient après la liste, l'identifiant n'apparaît pas dans le texte.
+  assert.deepEqual(parseNewsContents('[list][*]Trailer [previewyoutube=dQw4w9WgXcQ;full][/previewyoutube][/list]'), [
+    { type: 'list', ordered: false, items: [{ spans: [{ text: 'Trailer' }], depth: 0 }] },
+    { type: 'video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
+  ])
+})
+
+test('vignette : la première vraie image, sinon l’affiche d’une vidéo', () => {
+  const post = (contents: string) => toNewsPost({ gid: '1', title: 'Event', url: 'https://store.steampowered.com/news/app/1/view/1', contents, date: 1, tags: [] })
+  const video = '[video mp4="https://x.example/v.mp4" poster="https://x.example/poster.png"][/video]'
+  assert.equal(post(`${video}[p]Text[/p]`).image, 'https://x.example/poster.png')
+  assert.equal(post(`${video}[p]Text[/p][img src="https://x.example/real.png"][/img]`).image, 'https://x.example/real.png')
+  assert.equal(post('[p]Text[/p]').image, undefined)
+  assert.equal(post(`${video}[p]Text[/p]`).excerpt, 'Text')
 })

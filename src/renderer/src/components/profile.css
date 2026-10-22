@@ -19,7 +19,7 @@
   isolation: isolate;
   box-shadow:
     0 0 0 1px var(--line-2),
-    0 30px 60px -36px rgba(0, 0, 0, 0.9);
+    0 30px 60px -36px rgba(2, 8, 20, 0.9);
 }
 .prof-banner {
   position: absolute;
@@ -54,9 +54,9 @@
   position: absolute;
   inset: 0;
   background:
-    repeating-linear-gradient(0deg, rgba(140, 190, 255, 0.035) 0 1px, transparent 1px 4px),
-    linear-gradient(0deg, rgba(6, 16, 28, 0.75) 0%, transparent 55%),
-    linear-gradient(90deg, rgba(6, 16, 28, 0.92) 0%, rgba(6, 16, 28, 0.55) 45%, rgba(6, 16, 28, 0) 75%);
+    repeating-linear-gradient(0deg, rgba(150, 195, 255, 0.035) 0 1px, transparent 1px 4px),
+    linear-gradient(0deg, color-mix(in srgb, var(--ink) 75%, transparent) 0%, transparent 55%),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 92%, transparent) 0%, color-mix(in srgb, var(--ink) 55%, transparent) 45%, transparent 75%);
 }
 
 /* ---------- identité ---------- */
@@ -218,7 +218,7 @@
   color: var(--tint);
 }
 
-/* Dernier lancement */
+/* Dernière partie */
 .prof-last {
   max-width: 100%;
   font: 700 20px/24px var(--font-display);
