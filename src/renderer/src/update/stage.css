@@ -113,7 +113,7 @@
   font-variant-numeric: tabular-nums;
 }
 .stage-from {
-  font-weight: 500;
+  font-weight: 600; /* Sora n'est chargée qu'en 600 et 700 */
   font-size: 20px;
   color: var(--text-3);
 }

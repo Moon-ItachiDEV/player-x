@@ -241,7 +241,7 @@ button.setup-step-btn:hover {
 }
 .setup-title {
   margin-top: 16px;
-  font: 800 clamp(32px, 5.2vh, 50px) / 1.08 var(--font-display);
+  font: 700 clamp(32px, 5.2vh, 50px) / 1.08 var(--font-display);
   letter-spacing: -0.01em;
   color: var(--text-1);
   text-wrap: balance;
@@ -251,7 +251,7 @@ button.setup-step-btn:hover {
   box-shadow: none;
 }
 .setup-num {
-  background: linear-gradient(135deg, #fff1b8 0%, var(--accent) 50%, var(--warning) 100%);
+  background: linear-gradient(135deg, #ffd3c9 0%, var(--brand-1) 40%, var(--brand-2) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

@@ -6,6 +6,7 @@ import { Trophies } from './components/achievements/Trophies'
 import { Ambient } from './components/Ambient'
 import { FavRail } from './components/FavRail'
 import { FriendsPage } from './components/friends/FriendsPage'
+import { countInGame } from './components/friends/SideFriends'
 import { FriendAlerts } from './components/FriendAlerts'
 import { GameSheet } from './components/GameSheet'
 import { Home } from './components/home/Home'
@@ -37,7 +38,7 @@ import './styles/transitions.css'
 
 const api = window.launcher
 
-const DEFAULT_UI: UiPrefs = { friendsPanel: 'open', coverSize: 'M', reduceMotion: false, transparency: true, visualFx: true }
+const DEFAULT_UI: UiPrefs = { coverSize: 'M', reduceMotion: false, transparency: true, visualFx: true }
 
 const SETUP_KEY = 'pg.setup'
 
@@ -271,12 +272,11 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     return (steamLib?.notInstalled ?? []).filter((g) => !here.has(g.id))
   }, [games, steamLib])
 
-  // Clic sur une notification Windows d'un ami (ou sur une alerte) : la page Amis s'ouvre, liste dépliée.
+  // Clic sur une notification Windows d'un ami (ou sur une alerte) : la page Amis s'ouvre.
   const showFriends = useCallback(() => {
-    updateUi({ friendsPanel: 'open' })
     setView('friends')
     setAccountMenu(false)
-  }, [updateUi])
+  }, [])
   useEffect(() => api.onShowFriends(showFriends), [showFriends])
 
   // Ctrl+F / Ctrl+K : recherche.
@@ -483,7 +483,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     )
   }
 
-  const friendsOpen = ui.friendsPanel === 'open'
   const go = (v: View): void => {
     setView(v)
     setAccountMenu(false)
@@ -496,8 +495,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     demo: settings.demoMode,
     discordConfigured: !!settings.discordGuildId,
     loading: friendsLoading,
-    open: friendsOpen,
-    onToggleOpen: () => updateUi({ friendsPanel: friendsOpen ? 'hidden' : 'open' }),
     onRefresh: loadFriends,
     onOpenAccounts: () => goSettings('accounts'),
     onHideMember: hideMember,
@@ -506,7 +503,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       goSettings('accounts')
     }
   }
-  const friendsInGame = friends.friends.filter((f) => f.status === 'in-game').length
+  const friendsInGame = countInGame(friends.friends, games)
 
   return (
     <div className="shell">

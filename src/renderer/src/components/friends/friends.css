@@ -1,4 +1,4 @@
-/* Amis dans le menu latéral (SideFriends.tsx). La liste défile ; l'en-tête reste en place. */
+/* Liste d'amis de la page Amis (SideFriends.tsx, FriendsPage.tsx). */
 
 .side-friends {
   display: flex;
@@ -6,9 +6,6 @@
   flex: 1;
   min-height: 0;
   margin-top: 6px;
-}
-.side-friends.is-folded {
-  flex: 0 0 auto;
 }
 
 .sf-head {
@@ -18,28 +15,9 @@
   flex-shrink: 0;
   padding: 8px 14px 4px 12px;
 }
-.sf-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  margin-right: auto;
-  padding: 0 4px 0 12px;
-  border-radius: var(--r-sm);
-  color: var(--text-3);
-  transition: color var(--d-1) var(--ease-out);
-}
-.sf-toggle .side-label {
-  padding: 0;
-}
-.sf-toggle:hover {
-  color: var(--text-1);
-}
-.sf-chev {
-  transition: rotate var(--d-2) var(--ease-out);
-}
-.sf-toggle[aria-expanded='false'] .sf-chev {
-  rotate: -90deg;
+.sf-head .sf-title {
+  margin: 0 auto 0 0;
+  padding: 0 0 0 12px;
 }
 .sf-live,
 .sf-online {

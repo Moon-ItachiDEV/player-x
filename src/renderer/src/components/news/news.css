@@ -193,13 +193,13 @@ button.news-item:hover .news-thumb img {
   border-radius: var(--r-xs);
   background: color-mix(in srgb, var(--info) 16%, transparent);
   color: var(--info);
-  font: 800 9.5px/1 var(--font-ui);
+  font: 700 9.5px/1 var(--font-ui);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .news-new {
   color: var(--info);
-  font-weight: 800;
+  font-weight: 700;
 }
 .news-new::before {
   content: '·';

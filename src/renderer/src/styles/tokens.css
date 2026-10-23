@@ -82,8 +82,8 @@
   --danger: #ff7a5c;
   --danger-soft: rgba(255, 122, 92, 0.12);
   --danger-text: #ff9a80;
-  --danger-solid-hover: #e8603f;
-  --info: #8fb4ff;
+  --danger-solid-hover: #bf4630; /* fond des boutons destructifs pleins, texte blanc 5,1:1 */
+  --info: #b9a6ff; /* patchs, actus, rareté : lavande, accordée au rose (l'ancien bleu détonnait) */
   --favorite: #f2c66d; /* étoile des favoris, or des succès */
   --trophy: #f2c66d;
   /* Stores / plateformes : teintes et monogrammes, jamais de logos */

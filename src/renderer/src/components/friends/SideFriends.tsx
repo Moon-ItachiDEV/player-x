@@ -69,6 +69,12 @@ function classify(friend: Friend, library: Map<string, Game>): Entry {
   return { friend, status: 'in-game', game: cleanName(lib?.name ?? friend.game) || friend.game }
 }
 
+/** Amis (Steam, PlayStation) vraiment en jeu, selon la même règle que la page Amis : la pastille du rail dit le même chiffre. */
+export function countInGame(friends: Friend[], games: Game[]): number {
+  const library = libraryIndex(games)
+  return friends.filter((f) => f.platform !== 'discord' && classify(f, library).status === 'in-game').length
+}
+
 /** En jeu d'abord (regroupés par jeu), puis en ligne, absents, hors ligne ; par nom ensuite. */
 function byStatus(a: Entry, b: Entry): number {
   return (
@@ -137,7 +143,7 @@ function maskedLabel(hidden: HiddenMember[]): string {
 
 /** Liste d'amis (page Amis) : en jeu, en ligne et absents visibles ; hors ligne et serveur Discord repliables. */
 export function SideFriends(props: SideFriendsProps): React.JSX.Element {
-  const { result, accounts, games, demo, discordConfigured, loading, open, onToggleOpen, onRefresh, onOpenAccounts, onHideMember, onManageHidden } = props
+  const { result, accounts, games, demo, discordConfigured, loading, onRefresh, onOpenAccounts, onHideMember, onManageHidden } = props
   const [folded, setFolded] = useState<Folded>(readFolded)
 
   const library = useMemo(() => libraryIndex(games), [games])
@@ -254,12 +260,9 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
   }
 
   return (
-    <section className={`side-friends ${open ? '' : 'is-folded'}`} aria-label="Amis">
+    <section className="side-friends" aria-label="Amis">
       <div className="sf-head">
-        <button className="sf-toggle" aria-expanded={open} aria-controls="sf-body" onClick={onToggleOpen}>
-          <span className="side-label">Amis</span>
-          <Icon name="chevron-down" size={12} className="sf-chev" />
-        </button>
+        <h2 className="side-label sf-title">Amis</h2>
         {inGame > 0 ? (
           <span className="sf-live num">{inGame} en jeu</span>
         ) : (
@@ -277,7 +280,7 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
           <Icon name="refresh" size={14} className={loading ? 'spin' : undefined} />
         </button>
       </div>
-      <div id="sf-body" className="sf-body" aria-busy={loading} hidden={!open}>
+      <div className="sf-body" aria-busy={loading}>
         {body}
       </div>
     </section>

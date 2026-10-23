@@ -9,8 +9,6 @@ export type LoginPlatform = 'steam' | 'discord' | 'psn'
 
 /** Préférences d'interface, propres à ce PC (localStorage `pg.ui`). */
 export interface UiPrefs {
-  /** Liste d'amis : dépliée ou repliée sur son en-tête (page Amis). */
-  friendsPanel: 'open' | 'hidden'
   coverSize: 'S' | 'M' | 'L'
   reduceMotion: boolean
   transparency: boolean
@@ -55,9 +53,6 @@ export interface SideFriendsProps {
   /** Un serveur Discord est renseigné (ses membres s'affichent même sans compte). */
   discordConfigured: boolean
   loading: boolean
-  /** Liste dépliée (préférence `friendsPanel`). */
-  open: boolean
-  onToggleOpen: () => void
   onRefresh: () => void
   onOpenAccounts: () => void
   /** « Masquer » un membre du serveur Discord ; false si Player X a refusé (le membre reste affiché). */

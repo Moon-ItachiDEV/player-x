@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { Account, FriendPlatform } from '@shared/types'
 import type { TopBarProps } from '../contracts'
 import { Avatar } from './ui/Avatar'
@@ -18,11 +19,26 @@ function primaryAccount(accounts: Account[]): Account | undefined {
   return accounts[0]
 }
 
+/** « Bonjour, » de 5 h à 18 h, « Bonsoir, » ensuite (relu chaque minute), comme l'ancien menu latéral. */
+function useGreeting(): string {
+  const read = (): string => {
+    const h = new Date().getHours()
+    return h >= 5 && h < 18 ? 'Bonjour' : 'Bonsoir'
+  }
+  const [greeting, setGreeting] = useState(read)
+  useEffect(() => {
+    const t = setInterval(() => setGreeting(read()), 60_000)
+    return () => clearInterval(t)
+  }, [])
+  return greeting
+}
+
 /** Barre du haut : zone de déplacement de la fenêtre, titre ou onglets de la page, recherche, mode démo, compte. */
 export function TopBar(props: TopBarProps): React.JSX.Element {
   const { title, query, onQueryChange, searchRef, slotRef, accounts, accountMenuOpen, onToggleAccountMenu, demo } = props
   const account = primaryAccount(accounts)
   const name = account?.name ?? 'Joueur'
+  const greeting = useGreeting()
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key !== 'Escape') return
@@ -80,7 +96,7 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
       </div>
 
       {demo && (
-        <span className="tb-demo" title="Mode démo actif : jeux et amis fictifs">
+        <span className="tb-demo" title="Mode démo actif : jeux et amis fictifs (Paramètres › Avancé pour le couper)">
           <span className="tb-demo-dot" aria-hidden="true" />
           Démo
         </span>
@@ -89,6 +105,7 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
       <button
         className="tb-me"
         aria-label={account ? `Mon compte (${name})` : 'Compte invité'}
+        title={`${greeting}, ${name}`}
         aria-haspopup="menu"
         aria-expanded={accountMenuOpen}
         // Le menu se ferme au clic extérieur : sans ceci, ce clic le rouvrirait aussitôt.

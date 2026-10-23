@@ -386,7 +386,7 @@
   border-radius: 7px;
   background: var(--badge-bg);
   color: var(--text-1);
-  font: 800 11px/1 var(--font-ui);
+  font: 700 11px/1 var(--font-ui);
 }
 .bf-brief-vis.is-classes {
   display: flex;

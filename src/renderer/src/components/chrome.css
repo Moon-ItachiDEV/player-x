@@ -126,9 +126,32 @@
   padding: 10px 0 12px;
   overflow-y: auto;
   scrollbar-width: none;
+  /* Les favoris qui ne tiennent pas défilent : un fondu en bas le signale, sans barre visible. */
+  mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
 }
 .favrail-list::-webkit-scrollbar {
   display: none;
+}
+
+/* Fenêtre basse (jusqu'à la taille minimale, 640 px) : icônes un peu plus serrées pour laisser de la place aux favoris. */
+@media (max-height: 820px) {
+  .rail-nav {
+    gap: 2px;
+  }
+  .rail-nav-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .rail-sep {
+    margin: 8px 0 6px;
+  }
+  .favrail-list {
+    gap: 8px;
+    padding-top: 8px;
+  }
+  .rail-foot {
+    padding: 6px 0 10px;
+  }
 }
 
 .favrail-item {
@@ -359,7 +382,7 @@
   flex-shrink: 0;
   align-self: stretch;
   min-width: 0;
-  max-width: calc(100% - 152px);
+  max-width: calc(100% - 290px); /* recherche, pastille Démo et avatar restent visibles */
   margin-left: -12px;
 }
 .tb-slot:empty {
@@ -564,6 +587,8 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 40%, transparent);
   color: var(--warning);
   font: 600 12px/1 var(--font-ui);
+  cursor: default;
+  -webkit-app-region: no-drag; /* sinon Windows avale le survol et l'infobulle ne s'affiche jamais */
 }
 .tb-demo-dot {
   width: 6px;

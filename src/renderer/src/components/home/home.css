@@ -23,9 +23,17 @@
   height: 440px;
   isolation: isolate;
   border-radius: var(--r-xl);
-  box-shadow:
-    inset 0 0 0 1px var(--line-1),
-    0 30px 70px -40px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.9);
+}
+/* Le filet de la carte se pose par-dessus le visuel (un ombrage intérieur serait caché par .hh-bleed). */
+.hh::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  pointer-events: none;
 }
 @keyframes hh-in {
   from {
@@ -216,7 +224,7 @@
   backdrop-filter: none;
   background: color-mix(in srgb, var(--bg-2) 96%, transparent);
 }
-/* En jeu : le bandeau garde un rappel cyan (le héros n'a plus de cadre) */
+/* En jeu : le bandeau garde aussi un rappel cyan */
 .hh.is-live .hh-band {
   border-color: color-mix(in srgb, var(--live) 60%, transparent);
 }
@@ -602,8 +610,6 @@
 }
 
 /* En jeu : la carte du héros prend un filet cyan (« en direct ») */
-.hh.is-live {
-  box-shadow:
-    inset 0 0 0 1px var(--live-line),
-    0 30px 70px -40px rgba(0, 0, 0, 0.9);
+.hh.is-live::after {
+  box-shadow: inset 0 0 0 1px var(--live-line);
 }
