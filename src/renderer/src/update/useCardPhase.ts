@@ -717,7 +717,7 @@ export function useCardPhase(
     const card = cardRef.current
     if (card && phase === 'download' && view.percent < lastPct.current) {
       card.setAttribute('data-reset', '')
-      void getComputedStyle(card.querySelector('.upd-stream-win') ?? card).transform
+      void getComputedStyle(card.querySelector('.upd-bar-win') ?? card).transform
       card.removeAttribute('data-reset')
     }
     lastPct.current = phase === 'download' ? view.percent : 0
