@@ -103,12 +103,16 @@ export interface HomeProps {
   onRescan: () => void
   onEnableDemo: () => void
   onShowLibrary: () => void
-  /** Actus des jeux activées : « Dernier patch » du bandeau et rangée « Mises à jour de tes jeux ». */
+  /** Actus des jeux activées : lien « Patch » du jeu à la une et « Mises à jour de tes jeux ». */
   news: boolean
   /** Ouvre la fiche du jeu directement sur cette annonce (lecteur). */
   onReadNews: (gameId: string, postId: string) => void
-  /** « Tout voir » : page Actus des jeux. */
+  /** « Toutes les actus » : page Actus des jeux. */
   onShowNews: () => void
+  /** « Voir tous les amis » : page Amis. */
+  onShowFriends: () => void
+  /** « Trophées » : page Trophées. */
+  onShowTrophies: () => void
 }
 
 /** components/library/Library.tsx → `export function Library` */
