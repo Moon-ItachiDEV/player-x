@@ -18,8 +18,8 @@ import { BackgroundRows } from './BackgroundRows'
 import { Collapse, SectionHead, SettingRow, storeCaption, useNow } from './parts'
 import './settings.css'
 
-/** Overlay CS2 : les trois styles à essayer en jeu. */
-const OVERLAY_LABEL = { a: 'façon Apple', b: 'verre', c: 'finition Player X' } as const
+/** Overlay CS2 : Verre (B) par défaut, les deux autres gardés pour comparer. */
+const OVERLAY_LABEL = { a: 'Façon Apple', b: 'Verre', c: 'Finition Player X' } as const
 
 const SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: 'accounts', label: 'Comptes' },
@@ -460,35 +460,49 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
           </div>
         </SettingRow>
         {(settings.updateChannel === 'beta' || /-/.test(window.launcher.version)) && (
-          <SettingRow
-            label="Overlay CS2 (bêta)"
-            value={
-              settings.cs2Overlay === 'off'
-                ? 'Aucun · rien par-dessus le jeu'
-                : `Style ${settings.cs2Overlay.toUpperCase()} · ${OVERLAY_LABEL[settings.cs2Overlay]}. Par-dessus CS2 en plein écran fenêtré, Alt+X le masque`
-            }
-          >
-            <div className="set-inline">
-              <Segmented
-                label="Overlay CS2"
-                value={settings.cs2Overlay}
-                options={[
-                  { value: 'off', label: 'Aucun' },
-                  { value: 'a', label: 'A' },
-                  { value: 'b', label: 'B' },
-                  { value: 'c', label: 'C' }
-                ]}
-                onChange={(cs2Overlay) => onSaveSettings({ cs2Overlay }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-              />
-              <button
-                className="btn btn-secondary btn-sm"
-                disabled={settings.cs2Overlay === 'off'}
-                onClick={() => window.launcher.cs2OverlayPreview().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+          <>
+            <SettingRow
+              label="Overlay CS2 (bêta)"
+              value={
+                settings.cs2Overlay === 'off'
+                  ? 'Désactivé · rien par-dessus le jeu'
+                  : 'Activé · tes chiffres par-dessus CS2 en plein écran fenêtré, pendant les matchs. Alt+X le masque'
+              }
+            >
+              <div className="set-inline">
+                <Switch
+                  checked={settings.cs2Overlay !== 'off'}
+                  // Activé : le style Verre (B), celui gardé par défaut.
+                  onChange={(on) => onSaveSettings({ cs2Overlay: on ? 'b' : 'off' }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+                  label="Overlay CS2"
+                />
+                <button
+                  className="btn btn-secondary btn-sm"
+                  disabled={settings.cs2Overlay === 'off'}
+                  onClick={() => window.launcher.cs2OverlayPreview().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+                >
+                  Aperçu à l’écran
+                </button>
+              </div>
+            </SettingRow>
+            {settings.cs2Overlay !== 'off' && (
+              <SettingRow
+                label="Style de l’overlay"
+                value={settings.cs2Overlay === 'b' ? 'Verre, le style par défaut · les deux autres restent là pour comparer' : `${OVERLAY_LABEL[settings.cs2Overlay]}, à l’essai · Verre est le style par défaut`}
               >
-                Aperçu à l’écran
-              </button>
-            </div>
-          </SettingRow>
+                <Segmented
+                  label="Style de l’overlay"
+                  value={settings.cs2Overlay}
+                  options={[
+                    { value: 'b', label: 'Verre' },
+                    { value: 'a', label: 'Apple' },
+                    { value: 'c', label: 'Player X' }
+                  ]}
+                  onChange={(cs2Overlay) => onSaveSettings({ cs2Overlay }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+                />
+              </SettingRow>
+            )}
+          </>
         )}
       </div>
     </>
