@@ -1,18 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { cardMeta } from '@shared/played'
-import { cleanName } from '@shared/text'
+import { capitalize, cleanName, formatPlaytime, timeAgo } from '@shared/text'
 import type { Game } from '@shared/types'
 import type { LaunchFn } from '../../contracts'
 import { libraryMeta } from '../../launch/copy'
 import { PlayLabel } from '../../launch/PlayLabel'
-import { usePlayState } from '../../launch/usePlayState'
+import { usePlayState, type PlayInfo } from '../../launch/usePlayState'
 import { setArtFocus, setMorphSource } from '../../motion'
-import { NewsBadge } from '../news/NewsBadge'
 import { Cover, generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
-import { LiveBadge } from '../ui/LiveBadge'
-import { StoreTag } from '../ui/StoreTag'
+import { KIND_LABEL, STORE_LONG } from '../ui/StoreTag'
 import { useTilt } from './useTilt'
+import '../ui/live.css'
 
 // Délai avant d'ouvrir la fiche au clic, pour laisser au double-clic le temps de lancer le jeu.
 // Un double-clic plus lent est rattrapé par le voile de la fiche (GameSheet).
@@ -39,39 +38,28 @@ export function FavStar({ on, pop, size }: { on: boolean; pop: number; size: num
   )
 }
 
-interface GameCardProps {
+interface GameItemProps {
   game: Game
   onOpen: (g: Game) => void
   onLaunch: LaunchFn
   onFavorite: (g: Game) => void
 }
 
-export function GameCard({ game, onOpen, onLaunch, onFavorite }: GameCardProps): React.JSX.Element {
+/**
+ * Comportement commun d'une jaquette et d'une ligne : clic = fiche (après le délai du double-clic), double-clic ou
+ * Entrée = jouer (ou installer), Espace = fiche, focus clavier = fond aux couleurs du jeu.
+ */
+function useGameItem({ game, onOpen, onLaunch }: GameItemProps) {
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const card = useRef<HTMLElement>(null)
-  const media = useRef<HTMLDivElement>(null)
   const cover = useRef<HTMLDivElement>(null)
   const focusArt = useRef(false)
-  // Monté pendant un tri animé : la transition de vue s'en charge, pas d'entrée en cascade.
-  const [entering] = useState(() => !document.documentElement.classList.contains('vt-active'))
-  const [glowFailed, setGlowFailed] = useState(false)
-  const [pop, firePop] = usePop()
-  const name = cleanName(game.name)
-  const fav = !!game.favorite
-  // Jeu du compte Steam pas installé : « Installer » à la place de « Jouer », pas de favori.
-  const install = !!game.notInstalled
   const art = game.heroUrl || game.coverUrl
   const p = usePlayState(game, onLaunch)
-  // Pendant un lancement, la méta dit où il en est (« En attente · Steam ») ; sinon la méta habituelle.
-  const meta = libraryMeta(p.state, p.launch?.status.route ?? null) ?? cardMeta(game)
-  // La pastille reste visible tant que le lancement attend (ou en démo, seul signe de la partie simulée).
-  const shown = p.state !== 'idle' && p.state !== 'running'
 
-  useTilt(media, card, art)
   useEffect(
     () => () => {
       clearTimeout(timer.current)
-      // Retirée de la grille alors qu'elle avait le focus : on rend le fond.
+      // Retirée de la liste alors qu'elle avait le focus : on rend le fond.
       if (focusArt.current) setArtFocus(null)
     },
     []
@@ -82,121 +70,270 @@ export function GameCard({ game, onOpen, onLaunch, onFavorite }: GameCardProps):
     p.activate(cover.current)
   }
 
-  const onClick = (e: React.MouseEvent): void => {
-    clearTimeout(timer.current)
-    if (e.detail > 1) return
-    timer.current = setTimeout(() => {
-      cardOpenAt = performance.now()
-      setMorphSource(cover.current, game.id, 'cover')
-      onOpen(game)
-    }, CLICK_DELAY)
+  const open = (): void => {
+    setMorphSource(cover.current, game.id, 'cover')
+    onOpen(game)
   }
 
-  const onKeyDown = (e: React.KeyboardEvent): void => {
-    if (e.target !== e.currentTarget) return
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      launch()
-    } else if (e.key === ' ') {
-      e.preventDefault()
-      setMorphSource(cover.current, game.id, 'cover')
-      onOpen(game)
+  const handlers = {
+    onClick: (e: React.MouseEvent): void => {
+      clearTimeout(timer.current)
+      if (e.detail > 1) return
+      timer.current = setTimeout(() => {
+        cardOpenAt = performance.now()
+        open()
+      }, CLICK_DELAY)
+    },
+    onDoubleClick: launch,
+    onKeyDown: (e: React.KeyboardEvent): void => {
+      if (e.target !== e.currentTarget) return
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        launch()
+      } else if (e.key === ' ') {
+        e.preventDefault()
+        open()
+      }
+    },
+    // Focus clavier : même fond aux couleurs du jeu qu'au survol.
+    onFocus: (e: React.FocusEvent<HTMLElement>): void => {
+      if (e.target !== e.currentTarget || !e.currentTarget.matches(':focus-visible')) return
+      focusArt.current = true
+      setArtFocus(art)
+    },
+    onBlur: (): void => {
+      if (!focusArt.current) return
+      focusArt.current = false
+      setArtFocus(null)
     }
   }
 
-  // Focus clavier : même fond aux couleurs du jeu qu'au survol.
-  const onFocus = (e: React.FocusEvent<HTMLElement>): void => {
-    if (e.target !== e.currentTarget || !e.currentTarget.matches(':focus-visible')) return
-    focusArt.current = true
-    setArtFocus(art)
-  }
+  return { p, cover, art, launch, handlers }
+}
 
-  const onBlur = (): void => {
-    if (!focusArt.current) return
-    focusArt.current = false
-    setArtFocus(null)
-  }
+// Les boutons internes ne doivent ni ouvrir la fiche ni lancer au double-clic.
+const stop = (e: React.SyntheticEvent): void => e.stopPropagation()
 
-  // Les boutons internes ne doivent ni ouvrir la fiche ni lancer au double-clic.
-  const stop = (e: React.SyntheticEvent): void => e.stopPropagation()
+/** Pastille d'état du jeu : en jeu (cyan) ou nouveau patch (rose) ; rien sinon. */
+function StateBadge({ game, className }: { game: Game; className: string }): React.JSX.Element | null {
+  if (game.running) {
+    return (
+      <span className={`lib-badge lib-badge-live ${className}`}>
+        <span className="live-dot fx-loop" aria-hidden="true" />
+        En jeu
+      </span>
+    )
+  }
+  if (game.newPatch) {
+    return (
+      <span className={`lib-badge lib-badge-patch ${className}`} title={`${game.newPatch.title} · ${capitalize(timeAgo(game.newPatch.at))}`}>
+        Nouveau patch
+      </span>
+    )
+  }
+  return null
+}
+
+/** Bouton étoile (favori), commun à la jaquette et à la ligne. */
+function FavButton({ game, onFavorite, className, size }: { game: Game; onFavorite: (g: Game) => void; className: string; size: number }): React.JSX.Element {
+  const [pop, firePop] = usePop()
+  const fav = !!game.favorite
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+      aria-pressed={fav}
+      title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+      onClick={(e) => {
+        stop(e)
+        firePop()
+        onFavorite(game)
+      }}
+      onDoubleClick={stop}
+    >
+      <FavStar on={fav} pop={pop} size={size} />
+    </button>
+  )
+}
+
+/** Méta d'un jeu : où en est le lancement, sinon temps de jeu et dernière partie. */
+function metaOf(game: Game, p: PlayInfo): string {
+  return libraryMeta(p.state, p.launch?.status.route ?? null) ?? cardMeta(game)
+}
+
+const itemClass = (game: Game, p: PlayInfo): string =>
+  `${game.running ? 'is-running' : ''} ${p.state !== 'idle' && p.state !== 'running' ? 'is-launching' : ''} ${game.favorite ? 'is-fav' : ''} ${game.notInstalled ? 'is-uninstalled' : ''}`
+
+const ariaOf = (name: string, meta: string, game: Game): string => `${name}, ${meta}${game.newPatch ? ', nouveau patch' : ''}`
+
+/** Jaquette de la grille : plateforme en haut à gauche, état en haut à droite, titre et méta en bas. */
+export function GameCard(props: GameItemProps): React.JSX.Element {
+  const { game, onFavorite } = props
+  const card = useRef<HTMLElement>(null)
+  const media = useRef<HTMLDivElement>(null)
+  // Monté pendant un tri animé : la transition de vue s'en charge, pas d'entrée en cascade.
+  const [entering] = useState(() => !document.documentElement.classList.contains('vt-active'))
+  const [glowFailed, setGlowFailed] = useState(false)
+  const { p, cover, art, launch, handlers } = useGameItem(props)
+  const name = cleanName(game.name)
+  // Jeu du compte Steam pas installé : « Installer » à la place de « Jouer », pas de favori.
+  const install = !!game.notInstalled
+  const meta = metaOf(game, p)
+
+  useTilt(media, card, art)
 
   return (
     <article
       ref={card}
-      className={`lib-card ${game.running ? 'is-running' : ''} ${entering ? 'is-entering' : ''} ${shown ? 'is-launching' : ''} ${fav ? 'is-fav' : ''} ${install ? 'is-uninstalled' : ''}`}
+      className={`lib-card ${itemClass(game, p)} ${entering ? 'is-entering' : ''}`}
       data-launch={p.state === 'idle' ? undefined : p.state}
       tabIndex={0}
-      aria-label={`${name}, ${meta}${game.newPatch ? ', nouveau patch' : ''}`}
+      aria-label={ariaOf(name, meta, game)}
       aria-busy={p.busy || undefined}
-      onClick={onClick}
-      onDoubleClick={launch}
-      onKeyDown={onKeyDown}
-      onFocus={onFocus}
-      onBlur={onBlur}
+      {...handlers}
     >
       <div ref={media} className="lib-card-media">
         <div className="lib-card-glow" aria-hidden="true" style={{ background: generatedBackground(game.name) }}>
-          {game.coverUrl && !glowFailed && (
-            <img src={game.coverUrl} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setGlowFailed(true)} />
-          )}
+          {game.coverUrl && !glowFailed && <img src={game.coverUrl} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setGlowFailed(true)} />}
         </div>
         <div className="lib-card-box">
           <div ref={cover} className="lib-card-cover">
-            <Cover key={game.id} game={game} />
-            {game.running && <LiveBadge className="lib-card-live" />}
-            {game.newPatch && !game.running && <NewsBadge patch={game.newPatch} className="lib-card-news" />}
+            <Cover key={game.id} game={game} showTitle={false} />
             <div className="lib-card-overlay" aria-hidden="true" />
-            <button
-              className={`lib-card-play ${p.className}`}
-              tabIndex={-1}
-              aria-label={install ? `Installer ${name} avec Steam` : p.ariaLabel}
-              title={install ? 'Installer avec Steam' : p.title}
-              aria-disabled={p.inert || undefined}
-              onClick={(e) => {
-                stop(e)
-                launch()
-              }}
-              onDoubleClick={stop}
-            >
-              {install ? (
-                <>
-                  <Icon name="download" size={14} />
-                  <span>Installer</span>
-                </>
-              ) : (
-                <PlayLabel p={p} size={14} />
-              )}
-            </button>
-            {!install && (
+            <span className="lib-card-store">{KIND_LABEL[game.store]}</span>
+            {install ? (
               <button
-                className="lib-card-fav"
-                aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                type="button"
+                className="lib-badge lib-badge-install lib-card-corner"
+                tabIndex={-1}
+                aria-label={`Installer ${name} avec Steam`}
+                title="Installer avec Steam"
+                aria-disabled={p.inert || undefined}
                 onClick={(e) => {
                   stop(e)
-                  firePop()
-                  onFavorite(game)
+                  launch()
                 }}
                 onDoubleClick={stop}
               >
-                <FavStar on={fav} pop={pop} size={15} />
+                <Icon name="download" size={12} />
+                Installer
               </button>
+            ) : (
+              <>
+                <StateBadge game={game} className="lib-card-corner" />
+                <button
+                  type="button"
+                  className={`lib-card-play ${p.className}`}
+                  tabIndex={-1}
+                  aria-label={p.ariaLabel}
+                  title={p.title}
+                  aria-disabled={p.inert || undefined}
+                  onClick={(e) => {
+                    stop(e)
+                    launch()
+                  }}
+                  onDoubleClick={stop}
+                >
+                  <PlayLabel p={p} size={14} />
+                </button>
+              </>
             )}
-          </div>
-          <div className="lib-card-text">
-            <span className="lib-card-words">
-              <h3 className="lib-card-title" title={name}>
-                {name}
-              </h3>
-              <p className="lib-card-meta">{meta}</p>
-            </span>
-            <StoreTag kind={game.store} size={18} className="lib-card-tag" />
+            <div className="lib-card-text">
+              <span className="lib-card-words">
+                <h3 className="lib-card-title" title={name}>
+                  {name}
+                </h3>
+                <p className="lib-card-meta">{meta}</p>
+              </span>
+              {!install && <FavButton game={game} onFavorite={onFavorite} className="lib-card-fav" size={15} />}
+            </div>
           </div>
           <div className="lib-card-glare" aria-hidden="true" />
           <div className="lib-card-ring fx-loop" aria-hidden="true" />
         </div>
       </div>
     </article>
+  )
+}
+
+/** Ligne du mode Liste : vignette, titre, temps de jeu, dernière partie, lancements, état, favori, Jouer ou Installer. */
+export function GameRow(props: GameItemProps): React.JSX.Element {
+  const { game, onFavorite } = props
+  const { p, cover, launch, handlers } = useGameItem(props)
+  const name = cleanName(game.name)
+  const install = !!game.notInstalled
+  const meta = metaOf(game, p)
+  // Sous le titre : le store, puis l'état (lancement, en jeu, pas installé) ; les chiffres ont leurs colonnes.
+  const state = libraryMeta(p.state, p.launch?.status.route ?? null) ?? (game.running ? 'En jeu' : install ? 'Pas installé sur ce PC' : null)
+
+  return (
+    <article
+      className={`lib-row ${itemClass(game, p)}`}
+      data-launch={p.state === 'idle' ? undefined : p.state}
+      tabIndex={0}
+      aria-label={ariaOf(name, meta, game)}
+      aria-busy={p.busy || undefined}
+      {...handlers}
+    >
+      <div ref={cover} className="lib-row-thumb">
+        <Cover key={game.id} game={game} showTitle={false} />
+      </div>
+      <span className="lib-row-words">
+        <h3 className="lib-row-title" title={name}>
+          {name}
+        </h3>
+        <span className="lib-row-sub">
+          <span className="lib-row-store">{STORE_LONG[game.store]}</span>
+          {state && <span className="lib-row-state">· {state}</span>}
+        </span>
+      </span>
+      <span className="lib-row-num num">{game.playtime ? formatPlaytime(game.playtime) : '—'}</span>
+      <span className="lib-row-num num">{game.lastPlayed ? capitalize(timeAgo(game.lastPlayed)) : '—'}</span>
+      <span className="lib-row-num num lib-row-launches">{game.launches || '—'}</span>
+      <span className="lib-row-badge">
+        <StateBadge game={game} className="" />
+      </span>
+      {install ? <span /> : <FavButton game={game} onFavorite={onFavorite} className="lib-row-fav" size={16} />}
+      <button
+        type="button"
+        className={`lib-row-play ${install ? 'is-install' : p.className}`}
+        tabIndex={-1}
+        aria-label={install ? `Installer ${name} avec Steam` : p.ariaLabel}
+        title={install ? 'Installer avec Steam' : p.title}
+        aria-disabled={p.inert || undefined}
+        onClick={(e) => {
+          stop(e)
+          launch()
+        }}
+        onDoubleClick={stop}
+      >
+        {install ? (
+          <>
+            <Icon name="download" size={14} />
+            <span>Installer</span>
+          </>
+        ) : (
+          <PlayLabel p={p} size={14} />
+        )}
+      </button>
+    </article>
+  )
+}
+
+/** En-tête des colonnes du mode Liste (visuel : chaque ligne porte déjà son nom complet). */
+export function GameRowHead(): React.JSX.Element {
+  return (
+    <div className="lib-row-head" aria-hidden="true">
+      <span />
+      <span>Jeu</span>
+      <span>Temps de jeu</span>
+      <span>Dernière partie</span>
+      <span className="lib-row-launches">Lancements</span>
+      <span />
+      <span />
+      <span />
+    </div>
   )
 }
 

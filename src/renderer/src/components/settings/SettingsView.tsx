@@ -92,6 +92,7 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
               demo={settings.demoMode}
               onRescan={props.onRescan}
               onOpenSetup={props.onOpenSetup}
+              onReplaySetup={props.onReplaySetup}
               settings={settings}
               onSaveSettings={props.onSaveSettings}
               steamLibrary={props.steamLibrary}
@@ -123,6 +124,7 @@ interface LibraryProps {
   demo: boolean
   onRescan: () => void
   onOpenSetup: () => void
+  onReplaySetup: () => void
   settings: Settings
   onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>
   steamLibrary: SteamLibrary | null
@@ -175,6 +177,11 @@ function LibrarySection(props: LibraryProps): React.JSX.Element {
         <button className="btn btn-secondary" onClick={onOpenSetup} disabled={gamesCount === 0} data-open-setup>
           <Icon name="star" size={16} />
           Choisir mes jeux favoris
+        </button>
+      </SettingRow>
+      <SettingRow label="Accueil de Player X" value="Rejoue le premier lancement · favoris, comptes et réglages sont gardés">
+        <button className="btn btn-secondary" onClick={props.onReplaySetup}>
+          Revoir l'accueil de Player X
         </button>
       </SettingRow>
       <SettingRow
@@ -459,6 +466,22 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
             </button>
           </div>
         </SettingRow>
+        {settings.cs2Live && (
+          <SettingRow
+            label="Ouvrir le bilan à la fermeture de CS2"
+            value={
+              settings.cs2RecapOpen
+                ? 'Activé · quand tu quittes le jeu, Player X s’ouvre de lui-même sur ton dernier bilan'
+                : 'Désactivé · une notification Windows, à cliquer pour voir le bilan'
+            }
+          >
+            <Switch
+              checked={settings.cs2RecapOpen}
+              onChange={(cs2RecapOpen) => onSaveSettings({ cs2RecapOpen }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+              label="Ouvrir le bilan à la fermeture de CS2"
+            />
+          </SettingRow>
+        )}
         {(settings.updateChannel === 'beta' || /-/.test(window.launcher.version)) && (
           <>
             <SettingRow

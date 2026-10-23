@@ -26,7 +26,7 @@
   animation: px-sheet-in 300ms var(--ease-glide) both;
 }
 ::view-transition-old(px-sheet):only-child {
-  animation: px-sheet-out 200ms var(--ease-in) both;
+  animation: px-sheet-out 200ms var(--ease-out) both;
 }
 @keyframes px-sheet-in {
   from {
@@ -51,7 +51,7 @@
   animation-timing-function: var(--ease-glide);
 }
 ::view-transition-old(*.px-card):only-child {
-  animation: px-card-out 180ms var(--ease-in) both;
+  animation: px-card-out 180ms var(--ease-out) both;
 }
 ::view-transition-new(*.px-card):only-child {
   animation: px-card-in 260ms var(--ease-glide) 60ms both;

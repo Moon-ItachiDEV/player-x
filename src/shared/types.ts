@@ -82,6 +82,8 @@ export interface Settings {
   bf6Recap: boolean
   /** Counter-Strike 2 : ton match en direct et son bilan, envoyés par le jeu lui-même (Game State Integration de Valve). */
   cs2Live: boolean
+  /** À la fermeture de CS2, Player X s'ouvre de lui-même sur le dernier bilan (sinon une notification Windows). */
+  cs2RecapOpen: boolean
   /** Mises à jour : `stable` (versions pour tout le monde) ou `beta` (aussi les versions de test, publiées en préversion). */
   updateChannel: UpdateChannel
   /** Overlay CS2 (bêta) : coupé, ou un des trois styles à essayer en jeu. Proposé seulement sur le canal Bêta. */
@@ -108,6 +110,16 @@ export type FriendAlertMode = 'all' | 'games' | 'off'
 export type LaunchWindowMode = 'stay' | 'minimize'
 
 /** Un ami vient de se connecter ou de lancer un jeu. */
+/** Succès rare (moins de 15 % des joueurs) débloqué depuis le relevé précédent. */
+export interface RareUnlock {
+  /** `steam:<appid>` */
+  gameId: string
+  gameName: string
+  id: string
+  name: string
+  percent: number
+}
+
 export interface FriendAlert {
   key: string
   friend: Friend
@@ -124,6 +136,8 @@ export interface FriendsResult {
   queried?: FriendPlatform[]
   /** Membres du serveur Discord masqués (bots connus, « Masquer »). */
   hidden?: HiddenMember[]
+  /** Nom du serveur Discord, tel que le donne son widget. */
+  discordServer?: string
 }
 
 /** Membre d'un serveur Discord retiré des listes : bot connu, ou masqué avec « Masquer ». */
@@ -141,10 +155,23 @@ export interface ScanReport {
   /** Dossiers et sources examinés, pour comprendre un scan vide. */
   checked: string[]
   error?: string
+  /** Le store n'a pas l'air installé sur ce PC : ni dossier ni réglage trouvé, et aucun jeu. */
+  absent?: boolean
 }
 
 /** Pourquoi une mise à jour a échoué. Absent sur les erreurs de vérification de version (« Rechercher une mise à jour »). */
 export type UpdateErrorCode = 'unsigned' | 'verify' | 'network' | 'other'
+
+/**
+ * Ce que l'annonce d'une mise à jour dit d'elle-même, seulement si electron-updater le donne (rien n'est deviné) :
+ * repris sur chaque état de cette version, du téléchargement à l'erreur.
+ */
+export interface UpdateMeta {
+  /** Taille de l'installeur en octets (latest.yml ; une fois prête, celle du fichier téléchargé). */
+  size?: number
+  /** Noms des nouveautés de la release GitHub, en texte brut (« Canal Bêta · Bilan de fin de match CS2 »). */
+  summary?: string
+}
 
 /** État des mises à jour automatiques (GitHub Releases, via electron-updater). */
 export type UpdateState =
@@ -153,7 +180,7 @@ export type UpdateState =
   | { state: 'idle' }
   | { state: 'checking' }
   | { state: 'none'; checkedAt: number }
-  | {
+  | (UpdateMeta & {
       state: 'downloading'
       version: string
       percent: number
@@ -162,9 +189,9 @@ export type UpdateState =
       total?: number
       /** Moyenne d'electron-updater depuis le début du téléchargement. */
       bytesPerSecond?: number
-    }
+    })
   /** Téléchargée, signature en cours de vérification : rien ne s'installe, même à la fermeture. */
-  | {
+  | (UpdateMeta & {
       state: 'verifying'
       version: string
       step: 'signature' | 'hash' | 'check'
@@ -172,18 +199,17 @@ export type UpdateState =
       total?: number
       /** SHA-512 de l'installeur, 128 caractères hexadécimaux. Présent à partir de l'étape « check ». */
       fingerprint?: string
-    }
+    })
   /** Téléchargée et signée : s'installe au prochain redémarrage (ou tout de suite via installUpdate). */
-  | {
+  | (UpdateMeta & {
       state: 'ready'
       version: string
       fingerprint?: string
-      size?: number
       downloadMs?: number
-    }
+    })
   /** installUpdate accepté : Player X se ferme à quitAt (Date.now() du processus principal). */
-  | { state: 'installing'; version: string; quitAt: number }
-  | { state: 'error'; message: string; code?: UpdateErrorCode; version?: string }
+  | (UpdateMeta & { state: 'installing'; version: string; quitAt: number })
+  | (UpdateMeta & { state: 'error'; message: string; code?: UpdateErrorCode; version?: string })
 
 export interface InstallResult {
   ok: boolean
@@ -736,6 +762,8 @@ export interface LauncherApi {
   onCs2OverlayConfig(cb: (c: Cs2OverlayConfig) => void): () => void
   /** Alertes d'amis à afficher dans la fenêtre (quand elle est au premier plan ; sinon Windows les affiche). */
   onFriendAlert(cb: (alerts: FriendAlert[]) => void): () => void
+  /** Succès rares débloqués (relevés en arrière-plan), quand Player X est au premier plan. */
+  onRareAchievements(cb: (list: RareUnlock[]) => void): () => void
   /** Clic sur une notification Windows : ouvrir le panneau d'amis. */
   onShowFriends(cb: () => void): () => void
   /** Envoie une alerte d'essai, dans la fenêtre et en notification Windows. */

@@ -1,6 +1,6 @@
 // Mouvement : réglage « Effets visuels », lissage du pointeur, fond aux couleurs du jeu, transitions de vue.
 // API figée par docs/design/motion-premium.md §3 : ne pas la changer sans prévenir les autres lots.
-import { useEffect, useState } from 'react'
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 
 const REDUCED = '(prefers-reduced-motion: reduce)'
@@ -9,6 +9,33 @@ const OPAQUE = '(prefers-reduced-transparency: reduce)'
 /** « Réduire les animations » ou réglage d'accessibilité de Windows. */
 export function motionReduced(): boolean {
   return document.documentElement.classList.contains('reduce-motion') || matchMedia(REDUCED).matches
+}
+
+/** Sortie d'une couche (dialogue, toast) : sa classe is-leaving joue l'animation de sortie, puis elle est retirée. */
+export const LEAVE_MS = 160
+
+/**
+ * Ferme une couche après son animation de sortie (classe is-leaving sur ref, LEAVE_MS) ; tout de suite si les animations
+ * sont réduites. Un second appel pendant la sortie ne refait rien.
+ */
+export function useLeave(ref: RefObject<HTMLElement | null>, done: () => void): () => void {
+  const doneRef = useRef(done)
+  doneRef.current = done
+  const leaving = useRef(false)
+  return useCallback(() => {
+    const el = ref.current
+    if (!el || motionReduced()) {
+      doneRef.current()
+      return
+    }
+    if (leaving.current) return
+    leaving.current = true
+    el.classList.add('is-leaving')
+    setTimeout(() => {
+      leaving.current = false
+      doneRef.current()
+    }, LEAVE_MS)
+  }, [ref])
 }
 
 /** Effets riches permis (<html data-fx="on">, posé par App.tsx). À lire au moment de l'événement, jamais au montage. */
@@ -199,7 +226,10 @@ export function closeTarget(gameId: string): MorphSource | null {
 
 export type VtKind = 'open' | 'close' | 'reorder'
 const MAX_NAMED = 48
-const MORPH_NAME: Record<MorphKind, string> = { cover: 'px-cover', art: 'px-art' }
+const MORPH_NAME: Record<MorphKind, string> = {
+  cover: 'px-cover',
+  art: 'px-art'
+}
 let running = false
 
 /** Jaquettes entièrement visibles sous la barre d'outils collante (48 au plus). */

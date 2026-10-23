@@ -148,7 +148,7 @@ export function SetupBackdrop({ games }: { games: Game[] }): React.JSX.Element {
 
   return (
     <div className="setup-bg" aria-hidden="true">
-      <div className="setup-bg-glow" />
+      <div className="setup-bg-glow fx-loop" />
       <canvas ref={mosaic} className="setup-bg-art setup-bg-mosaic" width={W} height={H} />
       <canvas ref={a} className="setup-bg-art setup-bg-focus" width={W} height={H} />
       <canvas ref={b} className="setup-bg-art setup-bg-focus" width={W} height={H} />

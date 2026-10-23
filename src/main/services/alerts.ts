@@ -1,6 +1,6 @@
 import { app, BrowserWindow, nativeImage, net, Notification } from 'electron'
 import { join } from 'node:path'
-import type { Friend, FriendAlert, FriendAlertMode, FriendPlatform, FriendsResult } from '@shared/types'
+import type { Friend, FriendAlert, FriendAlertMode, FriendPlatform, FriendsResult, RareUnlock } from '@shared/types'
 import { getSettings } from './settings'
 import { appWindows, mainWindow } from '../windows'
 
@@ -172,4 +172,39 @@ export function demoFriendAlert(friends: Friend[]): void {
     const at = Date.now()
     void deliver([{ key: `demo:${at}`, friend: { ...friend, status: 'in-game', game: 'Hades' }, kind: 'in-game', at, sample: true }])
   }, 20_000)
+}
+
+// ---------- succès rares ----------
+
+/** « 3,2 % » : une décimale sous 10 %, comme dans l'interface. */
+const pct = (p: number): string => `${(p < 10 ? Math.round(p * 10) / 10 : Math.round(p)).toString().replace('.', ',')} %`
+
+/** Succès rares débloqués : carte dorée dans Player X au premier plan, sinon notification Windows. */
+export function deliverRare(list: RareUnlock[]): void {
+  const win = focusedWindow()
+  if (win) {
+    win.webContents.send('achievements:rare', list)
+    return
+  }
+  if (!Notification.isSupported()) return
+  const top = list[0]
+  const n = new Notification({
+    title: list.length > 1 ? `${list.length} succès rares débloqués` : 'Succès rare débloqué',
+    body: list.length > 1 ? list.map((a) => `${a.name} (${pct(a.percent)})`).join(', ') : `${top.name} · ${top.gameName} · ${pct(top.percent)} des joueurs`,
+    icon: appIcon()
+  })
+  live.add(n)
+  const drop = (): boolean => live.delete(n)
+  n.on('click', () => {
+    drop()
+    const w = mainWindow()
+    if (!w) return
+    if (w.isMinimized()) w.restore()
+    w.show()
+    w.focus()
+    w.webContents.send('achievements:rare', list)
+  })
+  n.on('close', drop)
+  n.on('failed', drop)
+  n.show()
 }

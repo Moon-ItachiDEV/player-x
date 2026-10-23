@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 // @ts-ignore TS5097
-import { buildOverview, mergeAchievements, parseBadges, parseGlobal, parsePlayer, parseSchema, summarize } from './achievementsFormat.ts'
+import { buildOverview, mergeAchievements, parseBadges, parseGlobal, parsePlayer, parseSchema, summarize, freshRare } from './achievementsFormat.ts'
 
 test('GetPlayerAchievements : profil privé, jeu sans succès, clé refusée', () => {
   assert.deepEqual(parsePlayer(403, { playerstats: { error: 'Profile is not public', success: false } }), { kind: 'private' })
@@ -111,4 +111,20 @@ test('Résumé et page Trophées : récents, plus rares, 100 %, moyenne', () => 
   )
   assert.equal(o.rarest[0].gameId, 'steam:20')
   assert.equal(o.rarest[0].gameName, 'Jeu B')
+})
+
+test('succès rares : seulement ceux débloqués depuis le relevé précédent, sous 15 %, les plus rares d’abord', () => {
+  const list = [
+    { id: 'A', name: 'A', hidden: false, percent: 3, unlockedAt: 2_000 },
+    { id: 'B', name: 'B', hidden: false, percent: 40, unlockedAt: 2_000 },
+    { id: 'C', name: 'C', hidden: false, percent: 1.2, unlockedAt: 2_500 },
+    { id: 'D', name: 'D', hidden: false, percent: 2, unlockedAt: 500 },
+    { id: 'E', name: 'E', hidden: false, percent: 5 },
+    { id: 'F', name: 'F', hidden: false, unlockedAt: 3_000 }
+  ]
+  assert.deepEqual(
+    freshRare(list, 1_000).map((a) => a.id),
+    ['C', 'A']
+  )
+  assert.deepEqual(freshRare(list, 5_000), [])
 })

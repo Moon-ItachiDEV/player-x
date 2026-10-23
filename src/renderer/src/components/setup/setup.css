@@ -10,12 +10,6 @@
   isolation: isolate;
 }
 
-@property --fan {
-  syntax: '<number>';
-  inherits: false;
-  initial-value: 1;
-}
-
 @keyframes setup-fade {
   from {
     opacity: 0;
@@ -63,6 +57,38 @@
     radial-gradient(52% 42% at 50% 6%, rgb(251 79 122 / 0.16), transparent 72%),
     radial-gradient(36% 30% at 90% 100%, rgb(255 138 128 / 0.08), transparent 70%),
     radial-gradient(30% 30% at 6% 72%, rgb(224 32 126 / 0.05), transparent 70%);
+}
+/* Deux halos braise qui dérivent lentement (effets complets) */
+.setup-bg-glow::before,
+.setup-bg-glow::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+}
+.setup-bg-glow::before {
+  left: -160px;
+  top: -120px;
+  width: 720px;
+  height: 720px;
+  background: radial-gradient(circle, rgb(251 79 122 / 0.26), transparent 65%);
+}
+.setup-bg-glow::after {
+  right: -200px;
+  bottom: -260px;
+  width: 820px;
+  height: 820px;
+  background: radial-gradient(circle, rgb(224 32 126 / 0.2), transparent 65%);
+}
+:root[data-fx='on'] .setup-bg-glow::before {
+  animation: setup-drift 14s var(--ease-in-out) infinite;
+}
+:root[data-fx='on'] .setup-bg-glow::after {
+  animation: setup-drift 18s var(--ease-in-out) infinite reverse;
+}
+@keyframes setup-drift {
+  50% {
+    translate: 30px -20px;
+  }
 }
 /* Le haut reste exactement --bg-0 : il se fond dans les boutons natifs de Windows (titleBarOverlay). */
 .setup-bg-shade {
@@ -247,7 +273,11 @@ button.setup-step-btn:hover {
   text-wrap: balance;
   outline: none;
 }
-.setup-title:focus-visible {
+.setup-title:focus-visible,
+.setup-hello-title:focus-visible,
+.scan-title:focus-visible,
+.cs2s-title:focus-visible,
+.setup-fin-title:focus-visible {
   box-shadow: none;
 }
 .setup-num {
@@ -264,233 +294,388 @@ button.setup-step-btn:hover {
   text-wrap: balance;
 }
 
-/* ---------- étape 1 : analyse ---------- */
+/* ---------- bienvenue (premier passage) ---------- */
 
-.scan {
+.setup-hello {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(20px, 3.6vh, 36px);
-  padding: 8px 32px 36px;
+  gap: 26px;
+  padding: 0 32px 56px;
+  text-align: center;
 }
-
-/* Éventail de jaquettes : --k = écart au centre, --fan = ouverture (0 = paquet, 1 = éventail) */
-.deck {
-  --deck-w: min(clamp(92px, 17vh, 168px), 13vw);
+.setup-hello-mark {
   position: relative;
-  flex-shrink: 0;
-  width: 100%;
-  /* 1.5 = la jaquette ; le reste = coins des jaquettes extérieures, inclinées et descendues */
-  height: calc(var(--deck-w) * 1.72 + 16px);
+  display: grid;
+  place-items: center;
+  width: 216px;
+  height: 216px;
 }
-.deck::before {
-  content: '';
+.setup-hello-halo {
   position: absolute;
-  left: 50%;
-  top: 20%;
-  width: calc(var(--deck-w) * 4.4);
-  height: calc(var(--deck-w) * 1.4);
-  translate: -50% 0;
+  inset: -44px;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgb(251 79 122 / 0.26), rgb(251 79 122 / 0.07) 60%, transparent);
+  background: radial-gradient(circle, rgb(255 92 134 / 0.5), transparent 65%);
+  opacity: 0.6;
   pointer-events: none;
 }
-.deck-card {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: var(--deck-w);
-  margin-left: calc(var(--deck-w) / -2);
-  transform-origin: 50% 130%;
-  transform: translateX(calc(var(--k) * var(--fan) * var(--deck-w) * 0.72)) translateY(calc(var(--k2) * var(--fan) * 2px))
-    rotate(calc(var(--k) * var(--fan) * 4.5deg)) scale(calc(1 - var(--ak) * 0.07));
-}
-.deck-card-in {
+.setup-hello-icon {
   position: relative;
+}
+.setup-hello-title {
+  font: 700 56px/60px var(--font-display);
+  letter-spacing: -0.025em;
+  color: var(--text-1);
+  text-wrap: balance;
+  outline: none;
+}
+.setup-hello-sub {
+  max-width: 520px;
+  font: 400 17px/26px var(--font-ui);
+  color: var(--text-2);
+  text-wrap: balance;
+}
+.setup-hello-go {
+  min-width: 200px;
+  height: 56px;
+  margin-top: 8px;
+  padding: 0 36px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.setup-hello-go:not(:disabled),
+.setup-fin-go:not(:disabled) {
+  box-shadow:
+    0 0 0 1px var(--accent-line),
+    var(--glow-accent);
+}
+:root[data-fx='on'] .setup-hello-halo {
+  animation: setup-glow 3.2s var(--ease-in-out) infinite;
+}
+:root[data-fx='on'] .setup-hello-icon {
+  animation: setup-pop 900ms var(--ease-glide) backwards;
+}
+:root[data-fx='on'] .setup-hello > :not(.setup-hello-mark) {
+  animation: setup-rise 700ms var(--ease-glide) backwards;
+}
+:root[data-fx='on'] .setup-hello-title {
+  animation-delay: 500ms !important;
+}
+:root[data-fx='on'] .setup-hello-sub {
+  animation-delay: 700ms !important;
+}
+:root[data-fx='on'] .setup-hello-go {
+  animation-delay: 900ms !important;
+}
+@keyframes setup-glow {
+  50% {
+    opacity: 0.95;
+    scale: 1.1;
+  }
+}
+@keyframes setup-pop {
+  0% {
+    opacity: 0;
+    scale: 0.55;
+  }
+  60% {
+    opacity: 1;
+    scale: 1.06;
+  }
+}
+/* Sur l'accueil, pas de mosaïque : le fond reste aux deux halos braise. */
+.setup.is-welcome .setup-bg-mosaic {
+  opacity: 0;
+}
+
+/* ---------- analyse : un mur de jaquettes de chaque côté, l'anneau et les plateformes au centre ---------- */
+
+.scan {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 440px) minmax(0, 1fr);
+  align-items: center;
+  column-gap: clamp(28px, 4vw, 64px);
+  padding: 4px 32px 28px;
+  perspective: 1400px;
+}
+.scan-core {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(16px, 2.8vh, 26px);
+  min-width: 0;
+  text-align: center;
+}
+
+/* Murs : 3 colonnes × 4 rangées, remplis depuis le centre ; légèrement tournés vers l'intérieur. */
+.scan-wall {
+  --tile-w: clamp(76px, 11.4vh, 116px);
+  display: grid;
+  grid-template-columns: repeat(3, var(--tile-w));
+  gap: 12px;
+  align-content: center;
+  mask-image:
+    linear-gradient(var(--wall-fade), #000 46%, transparent 100%),
+    linear-gradient(180deg, transparent 0, #000 14%, #000 86%, transparent 100%);
+  mask-composite: intersect;
+}
+.scan-wall.is-left {
+  --wall-fade: 270deg;
+  justify-self: end;
+  direction: rtl;
+  transform: rotateY(14deg);
+  transform-origin: 100% 50%;
+}
+.scan-wall.is-right {
+  --wall-fade: 90deg;
+  justify-self: start;
+  transform: rotateY(-14deg);
+  transform-origin: 0 50%;
+}
+.scan-tile,
+.scan-slot {
   display: block;
   aspect-ratio: 2 / 3;
-  border-radius: var(--r-lg);
+  border-radius: var(--r-md);
+}
+.scan-tile {
   overflow: hidden;
   background: var(--surface-1);
   box-shadow:
-    0 22px 44px -14px rgb(0 0 0 / 0.8),
-    0 0 0 1px var(--line-2);
-  animation: setup-fade 320ms var(--ease-out) backwards;
-  animation-delay: calc(var(--i) * 40ms);
-  transition: opacity var(--d-3) var(--ease-out);
+    0 16px 30px -14px rgb(0 0 0 / 0.85),
+    0 0 0 1px var(--line-1);
+  animation: setup-fade var(--d-3) var(--ease-out) backwards;
 }
-.deck-card-in .cover {
+.scan-tile .cover {
   height: 100%;
 }
-.deck-card-in.skel {
-  border-radius: var(--r-lg);
-  background: color-mix(in srgb, var(--surface-1) 85%, transparent);
+/* Titre des jaquettes générées : à l'échelle des petites tuiles. */
+.scan-tile .cover-title {
+  font-size: 11px;
+  line-height: 13px;
 }
-.deck-card-in.is-ghost {
-  display: grid;
-  place-items: center;
-  background: linear-gradient(180deg, var(--surface-1), var(--bg-1));
-  border: 1.5px dashed var(--line-3);
-  box-shadow: none;
-  color: var(--text-3);
+.scan-slot {
+  border: 1.5px dashed var(--line-2);
+  opacity: 0.7;
+  transition: opacity var(--d-4) var(--ease-out);
 }
-.deck.is-scanning .deck-card-in:not(.skel) {
-  opacity: 0.45;
-}
-/* Distribution : les jaquettes sortent du paquet en éventail, le centre d'abord */
-:root[data-fx='on'] .deck-card {
-  animation: deck-deal 820ms var(--ease-glide) backwards;
-  animation-delay: calc(var(--i) * 70ms + 140ms);
-}
-:root[data-fx='on'] .deck-card-in {
-  animation: none;
-}
-@keyframes deck-deal {
-  from {
-    --fan: 0;
-    opacity: 0;
-    translate: 0 40px;
-  }
-}
-/* Faisceau de balayage pendant l'analyse */
-.deck-beam {
-  position: absolute;
-  top: -4%;
-  bottom: 14%;
-  left: 50%;
-  z-index: 40;
-  width: calc(var(--deck-w) * 1.2);
-  margin-left: calc(var(--deck-w) * -0.6);
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgb(251 79 122 / 0.16) 38%,
-    rgb(255 194 210 / 0.42) 50%,
-    rgb(251 79 122 / 0.16) 62%,
-    transparent
-  );
-  mix-blend-mode: screen;
-  mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
+.scan-wall.is-done .scan-slot {
   opacity: 0;
-  pointer-events: none;
 }
-:root[data-fx='on'] .deck-beam {
-  opacity: 1;
-  animation: deck-beam 2.2s var(--ease-in-out) infinite alternate;
+:root[data-fx='on'] .scan-tile {
+  animation: scan-tile-in 560ms var(--ease-glide) backwards;
+  animation-delay: calc(min(var(--i), 8) * 45ms);
 }
-/* D'une jaquette extérieure à l'autre (--half = nombre de jaquettes de chaque côté du centre) */
-@keyframes deck-beam {
+@keyframes scan-tile-in {
   from {
-    translate: calc(var(--half) * var(--deck-w) * -0.72) 0;
-  }
-  to {
-    translate: calc(var(--half) * var(--deck-w) * 0.72) 0;
+    opacity: 0;
+    scale: 0.6;
+    translate: 0 14px;
   }
 }
 
-/* Résultat par store */
-.scan-stores {
+/* Anneau : tourne pendant l'analyse, se ferme quand tout est révélé */
+.scan-ring {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 232px));
-  gap: 12px;
+  place-items: center;
+  flex-shrink: 0;
+  width: 184px;
+  height: 184px;
+}
+.scan-ring-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  rotate: -90deg;
+}
+:root[data-fx='on'] .scan.is-scanning .scan-ring-svg {
+  animation: spin 1.6s linear infinite;
+}
+.scan-ring-track,
+.scan-ring-arc {
+  fill: none;
+  stroke-width: 6;
+}
+.scan-ring-track {
+  stroke: var(--surface-2);
+}
+.scan-ring-arc {
+  stroke-linecap: round;
+  transition: stroke-dasharray 600ms var(--ease-glide);
+}
+/* BrandMark pose sa hauteur en ligne : l'icône suit ici la taille de l'anneau. */
+.scan-ring .scan-ring-mark {
+  width: 58%;
+  height: auto !important;
+  transition: opacity var(--d-3) var(--ease-out);
+}
+.scan.is-none .scan-ring-mark {
+  opacity: 0.5;
+}
+.scan-ring-check {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--success);
+  color: var(--ink);
+  box-shadow: 0 0 0 4px var(--bg-0);
+}
+.scan-ring-check svg {
+  stroke-width: 2.6;
+}
+:root[data-fx='on'] .scan-ring-check {
+  animation: setup-pop 600ms var(--ease-glide) backwards;
+}
+
+.scan-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.scan-title {
+  font: 700 clamp(28px, 4vh, 36px) / 1.15 var(--font-display);
+  letter-spacing: -0.015em;
+  color: var(--text-1);
+  text-wrap: balance;
+  outline: none;
+}
+.scan-sub {
+  max-width: 420px;
+  margin-top: 6px;
+  font: 400 15px/22px var(--font-ui);
+  color: var(--text-2);
+  text-wrap: balance;
+}
+
+/* Une ligne par plateforme : pastille d'état, nom, compteur */
+.scan-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(420px, 100%);
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.scan-store {
-  position: relative;
+.scan-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px 13px 12px;
-  border-radius: var(--r-lg);
-  background: color-mix(in srgb, var(--surface-1) 78%, transparent);
-  border: 1px solid var(--line-1);
-  backdrop-filter: blur(12px);
-  overflow: hidden;
+  min-height: 48px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--line-1);
   text-align: left;
+  transition: opacity var(--d-3) var(--ease-out);
 }
-.scan-store-text {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
+.scan-row.is-pending {
+  opacity: 0.55;
 }
-.scan-store-name {
-  font: 600 14px/18px var(--font-ui);
-  color: var(--text-1);
-}
-.scan-store-status {
-  font: 500 12.5px/16px var(--font-ui);
-  color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  animation: setup-fade var(--d-3) var(--ease-out) backwards;
-}
-.scan-store-status strong {
-  font-weight: 700;
-  color: var(--text-1);
-}
-.scan-store.is-error .scan-store-status {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  white-space: normal;
-  color: var(--danger-text);
-  user-select: text;
-}
-.scan-store-mark {
+.scan-row-mark {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
+  background: var(--surface-2);
   color: var(--text-3);
-  animation: setup-fade var(--d-3) var(--ease-out) backwards;
 }
-.scan-store.is-found .scan-store-mark {
-  background: var(--accent-soft);
-  color: var(--accent-text);
+.scan-row-mark .spinner {
+  width: 12px;
+  height: 12px;
+  border-width: 1.5px;
 }
-.scan-store.is-error .scan-store-mark {
+.scan-row.is-found .scan-row-mark {
+  background: var(--success);
+  color: var(--ink);
+}
+.scan-row.is-found .scan-row-mark svg {
+  stroke-width: 2.6;
+}
+.scan-row.is-error .scan-row-mark {
   background: var(--danger-soft);
   color: var(--danger-text);
 }
-.scan-store-dash {
-  width: 10px;
+.scan-row-dash {
+  width: 8px;
   height: 2px;
   border-radius: 1px;
-  background: var(--text-4);
+  background: var(--text-3);
 }
-.scan-store-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
+.scan-row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.scan-row-name {
+  font: 600 14px/20px var(--font-ui);
+  color: var(--text-1);
+}
+.scan-row-error {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font: 500 12px/16px var(--font-ui);
+  color: var(--danger-text);
+  user-select: text;
+}
+.scan-row-value {
+  font: 500 13px/18px var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.scan-row.is-found .scan-row-value {
+  font-weight: 600;
+  color: var(--text-1);
+}
+.scan-row.is-error .scan-row-value {
+  color: var(--danger-text);
+}
+:root[data-fx='on'] .scan-row:not(.is-pending) .scan-row-mark {
+  animation: setup-pop 480ms var(--ease-glide) backwards;
+}
+:root[data-fx='on'] .scan-row:not(.is-pending) .scan-row-value {
+  animation: setup-fade var(--d-3) var(--ease-out) backwards;
+}
+
+/* Progression : plateformes révélées sur trois ; bande qui court tant que le scan tourne */
+.scan-progress {
+  width: min(420px, 100%);
+  height: 6px;
+  margin-top: -6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
   overflow: hidden;
 }
-.scan-store.is-found .scan-store-bar {
-  background: linear-gradient(90deg, transparent, var(--accent) 35%, var(--accent) 65%, transparent);
-  opacity: 0.75;
+.scan-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand-1), var(--brand-2), var(--brand-3));
+  transform-origin: 0 50%;
+  scale: var(--p) 1;
+  transition: scale 520ms var(--ease-glide);
 }
-.scan-store.is-error .scan-store-bar {
-  background: var(--danger);
+.scan-progress.is-busy > span {
+  width: 36%;
+  scale: 1;
   opacity: 0.5;
 }
-.scan-store.is-scanning .scan-store-bar::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  width: 40%;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  opacity: 0.4;
-}
-:root[data-fx='on'] .scan-store.is-scanning .scan-store-bar::after {
+:root[data-fx='on'] .scan-progress.is-busy > span {
   opacity: 1;
   animation: scan-bar 1.3s var(--ease-in-out) infinite;
 }
@@ -499,7 +684,7 @@ button.setup-step-btn:hover {
     translate: -100% 0;
   }
   to {
-    translate: 250% 0;
+    translate: 280% 0;
   }
 }
 
@@ -521,7 +706,7 @@ button.setup-step-btn:hover {
   height: 50px;
   min-width: 260px;
   padding: 0 24px;
-  border-radius: var(--r-md);
+  border-radius: var(--r-pill);
   font-size: 15px;
 }
 .setup-cta:not(:disabled),
@@ -634,22 +819,190 @@ button.setup-step-btn:hover {
   color: var(--danger-text);
 }
 
-/* Révélation (effets complets) : titre, stores puis action, en cascade */
-:root[data-fx='on'] .scan .setup-head > * {
+/* Entrée (effets complets) : l'anneau, le titre, les plateformes puis l'action */
+:root[data-fx='on'] .scan-core > * {
   animation: setup-rise 520ms var(--ease-glide) backwards;
 }
-:root[data-fx='on'] .scan .setup-head > :nth-child(2) {
+:root[data-fx='on'] .scan-core > :nth-child(2) {
   animation-delay: 60ms;
 }
-:root[data-fx='on'] .scan .setup-head > :nth-child(3) {
+:root[data-fx='on'] .scan-core > :nth-child(3) {
   animation-delay: 120ms;
 }
-:root[data-fx='on'] .scan-store {
-  animation: setup-rise 520ms var(--ease-glide) backwards;
-  animation-delay: calc(420ms + var(--i) * 90ms);
+:root[data-fx='on'] .scan-core > :nth-child(n + 4) {
+  animation-delay: 180ms;
 }
-:root[data-fx='on'] .scan-actions {
-  animation: setup-rise 520ms var(--ease-glide) 700ms backwards;
+
+/* ---------- Counter-Strike 2 (si le jeu est installé) ---------- */
+
+.cs2s {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 8px 32px 40px;
+}
+.cs2s-card {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: min(640px, 100%);
+  padding: 32px;
+  border-radius: 32px;
+  background: var(--glass);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-line),
+    inset 0 1px 0 var(--glass-hi),
+    0 40px 100px rgb(0 0 0 / 0.5);
+  backdrop-filter: var(--glass-blur);
+}
+.cs2s-head {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+.cs2s-cover {
+  display: block;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow:
+    var(--sh-2),
+    0 0 0 1px var(--line-2);
+}
+.cs2s-cover .cover {
+  height: 100%;
+}
+.cs2s-found {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 13px/18px var(--font-ui);
+  color: var(--success);
+}
+.cs2s-found svg {
+  stroke-width: 2.6;
+}
+.cs2s-title {
+  margin-top: 6px;
+  font: 700 30px/36px var(--font-display);
+  letter-spacing: -0.015em;
+  color: var(--text-1);
+  outline: none;
+}
+.cs2s-text {
+  margin-top: 6px;
+  font: 400 15px/22px var(--font-ui);
+  color: var(--text-2);
+}
+.cs2s-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cs2s-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--bg-1) 60%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.cs2s-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.cs2s-row-label {
+  font: 600 15px/20px var(--font-ui);
+  color: var(--text-1);
+}
+.cs2s-row-value {
+  font: 500 12.5px/17px var(--font-ui);
+  color: var(--text-3);
+}
+.cs2s-note {
+  margin-top: -6px;
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-3);
+}
+.cs2s-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cs2s-next.setup-cta {
+  min-width: 0;
+}
+:root[data-fx='on'] .cs2s-card {
+  animation: setup-rise 520ms var(--ease-glide) backwards;
+}
+
+/* ---------- c'est prêt (fin du premier passage) ---------- */
+
+.setup-fin {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 0 32px 56px;
+  text-align: center;
+}
+.setup-fin-check {
+  display: grid;
+  place-items: center;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--success-soft);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--success) 50%, transparent);
+  color: var(--success);
+}
+.setup-fin-check svg {
+  stroke-width: 2.4;
+}
+.setup-fin-title {
+  font: 700 44px/50px var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  outline: none;
+}
+.setup-fin-sub {
+  max-width: 520px;
+  font: 400 16px/24px var(--font-ui);
+  color: var(--text-2);
+  text-wrap: balance;
+}
+.setup-fin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.setup-fin-actions .btn {
+  min-width: 180px;
+  height: 52px;
+  padding: 0 28px;
+  font-size: 15px;
+}
+.setup-fin-go {
+  font-weight: 700;
+}
+:root[data-fx='on'] .setup-fin-check {
+  animation: setup-pop 700ms var(--ease-glide) backwards;
+}
+:root[data-fx='on'] .setup-fin > :not(.setup-fin-check) {
+  animation: setup-rise 600ms var(--ease-glide) 200ms backwards;
 }
 
 /* ---------- étape 2 : favoris ---------- */
@@ -1208,12 +1561,33 @@ button.setup-step-btn:hover {
 
 /* ---------- petites fenêtres (1024 × 640 au minimum) ---------- */
 
+@media (max-height: 820px) {
+  .scan-ring {
+    width: 148px;
+    height: 148px;
+  }
+  .setup-hello-mark {
+    width: 180px;
+    height: 180px;
+  }
+  .setup-hello-icon {
+    height: 156px !important;
+  }
+  .setup-hello-title {
+    font-size: 46px;
+    line-height: 52px;
+  }
+}
 @media (max-height: 780px) {
   .scan {
-    gap: 18px;
+    padding-bottom: 20px;
   }
-  .deck {
-    --deck-w: min(clamp(92px, 16vh, 168px), 13vw);
+  .scan-core {
+    gap: 14px;
+  }
+  .scan-row {
+    min-height: 44px;
+    padding-block: 8px;
   }
   .setup-title {
     margin-top: 12px;
@@ -1243,8 +1617,11 @@ button.setup-step-btn:hover {
   }
 }
 @media (max-width: 1180px) {
-  .scan-stores {
-    grid-template-columns: repeat(3, minmax(0, 208px));
+  .scan-wall {
+    grid-template-columns: repeat(2, var(--tile-w));
+  }
+  .scan-wall > :nth-child(n + 9) {
+    display: none;
   }
   .fav-search {
     width: 220px;

@@ -2,3 +2,7 @@ node_modules
 out
 dist
 .env
+
+# Installeur sur mesure : fichiers produits à la construction (scripts/build-installer.mjs)
+installer/payload/
+installer/ui/page.html
