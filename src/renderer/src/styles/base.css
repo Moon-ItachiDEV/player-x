@@ -857,6 +857,16 @@ kbd {
 .toast.info .toast-icon {
   color: var(--accent);
 }
+/* Succès rare : la seule carte dorée de l'appli (or réservé aux succès). */
+.toast.trophy {
+  border-color: color-mix(in srgb, var(--trophy) 45%, transparent);
+  background:
+    radial-gradient(120% 140% at 0% 50%, color-mix(in srgb, var(--trophy) 16%, transparent), transparent 60%),
+    color-mix(in srgb, var(--surface-2) 96%, transparent);
+}
+.toast.trophy .toast-icon {
+  color: var(--trophy);
+}
 .toast-close {
   opacity: 0;
   width: 24px;

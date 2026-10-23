@@ -110,6 +110,16 @@ export type FriendAlertMode = 'all' | 'games' | 'off'
 export type LaunchWindowMode = 'stay' | 'minimize'
 
 /** Un ami vient de se connecter ou de lancer un jeu. */
+/** Succès rare (moins de 15 % des joueurs) débloqué depuis le relevé précédent. */
+export interface RareUnlock {
+  /** `steam:<appid>` */
+  gameId: string
+  gameName: string
+  id: string
+  name: string
+  percent: number
+}
+
 export interface FriendAlert {
   key: string
   friend: Friend
@@ -740,6 +750,8 @@ export interface LauncherApi {
   onCs2OverlayConfig(cb: (c: Cs2OverlayConfig) => void): () => void
   /** Alertes d'amis à afficher dans la fenêtre (quand elle est au premier plan ; sinon Windows les affiche). */
   onFriendAlert(cb: (alerts: FriendAlert[]) => void): () => void
+  /** Succès rares débloqués (relevés en arrière-plan), quand Player X est au premier plan. */
+  onRareAchievements(cb: (list: RareUnlock[]) => void): () => void
   /** Clic sur une notification Windows : ouvrir le panneau d'amis. */
   onShowFriends(cb: () => void): () => void
   /** Envoie une alerte d'essai, dans la fenêtre et en notification Windows. */

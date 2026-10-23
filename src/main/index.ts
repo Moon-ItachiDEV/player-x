@@ -9,9 +9,9 @@ import type { Friend, FriendPlatform, FriendsResult, Game, Settings, SteamLibrar
 import * as db from './db'
 import { handle } from './ipc'
 import { appWindows, mainWindow } from './windows'
-import { getAchievementsOverview, getGameAchievements, startAchievementsWatcher } from './services/achievements'
+import { getAchievementsOverview, getGameAchievements, onRareUnlocks, startAchievementsWatcher } from './services/achievements'
 import { demoAchievements, demoAchievementsOverview } from './services/achievementsDemo'
-import { checkFriends, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
+import { checkFriends, deliverRare, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
 import { bf6RecapState, markBf6RecapSeen, setBf6Running, startBf6Recaps, syncBf6Recaps } from './services/bf6Recap'
@@ -561,6 +561,7 @@ app.whenReady().then(async () => {
       })
       .catch((e) => console.warn('[news-sim]', e))
   }
+  onRareUnlocks(deliverRare)
   startAchievementsWatcher(() => getSettings().demoMode)
   // Un jeu installé avec « Installer » : nouveau scan, il passe des « Non installés » à la bibliothèque.
   startSteamLibrary(notifyGamesChanged, () => {

@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { LEAVE_MS, motionReduced } from '../../motion'
 import { Icon } from './Icon'
 
-export type ToastKind = 'success' | 'error' | 'info' | 'loading'
+/** trophy : succès rare débloqué (carte dorée). */
+export type ToastKind = 'success' | 'error' | 'info' | 'loading' | 'trophy'
 
 export interface ToastOptions {
   kind?: ToastKind
@@ -37,7 +38,8 @@ const DURATION: Record<ToastKind, number> = {
   success: 3500,
   info: 3500,
   error: 6000,
-  loading: 0
+  loading: 0,
+  trophy: 7000
 }
 
 let counter = 0
@@ -74,7 +76,10 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }): R
         ) : toast.kind === 'loading' ? (
           <span className="spinner" />
         ) : (
-          <Icon name={toast.kind === 'success' ? 'check-circle' : toast.kind === 'error' ? 'alert-circle' : 'info'} size={18} />
+          <Icon
+            name={toast.kind === 'success' ? 'check-circle' : toast.kind === 'error' ? 'alert-circle' : toast.kind === 'trophy' ? 'trophy' : 'info'}
+            size={18}
+          />
         )}
       </span>
       <span>{toast.message}</span>

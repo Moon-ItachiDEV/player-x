@@ -441,6 +441,25 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       { kind: 'open', source: takeMorphSource(g.id) }
     )
   }, [])
+
+  // Succès rare débloqué (relevé en arrière-plan) : carte dorée, « Voir » ouvre la fiche du jeu.
+  const gamesRef = useRef(games)
+  gamesRef.current = games
+  useEffect(
+    () =>
+      api.onRareAchievements((list) => {
+        for (const a of list) {
+          const pct = `${(a.percent < 10 ? Math.round(a.percent * 10) / 10 : Math.round(a.percent)).toString().replace('.', ',')} %`
+          const game = gamesRef.current.find((g) => g.id === a.gameId)
+          notify(`Succès rare débloqué : ${a.name} (${a.gameName}, ${pct} des joueurs)`, {
+            kind: 'trophy',
+            id: `rare:${a.gameId}:${a.id}`,
+            ...(game ? { action: { label: 'Voir', onClick: () => openSheet(game) } } : {})
+          })
+        }
+      }),
+    [notify, openSheet]
+  )
   const closeSheet = useCallback(() => {
     withViewTransition(
       () => {
