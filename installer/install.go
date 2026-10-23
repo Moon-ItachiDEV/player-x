@@ -192,7 +192,7 @@ wait:
 		select {
 		case err := <-done:
 			if err != nil {
-				fail(0, "L'installation n'a pas abouti ("+err.Error()+"). Ferme Player X s'il est ouvert, puis réessaie.")
+				fail(0, "L'installation n'a pas abouti. Ferme Player X s'il est ouvert, puis réessaie. ("+err.Error()+")")
 				return
 			}
 			break wait
