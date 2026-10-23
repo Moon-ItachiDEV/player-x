@@ -21,7 +21,8 @@ export function Cs2Step({ game, settings, onSaveSettings, headingRef, onBack, on
   const notify = useToast()
   const save = (patch: Partial<Settings>): void => void onSaveSettings(patch).catch((e) => notify(errorMessage(e), { kind: 'error' }))
   // Même condition que Paramètres : canal Bêta, ou version de test (préversion, « 0.9.0-beta.3 »).
-  const overlayOffered = settings.updateChannel === 'beta' || /-/.test(window.launcher.version)
+  // Proposé à tous depuis la 0.9.1 (même règle que Paramètres).
+  const overlayOffered = true
 
   return (
     <section className="cs2s" aria-labelledby="setup-title">

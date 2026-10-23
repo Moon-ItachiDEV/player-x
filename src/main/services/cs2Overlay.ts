@@ -24,9 +24,9 @@ let hotkey = false
 /** Une fenêtre de Player X a le focus : l'overlay s'efface pour ne pas la couvrir. */
 let appFocused = false
 
-/** Proposé sur le canal Bêta et sur une version de test (la même règle que la ligne de Paramètres). */
+/** Proposé à tout le monde depuis la 0.9.1 (avant : canal Bêta et versions de test seulement). Désactivé par défaut. */
 export function overlayAllowed(): boolean {
-  return getSettings().updateChannel === 'beta' || app.getVersion().includes('-')
+  return true
 }
 
 function config(): Cs2OverlayConfig {
