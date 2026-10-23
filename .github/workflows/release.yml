@@ -1,6 +1,8 @@
 # Prépare une version de Player X : installeur NSIS + latest.yml + .blockmap dans une release en BROUILLON sur GitHub.
 # Déclenché par un tag vX.Y.Z (git tag v0.4.1 && git push --tags) ou à la main depuis l'onglet Actions (le tag v<version> est alors créé).
 # Notes de version : docs/release-notes/<version>.md si le fichier existe, sinon générées par GitHub.
+# Version de test (« 0.8.1-beta.1 », avec un tiret) : la release est marquée préversion. Seul le canal Bêta de Player X
+# (Paramètres › À propos) la voit ; le canal Stable lit /releases/latest, qui ne renvoie jamais une préversion.
 # La release reste en brouillon : elle est publiée par le workflow « Publish » avec la signature de l'installeur,
 # faite hors de GitHub avec la clé privée (node scripts/update-signature.mjs sign …). Player X refuse les mises à jour non signées.
 name: Release
@@ -64,6 +66,8 @@ jobs:
         run: |
           version="$(node -p "require('./package.json').version")"
           tag="v${version}"
+          pre=""
+          case "${version}" in *-*) pre="--prerelease" ;; esac
           if ! git ls-remote --exit-code --tags origin "refs/tags/${tag}" > /dev/null; then
             gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${tag}" -f sha="${GITHUB_SHA}" > /dev/null
           fi
@@ -72,9 +76,9 @@ jobs:
           else
             notes="docs/release-notes/${version}.md"
             if [ -f "${notes}" ]; then
-              gh release create "${tag}" --draft --verify-tag --title "Player X ${version}" --notes-file "${notes}"
+              gh release create "${tag}" --draft ${pre} --verify-tag --title "Player X ${version}" --notes-file "${notes}"
             else
-              gh release create "${tag}" --draft --verify-tag --title "Player X ${version}" --generate-notes
+              gh release create "${tag}" --draft ${pre} --verify-tag --title "Player X ${version}" --generate-notes
             fi
           fi
 
@@ -102,7 +106,7 @@ jobs:
           sha="$(node scripts/update-signature.mjs hash "dist/Player-X-Setup-${version}.exe")"
           echo "UPDATE_TO_SIGN version=${version} sha512=${sha}"
           {
-            echo "### Release ${tag} prête en brouillon"
+            case "${version}" in *-*) echo "### Version de test ${tag} prête en brouillon (préversion : canal Bêta seulement)" ;; *) echo "### Release ${tag} prête en brouillon" ;; esac
             echo ""
             echo "Signer (hors de GitHub) : \`node scripts/update-signature.mjs sign ${version} ${sha} <clé-privée.pem>\`"
             echo ""

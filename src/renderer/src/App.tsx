@@ -16,6 +16,7 @@ import { SettingsView } from './components/settings/SettingsView'
 import { Setup } from './components/setup/Setup'
 import { Sidebar } from './components/Sidebar'
 import { RecapHost } from './components/stats/Recap'
+import { Cs2RecapHost } from './components/cs2/Cs2Recap'
 import { Stats } from './components/stats/Stats'
 import { TopBar } from './components/TopBar'
 import { TopSlot } from './components/TopTabs'
@@ -650,6 +651,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
           go('stats')
         }}
       />
+      <Cs2RecapHost games={games} />
       <UpdateNotice onOpenAbout={() => goSettings('about')} inGame={anyRunning} launching={pending.real && !anyRunning} />
       <LaunchDock onRescan={() => loadGames(true)} />
       <WhatsNew />

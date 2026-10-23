@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { CS2_GAME_ID } from '@shared/cs2'
 import { PLAYED_SOURCE } from '@shared/played'
 import { capitalize, cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
 import type { Friend, Game, NewsPost } from '@shared/types'
@@ -11,6 +12,7 @@ import { useWindowActive } from '../update/useCardPhase'
 import { usePlayState, type PlayInfo } from '../launch/usePlayState'
 import { ACH_VIEW, AchievementsSection, AchievementsView } from './achievements/SheetAchievements'
 import { useAchievements } from './achievements/useAchievements'
+import { Cs2Section } from './cs2/Cs2Section'
 import { NewsReader } from './news/NewsReader'
 import { NewsBanner, NewsSection } from './news/NewsSection'
 import { useGameNews } from './news/useGameNews'
@@ -324,6 +326,8 @@ function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan
         </div>
 
         {isBf6Game(game) && <Bf6Link onOpen={onOpenStats} />}
+
+        {game.id === CS2_GAME_ID && !game.notInstalled && <Cs2Section onRetry={onRescan} onOpenFolder={() => onOpenFolder(game)} />}
 
         {patch && (
           <NewsBanner

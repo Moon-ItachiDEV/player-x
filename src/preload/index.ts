@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
-import type { Bf6RecapEvent, FriendAlert, LauncherApi, UpdateState } from '@shared/types'
+import type { Bf6RecapEvent, Cs2Live, Cs2RecapEvent, FriendAlert, LauncherApi, UpdateState } from '@shared/types'
 
 declare const __APP_VERSION__: string
 
@@ -59,6 +59,23 @@ const api: LauncherApi = {
     const listener = (): void => cb()
     ipcRenderer.on('bf6:recap-state', listener)
     return () => ipcRenderer.removeListener('bf6:recap-state', listener)
+  },
+  cs2State: () => ipcRenderer.invoke('cs2:state'),
+  cs2RecapSeen: (id) => ipcRenderer.invoke('cs2:recap-seen', id),
+  onCs2Live: (cb) => {
+    const listener = (_e: unknown, live: Cs2Live | null): void => cb(live)
+    ipcRenderer.on('cs2:live', listener)
+    return () => ipcRenderer.removeListener('cs2:live', listener)
+  },
+  onCs2State: (cb) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('cs2:state', listener)
+    return () => ipcRenderer.removeListener('cs2:state', listener)
+  },
+  onCs2Recap: (cb) => {
+    const listener = (_e: unknown, e: Cs2RecapEvent): void => cb(e)
+    ipcRenderer.on('cs2:recap', listener)
+    return () => ipcRenderer.removeListener('cs2:recap', listener)
   },
   onFriendAlert: (cb) => {
     const listener = (_e: unknown, alerts: FriendAlert[]): void => cb(alerts)

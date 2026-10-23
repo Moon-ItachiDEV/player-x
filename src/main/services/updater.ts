@@ -9,6 +9,7 @@ import type { InstallResult, LastUpdate, UpdateErrorCode, UpdateState } from '@s
 import * as db from '../db'
 import { handle } from '../ipc'
 import { clampDelay, isLast, isPending, lastFromPending, visibleBounds, type PendingUpdate, type WindowBounds } from './updateHandoff'
+import { getSettings } from './settings'
 import { isVersion, sha512File, verifyUpdateSignature } from './updateSignature'
 import type { SimHooks } from './updateSim'
 
@@ -176,6 +177,25 @@ export function takeRelaunchBounds(): WindowBounds | null {
   }
 }
 
+// ---------- canal (Paramètres › À propos) ----------
+
+/**
+ * Canal Bêta : les préversions GitHub comptent aussi (`0.8.1-beta.1`…). Toujours posé à la main : electron-updater
+ * l'active tout seul quand la version qui tourne est une préversion, ce qui garderait un ancien testeur en bêta.
+ * `channel` n'est jamais changé (il autoriserait les retours en arrière) : repasser en Stable attend la version stable suivante.
+ */
+function applyChannel(u: AppUpdater): void {
+  u.allowPrerelease = getSettings().updateChannel === 'beta'
+  u.allowDowngrade = false
+}
+
+/** Canal changé : nouvelle vérification tout de suite, si rien n'est en cours. */
+export function updateChannelChanged(): void {
+  if (!updater) return
+  applyChannel(updater)
+  if (state.state === 'none' || state.state === 'error' || state.state === 'idle') void check()
+}
+
 // ---------- vérification ----------
 
 function check(): Promise<UpdateState> {
@@ -185,6 +205,7 @@ function check(): Promise<UpdateState> {
     return Promise.resolve(state)
   inflight ??= (async () => {
     try {
+      applyChannel(u)
       const result = await u.checkForUpdates()
       // L'échec du téléchargement passe aussi par l'événement « error » : on évite juste le rejet non géré.
       result?.downloadPromise?.catch(() => {})
@@ -349,6 +370,7 @@ const bytes = (v: unknown): number | undefined => (typeof v === 'number' && Numb
 
 function wire(u: AppUpdater): void {
   u.logger = logger
+  applyChannel(u)
   u.autoDownload = true
   // Installée en quittant seulement une fois la signature vérifiée (voir verifyDownloaded).
   u.autoInstallOnAppQuit = false

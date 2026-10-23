@@ -13,6 +13,7 @@ import { AboutSection } from './AboutSection'
 import { AccountsSection, connState, PLATFORMS } from './AccountsSection'
 import { AdvancedSection } from './AdvancedSection'
 import { openRecap, sampleRecap } from '../stats/Recap'
+import { openCs2Recap, sampleCs2Recap } from '../cs2/useCs2'
 import { BackgroundRows } from './BackgroundRows'
 import { Collapse, SectionHead, SettingRow, storeCaption, useNow } from './parts'
 import './settings.css'
@@ -102,7 +103,7 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
           {section === 'advanced' && (
             <AdvancedSection settings={settings} report={props.report} onSaveSettings={props.onSaveSettings} focusCard={focusCard} onFocused={clearFocus} />
           )}
-          {section === 'about' && <AboutSection />}
+          {section === 'about' && <AboutSection settings={settings} onSaveSettings={props.onSaveSettings} />}
         </div>
       </div>
     </div>
@@ -446,6 +447,25 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
               label="Bilan Battlefield 6"
             />
             <button className="btn btn-secondary btn-sm" onClick={() => openRecap(sampleRecap())}>
+              Voir un exemple
+            </button>
+          </div>
+        </SettingRow>
+        <SettingRow
+          label="Match Counter-Strike 2"
+          value={
+            settings.cs2Live
+              ? 'Activé · ton match en direct dans la fiche de CS2, et ton bilan à la fin, envoyés par le jeu lui-même'
+              : 'Désactivé · le fichier de liaison est retiré du dossier de CS2'
+          }
+        >
+          <div className="set-inline">
+            <Switch
+              checked={settings.cs2Live}
+              onChange={(cs2Live) => onSaveSettings({ cs2Live }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+              label="Match Counter-Strike 2"
+            />
+            <button className="btn btn-secondary btn-sm" onClick={() => openCs2Recap(sampleCs2Recap())}>
               Voir un exemple
             </button>
           </div>
