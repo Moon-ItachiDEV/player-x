@@ -8,6 +8,7 @@ import { cleanName, isBf6Name } from '@shared/text'
 import type { Friend, FriendPlatform, FriendsResult, Game, Settings, SteamLibrary } from '@shared/types'
 import * as db from './db'
 import { handle } from './ipc'
+import { appWindows, mainWindow } from './windows'
 import { getAchievementsOverview, getGameAchievements, startAchievementsWatcher } from './services/achievements'
 import { demoAchievements, demoAchievementsOverview } from './services/achievementsDemo'
 import { checkFriends, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
@@ -15,6 +16,7 @@ import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
 import { bf6RecapState, markBf6RecapSeen, setBf6Running, startBf6Recaps, syncBf6Recaps } from './services/bf6Recap'
 import { cs2DemoChanged, cs2State, markCs2RecapSeen, setCs2Running, startCs2Live, syncCs2 } from './services/cs2Live'
+import { closeCs2Overlay, startCs2Overlay, syncCs2Overlay } from './services/cs2Overlay'
 import { DEMO_FRIENDS, DEMO_GAMES, demoGames, demoNotInstalled } from './services/demo'
 import { hideMembers, withMemberHidden } from './services/discordMembers'
 import { connectPsn, getAllFriends, resetPsn } from './services/friends'
@@ -87,6 +89,8 @@ function createWindow(): void {
     win.focus()
   }
   attachWindow(win)
+  // Fermée pour de bon (pas rangée près de l'horloge) : l'overlay CS2 se ferme aussi, sinon Player X ne quitterait pas.
+  win.on('closed', closeCs2Overlay)
   // Les liens externes s'ouvrent dans le navigateur, pas dans l'appli.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) shell.openExternal(url)
@@ -338,6 +342,7 @@ function registerIpc(): void {
     if (next.bf6Recap !== before.bf6Recap) syncBf6Recaps()
     if (next.cs2Live !== before.cs2Live) void syncCs2()
     if (next.updateChannel !== before.updateChannel) updateChannelChanged()
+    if (next.updateChannel !== before.updateChannel || next.cs2Overlay !== before.cs2Overlay) syncCs2Overlay()
     if (next.gameNews !== before.gameNews) {
       // Badges retirés tout de suite, ou relevés dès la réactivation.
       notifyGamesChanged()
@@ -396,7 +401,7 @@ function emitLaunch(s: LaunchStatus): void {
  * range la fenêtre près de l'horloge.
  */
 function launchWindow(): LaunchWindow {
-  const win = (): BrowserWindow | undefined => BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
+  const win = mainWindow
   let ownRestoreUntil = 0
   let onUser = (): void => {}
   app.on('browser-window-created', (_e, w) =>
@@ -521,7 +526,7 @@ if (process.platform === 'win32') app.setAppUserModelId('dev.breezy.playerx')
 const firstInstance = app.requestSingleInstanceLock()
 if (!firstInstance) app.quit()
 app.on('second-instance', () => {
-  const win = BrowserWindow.getAllWindows()[0]
+  const win = mainWindow()
   if (!win) return
   if (win.isMinimized()) win.restore()
   win.show()
@@ -542,6 +547,7 @@ app.whenReady().then(async () => {
   startBf6Recaps()
   // Avant le suivi du temps de jeu aussi : un match CS2 resté ouvert reprend si le jeu envoie encore.
   startCs2Live()
+  startCs2Overlay()
   startPlaytimeTracker(notifyGamesChanged)
   startBf6Recorder()
   startNewsWatcher(knownGames, notifyGamesChanged)
@@ -577,7 +583,7 @@ app.whenReady().then(async () => {
   createWindow()
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
   if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())
-  app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
+  app.on('activate', () => appWindows().length === 0 && createWindow())
 })
 
 app.on('window-all-closed', () => {

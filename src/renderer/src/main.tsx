@@ -12,11 +12,21 @@ import './styles/tokens.css'
 import './styles/base.css'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import OverlayApp from './overlay/OverlayApp'
+
+// La fenêtre de l'overlay CS2 charge la même page avec « #overlay ».
+const isOverlay = location.hash === '#overlay'
+// Fond transparent avant le premier rendu (sinon un éclair du fond de l'appli par-dessus le jeu).
+if (isOverlay) document.documentElement.classList.add('ov-page')
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
+    {isOverlay ? (
+      <OverlayApp />
+    ) : (
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    )}
   </StrictMode>
 )

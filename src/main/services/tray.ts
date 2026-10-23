@@ -3,6 +3,7 @@ import { app, BrowserWindow, Menu, Notification, Tray } from 'electron'
 import type { StartupState } from '@shared/types'
 import { getKv, setKv } from '../db'
 import { getSettings } from './settings'
+import { mainWindow } from '../windows'
 
 // Zone de notification (près de l'horloge) : la croix y range Player X au lieu de le fermer, pour que le temps de jeu,
 // les alertes d'amis et le bilan Battlefield 6 continuent. « Quitter » dans le menu de l'icône le ferme vraiment.
@@ -24,10 +25,6 @@ let playing: string[] = []
 /** Gardée tant qu'elle vit, sinon son clic est perdu. */
 let hint: Notification | null = null
 let onHide = (): void => {}
-
-function mainWindow(): BrowserWindow | undefined {
-  return BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
-}
 
 /** Montre la fenêtre, qu'elle soit cachée, réduite ou derrière une autre. */
 export function showMainWindow(): void {

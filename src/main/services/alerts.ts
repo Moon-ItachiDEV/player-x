@@ -2,6 +2,7 @@ import { app, BrowserWindow, nativeImage, net, Notification } from 'electron'
 import { join } from 'node:path'
 import type { Friend, FriendAlert, FriendAlertMode, FriendPlatform, FriendsResult } from '@shared/types'
 import { getSettings } from './settings'
+import { appWindows, mainWindow } from '../windows'
 
 // Alertes d'amis : on compare chaque nouvelle liste d'amis à la précédente. Seuls Steam et PlayStation comptent
 // (sur Discord, ce sont les membres d'un serveur, pas des amis). Fenêtre au premier plan : carte dans Player X ;
@@ -89,7 +90,7 @@ function show(n: Notification): void {
 }
 
 function focusedWindow(): BrowserWindow | undefined {
-  return BrowserWindow.getAllWindows().find((w) => w.isFocused() && w.isVisible() && !w.isMinimized())
+  return appWindows().find((w) => w.isFocused() && w.isVisible() && !w.isMinimized())
 }
 
 export function alertText(a: FriendAlert): string {
@@ -111,7 +112,7 @@ async function avatarImage(url: string | undefined): Promise<Electron.NativeImag
 const appIcon = (): string => join(app.getAppPath(), 'resources', 'icon.png')
 
 function showWindow(): void {
-  const win = BrowserWindow.getAllWindows()[0]
+  const win = mainWindow()
   if (!win) return
   if (win.isMinimized()) win.restore()
   win.show()

@@ -3,9 +3,10 @@
 // Chargé seulement quand l'appli n'est pas installée (import dynamique dans initUpdater) : ses chiffres ne sont jamais montrés aux joueurs.
 import { generateKeyPairSync, sign } from 'node:crypto'
 import { EventEmitter } from 'node:events'
-import { app, BrowserWindow } from 'electron'
+import { app } from 'electron'
 import type { AppUpdater, Logger, UpdateDownloadedEvent } from 'electron-updater'
 import { sha512File, signedMessage } from './updateSignature'
+import { mainWindow } from '../windows'
 
 /** Ce que la vérification de updater.ts demande au simulateur à la place de GitHub. */
 export interface SimHooks {
@@ -133,7 +134,7 @@ export function createSim(raw: string, ctx: { consumePending(): void; logger: Lo
   function relaunch(): void {
     // PX_UPDATE_SIM_FAIL=1 : l'appli « ne se ferme pas », le failsafe de 8 s doit rendre la main.
     if (process.env.PX_UPDATE_SIM_FAIL === '1') return ctx.logger.warn('PX_UPDATE_SIM_FAIL : quitAndInstall ignoré.')
-    const w = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed())
+    const w = mainWindow()
     w?.hide()
     setTimeout(() => {
       cached = false

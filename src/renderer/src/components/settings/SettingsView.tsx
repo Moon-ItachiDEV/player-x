@@ -18,6 +18,9 @@ import { BackgroundRows } from './BackgroundRows'
 import { Collapse, SectionHead, SettingRow, storeCaption, useNow } from './parts'
 import './settings.css'
 
+/** Overlay CS2 : les trois styles à essayer en jeu. */
+const OVERLAY_LABEL = { a: 'façon Apple', b: 'verre', c: 'finition Player X' } as const
+
 const SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: 'accounts', label: 'Comptes' },
   { id: 'library', label: 'Bibliothèque' },
@@ -456,6 +459,37 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
             </button>
           </div>
         </SettingRow>
+        {(settings.updateChannel === 'beta' || /-/.test(window.launcher.version)) && (
+          <SettingRow
+            label="Overlay CS2 (bêta)"
+            value={
+              settings.cs2Overlay === 'off'
+                ? 'Aucun · rien par-dessus le jeu'
+                : `Style ${settings.cs2Overlay.toUpperCase()} · ${OVERLAY_LABEL[settings.cs2Overlay]}. Par-dessus CS2 en plein écran fenêtré, Alt+X le masque`
+            }
+          >
+            <div className="set-inline">
+              <Segmented
+                label="Overlay CS2"
+                value={settings.cs2Overlay}
+                options={[
+                  { value: 'off', label: 'Aucun' },
+                  { value: 'a', label: 'A' },
+                  { value: 'b', label: 'B' },
+                  { value: 'c', label: 'C' }
+                ]}
+                onChange={(cs2Overlay) => onSaveSettings({ cs2Overlay }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+              />
+              <button
+                className="btn btn-secondary btn-sm"
+                disabled={settings.cs2Overlay === 'off'}
+                onClick={() => window.launcher.cs2OverlayPreview().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+              >
+                Aperçu à l’écran
+              </button>
+            </div>
+          </SettingRow>
+        )}
       </div>
     </>
   )

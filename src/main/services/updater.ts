@@ -2,12 +2,13 @@
 // La source (owner/repo) vient de app-update.yml, écrit par electron-builder à partir de `build.publish`.
 // En développement, PX_UPDATE_SIM rejoue une mise à jour sur ce même code (updateSim.ts, jamais chargé par la version installée).
 import { stat } from 'node:fs/promises'
-import { app, BrowserWindow, net, screen } from 'electron'
+import { app, net, screen } from 'electron'
 // Import par défaut : marche que le main soit bundlé en CJS (le cas ici, dépendance externe → require) ou en ESM.
 import updaterPkg, { type AppUpdater, type Logger, type UpdateDownloadedEvent } from 'electron-updater'
 import type { InstallResult, LastUpdate, UpdateErrorCode, UpdateState } from '@shared/types'
 import * as db from '../db'
 import { handle } from '../ipc'
+import { appWindows, mainWindow } from '../windows'
 import { clampDelay, isLast, isPending, lastFromPending, visibleBounds, type PendingUpdate, type WindowBounds } from './updateHandoff'
 import { getSettings } from './settings'
 import { isVersion, sha512File, verifyUpdateSignature } from './updateSignature'
@@ -61,8 +62,7 @@ function setState(next: UpdateState): void {
   if (next.state === 'ready') readyState = next
   // Barre des tâches : progression du téléchargement, indéterminée pendant la vérification, rien sinon.
   const bar = next.state === 'downloading' ? next.percent / 100 : next.state === 'verifying' ? 2 : -1
-  for (const w of BrowserWindow.getAllWindows()) {
-    if (w.isDestroyed()) continue
+  for (const w of appWindows()) {
     try {
       w.webContents.send('update:state', next)
       w.setProgressBar(bar)
@@ -126,7 +126,7 @@ export function describeUpdateError(err: unknown): string | null {
 
 function currentBounds(): WindowBounds | undefined {
   try {
-    const w = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed())
+    const w = mainWindow()
     return w ? { ...w.getNormalBounds(), maximized: w.isMaximized() } : undefined
   } catch {
     return undefined

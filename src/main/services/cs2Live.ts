@@ -9,6 +9,7 @@ import { deleteKv, getKv, listGames, setKv } from '../db'
 import { BASE_PORT, cfgDir, cfgText, GSI_FILE, isToken, MAX_BODY, PORT_TRIES, refuse, tokenMatches } from './cs2Gsi'
 import { expire, liveOf, readPayload, recapOf, sameMatch, step, type EndReason, type MatchState } from './cs2Match'
 import { getSettings } from './settings'
+import { mainWindow } from '../windows'
 import { showMainWindow } from './tray'
 
 // Counter-Strike 2 : match en direct et bilan de fin de match, avec la Game State Integration de Valve (officielle,
@@ -74,7 +75,6 @@ let simRecaps: Cs2Recap[] = []
 let syncing: Promise<void> = Promise.resolve()
 
 const windows = (): BrowserWindow[] => BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed())
-const mainWindow = (): BrowserWindow | undefined => windows()[0]
 
 function broadcast(channel: string, payload?: unknown): void {
   for (const w of windows()) {
@@ -448,12 +448,26 @@ export function setCs2Running(now: boolean, sure = true): void {
   setRunning(now)
 }
 
+/** CS2 tourne ou vient de se fermer : l'overlay s'ouvre ou se ferme avec lui (cs2Overlay.ts). */
+const runningListeners = new Set<(now: boolean) => void>()
+export function onCs2Running(cb: (now: boolean) => void): void {
+  runningListeners.add(cb)
+}
+export const cs2IsRunning = (): boolean => running
+
 function setRunning(now: boolean): void {
   if (now === running) return
   running = now
   runningAt = now ? Date.now() : 0
   recheckQuiet()
   emitState()
+  for (const cb of runningListeners) {
+    try {
+      cb(now)
+    } catch (e) {
+      console.error('[cs2] overlay :', e)
+    }
+  }
   if (now) return
   // Jeu fermé (ou planté) : le match en cours est mis de côté (il reprend si CS2 revient dans le même match), et les
   // bilans en attente partent en une notification.
