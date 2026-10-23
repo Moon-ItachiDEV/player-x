@@ -80,6 +80,8 @@ export interface Settings {
   startWithWindows: boolean
   /** Bilan de session Battlefield 6 : tes stats relevées au lancement du jeu, puis comparées après la partie. */
   bf6Recap: boolean
+  /** Counter-Strike 2 : ton match en direct et son bilan, envoyés par le jeu lui-même (Game State Integration de Valve). */
+  cs2Live: boolean
 }
 
 /** Démarrage avec Windows : `unavailable` hors de la version installée sur Windows, `blocked` si Windows l'a désactivé (Gestionnaire des tâches). */
@@ -344,6 +346,126 @@ export interface Bf6RecapEvent {
   reason: 'ready' | 'open' | 'updated'
 }
 
+// ---------- Counter-Strike 2 : match en direct et bilan (Game State Integration) ----------
+
+export type Cs2Side = 'CT' | 'T'
+
+/** Comment un round s'est terminé (map.round_wins de CS2). */
+export type Cs2RoundEnd = 'elimination' | 'bomb' | 'defuse' | 'time' | 'hostage' | 'other'
+
+/** Un round de la frise du bilan. */
+export interface Cs2Round {
+  n: number
+  /** Camp qui gagne le round. */
+  winner: Cs2Side
+  end: Cs2RoundEnd
+  /** Ton camp pendant ce round : absent si Player X ne t'a pas vu jouer ce round (match rejoint en cours). */
+  side?: Cs2Side
+  /** Tes éliminations du round, s'il a été suivi. */
+  kills?: number
+}
+
+/** Match en cours, tel que CS2 l'envoie. Seulement tes chiffres : en partie, le jeu ne donne pas ceux des autres. */
+export interface Cs2Live {
+  /** Nom technique de la carte (de_mirage) et du mode (competitive) : libellés dans @shared/cs2. */
+  map: string
+  mode: string
+  phase: 'warmup' | 'live' | 'intermission' | 'gameover'
+  /** Round en cours (à partir de 1). */
+  round: number
+  side?: Cs2Side
+  /** Rounds gagnés par ton camp et par l'autre (absents tant que ton camp est inconnu). */
+  score?: { us: number; them: number }
+  kills: number
+  deaths: number
+  assists: number
+  mvps: number
+  /** Points du tableau des scores. */
+  points: number
+  /** Tes points de vie : absents quand tu es mort et que tu regardes un autre joueur. */
+  health?: number
+  money?: number
+  /** Ce que tu as fait dans le round en cours. */
+  roundKills: number
+  /** Début du suivi (fin de l'échauffement, ou arrivée en cours de match). */
+  startedAt: number
+  /** Le match avait commencé avant que Player X le voie. */
+  partial?: boolean
+}
+
+/** Issue du match pour toi. `done` : mode sans équipes (match à mort…) ; `left` : quitté avant la fin. */
+export type Cs2Result = 'win' | 'loss' | 'tie' | 'left' | 'done'
+
+/** Bilan d'un match de Counter-Strike 2, gardé sur ce PC. */
+export interface Cs2Recap {
+  id: string
+  /** Ton compte Steam (provider.steamid) : deux comptes sur un même PC ne se mélangent pas. */
+  steamId: string
+  map: string
+  mode: string
+  startedAt: number
+  endedAt: number
+  result: Cs2Result
+  score?: { us: number; them: number }
+  kills: number
+  deaths: number
+  assists: number
+  mvps: number
+  points: number
+  /** Sur les rounds suivis seulement (`roundsTracked`) : un match rejoint en cours n'a pas ses premiers rounds. */
+  headshots: number
+  damage: number
+  /** Éliminations comptées dans les rounds suivis : la base du % de headshots. */
+  trackedKills: number
+  roundsTracked: number
+  /** Rounds à 3, 4 et 5 éliminations. */
+  multi: { k3: number; k4: number; k5: number }
+  /** Round avec le plus d'éliminations. */
+  best?: { n: number; kills: number; damage: number }
+  /** Frise des rounds, du premier au dernier. Vide pour un mode sans rounds. */
+  rounds: Cs2Round[]
+  /** Mode joué en rounds (compétitif, occasionnel, wingman) : sinon pas d'ADR ni de frise. */
+  hasRounds: boolean
+  partial?: boolean
+  seen?: boolean
+  /** Exemple (Paramètres, fiche) : chiffres fictifs, jamais enregistrés. */
+  sample?: boolean
+}
+
+/** État de la liaison avec CS2. */
+export type Cs2Config =
+  /** Réglage coupé : fichier retiré. */
+  | 'off'
+  /** Fichier en place, CS2 le lira (ou le lit déjà). */
+  | 'ready'
+  /** Fichier écrit pendant que CS2 tournait : il ne le lit qu'à son démarrage. */
+  | 'restart'
+  /** CS2 n'est pas dans la bibliothèque de ce PC. */
+  | 'missing'
+  /** Windows a refusé l'écriture du fichier dans le dossier du jeu. */
+  | 'blocked'
+  /** Aucun port local libre pour recevoir les envois du jeu. */
+  | 'no-port'
+
+export interface Cs2State {
+  enabled: boolean
+  /** Mode démo : ni ton vrai match ni tes vrais bilans (seulement des exemples). */
+  demo: boolean
+  config: Cs2Config
+  /** CS2 a envoyé quelque chose il y a moins d'une minute. */
+  connected: boolean
+  /** Match en cours, s'il y en a un. Toujours null en mode démo. */
+  live: Cs2Live | null
+  /** Les plus récents d'abord. Vide en mode démo. */
+  recaps: Cs2Recap[]
+}
+
+/** `ready` : bilan prêt, Player X au premier plan ; `open` : clic sur la notification Windows ; `updated` : liste changée. */
+export interface Cs2RecapEvent {
+  recap: Cs2Recap
+  reason: 'ready' | 'open' | 'updated'
+}
+
 // ---------- Actus des jeux (annonces officielles publiées sur Steam) ----------
 
 /** Morceau de texte d'une actu, avec sa mise en forme. */
@@ -571,6 +693,16 @@ export interface LauncherApi {
   onBf6Recap(cb: (e: Bf6RecapEvent) => void): () => void
   /** Session suivie commencée, terminée ou close : `bf6Recaps().pending` a changé. Renvoie la fonction de désabonnement. */
   onBf6RecapState(cb: () => void): () => void
+  /** Counter-Strike 2 : liaison avec le jeu, match en cours et bilans. */
+  cs2State(): Promise<Cs2State>
+  /** Bilan CS2 ouvert : il n'est plus proposé. */
+  cs2RecapSeen(id: string): Promise<void>
+  /** Match CS2 en cours (au plus une fois par seconde), ou null à sa fin. Renvoie la fonction de désabonnement. */
+  onCs2Live(cb: (live: Cs2Live | null) => void): () => void
+  /** Liaison ou liste des bilans changée : relire `cs2State()`. Renvoie la fonction de désabonnement. */
+  onCs2State(cb: () => void): () => void
+  /** Bilan CS2 prêt, ou à ouvrir (clic sur la notification Windows). Renvoie la fonction de désabonnement. */
+  onCs2Recap(cb: (e: Cs2RecapEvent) => void): () => void
   /** Alertes d'amis à afficher dans la fenêtre (quand elle est au premier plan ; sinon Windows les affiche). */
   onFriendAlert(cb: (alerts: FriendAlert[]) => void): () => void
   /** Clic sur une notification Windows : ouvrir le panneau d'amis. */

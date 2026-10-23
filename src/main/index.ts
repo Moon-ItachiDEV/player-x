@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, Menu, powerMonitor, session, shell } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
 import { lastPlayedOf, type PlayedDates } from '@shared/played'
+import { CS2_GAME_ID } from '@shared/cs2'
 import { cleanName, isBf6Name } from '@shared/text'
 import type { Friend, FriendPlatform, FriendsResult, Game, Settings, SteamLibrary } from '@shared/types'
 import * as db from './db'
@@ -13,6 +14,7 @@ import { checkFriends, demoFriendAlert, resetFriendAlerts, testFriendAlert } fro
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork } from './services/artwork'
 import { bf6RecapState, markBf6RecapSeen, setBf6Running, startBf6Recaps, syncBf6Recaps } from './services/bf6Recap'
+import { cs2DemoChanged, cs2State, markCs2RecapSeen, setCs2Running, startCs2Live, syncCs2 } from './services/cs2Live'
 import { DEMO_FRIENDS, DEMO_GAMES, demoGames, demoNotInstalled } from './services/demo'
 import { hideMembers, withMemberHidden } from './services/discordMembers'
 import { connectPsn, getAllFriends, resetPsn } from './services/friends'
@@ -105,13 +107,14 @@ function notifyGamesChanged(): void {
   updateRunning()
 }
 
-/** Jeux en cours dans la vraie bibliothèque : menu de l'icône près de l'horloge, début et fin d'une session Battlefield 6. */
+/** Jeux en cours dans la vraie bibliothèque : menu de l'icône près de l'horloge, session Battlefield 6, match Counter-Strike 2. */
 function updateRunning(): void {
   const running = withPlaytime(db.listGames()).filter((g) => g.running)
   // La démo reste dans la fenêtre : rien dans le menu de l'icône.
   setTrayPlaying(getSettings().demoMode ? [] : running.map((g) => cleanName(g.name)))
   // Fin vue sans relevé fiable (mise en veille, PowerShell en panne) : le bilan attend le prochain relevé réussi.
   setBf6Running(running.some((g) => isBf6Name(g.name)), lastPollOk())
+  setCs2Running(running.some((g) => g.id === CS2_GAME_ID), lastPollOk())
 }
 
 // Favoris et lancements du mode démo : gardés à part pour ne jamais toucher la vraie bibliothèque.
@@ -163,6 +166,8 @@ async function games(refresh = false): Promise<Game[]> {
     const found = applyArtwork(await scanAllGames())
     db.replaceGames(found)
     scanned = true
+    // CS2 installé, déplacé ou désinstallé : son fichier de liaison suit.
+    void syncCs2()
     // Les jaquettes manquantes arrivent en arrière-plan : la bibliothèque s'affiche tout de suite.
     updateArtwork(found).then((changed) => {
       if (!changed) return
@@ -331,6 +336,7 @@ function registerIpc(): void {
     if (next.psnNpsso !== before.psnNpsso) resetPsn()
     if (next.startWithWindows !== before.startWithWindows) syncStartup()
     if (next.bf6Recap !== before.bf6Recap) syncBf6Recaps()
+    if (next.cs2Live !== before.cs2Live) void syncCs2()
     if (next.gameNews !== before.gameNews) {
       // Badges retirés tout de suite, ou relevés dès la réactivation.
       notifyGamesChanged()
@@ -339,6 +345,7 @@ function registerIpc(): void {
     if (next.demoMode !== wasDemo) {
       updateRunning()
       resetFriendAlerts()
+      cs2DemoChanged()
       // Les lancements en cours (vrais ou de démo) s'arrêtent sans carte : l'interface vide aussi les siens.
       launches.reset()
       // Au retour du mode démo, on rescanne la vraie bibliothèque.
@@ -360,6 +367,9 @@ function registerIpc(): void {
   // Bilans de session : ton vrai compte seulement (rien en mode démo).
   handle('bf6:recaps', () => bf6RecapState())
   handle('bf6:recap-seen', (_e, id: unknown) => markBf6RecapSeen(id))
+  // Counter-Strike 2 : ton vrai match et tes vrais bilans seulement (rien en mode démo, sauf le simulateur de développement).
+  handle('cs2:state', () => cs2State())
+  handle('cs2:recap-seen', (_e, id: unknown) => markCs2RecapSeen(id))
   handle('app:startup', () => startupState())
   handle('shell:open', (_e, url: unknown) => {
     if (typeof url === 'string' && url.startsWith('https://')) return shell.openExternal(url)
@@ -529,6 +539,8 @@ app.whenReady().then(async () => {
   initUpdater()
   // Avant le suivi du temps de jeu : une session Battlefield 6 restée ouverte lit la dernière apparition du jeu.
   startBf6Recaps()
+  // Avant le suivi du temps de jeu aussi : un match CS2 resté ouvert reprend si le jeu envoie encore.
+  startCs2Live()
   startPlaytimeTracker(notifyGamesChanged)
   startBf6Recorder()
   startNewsWatcher(knownGames, notifyGamesChanged)
@@ -555,6 +567,11 @@ app.whenReady().then(async () => {
   if (!app.isPackaged && process.env.PX_BF6_SIM) {
     const mode = process.env.PX_BF6_SIM
     import('./services/bf6Sim').then(({ startBf6Sim }) => startBf6Sim(mode)).catch((e) => console.warn('[bf6-sim]', e))
+  }
+  // Développement seulement : PX_CS2_SIM poste de faux envois de CS2 au serveur local (cs2Sim.ts, jamais dans l'installeur).
+  if (!app.isPackaged && process.env.PX_CS2_SIM) {
+    const mode = process.env.PX_CS2_SIM
+    import('./services/cs2Sim').then(({ startCs2Sim }) => startCs2Sim(mode)).catch((e) => console.warn('[cs2-sim]', e))
   }
   createWindow()
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.

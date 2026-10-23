@@ -116,7 +116,7 @@ test('variables CSS : chaque var(--x) lue est déclarée (CSS, ou posée depuis 
 })
 
 test('noms de classes : chacun déclaré dans un seul fichier CSS (garde-fou de la collision de la 0.7.1)', () => {
-  const NAMES = ['hh-bleed', 'nf-card', 'nf-item', 'sf-hide', 'sf-masked-btn', 'hh-patch', 'hh-end']
+  const NAMES = ['hh-bleed', 'nf-card', 'nf-item', 'sf-hide', 'sf-masked-btn', 'hh-patch', 'hh-end', 'cs2-live', 'cs2-row', 'cs2-r', 'cs2-res', 'cs2-strip', 'cs2-link']
   for (const name of NAMES) {
     const re = new RegExp(`\\.${name}(?![\\w-])`)
     const where = CSS.filter((f) => re.test(f.text)).map((f) => rel(f.path))

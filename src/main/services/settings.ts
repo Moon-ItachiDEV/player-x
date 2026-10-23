@@ -18,7 +18,8 @@ function defaults(): Settings {
     // Sous Linux, beaucoup de bureaux n'affichent pas la zone de notification : la croix y ferme Player X par défaut.
     closeToTray: process.platform === 'win32',
     startWithWindows: false,
-    bf6Recap: true
+    bf6Recap: true,
+    cs2Live: true
   }
 }
 
@@ -45,6 +46,7 @@ function cleanPatch(patch: unknown): Partial<Settings> {
   if (typeof p.closeToTray === 'boolean') clean.closeToTray = p.closeToTray
   if (typeof p.startWithWindows === 'boolean') clean.startWithWindows = p.startWithWindows
   if (typeof p.bf6Recap === 'boolean') clean.bf6Recap = p.bf6Recap
+  if (typeof p.cs2Live === 'boolean') clean.cs2Live = p.cs2Live
   if (typeof p.friendAlerts === 'string' && ALERT_MODES.includes(p.friendAlerts)) clean.friendAlerts = p.friendAlerts as Settings['friendAlerts']
   if (typeof p.launchWindow === 'string' && WINDOW_MODES.includes(p.launchWindow)) clean.launchWindow = p.launchWindow as Settings['launchWindow']
   return clean

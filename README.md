@@ -64,6 +64,12 @@ Cherche ton pseudo EA, Steam, PlayStation ou Xbox. La **Vue d’ensemble** montr
 
 EA ne propose pas d’API publique pour Battlefield 6. Les chiffres viennent de [gametools.network](https://gametools.network), un service communautaire non officiel, sans clé : il peut être lent ou indisponible, et la recherche est limitée à environ une requête toutes les 30 secondes. Les stats sont gardées en cache 10 minutes, et la dernière lecture reste affichée hors ligne. Les visuels du jeu viennent de la page Steam de Battlefield 6.
 
+## Counter-Strike 2 : match en direct et bilan
+
+Pendant un match, la fiche de CS2 montre une carte **En match** : carte et mode, round en cours, score de ton camp, tes éliminations, morts et assistances, ton K/D, tes MVP, tes points, et dans le round en cours tes éliminations, tes points de vie et ton argent. À la fin du match, un **bilan** s’ouvre (ou une notification Windows si Player X est caché, une seule à la fermeture du jeu) : résultat et score, K/D, % de headshots, dégâts par round (ADR), MVP, meilleur round, rounds à 3K, 4K ou ace, et la **frise des rounds** (gagnés, perdus, et comment : élimination, bombe, désamorçage, temps écoulé). Tes derniers matchs restent dans la fiche de CS2.
+
+Les chiffres viennent de CS2 lui-même, par la [Game State Integration](https://developer.valvesoftware.com/wiki/Counter-Strike:_Global_Offensive_Game_State_Integration) de Valve : officielle, gratuite, sans clé ni compte, et sans risque pour l’anti-triche. Player X dépose un petit fichier `gamestate_integration_playerx.cfg` dans le dossier `game/csgo/cfg` de CS2 ; le jeu le lit à son démarrage (relance-le s’il tournait déjà) et envoie ensuite l’état du match à Player X, sur ton PC seulement (`127.0.0.1`, avec un jeton). En partie, CS2 ne donne que tes chiffres, pas ceux des autres joueurs ; mort, il envoie le joueur que tu regardes, que Player X ignore. Un match rejoint en cours de route a un bilan partiel (headshots et ADR sur les rounds suivis). Se coupe dans **Paramètres › Interface** (le fichier est alors retiré).
+
 ## Profil
 
 ![Profil](docs/screenshots/profil.png)
@@ -122,6 +128,7 @@ Si la clé privée est perdue, les versions installées ne peuvent plus se mettr
 | Près de l’horloge | `Tray` d’Electron ; la croix cache la fenêtre (réglage **Fermer la fenêtre**). Démarrage avec Windows : `app.setLoginItemSettings` avec `--hidden`, état relu (Windows peut l’avoir désactivé dans le Gestionnaire des tâches). |
 | Stats Battlefield 6 | Non officiel, via [gametools.network](https://gametools.network). Recherche multi-plateforme, rivaux suivis, cache local, relevé quotidien pour la progression. |
 | Bilan Battlefield 6 | Différence entre la lecture gametools au lancement du jeu (vu par le suivi du temps de jeu) et les relectures après la partie (2, 5, 10, 15, 30, 60 et 120 min), jusqu’à deux lectures identiques 15 min après la fin. La session est gardée en base : elle reprend si Player X redémarre pendant la partie. |
+| Match CS2 | Game State Integration de Valve : fichier `gamestate_integration_playerx.cfg` (sans BOM) dans `game/csgo/cfg`, envois du jeu reçus sur `127.0.0.1:47730` (ou un des 9 ports suivants) avec un jeton, toutes les 0,5 s au plus et toutes les 10 s sans changement. Rounds découpés par la phase du round, match clos à la fin, au retour au menu ou après 35 s sans envoi. Le match en cours est gardé en base : il reprend si Player X redémarre pendant la partie. |
 | Profil | Temps de jeu total, jeux les plus joués (ou les plus lancés sans temps de jeu), jeux par plateforme et derniers lancements. |
 | Mises à jour | `electron-updater` et GitHub Releases : progression, redémarrage après 10 s, fenêtre « Quoi de neuf ». |
 | Favoris, historique | Stockés en local. |
@@ -135,6 +142,7 @@ Tout se règle dans **Paramètres** de l’appli (ou, en développement seulemen
 - **Serveur Discord** : dans les paramètres du serveur, active « Activer le widget du serveur » et enregistre, puis copie l’« Identifiant du serveur » affiché en dessous (le lien « JSON API » marche aussi).
 - **PlayStation** : connecte-toi sur playstation.com puis ouvre https://ca.account.sony.com/api/v1/ssocookie et copie la valeur `npsso`.
 - **Battlefield 6** : rien à configurer, cherche ton pseudo dans **Stats de jeu**.
+- **Counter-Strike 2** : rien à configurer. Player X relie CS2 tout seul ; relance le jeu s’il tournait au moment de la mise à jour.
 
 ## Design
 
@@ -152,10 +160,10 @@ Direction « Arène · Abysse » depuis la 0.7.0 : bleu nuit, jaune réservé à
 src/
   main/          processus Electron : base SQLite, scan des jeux, logins, amis, stats
     services/    games.ts, steamLibrary.ts, artwork.ts, news.ts, auth.ts, friends.ts, alerts.ts, playtime.ts, stats.ts, bf6Recap.ts,
-                 bf6Diff.ts, tray.ts, settings.ts, demo.ts, updater.ts
+                 bf6Diff.ts, cs2Live.ts, cs2Match.ts, cs2Gsi.ts, tray.ts, settings.ts, demo.ts, updater.ts
   preload/       pont sécurisé main ↔ interface
   renderer/src/
-    components/  home/, library/, friends/, stats/, settings/, setup/, ui/, FavRail (rail des favoris), Sidebar (menu et amis),
+    components/  home/, library/, friends/, stats/, cs2/, settings/, setup/, ui/, FavRail (rail des favoris), Sidebar (menu et amis),
                  TopBar et TopTabs (barre du haut à onglets), GameSheet, Profile, Login,
                  UpdateNotice (carte de mise à jour), WhatsNew (fenêtre « Quoi de neuf »), FriendAlerts (alertes d’amis)
     update/      animation de mise à jour « Séquence Réacteur »
