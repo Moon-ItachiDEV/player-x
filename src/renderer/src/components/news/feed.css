@@ -1,5 +1,6 @@
 /* Relevé des actus : rangée « Mises à jour de tes jeux » de l'accueil (.nf-row, cartes .nf-card) et page Actus des jeux
-   (.nf-page, lignes .nf-item). Couleurs par jetons seulement ; pas de flou : les étiquettes sont posées sur des images fixes. */
+   (.nf-page : « À la une » .nf-une, cartes .nf-item). Couleurs par jetons seulement ; pas de flou sur les étiquettes posées sur
+   des images fixes, seulement sur la carte et la colonne en verre de « À la une » (comme la maquette Braise). */
 
 /* ---------- rangée de l'accueil ---------- */
 
@@ -117,122 +118,471 @@
 
 /* ---------- page Actus des jeux ---------- */
 
+/* Puces de filtre et outils, « À la une » (NewsUne.tsx), puis « Plus récentes » en grille de cartes. */
 .nf-page {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 24px;
+  padding-top: 12px;
 }
-.nf-toolbar {
+.nf-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
+  gap: 12px 24px;
+}
+.nf-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.nf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  max-width: 240px;
+  padding: 0 16px;
+  border-radius: var(--r-pill);
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  color: var(--text-2);
+  font: 600 13px/18px var(--font-ui);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    box-shadow var(--d-1) var(--ease-out);
+}
+.nf-chip:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.nf-chip[aria-pressed='true'] {
+  background: var(--text-1);
+  color: var(--bg-1);
+  box-shadow: none;
+}
+.nf-chip:focus-visible {
+  box-shadow: var(--focus);
+}
+.nf-chip-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  color: var(--text-2);
+  font: 600 11px/18px var(--font-ui);
+  text-align: center;
+}
+.nf-chip[aria-pressed='true'] .nf-chip-count {
+  background: color-mix(in srgb, var(--bg-1) 14%, transparent);
+  color: var(--bg-1);
+}
+/* « Autres jeux » : le menu « Jeu » (PickMenu) habillé en puce ; son libellé reste pour les lecteurs d'écran (aria-label). */
+.picker.nf-more {
+  gap: 6px;
+  padding: 0 12px 0 16px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--surface-1);
+  color: var(--text-2);
+}
+.picker.nf-more:hover,
+.picker.nf-more[aria-expanded='true'] {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+.picker.nf-more .picker-label {
+  display: none;
+}
+.picker.nf-more strong {
+  font-weight: 600;
+  color: inherit;
+}
+.nf-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-left: auto;
 }
 .nf-summary {
   min-width: 0;
   font: 500 12.5px/16px var(--font-ui);
   color: var(--text-3);
 }
-.nf-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-left: auto;
-}
 .nf-panel {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  margin-top: 4px;
+  gap: 32px;
 }
 .nf-offline {
+  margin-bottom: -20px;
   color: var(--warning);
 }
-.nf-group {
+.nf-kicker {
+  min-width: 0;
+  font: 600 12px/16px var(--font-ui);
+  color: var(--accent-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nf-kicker-new {
+  color: var(--info);
+}
+
+/* ---------- À la une ---------- */
+
+.nf-une {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  min-height: 440px;
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  isolation: isolate;
+}
+/* Image de l'annonce, sinon celle du jeu (NewsThumb), sur toute la surface */
+.news-thumb.nf-une-art {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+}
+.nf-une-art .cover-title {
+  display: none;
+}
+/* Assombrit vers la droite : la colonne des titres reste lisible sur n'importe quelle image. */
+.nf-une-shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--ink) 20%, transparent) 0%,
+      color-mix(in srgb, var(--ink) 55%, transparent) 60%,
+      color-mix(in srgb, var(--ink) 85%, transparent) 100%
+    ),
+    linear-gradient(0deg, color-mix(in srgb, var(--ink) 45%, transparent) 0%, transparent 45%);
+}
+.nf-une-main {
+  flex: 999 1 420px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+  padding: 32px;
+}
+.nf-une-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 460px;
+  padding: 24px;
+  border-radius: 24px;
+  background: var(--glass);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-line),
+    inset 0 1px 0 var(--glass-hi);
+  backdrop-filter: var(--glass-blur);
+}
+.nf-une-title {
+  margin: 0;
+  font: 700 28px/34px var(--font-display);
+  letter-spacing: -0.015em;
+  color: var(--text-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.nf-une-text {
+  margin: 0;
+  font: 400 14px/21px var(--font-ui);
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+span.nf-une-text {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 4px 0;
 }
-.nf-group-h {
-  padding-left: 2px;
+.nf-une-skel {
+  display: block;
+  height: 12px;
 }
-.nf-list {
+.nf-une-skel + .nf-une-skel {
+  width: 70%;
+}
+.nf-une-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+.nf-une-meta {
+  min-width: 0;
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.nf-une-go {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    translate var(--d-2) var(--ease-out);
+}
+.nf-une-go:hover {
+  background: var(--accent-solid-hover);
+  translate: 2px 0;
+}
+.nf-une-go:focus-visible {
+  box-shadow: var(--focus);
+}
+.nf-side {
+  flex: 1 1 320px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 24px;
+  list-style: none;
+}
+.nf-side-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--glass) 88%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  backdrop-filter: var(--glass-blur);
+  text-align: left;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    box-shadow var(--d-1) var(--ease-out);
+}
+.nf-side-row:hover {
+  background: var(--glass-bar);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.nf-side-row[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--surface-1) 85%, transparent);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.nf-side-row:focus-visible {
+  box-shadow: var(--focus);
+}
+.news-thumb.nf-side-thumb {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.nf-side-thumb .cover-title {
+  display: none;
+}
+.nf-side-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.nf-side-title {
+  font: 600 14px/18px var(--font-ui);
+  color: var(--text-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.nf-side-meta {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Pas encore lue : point lavande, comme le badge « Nouveau » */
+.nf-side-new {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: var(--info);
+}
+
+/* ---------- Plus récentes ---------- */
+
+.nf-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.nf-h2 {
+  margin: 0;
+  font: 600 22px/28px var(--font-display);
+  color: var(--text-1);
+}
+.nf-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
+.nf-grid > li {
+  display: flex;
+  min-width: 0;
+}
 .nf-item {
-  display: grid;
-  grid-template-columns: 112px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  padding: 10px 16px 10px 10px;
-  border-radius: var(--r-lg);
+  min-width: 0;
+  padding: 8px;
+  border-radius: 22px;
   background: var(--card-bg);
-  border: 1px solid var(--line-2);
-  box-shadow: var(--sh-card);
+  box-shadow:
+    inset 0 0 0 1px var(--line-1),
+    var(--sh-card);
+  color: var(--text-1);
   text-align: left;
   transition:
     translate 220ms var(--ease-glide),
-    border-color var(--d-2) var(--ease-out),
     box-shadow var(--d-2) var(--ease-out);
 }
-button.nf-item:hover,
-button.nf-item:focus-visible {
+.nf-item:hover {
   translate: 0 -3px;
-  border-color: var(--line-3);
-  box-shadow: var(--sh-card-hover);
+  box-shadow:
+    inset 0 0 0 1px var(--line-3),
+    var(--sh-card-hover);
 }
-button.nf-item:focus-visible {
+.nf-item:focus-visible {
   box-shadow: var(--focus), var(--sh-card-hover);
 }
-.nf-item .nf-thumb {
-  width: 112px;
-  height: 63px;
-  border-radius: var(--r-md);
+.nf-item-art {
+  position: relative;
+  display: block;
 }
-button.nf-item:hover .nf-thumb .cover-img {
-  scale: 1.04;
+.news-thumb.nf-item-thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  border-radius: 16px;
+}
+.nf-item-thumb .cover-img {
+  transition: scale 400ms var(--ease-glide);
+}
+.nf-item:hover .nf-item-thumb :is(img, .cover-img) {
+  scale: 1.05;
+}
+.news-badge.nf-item-new {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  backdrop-filter: none;
 }
 .nf-item-text {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+  padding: 12px 8px 8px;
 }
-.nf-item-game {
-  min-width: 0;
-  color: var(--text-2);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* Un nom de jeu très long : seul le nom se raccourcit, la date et les étiquettes restent sur une ligne. */
-.nf-item .news-meta > :not(.nf-item-game) {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.nf-item-go {
-  flex-shrink: 0;
-  color: var(--text-3);
-  transition:
-    color var(--d-1) var(--ease-out),
-    translate var(--d-2) var(--ease-out);
-}
-button.nf-item:hover .nf-item-go {
+.nf-item-title {
+  min-height: 40px;
+  font: 600 15px/20px var(--font-ui);
   color: var(--text-1);
-  translate: 2px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
+.nf-item-when {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.nf-hint {
+  margin-top: -8px;
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-3);
+}
+
+/* ---------- chargement ---------- */
+
 .nf-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
   pointer-events: none;
 }
-.nf-skel .nf-item-text {
-  gap: 9px;
+.skel.nf-skel-une {
+  display: block;
+  height: 440px;
+  border-radius: var(--r-xl);
+}
+.nf-skel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 8px 16px;
+  border-radius: 22px;
+  background: var(--card-bg);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.nf-skel-card > .skel {
+  display: block;
+}
+.skel.nf-skel-art {
+  aspect-ratio: 16 / 10;
+  border-radius: 16px;
+}
+
+@container (max-width: 1080px) {
+  .nf-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@container (max-width: 780px) {
+  .nf-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .nf-une-main {
+    padding: 20px;
+  }
 }
