@@ -92,6 +92,7 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
               demo={settings.demoMode}
               onRescan={props.onRescan}
               onOpenSetup={props.onOpenSetup}
+              onReplaySetup={props.onReplaySetup}
               settings={settings}
               onSaveSettings={props.onSaveSettings}
               steamLibrary={props.steamLibrary}
@@ -123,6 +124,7 @@ interface LibraryProps {
   demo: boolean
   onRescan: () => void
   onOpenSetup: () => void
+  onReplaySetup: () => void
   settings: Settings
   onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>
   steamLibrary: SteamLibrary | null
@@ -175,6 +177,11 @@ function LibrarySection(props: LibraryProps): React.JSX.Element {
         <button className="btn btn-secondary" onClick={onOpenSetup} disabled={gamesCount === 0} data-open-setup>
           <Icon name="star" size={16} />
           Choisir mes jeux favoris
+        </button>
+      </SettingRow>
+      <SettingRow label="Accueil de Player X" value="Rejoue le premier lancement · favoris, comptes et réglages sont gardés">
+        <button className="btn btn-secondary" onClick={props.onReplaySetup}>
+          Revoir l'accueil de Player X
         </button>
       </SettingRow>
       <SettingRow

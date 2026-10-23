@@ -204,6 +204,8 @@ export interface SettingsProps {
   onRescan: () => void
   /** Rouvre l'écran de démarrage (choix des jeux favoris). */
   onOpenSetup: () => void
+  /** Rejoue tout l'accueil de la première connexion (bienvenue, analyse, favoris), sans rien effacer. */
+  onReplaySetup: () => void
   /** Jeux du compte Steam pas installés (null avant la première lecture), et relecture immédiate. */
   steamLibrary: SteamLibrary | null
   onRefreshSteamLibrary: () => Promise<void>
@@ -244,8 +246,13 @@ export interface LoginProps {
  * Étapes : analyse du PC (rapport du scan), choix des favoris parmi les jeux détectés, puis la bibliothèque.
  */
 export interface SetupProps {
-  /** true au premier lancement (commence par l'analyse) ; false quand on le rouvre depuis les paramètres (va droit au choix). */
+  /**
+   * true au premier lancement ou quand on le rejoue depuis les paramètres (bienvenue, analyse, CS2, favoris, c'est prêt) ;
+   * false quand on le rouvre pour les favoris (va droit au choix).
+   */
   firstRun: boolean
+  /** Rejoué depuis les paramètres : « Commencer » relance un scan normal. */
+  replay?: boolean
   games: Game[]
   report: ScanReport[]
   scanning: boolean
@@ -253,6 +260,9 @@ export interface SetupProps {
   /** Rescanne le PC (même action que « Relancer le scan »). */
   onRescan: () => void
   onEnableDemo: () => void
+  /** Réglages CS2 de l'étape Counter-Strike 2 (les mêmes que dans Paramètres). */
+  settings: Settings
+  onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>
   /** Enregistre la sélection (remplace les favoris) puis ferme l'écran. */
   onDone: (favoriteIds: string[]) => Promise<void>
   /** Ferme sans toucher aux favoris. */
