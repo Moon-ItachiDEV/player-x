@@ -23,9 +23,9 @@ const MAX = 120
 /** Si les 8 premières images dépassent 20 ms en moyenne, on passe à 60 traînées. */
 const LOW = 60
 const SLOW_FRAME = 20
-/** Violet de marque, bleu, lavande presque blanche. Jamais de cyan : il est réservé au « en jeu ». */
-const COLORS = ['#9b6cff', '#4f7cff', '#e9e3ff'] as const
-/** Motif de 20 : 14 violettes, 5 bleues, 1 blanche. Chaque tranche de 20 garde le mélange, donc la première moitié aussi. */
+/** Rose de marque, corail, rose presque blanc. Jamais de cyan : il est réservé au « en jeu ». */
+const COLORS = ['#fb4f7a', '#ff8a80', '#ffe3ea'] as const
+/** Motif de 20 : 14 roses, 5 corail, 1 blanche. Chaque tranche de 20 garde le mélange, donc la première moitié aussi. */
 const bucketOf = (i: number): number => (i % 20 === 0 ? 2 : i % 4 === 2 ? 1 : 0)
 /** Indices de chaque couleur, croissants : couper à `count` garde les proportions. */
 const BY_BUCKET: number[][] = [[], [], []]

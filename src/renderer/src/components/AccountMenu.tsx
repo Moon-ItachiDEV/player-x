@@ -10,7 +10,9 @@ import './chrome.css'
 export type { AccountMenuProps }
 
 const PLATFORMS: FriendPlatform[] = ['steam', 'discord', 'psn']
-const MENU_STYLE: React.CSSProperties = { left: 'calc(var(--rail-w) + 10px)', top: 72, width: 288 }
+// Sous Windows, les boutons natifs (réduire, agrandir, fermer) occupent le coin haut droit.
+const IS_WIN_OVERLAY = window.launcher?.platform !== 'darwin'
+const MENU_STYLE: React.CSSProperties = { right: IS_WIN_OVERLAY ? 150 : 16, top: 'calc(var(--topbar-h) + 6px)', width: 288 }
 
 /** Compte principal : Steam, puis Discord, puis PSN. */
 function primaryAccount(accounts: Account[]): Account | undefined {
@@ -21,7 +23,7 @@ function primaryAccount(accounts: Account[]): Account | undefined {
   return accounts[0]
 }
 
-/** Popover du compte, ancré sous la salutation du menu latéral. */
+/** Popover du compte, ancré sous l'avatar de la barre du haut. */
 export function AccountMenu({ open, accounts, onClose, onProfile, onAccounts, onSettings, onLogin }: AccountMenuProps): React.JSX.Element | null {
   const bodyRef = useRef<HTMLDivElement>(null)
 

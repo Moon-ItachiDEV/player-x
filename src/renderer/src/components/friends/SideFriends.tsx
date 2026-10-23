@@ -135,7 +135,7 @@ function maskedLabel(hidden: HiddenMember[]): string {
   return parts.length ? `${parts.join(' et ')} masqué${hidden.length > 1 ? 's' : ''}` : ''
 }
 
-/** Liste d'amis du menu latéral : en jeu, en ligne et absents visibles ; hors ligne et serveur Discord repliables. */
+/** Liste d'amis (page Amis) : en jeu, en ligne et absents visibles ; hors ligne et serveur Discord repliables. */
 export function SideFriends(props: SideFriendsProps): React.JSX.Element {
   const { result, accounts, games, demo, discordConfigured, loading, open, onToggleOpen, onRefresh, onOpenAccounts, onHideMember, onManageHidden } = props
   const [folded, setFolded] = useState<Folded>(readFolded)

@@ -1,6 +1,6 @@
-/* Chrome de l'application : rail des favoris (.favrail-), menu latéral (.side-), barre du haut (.tb-) et menu du compte (.acc-) */
+/* Chrome de l'application : rail (.favrail-, .rail-), barre du haut (.tb-) et menu du compte (.acc-) */
 
-/* ---------- rail des favoris ---------- */
+/* ---------- rail (design Braise) : logo, pages, favoris, paramètres ---------- */
 
 .favrail {
   position: relative;
@@ -9,26 +9,111 @@
   align-items: center;
   min-height: 0;
   background: var(--bg-rail);
-  border-right: 1px solid var(--line-1);
+  box-shadow: inset -1px 0 0 var(--line-1);
 }
 
 .favrail-logo {
   display: grid;
   place-items: center;
   width: 100%;
-  height: var(--topbar-h);
+  height: calc(var(--topbar-h) + 18px);
   flex-shrink: 0;
+  padding-top: 6px;
   -webkit-app-region: drag;
 }
-.favrail-logo::after {
+.favrail-logo .brand-mark {
+  filter: drop-shadow(0 6px 14px rgba(224, 32, 126, 0.35));
+}
+
+/* Pages : icônes de 48 px, l'active en rose avec une barre sur le bord gauche */
+.rail-nav,
+.rail-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  width: 100%;
+}
+.rail-foot {
+  margin-top: auto;
+  padding: 10px 0 16px;
+}
+.rail-nav-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-md);
+  color: var(--text-3);
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    box-shadow var(--d-1) var(--ease-out);
+}
+.rail-nav-btn svg {
+  transition: scale 160ms var(--ease-glide);
+}
+.rail-nav-btn:hover {
+  background: var(--surface-1);
+  color: var(--text-1);
+}
+.rail-nav-btn:hover svg {
+  scale: 1.08;
+}
+.rail-nav-btn[aria-current='page'] {
+  background: var(--nav-on-bg);
+  color: var(--accent-text);
+  box-shadow: inset 0 0 0 1px var(--nav-on-line);
+}
+.rail-nav-btn[aria-current='page']::before {
   content: '';
   position: absolute;
-  top: var(--topbar-h);
-  left: 50%;
-  width: 26px;
+  left: -18px;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.rail-badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-pill);
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  font: 700 10.5px/18px var(--font-ui);
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--bg-rail);
+}
+/* Nouveautés (patchs) : couleur d'information ; amis en jeu : le cyan du « en jeu » */
+.rail-badge.is-info {
+  background: var(--info);
+  color: var(--ink);
+}
+.rail-badge.is-live {
+  background: var(--live);
+  color: var(--on-live);
+}
+
+.rail-sep {
+  width: 32px;
   height: 1px;
-  margin-left: -13px;
+  margin: 14px 0 10px;
+  flex-shrink: 0;
   background: var(--line-2);
+}
+.rail-label {
+  flex-shrink: 0;
+  font: 600 10px/12px var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
 }
 
 .favrail-list {
@@ -38,7 +123,7 @@
   gap: 12px;
   width: 100%;
   min-height: 0;
-  padding: 14px 0 16px;
+  padding: 10px 0 12px;
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -49,8 +134,8 @@
 .favrail-item {
   position: relative;
   display: block;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   flex-shrink: 0;
   border-radius: var(--r-md);
   box-shadow:
@@ -83,7 +168,7 @@
 .favrail-item:active {
   scale: 0.94;
 }
-/* Lancement en attente : anneau jaune immobile, sans voile (rien ne tourne). */
+/* Lancement en attente : anneau rose immobile, sans voile (rien ne tourne). */
 .favrail-item.is-pending {
   box-shadow:
     0 0 0 2px var(--bg-rail),
@@ -104,6 +189,9 @@
   .favrail-item.is-live {
     outline: 2px solid CanvasText;
     outline-offset: 2px;
+  }
+  .rail-nav-btn[aria-current='page'] {
+    outline: 2px solid CanvasText;
   }
 }
 .favrail-dot {
@@ -143,11 +231,11 @@
 }
 .favrail-add:hover {
   border-color: var(--accent-line);
-  color: var(--accent);
+  color: var(--accent-text);
   box-shadow: none;
 }
 
-/* Infobulle du rail : nom du jeu et rappel des clics, à droite du bouton */
+/* Infobulle du rail : nom de la page ou du jeu (et le rappel des clics), à droite du bouton */
 .favrail-tip {
   position: fixed;
   left: calc(var(--rail-w) + 6px);
@@ -180,8 +268,7 @@
 }
 .favrail-tip-name {
   font: 700 14px/18px var(--font-display);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
@@ -199,78 +286,7 @@
   }
 }
 
-/* ---------- menu latéral ---------- */
-
-.side {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  /* Opaque (il porte beaucoup de texte) : un filet de verre et une ombre douce le détachent du contenu. */
-  background: var(--bg-2);
-  border-right: 1px solid var(--glass-line);
-  box-shadow: 10px 0 30px -18px rgba(2, 8, 20, 0.7);
-}
-
-.side-head {
-  flex-shrink: 0;
-  padding: 10px 10px 4px;
-  -webkit-app-region: drag;
-}
-.side-me {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 8px 8px 8px 6px;
-  border-radius: var(--r-lg);
-  text-align: left;
-  -webkit-app-region: no-drag;
-  transition: background-color var(--d-1) var(--ease-out);
-}
-.side-me .avatar {
-  --cut: var(--bg-2);
-  background: var(--brand-gradient);
-}
-.side-me .avatar-initial {
-  color: #fff;
-  font-weight: 700;
-}
-.side-me:hover,
-.side-me[aria-expanded='true'] {
-  background: var(--nav-on-bg);
-}
-.side-me:hover .avatar,
-.side-me[aria-expanded='true'] .avatar {
-  --cut: var(--cut-hover);
-}
-.side-hi {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-.side-hi small {
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-3);
-}
-.side-hi b {
-  font: 700 18px/21px var(--font-display);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.side-me-chev {
-  color: var(--text-3);
-  flex-shrink: 0;
-  transition: rotate var(--d-2) var(--ease-out);
-}
-.side-me[aria-expanded='true'] .side-me-chev {
-  rotate: 180deg;
-}
-
+/* Libellé de section en petites capitales (liste d'amis) */
 .side-label {
   padding: 8px 12px 6px;
   font: 700 10.5px/14px var(--font-ui);
@@ -279,109 +295,17 @@
   color: var(--text-3);
 }
 
-.side-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex-shrink: 0;
-  padding: 2px 12px;
-}
-.side-nav-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  height: 38px;
-  padding: 0 12px;
-  border-radius: var(--r-md);
-  color: var(--text-2);
-  font: 600 13.5px/1 var(--font-ui);
-  text-align: left;
-  transition:
-    background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out),
-    box-shadow var(--d-1) var(--ease-out);
-}
-.side-nav-btn svg {
-  flex-shrink: 0;
-  transition:
-    color var(--d-1) var(--ease-out),
-    scale 160ms var(--ease-glide);
-}
-.side-nav-btn:hover {
-  background: rgba(150, 195, 255, 0.06);
-  color: var(--text-1);
-}
-.side-nav-btn:hover svg {
-  scale: 1.08;
-}
-.side-nav-btn[aria-current='page'] {
-  background: var(--nav-on-bg);
-  color: #fff;
-  box-shadow: inset 0 0 0 1px var(--nav-on-line);
-}
-.side-nav-btn[aria-current='page'] svg {
-  color: var(--accent);
-}
-.side-nav-label {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.side-count {
-  padding: 3px 8px;
-  border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font: 700 11px/1 var(--font-ui);
-}
-/* Nouveautés (patchs) : couleur d'information, pas le jaune des actions */
-.side-count.is-info {
-  background: color-mix(in srgb, var(--info) 16%, transparent);
-  color: var(--info);
-}
-
-.side-foot {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex-shrink: 0;
-  padding: 6px 12px 14px;
-  border-top: 1px solid var(--line-1);
-}
-.side-demo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 8px 12px;
-  border-radius: var(--r-md);
-  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
-  background: var(--warning-soft);
-  font: 600 11.5px/15px var(--font-ui);
-  color: var(--warning);
-}
-.side-demo-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
-}
-
 /* ---------- barre du haut ---------- */
 
 .topbar {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
   height: var(--topbar-h);
   /* À droite : place pour les boutons natifs de Windows (réduire, agrandir, fermer) */
-  padding: 0 150px 0 24px;
+  padding: 0 150px 0 32px;
   /* Verre : le contenu (et le visuel du héros) défile dessous, flouté. */
   background: var(--glass-bar);
   backdrop-filter: var(--glass-blur);
@@ -396,7 +320,7 @@
 .topbar.is-mac {
   padding-right: 24px;
 }
-/* Filet jaune qui apparaît dès que le contenu défile (timeline --px-content, voir shell.css) */
+/* Filet qui apparaît dès que le contenu défile (timeline --px-content, voir shell.css) */
 .topbar::after {
   content: '';
   position: absolute;
@@ -425,9 +349,8 @@
 
 .tb-title {
   flex-shrink: 0;
-  font: 700 16px/1 var(--font-display);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font: 700 20px/1 var(--font-display);
+  letter-spacing: -0.01em;
   color: var(--text-1);
 }
 /* Les onglets gardent leur largeur : la recherche rétrécit d'abord (jusqu'à 120px) ; ils ne défilent qu'en dernier recours. */
@@ -450,7 +373,7 @@
   flex: 1;
 }
 
-/* Onglets de page (TopTabs.tsx) : toute la hauteur de la barre, soulignés en jaune sur le filet du bas */
+/* Onglets de page (TopTabs.tsx) : toute la hauteur de la barre, soulignés en rose sur le filet du bas */
 .tb-tabs {
   display: flex;
   gap: 2px;
@@ -468,9 +391,7 @@
   gap: 8px;
   padding: 0 14px;
   color: var(--text-2);
-  font: 700 12px/1 var(--font-ui);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font: 600 14px/1 var(--font-ui);
   white-space: nowrap;
   flex-shrink: 0;
   -webkit-app-region: no-drag;
@@ -497,7 +418,7 @@
   outline-offset: -4px;
 }
 .tb-tab[aria-selected='true'] {
-  background: linear-gradient(to top, rgba(255, 210, 63, 0.08), transparent 75%);
+  background: linear-gradient(to top, rgba(255, 92, 134, 0.08), transparent 75%);
   color: #fff;
 }
 .tb-tab[aria-selected='true']::after {
@@ -519,9 +440,7 @@
 }
 .tb-tab-badge {
   color: var(--text-3);
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: none;
+  font-weight: 600;
 }
 .tb-tab-alert {
   display: inline-grid;
@@ -536,12 +455,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 0 1 300px;
+  flex: 0 1 380px;
   min-width: 120px;
-  height: 34px;
-  padding: 0 5px 0 12px;
+  height: 40px;
+  padding: 0 7px 0 14px;
   container-type: inline-size;
-  border-radius: var(--r-md);
+  border-radius: var(--r-pill);
   background: var(--field-bg);
   border: 1px solid var(--line-2);
   color: var(--text-3);
@@ -558,7 +477,7 @@
 }
 .tb-search:focus-within {
   border-color: var(--accent-line);
-  box-shadow: 0 0 0 3px rgba(255, 210, 63, 0.14);
+  box-shadow: 0 0 0 3px rgba(255, 92, 134, 0.14);
   color: var(--text-2);
 }
 .tb-search-icon {
@@ -632,10 +551,52 @@
   color: var(--text-1);
 }
 
+/* Mode démo : pastille ambre ; compte : avatar rond à droite (ouvre le menu du compte) */
+.tb-demo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: var(--r-pill);
+  background: var(--warning-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 40%, transparent);
+  color: var(--warning);
+  font: 600 12px/1 var(--font-ui);
+}
+.tb-demo-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.tb-me {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  transition: box-shadow var(--d-1) var(--ease-out);
+}
+.tb-me .avatar {
+  --cut: var(--bg-2);
+  background: var(--brand-gradient);
+}
+.tb-me .avatar-initial {
+  color: var(--on-accent);
+  font-weight: 700;
+}
+.tb-me:hover,
+.tb-me[aria-expanded='true'] {
+  box-shadow: 0 0 0 2px var(--accent-line);
+}
+
 /* ---------- menu du compte ---------- */
 
 .acc-menu {
-  transform-origin: top left;
+  transform-origin: top right;
 }
 
 .acc-head {
@@ -655,8 +616,7 @@
 }
 .acc-name {
   font: 700 16px/20px var(--font-display);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -742,13 +702,9 @@
   }
   .tb-tab {
     padding: 0 10px;
-    letter-spacing: 0.04em;
   }
 }
 @media (max-width: 1180px) {
-  :root {
-    --side-w: 220px;
-  }
   .topbar {
     padding-left: 20px;
   }

@@ -71,7 +71,7 @@
   color: var(--text-2);
 }
 
-/* Bouton fournisseur (Steam) : l'action principale de l'écran, en jaune */
+/* Bouton fournisseur (Steam) : l'action principale de l'écran, en rose */
 .login-provider {
   display: flex;
   align-items: center;
@@ -246,7 +246,7 @@
   pointer-events: none;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--bg-0) 90%, transparent) 0, transparent 120px),
-    radial-gradient(60% 60% at 70% 40%, rgb(47 124 246 / 0.16), transparent 70%),
+    radial-gradient(60% 60% at 70% 40%, rgb(251 79 122 / 0.13), transparent 70%),
     linear-gradient(
       90deg,
       var(--bg-1) 0%,

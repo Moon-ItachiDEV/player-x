@@ -22,7 +22,7 @@
   overscroll-behavior: contain;
   background: var(--bg-2);
   border-left: 1px solid var(--glass-line);
-  box-shadow: -24px 0 60px -20px rgba(2, 8, 20, 0.7);
+  box-shadow: -24px 0 60px -20px rgba(0, 0, 0, 0.7);
   outline: none;
   animation: sheet-in var(--d-3) var(--ease-out);
   /* Défilement du tiroir : pilote la parallaxe de l'en-tête (.sheet-art est overflow: hidden, pas de scroll(nearest)). */
@@ -30,7 +30,7 @@
 }
 /* Le tiroir reçoit le focus à l'ouverture : pas d'anneau autour du panneau entier. */
 .sheet-panel:focus-visible {
-  box-shadow: -24px 0 60px -20px rgba(2, 8, 20, 0.7);
+  box-shadow: -24px 0 60px -20px rgba(0, 0, 0, 0.7);
 }
 
 /* Ouverte par une transition de vue : le morphing remplace le glissement. Avant .is-closing pour que la fermeture gagne. */
@@ -145,9 +145,8 @@
   gap: 8px;
 }
 .sheet-title {
-  font: 800 34px/1.02 var(--font-display);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font: 700 29px/1.02 var(--font-display);
+  letter-spacing: -0.01em;
   color: #fff;
   text-wrap: balance;
   text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
@@ -303,7 +302,7 @@
   color: var(--text-3);
 }
 .sheet-tile-value {
-  font: 800 20px/24px var(--font-display);
+  font: 700 20px/24px var(--font-display);
   color: var(--text-1);
 }
 .sheet-tile-caption {
@@ -395,8 +394,7 @@
   gap: 8px;
   margin-bottom: 10px;
   font: 700 15px/20px var(--font-display);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
   color: var(--text-1);
 }
 .sheet-h-count {

@@ -26,11 +26,11 @@ export const CELLS = Array.from({ length: 10 }, (_, j) => arcD(22.5, j * 36 + 4,
 export const ORBIT_D = arcD(17, 0, 70)
 export const INNER_C = 2 * Math.PI * 17
 
-// Dégradé de la marque échantillonné par graduation : #7c3aed (0) → #4f7cff (.55) → #22d3ee (1). Le cyan n'arrive qu'à la fin.
+// Dégradé de la marque échantillonné par graduation : #e0207e (0) → #fb4f7a (.55) → #ff8a80 (1), comme l'icône.
 const STOPS: Array<[number, [number, number, number]]> = [
-  [0, [124, 58, 237]],
-  [0.55, [79, 124, 255]],
-  [1, [34, 211, 238]]
+  [0, [224, 32, 126]],
+  [0.55, [251, 79, 122]],
+  [1, [255, 138, 128]]
 ]
 function gradientAt(t: number): string {
   const k = STOPS.findIndex(([o]) => o >= t)

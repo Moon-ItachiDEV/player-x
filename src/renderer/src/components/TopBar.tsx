@@ -1,13 +1,29 @@
+import type { Account, FriendPlatform } from '@shared/types'
 import type { TopBarProps } from '../contracts'
+import { Avatar } from './ui/Avatar'
 import { Icon } from './ui/Icon'
 import './chrome.css'
 
 export type { TopBarProps }
 
 const IS_MAC = window.launcher?.platform === 'darwin'
+const PRIORITY: FriendPlatform[] = ['steam', 'discord', 'psn']
 
-/** Barre du haut : zone de déplacement de la fenêtre, titre ou onglets de la page, recherche. */
-export function TopBar({ title, query, onQueryChange, searchRef, slotRef }: TopBarProps): React.JSX.Element {
+/** Compte affiché sur l'avatar : Steam, puis Discord, puis PSN. */
+function primaryAccount(accounts: Account[]): Account | undefined {
+  for (const p of PRIORITY) {
+    const a = accounts.find((x) => x.platform === p)
+    if (a) return a
+  }
+  return accounts[0]
+}
+
+/** Barre du haut : zone de déplacement de la fenêtre, titre ou onglets de la page, recherche, mode démo, compte. */
+export function TopBar(props: TopBarProps): React.JSX.Element {
+  const { title, query, onQueryChange, searchRef, slotRef, accounts, accountMenuOpen, onToggleAccountMenu, demo } = props
+  const account = primaryAccount(accounts)
+  const name = account?.name ?? 'Joueur'
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key !== 'Escape') return
     if (query) {
@@ -62,6 +78,25 @@ export function TopBar({ title, query, onQueryChange, searchRef, slotRef }: TopB
           </kbd>
         )}
       </div>
+
+      {demo && (
+        <span className="tb-demo" title="Mode démo actif : jeux et amis fictifs">
+          <span className="tb-demo-dot" aria-hidden="true" />
+          Démo
+        </span>
+      )}
+
+      <button
+        className="tb-me"
+        aria-label={account ? `Mon compte (${name})` : 'Compte invité'}
+        aria-haspopup="menu"
+        aria-expanded={accountMenuOpen}
+        // Le menu se ferme au clic extérieur : sans ceci, ce clic le rouvrirait aussitôt.
+        onMouseDown={(e) => accountMenuOpen && e.stopPropagation()}
+        onClick={onToggleAccountMenu}
+      >
+        <Avatar name={name} url={account?.avatarUrl} size={36} status={account ? 'connected' : 'guest'} />
+      </button>
     </header>
   )
 }

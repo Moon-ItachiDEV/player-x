@@ -5,6 +5,7 @@ import { AccountMenu } from './components/AccountMenu'
 import { Trophies } from './components/achievements/Trophies'
 import { Ambient } from './components/Ambient'
 import { FavRail } from './components/FavRail'
+import { FriendsPage } from './components/friends/FriendsPage'
 import { FriendAlerts } from './components/FriendAlerts'
 import { GameSheet } from './components/GameSheet'
 import { Home } from './components/home/Home'
@@ -14,7 +15,6 @@ import { NewsPage } from './components/news/NewsPage'
 import { Profile } from './components/Profile'
 import { SettingsView } from './components/settings/SettingsView'
 import { Setup } from './components/setup/Setup'
-import { Sidebar } from './components/Sidebar'
 import { RecapHost } from './components/stats/Recap'
 import { Cs2RecapHost } from './components/cs2/Cs2Recap'
 import { Stats } from './components/stats/Stats'
@@ -42,7 +42,7 @@ const DEFAULT_UI: UiPrefs = { friendsPanel: 'open', coverSize: 'M', reduceMotion
 const SETUP_KEY = 'pg.setup'
 
 /** Titre de la barre du haut ; la bibliothèque, les stats et les paramètres y posent leurs onglets à la place. */
-const VIEW_TITLE: Partial<Record<View, string>> = { home: 'Accueil', profile: 'Profil', trophies: 'Trophées' }
+const VIEW_TITLE: Partial<Record<View, string>> = { home: 'Accueil', friends: 'Amis', profile: 'Profil', trophies: 'Trophées' }
 
 function setupDone(): boolean {
   try {
@@ -271,10 +271,11 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     return (steamLib?.notInstalled ?? []).filter((g) => !here.has(g.id))
   }, [games, steamLib])
 
-  // Clic sur une notification Windows d'un ami (ou sur une alerte) : la liste d'amis du menu se déplie et se montre.
+  // Clic sur une notification Windows d'un ami (ou sur une alerte) : la page Amis s'ouvre, liste dépliée.
   const showFriends = useCallback(() => {
     updateUi({ friendsPanel: 'open' })
-    requestAnimationFrame(() => document.querySelector('.side-friends')?.scrollIntoView({ block: 'nearest' }))
+    setView('friends')
+    setAccountMenu(false)
   }, [updateUi])
   useEffect(() => api.onShowFriends(showFriends), [showFriends])
 
@@ -488,36 +489,38 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     setAccountMenu(false)
   }
 
+  const friendsProps = {
+    result: friends,
+    accounts,
+    games,
+    demo: settings.demoMode,
+    discordConfigured: !!settings.discordGuildId,
+    loading: friendsLoading,
+    open: friendsOpen,
+    onToggleOpen: () => updateUi({ friendsPanel: friendsOpen ? 'hidden' : 'open' }),
+    onRefresh: loadFriends,
+    onOpenAccounts: () => goSettings('accounts'),
+    onHideMember: hideMember,
+    onManageHidden: () => {
+      setSettingsFocus('hidden-members')
+      goSettings('accounts')
+    }
+  }
+  const friendsInGame = friends.friends.filter((f) => f.status === 'in-game').length
+
   return (
     <div className="shell">
-      <FavRail games={shownGames} onLaunch={startLaunch} onOpen={openSheet} onEditFavorites={() => setSetup({ open: true, first: false })} />
-      <Sidebar
+      <FavRail
+        games={shownGames}
+        onLaunch={startLaunch}
+        onOpen={openSheet}
+        onEditFavorites={() => setSetup({ open: true, first: false })}
         view={view}
         onView={go}
         gamesCount={games.length}
-        accounts={accounts}
-        demo={settings.demoMode}
-        accountMenuOpen={accountMenu}
-        onToggleAccountMenu={() => setAccountMenu((o) => !o)}
-        friends={{
-          result: friends,
-          accounts,
-          games,
-          demo: settings.demoMode,
-          discordConfigured: !!settings.discordGuildId,
-          loading: friendsLoading,
-          open: friendsOpen,
-          onToggleOpen: () => updateUi({ friendsPanel: friendsOpen ? 'hidden' : 'open' }),
-          onRefresh: loadFriends,
-          onOpenAccounts: () => goSettings('accounts'),
-          onHideMember: hideMember,
-          onManageHidden: () => {
-            setSettingsFocus('hidden-members')
-            goSettings('accounts')
-          }
-        }}
         news={settings.gameNews}
         newsCount={games.filter((g) => g.newPatch).length}
+        friendsInGame={friendsInGame}
       />
       <TopBar
         title={VIEW_TITLE[view]}
@@ -528,6 +531,10 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         }}
         searchRef={searchRef}
         slotRef={setTabSlot}
+        accounts={accounts}
+        accountMenuOpen={accountMenu}
+        onToggleAccountMenu={() => setAccountMenu((o) => !o)}
+        demo={settings.demoMode}
       />
       <Ambient />
       <TopSlot.Provider value={tabSlot}>
@@ -569,6 +576,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               onCoverSize={(coverSize) => updateUi({ coverSize })}
             />
           )}
+          {view === 'friends' && <FriendsPage {...friendsProps} />}
           {view === 'profile' && (
             <Profile
               games={shownGames}

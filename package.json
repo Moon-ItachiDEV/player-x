@@ -70,9 +70,8 @@
     "icon": "resources/icon.png"
   },
   "dependencies": {
-    "@fontsource/barlow": "^5.3.0",
-    "@fontsource/barlow-condensed": "^5.3.0",
-    "@fontsource/michroma": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/sora": "^5.3.0",
     "electron-updater": "^6.8.9",
     "psn-api": "^2.18.1",
     "react": "^19.3.1",

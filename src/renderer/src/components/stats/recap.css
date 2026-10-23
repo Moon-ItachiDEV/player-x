@@ -31,8 +31,8 @@
   z-index: -1;
   overflow: hidden;
   background:
-    radial-gradient(90% 140% at 100% 0%, rgb(47 124 246 / 0.34) 0%, transparent 60%),
-    radial-gradient(60% 120% at 0% 0%, rgb(63 208 255 / 0.1) 0%, transparent 70%),
+    radial-gradient(90% 140% at 100% 0%, rgb(251 79 122 / 0.26) 0%, transparent 60%),
+    radial-gradient(60% 120% at 0% 0%, rgb(255 138 128 / 0.1) 0%, transparent 70%),
     var(--bg-1);
 }
 .recap-art img {
@@ -48,8 +48,8 @@
   position: absolute;
   top: 10px;
   right: 22px;
-  font: 800 72px/1 var(--font-display);
-  letter-spacing: 0.04em;
+  font: 700 62px/1 var(--font-display);
+  letter-spacing: -0.01em;
   color: transparent;
   -webkit-text-stroke: 1px var(--line-3);
 }
@@ -66,9 +66,8 @@
 }
 .dialog .recap-title {
   margin: 0;
-  font: 800 30px/32px var(--font-display);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font: 700 26px/28px var(--font-display);
+  letter-spacing: -0.01em;
   color: var(--text-1);
   text-shadow: 0 2px 16px rgb(0 0 0 / 0.5);
 }
@@ -125,7 +124,7 @@
   gap: 2px;
 }
 .recap-kd-value {
-  font: 800 60px/60px var(--font-display);
+  font: 700 52px/52px var(--font-display);
   letter-spacing: -0.01em;
   color: var(--accent);
 }
@@ -176,7 +175,7 @@
 }
 .recap-big dd {
   margin: 4px 0 0;
-  font: 800 36px/40px var(--font-display);
+  font: 700 31px/34px var(--font-display);
   color: var(--text-1);
 }
 .recap-big dd small {
@@ -267,8 +266,7 @@
 }
 .recap-card-name {
   font: 700 18px/22px var(--font-display);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
@@ -325,8 +323,7 @@
 }
 .recap-map-name {
   font: 700 15px/18px var(--font-display);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
@@ -402,7 +399,7 @@
 }
 .recap-status.is-live {
   background: var(--live-soft);
-  border-color: rgb(63 208 255 / 0.3);
+  border-color: rgb(79 214 232 / 0.3);
 }
 .recap-status.is-live b {
   color: var(--live-text);
@@ -528,7 +525,7 @@
   transition: background-color var(--d-1) var(--ease-out);
 }
 .recap-history-row:hover {
-  background: rgba(140, 190, 255, 0.05);
+  background: rgba(255, 200, 220, 0.05);
   color: var(--text-1);
 }
 .recap-history-row:hover > svg {
