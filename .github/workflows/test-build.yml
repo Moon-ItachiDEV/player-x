@@ -72,12 +72,20 @@ jobs:
           "dist/Player-X-Installer-${VERSION}.exe" --selftest-install "${dir}" > "${RUNNER_TEMP}/selftest.log" 2>&1 || { cat "${RUNNER_TEMP}/selftest.log"; echo "::error::L'installeur sur mesure a échoué"; exit 1; }
           cat "${RUNNER_TEMP}/selftest.log"
           echo "::notice::Installation silencieuse réussie : $(tail -n 1 "${RUNNER_TEMP}/selftest.log")"
-          shot="$(cygpath -w "${RUNNER_TEMP}")\\installeur-capture.png"
-          code=0
-          "dist/Player-X-Installer-${VERSION}.exe" --selftest "${shot}" > "${RUNNER_TEMP}/window.log" 2>&1 || code=$?
-          cat "${RUNNER_TEMP}/window.log"
-          echo "::notice::Fenêtre de l'installeur (code ${code}) : $(tr '\n' ' ' < "${RUNNER_TEMP}/window.log")"
-          if [ "${code}" = "4" ]; then echo "::error::La fenêtre s'affiche mais la page n'est pas dessinée"; exit 1; fi
+          # Rendu de la fenêtre : la version normale, puis des variantes de diagnostic ; captures déposées dans le brouillon.
+          export GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          gh release view test-build > /dev/null 2>&1 || gh release create test-build --draft --prerelease --title "Installeur de test" --notes "Brouillon jamais publié." --target "${GITHUB_SHA}"
+          fail=0
+          for v in normal early nobg noround early-nobg; do
+            shot="$(cygpath -w "${RUNNER_TEMP}")\\capture-${v}.png"
+            code=0
+            env PXI_EARLY=$([[ $v == early* ]] && echo 1 || echo 0) PXI_NOBG=$([[ $v == *nobg ]] && echo 1 || echo 0) PXI_NOROUND=$([[ $v == noround ]] && echo 1 || echo 0) \
+              "dist/Player-X-Installer-${VERSION}.exe" --selftest "${shot}" > "${RUNNER_TEMP}/window-${v}.log" 2>&1 || code=$?
+            echo "::notice::Fenêtre ${v} (code ${code}) : $(tr '\n' ' ' < "${RUNNER_TEMP}/window-${v}.log")"
+            for f in "${RUNNER_TEMP}/capture-${v}.png" "${RUNNER_TEMP}/capture-${v}-ecran.png"; do [ -f "$f" ] && gh release upload test-build "$f" --clobber || true; done
+            if [ "${v}" = "normal" ] && [ "${code}" = "4" ]; then fail=1; fi
+          done
+          if [ "${fail}" = "1" ]; then echo "::error::La fenêtre s'affiche mais la page n'est pas dessinée"; exit 1; fi
 
       - uses: actions/upload-artifact@v4
         with:
