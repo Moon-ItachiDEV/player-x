@@ -23,30 +23,26 @@
   }
 }
 
-/* ---------- barre d'outils collante ---------- */
+/* ---------- barre de filtres collante ---------- */
 
 .lib-sentinel {
   height: 1px;
   margin-bottom: -1px;
 }
+/* Bande pleine largeur qui colle sous la barre du haut ; elle porte le panneau de filtres en pilules. */
 .lib-toolbar {
   position: sticky;
   /* Le contenu défile sous la barre du haut ; son padding (la hauteur de la barre) compte déjà : top 0 la colle juste dessous. */
   top: 0;
   z-index: var(--z-sticky);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 16px;
-  min-height: 60px;
   margin: 0 calc(var(--lib-pad-x) * -1);
-  padding: 12px var(--lib-pad-x);
+  padding: 10px var(--lib-pad-x);
   border-bottom: 1px solid transparent;
   transition:
     border-color var(--d-1) var(--ease-out),
     background-color var(--d-1) var(--ease-out);
 }
-/* Verre seulement une fois collée sous la barre du haut : au repos, la barre laisse voir le décor */
+/* Verre seulement une fois collée sous la barre du haut : au repos, la bande laisse voir le décor */
 .lib-toolbar.is-stuck {
   background: var(--glass-bar);
   backdrop-filter: var(--glass-blur);
@@ -55,38 +51,135 @@
 .no-blur .lib-toolbar.is-stuck {
   background: var(--bg-2);
 }
-.lib-picks {
+.lib-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-}
-.lib-tb-end {
-  display: flex;
   align-items: center;
-  gap: 14px;
-  min-width: 0;
+  gap: 10px 12px;
+  min-height: 66px;
+  padding: 12px;
+  border-radius: 22px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.lib-filters-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
   margin-left: auto;
 }
-.lib-tb-summary {
-  display: flex;
-  align-items: center;
+.lib-filters-status {
+  padding-left: 8px;
+}
+
+/* Pilules à choix unique : le choix actif se détache sur un fond encastré */
+.lib-seg {
+  display: inline-flex;
   gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-pill);
+  background: var(--bg-1);
+}
+.lib-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 15px;
+  border-radius: var(--r-pill);
+  color: var(--text-3);
+  font: 600 13px/18px var(--font-ui);
+  white-space: nowrap;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out);
+}
+.lib-seg-btn:hover:not(:disabled, [aria-pressed='true']) {
+  color: var(--text-1);
+  background: var(--surface-1);
+}
+.lib-seg-btn[aria-pressed='true'] {
+  color: var(--text-1);
+  background: var(--surface-3);
+}
+.lib-seg-btn:disabled {
+  color: var(--text-4);
+  cursor: default;
+}
+.lib-seg.is-icons .lib-seg-btn {
+  width: 34px;
+  padding: 0;
+}
+.lib-fav-btn[aria-pressed='true'] svg {
+  color: var(--favorite);
+}
+
+/* Menus « Trier » et « Taille » en pilule */
+.picker.lib-pick {
+  height: 42px;
+  padding: 0 14px 0 16px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--text-2);
+  font: 600 13px/18px var(--font-ui);
+}
+.picker.lib-pick strong {
+  color: var(--text-1);
+}
+.picker.lib-pick:hover {
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 1px var(--line-3);
+}
+.picker.lib-pick[aria-expanded='true'] {
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.lib-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--text-2);
+  transition:
+    color var(--d-1) var(--ease-out),
+    box-shadow var(--d-1) var(--ease-out);
+}
+.lib-icon-btn:hover:not([aria-disabled='true']) {
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 1px var(--line-3);
+}
+.lib-icon-btn[aria-disabled='true'] {
+  cursor: progress;
+}
+
+/* Recherche en cours : rappel de la requête et du nombre de résultats */
+.lib-results {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   min-width: 0;
-  font: 500 12.5px/16px var(--font-ui);
+  margin: 6px 4px 0;
+  font: 500 13px/18px var(--font-ui);
   color: var(--text-3);
   white-space: nowrap;
 }
-.lib-tb-query {
+.lib-results-query {
   min-width: 0;
-  max-width: 280px;
+  max-width: 420px;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--text-1);
   font-weight: 600;
 }
-.link-btn.lib-tb-clear {
+.link-btn.lib-results-clear {
   margin-left: 8px;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 .lib-chevron {
   transition: transform var(--d-2) var(--ease-out);
@@ -95,13 +188,23 @@
   transform: rotate(180deg);
 }
 
+/* Phrase de bas de page (jeux Steam non installés) */
+.lib-note {
+  margin: 28px auto 0;
+  max-width: 72ch;
+  text-align: center;
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-3);
+}
+
 /* ---------- grille ---------- */
 
+/* 6 colonnes à 1440 px en taille M (maquette) ; S et L en ajoutent ou en retirent une. */
 .lib-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--cover-min), 1fr));
-  gap: 18px 16px;
-  margin-top: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--cover-min) + 26px), 1fr));
+  gap: 22px;
+  margin-top: 14px;
 }
 
 /*
@@ -211,23 +314,71 @@
   scale: 1;
   transition: scale 400ms var(--ease-out);
 }
-.lib-card-tag.store-tag {
-  flex-shrink: 0;
-  min-width: 22px;
-  width: auto !important;
-  padding: 0 4px;
-  color: var(--text-3);
-  background: transparent;
-  box-shadow: inset 0 0 0 1px var(--line-2);
-  letter-spacing: 0.03em;
-}
+/* Voile du survol : la jaquette s'assombrit sous le bouton Jouer */
 .lib-card-overlay {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 92%, transparent), transparent 58%);
+  background: color-mix(in srgb, var(--ink) 38%, transparent);
   opacity: 0;
   transition: opacity var(--d-2) var(--ease-out);
+}
+
+/* Pastilles posées sur la jaquette : plateforme en haut à gauche, état ou « Installer » en haut à droite */
+.lib-card-store {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--r-pill);
+  background: var(--badge-bg);
+  color: var(--text-1);
+  font: 600 11px/14px var(--font-ui);
+  white-space: nowrap;
+}
+.lib-card-corner {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+}
+.lib-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--r-pill);
+  font: 600 11px/14px var(--font-ui);
+  white-space: nowrap;
+}
+/* En jeu : cyan, réservé à cet état */
+.lib-badge-live {
+  color: var(--live-text);
+  background: linear-gradient(var(--live-soft), var(--live-soft)), var(--badge-bg);
+  box-shadow: inset 0 0 0 1px var(--live-line);
+}
+.lib-badge-live .live-dot {
+  width: 6px;
+  height: 6px;
+}
+/* Nouveau patch : rose plein */
+.lib-badge-patch {
+  color: var(--on-accent);
+  background: var(--accent-solid);
+}
+/* Installer : blanc, c'est un vrai bouton (ouvre Steam) */
+.lib-badge-install {
+  color: var(--bg-1);
+  background: var(--text-1);
+  transition: background-color var(--d-1) var(--ease-out);
+}
+.lib-badge-install:hover:not([aria-disabled='true']) {
+  background: color-mix(in srgb, var(--text-1) 82%, var(--accent-text));
 }
 /* Reflet : la lumière glisse sur la jaquette en suivant le pointeur */
 .lib-card-glare {
@@ -262,18 +413,20 @@
   pointer-events: none;
   transition: opacity 260ms var(--ease-out);
 }
+/* Jouer : au centre de la jaquette, au survol, au focus et pendant un lancement */
 .lib-card-play {
   position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
+  inset: 0;
   z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
-  border-radius: var(--r-md);
+  width: fit-content;
+  height: 38px;
+  margin: auto;
+  padding: 0 18px;
+  border-radius: var(--r-pill);
   font: 700 12.5px/1 var(--font-ui);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -318,16 +471,15 @@
 .lib-card-play.is-live:hover {
   background: linear-gradient(color-mix(in srgb, var(--live) 22%, transparent), color-mix(in srgb, var(--live) 22%, transparent)), var(--badge-bg);
 }
+/* Étoile : à droite du titre, visible pour un favori, au survol et au focus */
 .lib-card-fav {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 3;
+  position: relative;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--r-md);
+  border-radius: 50%;
   color: var(--text-1);
   background: var(--badge-bg);
   opacity: 0;
@@ -484,13 +636,19 @@
   transition: none !important;
 }
 
+/* Titre et ligne d'info en bas de la jaquette, sur un dégradé d'encre */
 .lib-card-text {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   min-width: 0;
-  padding: 10px 12px 11px;
-  border-top: 1px solid var(--line-1);
+  padding: 36px 12px 14px 14px;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--ink) 82%, transparent) 62%);
 }
 .lib-card-words {
   display: flex;
@@ -500,16 +658,15 @@
   min-width: 0;
 }
 .lib-card-title {
-  font: 700 15px/18px var(--font-display);
-  letter-spacing: -0.01em;
+  font: 600 14px/18px var(--font-ui);
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .lib-card-meta {
-  font: 500 11.5px/15px var(--font-ui);
-  color: var(--text-3);
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -525,13 +682,12 @@
   color: var(--live-text);
 }
 
-/* Squelettes de cartes */
+/* Squelettes de cartes (même forme que la jaquette, texte en bas) */
 .lib-card-skel {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   overflow: hidden;
   border-radius: var(--r-lg);
-  border: 1px solid var(--line-1);
+  box-shadow: inset 0 0 0 1px var(--line-1);
   background: var(--card-bg);
 }
 .lib-skel-cover.skel {
@@ -539,10 +695,14 @@
   border-radius: 0;
 }
 .lib-skel-text {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px;
+  padding: 14px;
 }
 .lib-skel-line.skel {
   height: 12px;
@@ -617,16 +777,175 @@
 }
 
 /* Jeu en cours sur ce PC : pastille cyan et filet cyan autour de la carte */
-.lib-card-live {
-  position: absolute;
-  left: 8px;
-  bottom: 8px;
-  z-index: 2;
-}
 .lib-card.is-running:not(:focus-visible) .lib-card-box {
   box-shadow: var(--glow-live);
 }
-.lib-card.is-running:is(:hover, :focus-visible) .lib-card-live {
+
+/* ---------- mode Liste ---------- */
+
+.lib-list {
+  --lib-row-cols: 36px minmax(0, 1fr) 110px 130px 96px 124px 32px 128px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+.lib-row-head,
+.lib-row {
+  display: grid;
+  grid-template-columns: var(--lib-row-cols);
+  align-items: center;
+  gap: 16px;
+}
+.lib-row-head {
+  padding: 0 12px 2px 10px;
+  font: 600 11px/14px var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.lib-row {
+  min-width: 0;
+  padding: 8px 12px 8px 10px;
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  cursor: pointer;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    box-shadow var(--d-1) var(--ease-out);
+}
+.lib-row:hover {
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.lib-row:focus-visible {
+  background: var(--surface-1);
+  box-shadow:
+    inset 0 0 0 1px var(--line-2),
+    var(--focus);
+}
+.lib-row.is-running {
+  box-shadow: inset 0 0 0 1px var(--live-line);
+}
+.lib-row-thumb {
+  overflow: hidden;
+  border-radius: var(--r-xs);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.lib-row-words {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.lib-row-title {
+  font: 600 14px/18px var(--font-ui);
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lib-row-sub {
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.lib-row-state {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-2);
+}
+.lib-row.is-running .lib-row-state,
+.lib-row[data-launch='demo-running'] .lib-row-state {
+  color: var(--live-text);
+}
+.lib-row.is-launching .lib-row-state {
+  color: var(--accent-text);
+}
+.lib-row-num {
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.lib-row-badge {
+  display: flex;
+  justify-content: flex-end;
+}
+.lib-row-fav {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--text-3);
   opacity: 0;
-  transition: opacity var(--d-in) var(--ease-glide);
+  transition:
+    opacity var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    background-color var(--d-1) var(--ease-out);
+}
+.lib-row-fav:hover {
+  color: var(--text-1);
+  background: var(--surface-2);
+}
+.lib-row:is(:hover, :focus-within) .lib-row-fav {
+  opacity: 1;
+}
+.lib-row.is-fav .lib-row-fav {
+  opacity: 1;
+  color: var(--favorite);
+}
+.lib-row-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  font: 600 12.5px/1 var(--font-ui);
+  white-space: nowrap;
+  color: var(--text-1);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out);
+}
+.lib-row-play .spinner {
+  width: 14px;
+  height: 14px;
+}
+/* Ligne survolée : Jouer passe au rose ; Installer reste blanc, comme sur la jaquette */
+.lib-row:is(:hover, :focus-visible) .lib-row-play:not(.is-install, .is-sending, .is-waiting, .is-live, [aria-disabled='true']) {
+  color: var(--on-accent);
+  background: var(--accent-solid);
+  box-shadow: none;
+}
+.lib-row-play.is-install {
+  color: var(--bg-1);
+  background: var(--text-1);
+  box-shadow: none;
+}
+.lib-row-play.is-waiting {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.lib-row-play.is-live {
+  color: var(--live-text);
+  background: var(--live-soft);
+  box-shadow: inset 0 0 0 1px var(--live-line);
+}
+@media (max-width: 1200px) {
+  .lib-list {
+    --lib-row-cols: 36px minmax(0, 1fr) 96px 120px 112px 32px 120px;
+  }
+  .lib-row-launches {
+    display: none;
+  }
 }

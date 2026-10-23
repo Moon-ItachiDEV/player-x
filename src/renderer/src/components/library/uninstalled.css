@@ -1,35 +1,14 @@
-/* Jeux du compte Steam pas installés sur ce PC : onglet « Non installés », fin de recherche, fiche. */
+/* Jeux du compte Steam pas installés sur ce PC : jaquettes et lignes atténuées, fiche. */
 
-.lib-hint {
-  margin: 2px 0 4px;
-  max-width: 72ch;
-  color: var(--text-3);
+/* Atténué tant que le jeu n'est pas sur ce PC ; pleine couleur au survol et au focus. */
+.lib-card.is-uninstalled .lib-card-cover,
+.lib-row.is-uninstalled :is(.lib-row-thumb, .lib-row-words, .lib-row-num) {
+  opacity: 0.62;
+  transition: opacity var(--d-2) var(--ease-out);
 }
-
-/* Recherche : les jeux de la bibliothèque d'abord, puis ceux à installer. */
-.lib-more {
-  margin-top: 36px;
-}
-.lib-more-h {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-.lib-more-count {
-  font: 600 14px/1 var(--font-ui);
-  letter-spacing: 0;
-  color: var(--text-3);
-}
-
-/* Jaquette éteinte tant que le jeu n'est pas sur ce PC ; pleine couleur au survol et au focus. */
-.lib-card.is-uninstalled .lib-card-cover .cover {
-  filter: saturate(0.3) brightness(0.72);
-  transition:
-    scale 400ms var(--ease-out),
-    filter var(--d-2) var(--ease-out);
-}
-.lib-card.is-uninstalled:is(:hover, :focus-visible, [data-tilt]) .lib-card-cover .cover {
-  filter: none;
+.lib-card.is-uninstalled:is(:hover, :focus-visible, [data-tilt]) .lib-card-cover,
+.lib-row.is-uninstalled:is(:hover, :focus-visible) :is(.lib-row-thumb, .lib-row-words, .lib-row-num) {
+  opacity: 1;
 }
 
 /* Fiche : pastille à côté du store. */
