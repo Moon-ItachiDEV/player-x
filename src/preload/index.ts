@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
-import type { Bf6RecapEvent, Cs2Live, Cs2OverlayConfig, Cs2RecapEvent, FriendAlert, LauncherApi, UpdateState } from '@shared/types'
+import type { Bf6RecapEvent, Cs2Live, Cs2OverlayConfig, Cs2RecapEvent, FriendAlert, LauncherApi, RareUnlock, UpdateState } from '@shared/types'
 
 declare const __APP_VERSION__: string
 
@@ -89,6 +89,11 @@ const api: LauncherApi = {
     const listener = (_e: unknown, alerts: FriendAlert[]): void => cb(alerts)
     ipcRenderer.on('friends:alert', listener)
     return () => ipcRenderer.removeListener('friends:alert', listener)
+  },
+  onRareAchievements: (cb) => {
+    const listener = (_e: unknown, list: RareUnlock[]): void => cb(list)
+    ipcRenderer.on('achievements:rare', listener)
+    return () => ipcRenderer.removeListener('achievements:rare', listener)
   },
   onShowFriends: (cb) => {
     const listener = (): void => cb()

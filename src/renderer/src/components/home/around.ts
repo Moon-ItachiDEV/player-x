@@ -1,26 +1,29 @@
-// Qui est là, pour l'accueil : amis en ligne (bandeau du jeu à la une) et joueurs d'un jeu (cartes « À reprendre »).
+// Qui est là, pour l'accueil : amis en ligne (colonne de droite) et joueurs du jeu à la une (pastille « en jeu »).
 // Module pur, sans React : testé sous Node seul (npm run test:home).
 import { norm, plural } from '@shared/text'
 import type { Friend, FriendStatus, Game } from '@shared/types'
 
-/** Amis (et membres Discord) en train de jouer à ce jeu. */
+/** Amis (et membres du serveur Discord) en train de jouer à ce jeu. */
 export function playersOf(game: Game, friends: Friend[]): Friend[] {
   const key = norm(game.name)
   return friends.filter((f) => f.status === 'in-game' && !!f.game && norm(f.game) === key)
 }
 
-/** « 2 amis y jouent », « 1 ami et 1 membre Discord y jouent ». Les membres d'un serveur Discord ne sont pas des amis. */
+/** « 1 ami », « 2 amis et 1 membre du serveur ». Les membres d'un serveur Discord ne sont pas des amis. */
+function whoLabel(people: Friend[]): string {
+  const members = people.filter((p) => p.platform === 'discord').length
+  const pals = people.length - members
+  return [pals ? plural(pals, 'ami', 'amis') : '', members ? plural(members, 'membre du serveur', 'membres du serveur') : ''].filter(Boolean).join(' et ')
+}
+
+/** « 2 amis en jeu », « 1 ami et 1 membre du serveur en jeu ». */
 export function playersLabel(players: Friend[]): string {
-  const n = players.length
-  const pals = players.filter((p) => p.platform !== 'discord').length
-  const members = n - pals
-  const parts = [pals ? plural(pals, 'ami', 'amis') : '', members ? plural(members, 'membre Discord', 'membres Discord') : ''].filter(Boolean)
-  return `${parts.join(' et ')} ${n > 1 ? 'y jouent' : 'y joue'}`
+  return `${whoLabel(players)} en jeu`
 }
 
 /** Personnes en ligne autour du jeu à la une. */
 export interface Around {
-  /** `members` : seulement des membres d'un serveur Discord (« Membres en ligne »). */
+  /** `members` : seulement des membres d'un serveur Discord (« Membres du serveur en ligne »). */
   kind: 'friends' | 'members'
   /** Sur ce jeu, en jeu ailleurs, en ligne, absents ; puis par nom. */
   people: Friend[]
@@ -53,10 +56,7 @@ export function whoIsAround(game: Game, friends: Friend[]): Around | null {
   return { kind: people.some((f) => f.platform !== 'discord') ? 'friends' : 'members', people, here }
 }
 
-/** « 7 amis en ligne, dont 2 sur ce jeu », « 6 amis et 1 membre Discord en ligne », « 3 membres Discord en ligne ». */
+/** « 7 amis en ligne, dont 2 sur ce jeu », « 6 amis et 1 membre du serveur en ligne », « 3 membres du serveur en ligne ». */
 export function aroundLabel(a: Around): string {
-  const members = a.people.filter((p) => p.platform === 'discord').length
-  const pals = a.people.length - members
-  const parts = [pals ? plural(pals, 'ami', 'amis') : '', members ? plural(members, 'membre Discord', 'membres Discord') : ''].filter(Boolean)
-  return `${parts.join(' et ')} en ligne${a.here.size ? `, dont ${a.here.size} sur ce jeu` : ''}`
+  return `${whoLabel(a.people)} en ligne${a.here.size ? `, dont ${a.here.size} sur ce jeu` : ''}`
 }

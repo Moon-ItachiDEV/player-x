@@ -2,6 +2,7 @@
 import type { RefObject } from 'react'
 import type { LaunchVia } from '@shared/launch'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
+import type { SearchItem } from './components/search/SearchResults'
 
 export type View = 'home' | 'library' | 'friends' | 'profile' | 'stats' | 'trophies' | 'settings' | 'news'
 export type SettingsSection = 'accounts' | 'library' | 'interface' | 'advanced' | 'about'
@@ -59,16 +60,22 @@ export interface SideFriendsProps {
   onHideMember: (f: Friend) => Promise<boolean>
   /** Ouvre Paramètres › Comptes › Membres masqués. */
   onManageHidden: () => void
+  /** Texte de recherche au départ (ami choisi dans la recherche globale). */
+  initialQuery?: string
 }
 
 /** components/TopBar.tsx → `export function TopBar` */
 export interface TopBarProps {
   /** Titre de la page ; absent quand la page pose ses onglets dans la barre (TopTabs). */
   title?: string
-  /** Recherche globale : filtre la bibliothèque (bascule sur Bibliothèque quand on tape). */
+  /** Recherche globale (Ctrl K) : le texte filtre aussi la Bibliothèque quand elle est affichée. */
   query: string
   onQueryChange: (q: string) => void
   searchRef: RefObject<HTMLInputElement | null>
+  /** Jeux, amis, membres du serveur, pages et actions proposés sous le champ ; null = « Voir dans la Bibliothèque ». */
+  search: { items: SearchItem[]; onPick: (item: SearchItem | null, launch: boolean) => void }
+  /** La Bibliothèque est affichée : la liste ne propose pas d'y aller. */
+  onLibraryView: boolean
   /** Reçoit l'élément où les pages posent leurs onglets. */
   slotRef: (el: HTMLElement | null) => void
   /** Bouton du compte (avatar, à droite) : ouvre le menu du compte. */
@@ -103,12 +110,16 @@ export interface HomeProps {
   onRescan: () => void
   onEnableDemo: () => void
   onShowLibrary: () => void
-  /** Actus des jeux activées : « Dernier patch » du bandeau et rangée « Mises à jour de tes jeux ». */
+  /** Actus des jeux activées : lien « Patch » du jeu à la une et « Mises à jour de tes jeux ». */
   news: boolean
   /** Ouvre la fiche du jeu directement sur cette annonce (lecteur). */
   onReadNews: (gameId: string, postId: string) => void
-  /** « Tout voir » : page Actus des jeux. */
+  /** « Toutes les actus » : page Actus des jeux. */
   onShowNews: () => void
+  /** « Voir tous les amis » : page Amis. */
+  onShowFriends: () => void
+  /** « Trophées » : page Trophées. */
+  onShowTrophies: () => void
 }
 
 /** components/library/Library.tsx → `export function Library` */
@@ -200,6 +211,8 @@ export interface SettingsProps {
   onRescan: () => void
   /** Rouvre l'écran de démarrage (choix des jeux favoris). */
   onOpenSetup: () => void
+  /** Rejoue tout l'accueil de la première connexion (bienvenue, analyse, favoris), sans rien effacer. */
+  onReplaySetup: () => void
   /** Jeux du compte Steam pas installés (null avant la première lecture), et relecture immédiate. */
   steamLibrary: SteamLibrary | null
   onRefreshSteamLibrary: () => Promise<void>
@@ -240,8 +253,13 @@ export interface LoginProps {
  * Étapes : analyse du PC (rapport du scan), choix des favoris parmi les jeux détectés, puis la bibliothèque.
  */
 export interface SetupProps {
-  /** true au premier lancement (commence par l'analyse) ; false quand on le rouvre depuis les paramètres (va droit au choix). */
+  /**
+   * true au premier lancement ou quand on le rejoue depuis les paramètres (bienvenue, analyse, CS2, favoris, c'est prêt) ;
+   * false quand on le rouvre pour les favoris (va droit au choix).
+   */
   firstRun: boolean
+  /** Rejoué depuis les paramètres : « Commencer » relance un scan normal. */
+  replay?: boolean
   games: Game[]
   report: ScanReport[]
   scanning: boolean
@@ -249,6 +267,9 @@ export interface SetupProps {
   /** Rescanne le PC (même action que « Relancer le scan »). */
   onRescan: () => void
   onEnableDemo: () => void
+  /** Réglages CS2 de l'étape Counter-Strike 2 (les mêmes que dans Paramètres). */
+  settings: Settings
+  onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>
   /** Enregistre la sélection (remplace les favoris) puis ferme l'écran. */
   onDone: (favoriteIds: string[]) => Promise<void>
   /** Ferme sans toucher aux favoris. */

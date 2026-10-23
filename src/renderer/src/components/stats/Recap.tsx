@@ -1,6 +1,6 @@
 // Bilan de session Battlefield 6 : la carte de fin de session (RecapDialog), l'encart « Dernière session » de la page
 // Stats (LastSession) et l'hôte monté par App (RecapHost), qui la propose quand le processus principal l'a préparée.
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { capitalize, plural } from '@shared/text'
 import type { Bf6Art, Bf6Recap, Bf6RecapState, Game } from '@shared/types'
 import { createStore, useStore } from '../../update/session'
@@ -10,6 +10,8 @@ import { useToast } from '../ui/Toasts'
 import { dec, int, isBf6Game, percent, PLATFORM_LABEL, playedFor } from './bf6'
 import { ClassIcon, classKind } from './ClassIcon'
 import './recap.css'
+import { useLeave } from '../../motion'
+import { CountUp } from '../ui/CountUp'
 
 const api = window.launcher
 
@@ -82,8 +84,15 @@ export function sampleRecap(): Bf6Recap {
 
 // ---------- dates ----------
 
-const dayFmt = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-const timeFmt = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' })
+const dayFmt = new Intl.DateTimeFormat('fr-FR', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long'
+})
+const timeFmt = new Intl.DateTimeFormat('fr-FR', {
+  hour: '2-digit',
+  minute: '2-digit'
+})
 
 /** « Aujourd'hui », « Hier », « Samedi 17 octobre » */
 function dayOf(ts: number): string {
@@ -141,13 +150,16 @@ interface DialogProps {
 }
 
 export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps): React.JSX.Element {
-  useEscape(true, onClose)
+  // Fermeture : sortie animée (motion.ts useLeave), puis onClose.
+  const scrim = useRef<HTMLDivElement>(null)
+  const close = useLeave(scrim, onClose)
+  useEscape(true, close)
   const winRate = r.matches ? (r.wins / r.matches) * 100 : null
   const maps = r.maps.slice(0, MAX_MAPS)
   const sessionSeconds = Math.max(0, (r.endedAt - r.startedAt) / 1000)
 
   return (
-    <div className="dialog-scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div ref={scrim} className="dialog-scrim" onMouseDown={(e) => e.target === e.currentTarget && close()}>
       <div className="dialog recap" role="dialog" aria-modal="true" aria-labelledby="recap-title">
         <header className="recap-head">
           <div className="recap-art" aria-hidden="true">
@@ -179,18 +191,24 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
           <section className="recap-main" aria-label="La session en chiffres">
             <div className="recap-kd">
               <span className="overline">K/D de la session</span>
-              <b className="recap-kd-value num">{dec.format(r.killDeath)}</b>
+              <b className="recap-kd-value num">
+                <CountUp value={r.killDeath} format={dec.format} />
+              </b>
               <Delta value={r.killDeath} average={r.average.killDeath} fmt={dec.format} />
             </div>
             <dl className="recap-big">
               <div>
                 <dt>Éliminations</dt>
-                <dd className="num">{int.format(r.kills)}</dd>
+                <dd className="num">
+                  <CountUp value={r.kills} format={(n) => int.format(Math.round(n))} />
+                </dd>
                 {r.vehicleKills > 0 && <span className="caption num">dont {int.format(r.vehicleKills)} en véhicule</span>}
               </div>
               <div>
                 <dt>Morts</dt>
-                <dd className="num">{int.format(r.deaths)}</dd>
+                <dd className="num">
+                  <CountUp value={r.deaths} format={(n) => int.format(Math.round(n))} />
+                </dd>
               </div>
               <div>
                 <dt>Victoires</dt>
@@ -219,11 +237,15 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
             </div>
             <div className="recap-tile">
               <dt>Assistances</dt>
-              <dd className="num">{int.format(r.assists)}</dd>
+              <dd className="num">
+                <CountUp value={r.assists} format={(n) => int.format(Math.round(n))} />
+              </dd>
             </div>
             <div className="recap-tile">
               <dt>Réanimations</dt>
-              <dd className="num">{int.format(r.revives)}</dd>
+              <dd className="num">
+                <CountUp value={r.revives} format={(n) => int.format(Math.round(n))} />
+              </dd>
             </div>
             <div className="recap-tile">
               <dt>En partie</dt>
@@ -307,7 +329,7 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
               Voir mes stats
             </button>
           )}
-          <button className="btn btn-primary" onClick={onClose} autoFocus>
+          <button className="btn btn-primary" onClick={close} autoFocus>
             Fermer
           </button>
         </div>
@@ -341,7 +363,11 @@ export function RecapHost({ games, onOpenStats }: { games: Game[]; onOpenStats: 
     (r: Bf6Recap) => {
       if (offered.has(offerKey(r)) || shown.get()?.id === r.id) return
       offered.add(offerKey(r))
-      notify('Ton bilan Battlefield 6 est prêt', { id: 'bf6-recap', duration: TOAST_MS, action: { label: 'Voir le bilan', onClick: () => openLatest(r) } })
+      notify('Ton bilan Battlefield 6 est prêt', {
+        id: 'bf6-recap',
+        duration: TOAST_MS,
+        action: { label: 'Voir le bilan', onClick: () => openLatest(r) }
+      })
     },
     [notify]
   )

@@ -3,34 +3,55 @@ import { cleanName, norm } from '@shared/text'
 import type { Game, Store } from '@shared/types'
 import type { LibraryProps } from '../../contracts'
 import { withViewTransition } from '../../motion'
-import { TopTabs } from '../TopTabs'
+import { TopTitle } from '../TopTabs'
 import { Icon } from '../ui/Icon'
-import { GameCard, GameCardSkeleton } from './GameCard'
-import { LibraryToolbar, SORT_LABEL, STORES, type LibSort, type LibStore, type LibTab } from './LibraryToolbar'
+import { GameCard, GameCardSkeleton, GameRow, GameRowHead } from './GameCard'
+import { LibraryToolbar, SORT_LABEL, STORES, type LibInstall, type LibSort, type LibStore, type LibView } from './LibraryToolbar'
 import { NoGames } from './NoGames'
 import './library.css'
 import './uninstalled.css'
 
-// Onglet, store et tri propres à ce PC.
+// Filtres, tri et affichage propres à ce PC.
 const STORAGE_KEY = 'pg.library'
 const SORTS = Object.keys(SORT_LABEL) as LibSort[]
+const INSTALLS: LibInstall[] = ['all', 'installed', 'uninstalled']
 
 interface LibPrefs {
-  tab: LibTab
+  install: LibInstall
+  fav: boolean
   store: LibStore
   sort: LibSort
+  view: LibView
 }
 
-/** Lit les préférences ; l'ancienne puce unique (`chip` : tous, favoris ou un store) devient onglet + store. */
+const DEFAULT_PREFS: LibPrefs = {
+  install: 'all',
+  fav: false,
+  store: 'all',
+  sort: 'recent',
+  view: 'grid'
+}
+
+/**
+ * Lit les préférences. Anciennes formes : l'onglet `tab` (tous, favoris, non installés) devient installation + favoris,
+ * et la puce unique `chip` (tous, favoris ou un store) devient favoris + store.
+ */
 function loadPrefs(): LibPrefs {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Partial<LibPrefs> & { chip?: string }
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Partial<LibPrefs> & { tab?: string; chip?: string }
     const isStore = (v: unknown): v is Store => STORES.includes(v as Store)
-    const tab: LibTab = raw.tab === 'fav' || (raw.tab === undefined && raw.chip === 'fav') ? 'fav' : raw.tab === 'uninstalled' ? 'uninstalled' : 'all'
+    const fav = typeof raw.fav === 'boolean' ? raw.fav : raw.tab === 'fav' || (raw.tab === undefined && raw.chip === 'fav')
+    const install: LibInstall = raw.install && INSTALLS.includes(raw.install) ? raw.install : raw.tab === 'uninstalled' ? 'uninstalled' : 'all'
     const store: LibStore = isStore(raw.store) ? raw.store : raw.store === undefined && isStore(raw.chip) ? raw.chip : 'all'
-    return { tab, store, sort: raw.sort && SORTS.includes(raw.sort) ? raw.sort : 'recent' }
+    return {
+      install,
+      fav: fav && install !== 'uninstalled',
+      store,
+      sort: raw.sort && SORTS.includes(raw.sort) ? raw.sort : 'recent',
+      view: raw.view === 'list' ? 'list' : 'grid'
+    }
   } catch {
-    return { tab: 'all', store: 'all', sort: 'recent' }
+    return DEFAULT_PREFS
   }
 }
 
@@ -42,7 +63,10 @@ function savePrefs(p: LibPrefs): void {
   }
 }
 
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
+const collator = new Intl.Collator('fr', {
+  sensitivity: 'base',
+  numeric: true
+})
 const byName = (a: Game, b: Game): number => collator.compare(cleanName(a.name), cleanName(b.name))
 const byRecent = (a: Game, b: Game): number => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0)
 
@@ -81,89 +105,89 @@ export function Library(props: LibraryProps): React.JSX.Element {
     })
 
   const q = query.trim()
-  // Une recherche porte sur toute la bibliothèque : l'onglet affiché est « Tous » le temps de la recherche.
-  // « Non installés » n'existe que si le compte Steam a des jeux absents de ce PC.
-  const tab: LibTab = q || (prefs.tab === 'uninstalled' && !notInstalled.length) ? 'all' : prefs.tab
+  // « Installation » n'existe que si le compte Steam a des jeux absents de ce PC.
+  const hasUninstalled = notInstalled.length > 0
+  // Une recherche porte sur toute la bibliothèque : « Tous », sans le filtre des favoris, le temps de la recherche.
+  const install: LibInstall = q || !hasUninstalled ? 'all' : prefs.install
+  const fav = !q && prefs.fav
   const favCount = useMemo(() => games.filter((g) => g.favorite).length, [games])
-  const inTab = useMemo(() => (tab === 'fav' ? games.filter((g) => g.favorite) : tab === 'uninstalled' ? notInstalled : games), [games, notInstalled, tab])
+
+  // Sélection avant le filtre de store : favoris (tous installés), installés, non installés, ou les deux mêlés.
+  const inSet = useMemo(() => {
+    if (fav) return games.filter((g) => g.favorite)
+    if (install === 'installed') return games
+    if (install === 'uninstalled') return notInstalled
+    return notInstalled.length ? [...games, ...notInstalled] : games
+  }, [games, notInstalled, install, fav])
+
   const storeCounts = useMemo(() => {
     const c: Record<Store, number> = { steam: 0, epic: 0, ea: 0 }
-    for (const g of inTab) c[g.store]++
+    for (const g of inSet) c[g.store]++
     return c
-  }, [inTab])
+  }, [inSet])
+  // Pilules de plateforme : les stores de la bibliothèque, installés ou non (stables quand on change de filtre).
+  const stores = useMemo(() => STORES.filter((s) => games.some((g) => g.store === s) || notInstalled.some((g) => g.store === s)), [games, notInstalled])
 
-  // Un store sans jeu dans l'onglet retombe sur « Tous ».
+  // Un store sans jeu dans la sélection retombe sur « Tout ».
   const store: LibStore = prefs.store !== 'all' && storeCounts[prefs.store] === 0 ? 'all' : prefs.store
 
   const shown = useMemo(() => {
     const match = matcher(q)
     return sortGames(
-      inTab.filter((g) => (store === 'all' || g.store === store) && match(g)),
+      inSet.filter((g) => (store === 'all' || g.store === store) && match(g)),
       prefs.sort
     )
-  }, [inTab, store, q, prefs.sort])
+  }, [inSet, store, q, prefs.sort])
+  const shownUninstalled = shown.some((g) => g.notInstalled)
 
-  // Recherche : les jeux Steam pas installés qui correspondent suivent ceux de la bibliothèque.
-  const shownUninstalled = useMemo(() => {
-    if (!q) return []
-    const match = matcher(q)
-    return sortGames(
-      notInstalled.filter((g) => (store === 'all' || g.store === store) && match(g)),
-      prefs.sort
-    )
-  }, [notInstalled, store, q, prefs.sort])
+  const item = (g: Game): React.JSX.Element => {
+    const p = {
+      game: g,
+      onOpen,
+      onLaunch: g.notInstalled ? onInstall : onLaunch,
+      onFavorite
+    }
+    return prefs.view === 'list' ? <GameRow key={g.id} {...p} /> : <GameCard key={g.id} {...p} />
+  }
 
-  const card = (g: Game): React.JSX.Element => (
-    <GameCard key={g.id} game={g} onOpen={onOpen} onLaunch={g.notInstalled ? onInstall : onLaunch} onFavorite={onFavorite} />
-  )
-
-  const tabs = (
-    <TopTabs<LibTab>
-      label="Bibliothèque"
-      idBase="lib"
-      value={tab}
-      onChange={(next) => {
-        if (next === tab) return
-        withViewTransition(
-          () => {
-            if (q) onClearQuery()
-            update({ tab: next })
-          },
-          { kind: 'reorder' }
-        )
-      }}
-      tabs={[
-        { id: 'all', label: 'Tous', icon: 'grid', badge: games.length },
-        { id: 'fav', label: 'Favoris', icon: 'star', badge: favCount },
-        ...(notInstalled.length ? [{ id: 'uninstalled' as const, label: 'Non installés', short: 'À installer', icon: 'download' as const, badge: notInstalled.length }] : [])
-      ]}
-    />
-  )
+  // Changer de sélection pendant une recherche l'efface (comme les anciens onglets).
+  const select = (patch: Partial<LibPrefs>): void => {
+    if (q) onClearQuery()
+    update(patch)
+  }
 
   const toolbar = (loading = false): React.JSX.Element => (
     <LibraryToolbar
-      total={inTab.length}
-      resultCount={shown.length + shownUninstalled.length}
+      stores={stores}
       storeCounts={storeCounts}
+      total={inSet.length}
       store={store}
+      install={hasUninstalled ? install : null}
+      fav={fav}
+      favCount={favCount}
       sort={prefs.sort}
+      view={prefs.view}
       coverSize={coverSize}
-      query={loading ? '' : q}
       scanning={scanning}
       loading={loading}
       onStore={(s) => update({ store: s })}
+      // Favoris et non installés s'excluent : un jeu pas installé ne peut pas être en favori.
+      onInstall={(i) => select(i === 'uninstalled' ? { install: i, fav: false } : { install: i })}
+      onFav={(on) => select(on && install === 'uninstalled' ? { fav: on, install: 'all' } : { fav: on })}
       onSort={(s) => update({ sort: s })}
+      onView={(v) => update({ view: v })}
       onCoverSize={onCoverSize}
-      onClearQuery={onClearQuery}
       onRescan={onRescan}
     />
   )
 
+  const title = <TopTitle>Bibliothèque</TopTitle>
+
   // Premier scan : squelettes.
-  if (games.length === 0 && scanning && tab !== 'uninstalled') {
+  if (games.length === 0 && scanning && install !== 'uninstalled') {
     return (
       <div className="page lib" aria-busy="true">
-        {tabs}
+        {title}
         {toolbar(true)}
         <div className="lib-grid">
           {Array.from({ length: 12 }, (_, i) => (
@@ -174,10 +198,12 @@ export function Library(props: LibraryProps): React.JSX.Element {
     )
   }
 
-  if (games.length === 0 && tab !== 'uninstalled' && !shownUninstalled.length) {
+  // Aucun jeu installé : le diagnostic du scan passe avant les jeux à installer (accessibles par « Non installés »).
+  if (games.length === 0 && install !== 'uninstalled' && !(q && shown.length)) {
     return (
       <div className="page lib">
-        {tabs}
+        {title}
+        {hasUninstalled && toolbar()}
         <NoGames report={report} demo={demo} onRescan={onRescan} onEnableDemo={onEnableDemo} />
       </div>
     )
@@ -185,14 +211,25 @@ export function Library(props: LibraryProps): React.JSX.Element {
 
   const clearFilters = (): void => {
     onClearQuery()
-    update({ store: 'all' })
+    update({ store: 'all', install: 'all', fav: false })
   }
 
   return (
-    <div className="page lib" id="lib-panel" role="tabpanel" aria-labelledby={`lib-tab-${tab}`} aria-busy={scanning || undefined}>
-      {tabs}
+    <div className="page lib" aria-busy={scanning || undefined}>
+      {title}
       {toolbar()}
-      {tab === 'fav' && favCount === 0 ? (
+      {q && (
+        <p className="lib-results" aria-live="polite">
+          <span className="lib-results-query" title={q}>
+            Résultats pour « {q} »
+          </span>
+          <span className="num">· {shown.length}</span>
+          <button className="link-btn lib-results-clear" onClick={onClearQuery}>
+            Effacer
+          </button>
+        </p>
+      )}
+      {fav && favCount === 0 ? (
         <div className="empty-state lib-empty-small">
           <div className="empty-icon">
             <Icon name="star" size={28} />
@@ -200,12 +237,12 @@ export function Library(props: LibraryProps): React.JSX.Element {
           <h3>Aucun favori pour l'instant</h3>
           <p className="caption">Clique sur l'étoile d'une jaquette : tes favoris s'affichent ici et dans le rail, tout à gauche.</p>
           <div className="empty-actions">
-            <button className="btn btn-secondary btn-sm" onClick={() => update({ tab: 'all' })}>
+            <button className="btn btn-secondary btn-sm" onClick={() => update({ fav: false })}>
               Voir tous les jeux
             </button>
           </div>
         </div>
-      ) : shown.length === 0 && shownUninstalled.length === 0 ? (
+      ) : shown.length === 0 ? (
         <div className="empty-state lib-empty-small">
           <div className="empty-icon">
             <Icon name="search" size={28} />
@@ -219,20 +256,20 @@ export function Library(props: LibraryProps): React.JSX.Element {
         </div>
       ) : (
         <>
-          {tab === 'uninstalled' && (
-            <p className="lib-hint caption">
-              Les jeux de ton compte Steam qui ne sont pas sur ce PC. « Installer » ouvre Steam, qui télécharge le jeu ; il rejoint ensuite ta bibliothèque tout seul.
-            </p>
+          {prefs.view === 'list' ? (
+            <div className="lib-list">
+              <GameRowHead />
+              {shown.map(item)}
+            </div>
+          ) : (
+            <div className="lib-grid">{shown.map(item)}</div>
           )}
-          {shown.length > 0 && <div className="lib-grid">{shown.map(card)}</div>}
-          {shownUninstalled.length > 0 && (
-            <section className="lib-more" aria-labelledby="lib-more-h">
-              <h2 id="lib-more-h" className="h-section lib-more-h">
-                Pas installés sur ce PC
-                <span className="lib-more-count num">{shownUninstalled.length}</span>
-              </h2>
-              <div className="lib-grid">{shownUninstalled.map(card)}</div>
-            </section>
+          {shownUninstalled && (
+            <p className="lib-note">
+              {install === 'uninstalled'
+                ? 'Les jeux de ton compte Steam qui ne sont pas sur ce PC. Un clic sur Installer ouvre Steam, qui télécharge le jeu ; il rejoint ensuite ta bibliothèque tout seul.'
+                : 'Les jeux Steam non installés apparaissent aussi : un clic sur Installer ouvre Steam.'}
+            </p>
           )}
         </>
       )}

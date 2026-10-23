@@ -20,6 +20,9 @@ import { RecapHost } from './components/stats/Recap'
 import { Cs2RecapHost } from './components/cs2/Cs2Recap'
 import { Stats } from './components/stats/Stats'
 import { TopBar } from './components/TopBar'
+import type { SearchItem } from './components/search/SearchResults'
+import type { IconName } from './components/ui/Icon'
+import { KIND_LABEL } from './components/ui/StoreTag'
 import { TopSlot } from './components/TopTabs'
 // Avant WhatsNew : lit pg.lastVersion et prépare le retour d'une mise à jour avant le premier rendu.
 import { gameRunning, launchBusy } from './update/session'
@@ -64,7 +67,8 @@ function loadUi(): UiPrefs {
 export default function App(): React.JSX.Element {
   const [ui, setUi] = useState<UiPrefs>(loadUi)
   // Écran de démarrage (choix des favoris) : une fois après l'entrée, puis à la demande. `first` = premier passage.
-  const [setup, setSetup] = useState<{ open: boolean; first: boolean }>(() => ({ open: !setupDone(), first: !setupDone() }))
+  // `replay` : rejoué depuis les paramètres (« Revoir l'accueil de Player X »), le scan est relancé au départ.
+  const [setup, setSetup] = useState<SetupState>(() => ({ open: !setupDone(), first: !setupDone() }))
   const systemReduced = useSystemReducedMotion()
   const systemOpaque = useSystemReducedTransparency()
   useWindowActivity()
@@ -99,11 +103,17 @@ export default function App(): React.JSX.Element {
   )
 }
 
+interface SetupState {
+  open: boolean
+  first: boolean
+  replay?: boolean
+}
+
 interface ShellProps {
   ui: UiPrefs
   updateUi: (p: Partial<UiPrefs>) => void
-  setup: { open: boolean; first: boolean }
-  setSetup: (v: { open: boolean; first: boolean }) => void
+  setup: SetupState
+  setSetup: (v: SetupState) => void
 }
 
 function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element {
@@ -122,6 +132,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   const [friends, setFriends] = useState<FriendsResult>({ friends: [], errors: {} })
   const [friendsLoading, setFriendsLoading] = useState(false)
   const [query, setQuery] = useState('')
+  // Ami choisi dans la recherche globale : la page Amis s'ouvre filtrée sur lui (n force un nouvel affichage).
+  const [friendsQuery, setFriendsQuery] = useState<{ text: string; n: number }>({ text: '', n: 0 })
   const [openGameId, setOpenGameId] = useState<string | null>(null)
   // Annonce à ouvrir dans le lecteur de la fiche (accueil, page Actus des jeux).
   const [openPostId, setOpenPostId] = useState<string | null>(null)
@@ -191,7 +203,10 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     async (f: Friend): Promise<boolean> => {
       const ok = await setMemberHidden(f.name, true)
       if (ok)
-        notify(`${f.name} ne s'affiche plus dans Player X`, { id: 'member-hidden', action: { label: 'Annuler', onClick: () => void setMemberHidden(f.name, false) } })
+        notify(`${f.name} ne s'affiche plus dans Player X`, {
+          id: 'member-hidden',
+          action: { label: 'Annuler', onClick: () => void setMemberHidden(f.name, false) }
+        })
       return ok
     },
     [notify, setMemberHidden]
@@ -350,7 +365,9 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       try {
         await api.installGame(game.id)
         notify(
-          settings?.demoMode ? `Mode démo : Steam installerait ${name}` : `Steam s'ouvre pour installer ${name}. Le jeu rejoindra ta bibliothèque une fois téléchargé.`,
+          settings?.demoMode
+            ? `Mode démo : Steam installerait ${name}`
+            : `Steam s'ouvre pour installer ${name}. Le jeu rejoindra ta bibliothèque une fois téléchargé.`,
           { kind: 'info' }
         )
       } catch (e) {
@@ -431,6 +448,25 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       { kind: 'open', source: takeMorphSource(g.id) }
     )
   }, [])
+
+  // Succès rare débloqué (relevé en arrière-plan) : carte dorée, « Voir » ouvre la fiche du jeu.
+  const gamesRef = useRef(games)
+  gamesRef.current = games
+  useEffect(
+    () =>
+      api.onRareAchievements((list) => {
+        for (const a of list) {
+          const pct = `${(a.percent < 10 ? Math.round(a.percent * 10) / 10 : Math.round(a.percent)).toString().replace('.', ',')} %`
+          const game = gamesRef.current.find((g) => g.id === a.gameId)
+          notify(`Succès rare débloqué : ${a.name} (${a.gameName}, ${pct} des joueurs)`, {
+            kind: 'trophy',
+            id: `rare:${a.gameId}:${a.id}`,
+            ...(game ? { action: { label: 'Voir', onClick: () => openSheet(game) } } : {})
+          })
+        }
+      }),
+    [notify, openSheet]
+  )
   const closeSheet = useCallback(() => {
     withViewTransition(
       () => {
@@ -450,6 +486,59 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     },
     [shownGames]
   )
+
+  // Recherche globale (Ctrl K) : ce que la liste propose. Les actions sont résolues au choix (searchPick).
+  const searchItems = useMemo<SearchItem[]>(() => {
+    const games: SearchItem[] = [...shownGames]
+      .sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0))
+      .map((g) => ({ id: `game:${g.id}`, kind: 'game', label: g.name, hint: KIND_LABEL[g.store], art: 'cover', game: g }))
+    const people: SearchItem[] = friends.friends.map((f) => ({
+      id: `friend:${f.id}`,
+      kind: f.platform === 'discord' ? 'member' : 'friend',
+      label: f.name,
+      hint: [
+        f.status === 'in-game' ? 'En jeu' : f.status === 'online' ? 'En ligne' : f.status === 'away' ? 'Absent' : 'Hors ligne',
+        f.game,
+        f.platform === 'discord' ? '' : KIND_LABEL[f.platform]
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      art: 'avatar',
+      avatarUrl: f.avatarUrl,
+      status: f.status
+    }))
+    const page = (id: string, label: string, icon: IconName, keywords?: string[]): SearchItem => ({
+      id: `page:${id}`,
+      kind: 'page',
+      label,
+      art: 'icon',
+      icon,
+      keywords
+    })
+    const pages: SearchItem[] = [
+      page('home', 'Accueil', 'home'),
+      page('library', 'Bibliothèque', 'grid', ['jeux']),
+      page('friends', 'Amis', 'users', ['discord', 'membres', 'serveur', 'playstation']),
+      page('stats', 'Stats de jeu', 'chart', ['temps de jeu', 'heures']),
+      page('trophies', 'Trophées', 'trophy', ['succès']),
+      ...(settings?.gameNews ? [page('news', 'Actus des jeux', 'news', ['patch', 'mises à jour des jeux'])] : []),
+      page('profile', 'Profil', 'user'),
+      page('settings:accounts', 'Paramètres › Comptes', 'settings', ['steam', 'discord', 'playstation', 'psn', 'connexion', 'membres masqués']),
+      page('settings:library', 'Paramètres › Bibliothèque', 'settings', ['scan', 'favoris', 'actus']),
+      page('settings:interface', 'Paramètres › Interface', 'settings', ['jaquettes', 'animations', 'overlay', 'cs2']),
+      page('settings:advanced', 'Paramètres › Avancé', 'settings', ['démo', 'démarrer avec windows']),
+      page('settings:about', 'Paramètres › À propos', 'settings', ['version', 'mise à jour', 'nouveautés', 'bêta']),
+      page('action:rescan', 'Relancer le scan', 'refresh', ['rechercher les jeux', 'scanner']),
+      page('action:favorites', 'Choisir mes jeux favoris', 'star', ['favoris', 'rail']),
+      page('action:replay', "Revoir l'accueil de Player X", 'gamepad', ['première connexion', 'bienvenue', 'scan'])
+    ]
+    return [...games, ...people, ...pages]
+  }, [shownGames, friends.friends, settings?.gameNews])
+
+  // Le filtre posé par la recherche globale ne sert qu'une fois : il s'efface en quittant la page Amis.
+  useEffect(() => {
+    if (view !== 'friends') setFriendsQuery((q) => (q.text ? { text: '', n: q.n } : q))
+  }, [view])
 
   if (!ready || !settings) return <div className="boot" />
 
@@ -471,12 +560,15 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     return (
       <Setup
         firstRun={setup.first}
+        replay={setup.replay}
         games={games}
         report={report}
         scanning={scanning}
         demo={settings.demoMode}
         onRescan={() => loadGames(true)}
         onEnableDemo={enableDemo}
+        settings={settings}
+        onSaveSettings={saveSettings}
         onDone={finishSetup}
         onSkip={() => closeSetup(setup.first)}
       />
@@ -486,6 +578,23 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   const go = (v: View): void => {
     setView(v)
     setAccountMenu(false)
+  }
+
+  const searchPick = (item: SearchItem | null, launch: boolean): void => {
+    if (!item) return go('library')
+    const [kind, ...rest] = item.id.split(':')
+    const key = rest.join(':')
+    if (kind === 'game') {
+      const g = shownGames.find((x) => x.id === key)
+      if (g) launch ? startLaunch(g) : openSheet(g)
+    } else if (kind === 'friend') {
+      setFriendsQuery((q) => ({ text: item.label, n: q.n + 1 }))
+      go('friends')
+    } else if (key.startsWith('settings:')) goSettings(key.slice('settings:'.length) as SettingsSection)
+    else if (key === 'action:rescan') loadGames(true)
+    else if (key === 'action:favorites') setSetup({ open: true, first: false })
+    else if (key === 'action:replay') setSetup({ open: true, first: true, replay: true })
+    else go(key as View)
   }
 
   const friendsProps = {
@@ -501,7 +610,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     onManageHidden: () => {
       setSettingsFocus('hidden-members')
       goSettings('accounts')
-    }
+    },
+    initialQuery: friendsQuery.text
   }
   const friendsInGame = countInGame(friends.friends, games)
 
@@ -522,11 +632,10 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       <TopBar
         title={VIEW_TITLE[view]}
         query={query}
-        onQueryChange={(q) => {
-          setQuery(q)
-          if (q && view !== 'library') setView('library')
-        }}
+        onQueryChange={setQuery}
         searchRef={searchRef}
+        search={{ items: searchItems, onPick: searchPick }}
+        onLibraryView={view === 'library'}
         slotRef={setTabSlot}
         accounts={accounts}
         accountMenuOpen={accountMenu}
@@ -552,6 +661,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               news={settings.gameNews}
               onReadNews={readNews}
               onShowNews={() => go('news')}
+              onShowFriends={showFriends}
+              onShowTrophies={() => go('trophies')}
             />
           )}
           {view === 'library' && (
@@ -573,7 +684,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               onCoverSize={(coverSize) => updateUi({ coverSize })}
             />
           )}
-          {view === 'friends' && <FriendsPage {...friendsProps} />}
+          {view === 'friends' && <FriendsPage key={friendsQuery.n} {...friendsProps} />}
           {view === 'profile' && (
             <Profile
               games={shownGames}
@@ -608,6 +719,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               onLogout={logout}
               onRescan={() => loadGames(true)}
               onOpenSetup={() => setSetup({ open: true, first: false })}
+              onReplaySetup={() => setSetup({ open: true, first: true, replay: true })}
               steamLibrary={steamLib}
               onRefreshSteamLibrary={() => loadSteamLib(true)}
               loginPending={loginPending}
