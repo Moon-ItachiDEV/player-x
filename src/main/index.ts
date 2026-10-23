@@ -41,7 +41,7 @@ import {
   withPlaytime
 } from './services/playtime'
 import { attachWindow, onHideToTray, setTrayPlaying, startHidden, startTray, startupState, syncStartup } from './services/tray'
-import { initUpdater, takeRelaunchBounds } from './services/updater'
+import { initUpdater, takeRelaunchBounds, updateChannelChanged } from './services/updater'
 import type { LaunchSim } from './launchSim'
 
 // .env : clés de développement seulement, jamais lu par la version installée.
@@ -337,6 +337,7 @@ function registerIpc(): void {
     if (next.startWithWindows !== before.startWithWindows) syncStartup()
     if (next.bf6Recap !== before.bf6Recap) syncBf6Recaps()
     if (next.cs2Live !== before.cs2Live) void syncCs2()
+    if (next.updateChannel !== before.updateChannel) updateChannelChanged()
     if (next.gameNews !== before.gameNews) {
       // Badges retirés tout de suite, ou relevés dès la réactivation.
       notifyGamesChanged()

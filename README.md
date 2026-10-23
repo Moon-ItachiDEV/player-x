@@ -109,6 +109,8 @@ Pour publier une version :
 5. Signe l’installeur **hors de GitHub**, avec la clé privée : `node scripts/update-signature.mjs sign <version> <sha512> <clé-privée.pem>`. Le script refuse une clé qui ne correspond pas à la clé publique de l’appli.
 6. Lance l’action [`publish.yml`](.github/workflows/publish.yml) (**Actions › Publish › Run workflow**) avec cette signature. Elle retélécharge l’installeur du brouillon, vérifie la signature, ajoute `Player-X-Setup-<version>.exe.sig` et publie la release. Une signature fausse arrête tout avant la publication.
 
+**Version de test (canal Bêta)** : même chemin, avec un numéro de préversion (`npm version 0.8.1-beta.1 --no-git-tag-version`). Les deux actions la publient en **préversion** GitHub, jamais « Latest » : seuls ceux qui ont choisi **Paramètres › À propos › Canal › Bêta** la reçoivent (la signature est vérifiée pareil). Le canal Stable lit `/releases/latest`, qui ne renvoie jamais une préversion. Repasser en Stable ne revient pas en arrière : on reste sur la bêta jusqu'à la version stable suivante (`0.8.1` passe devant `0.8.1-beta.3`). Le canal n'existe qu'à partir de la 0.8.0 : elle doit sortir en stable avant la première bêta.
+
 Si la clé privée est perdue, les versions installées ne peuvent plus se mettre à jour toutes seules : il faut réinstaller Player X à la main. Garde-en une copie de sauvegarde.
 
 ## Ce qui marche
@@ -134,7 +136,7 @@ Si la clé privée est perdue, les versions installées ne peuvent plus se mettr
 | Bilan Battlefield 6 | Différence entre la lecture gametools au lancement du jeu (vu par le suivi du temps de jeu) et les relectures après la partie (2, 5, 10, 15, 30, 60 et 120 min), jusqu’à deux lectures identiques 15 min après la fin. La session est gardée en base : elle reprend si Player X redémarre pendant la partie. |
 | Match CS2 | Game State Integration de Valve : fichier `gamestate_integration_playerx.cfg` (sans BOM) dans `game/csgo/cfg`, envois du jeu reçus sur `127.0.0.1:47730` (ou un des 9 ports suivants) avec un jeton, toutes les 0,5 s au plus et toutes les 10 s sans changement. Rounds découpés par la phase du round, match clos à la fin, au retour au menu ou après 35 s sans envoi. Le match en cours est gardé en base : il reprend si Player X redémarre pendant la partie. |
 | Profil | Temps de jeu total, jeux les plus joués (ou les plus lancés sans temps de jeu), jeux par plateforme et derniers lancements. |
-| Mises à jour | `electron-updater` et GitHub Releases : progression, redémarrage après 10 s, fenêtre « Quoi de neuf ». |
+| Mises à jour | `electron-updater` et GitHub Releases : progression, redémarrage après 10 s, fenêtre « Quoi de neuf ». Canal Bêta : `allowPrerelease`, préversions GitHub, jamais de retour en arrière. |
 | Favoris, historique | Stockés en local. |
 
 ## Configuration

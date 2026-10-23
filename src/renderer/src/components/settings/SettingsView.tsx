@@ -103,7 +103,7 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
           {section === 'advanced' && (
             <AdvancedSection settings={settings} report={props.report} onSaveSettings={props.onSaveSettings} focusCard={focusCard} onFocused={clearFocus} />
           )}
-          {section === 'about' && <AboutSection />}
+          {section === 'about' && <AboutSection settings={settings} onSaveSettings={props.onSaveSettings} />}
         </div>
       </div>
     </div>

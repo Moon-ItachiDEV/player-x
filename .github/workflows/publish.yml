@@ -1,6 +1,7 @@
 # Publie la release en brouillon préparée par « Release », avec la signature de l'installeur.
 # La signature est faite hors de GitHub avec la clé privée : node scripts/update-signature.mjs sign <version> <sha512> <clé.pem>.
 # Elle est vérifiée ici avec la clé publique livrée dans l'appli avant toute publication : une mauvaise signature ne part jamais.
+# Version de test (« 0.8.1-beta.1 ») : publiée en préversion, jamais « Latest » ; seul le canal Bêta de Player X la reçoit.
 name: Publish
 
 on:
@@ -55,5 +56,13 @@ jobs:
               exit 1
             fi
           done
-          gh release edit "${tag}" --draft=false --latest
-          echo "Release ${tag} publiée avec sa signature."
+          case "${version}" in
+            *-*)
+              gh release edit "${tag}" --draft=false --prerelease --latest=false
+              echo "Version de test ${tag} publiée avec sa signature (préversion : canal Bêta seulement)."
+              ;;
+            *)
+              gh release edit "${tag}" --draft=false --prerelease=false --latest
+              echo "Release ${tag} publiée avec sa signature."
+              ;;
+          esac

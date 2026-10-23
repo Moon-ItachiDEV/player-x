@@ -82,7 +82,11 @@ export interface Settings {
   bf6Recap: boolean
   /** Counter-Strike 2 : ton match en direct et son bilan, envoyés par le jeu lui-même (Game State Integration de Valve). */
   cs2Live: boolean
+  /** Mises à jour : `stable` (versions pour tout le monde) ou `beta` (aussi les versions de test, publiées en préversion). */
+  updateChannel: UpdateChannel
 }
+
+export type UpdateChannel = 'stable' | 'beta'
 
 /** Démarrage avec Windows : `unavailable` hors de la version installée sur Windows, `blocked` si Windows l'a désactivé (Gestionnaire des tâches). */
 export type StartupState = 'on' | 'off' | 'blocked' | 'unavailable'

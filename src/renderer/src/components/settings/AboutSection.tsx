@@ -1,9 +1,10 @@
 // Paramètres › À propos : version installée et mises à jour automatiques (GitHub Releases).
 import { useState } from 'react'
 import { timeAgo } from '@shared/text'
-import type { UpdateState } from '@shared/types'
+import type { Settings, UpdateState } from '@shared/types'
 import { BrandMark } from '../ui/Brand'
 import { Icon } from '../ui/Icon'
+import { Segmented } from '../ui/Overlay'
 import { errorMessage, useToast } from '../ui/Toasts'
 import { useUpdateState } from '../UpdateNotice'
 import { busyTitle, gameRunning, isRealUpdateBusy, lastUpdate, useStore } from '../../update/session'
@@ -14,7 +15,15 @@ import { SectionHead, SettingRow, useNow } from './parts'
 
 const RELEASES_URL = 'https://github.com/Moon-ItachiDEV/player-x/releases'
 
-export function AboutSection(): React.JSX.Element {
+/** Version de test (préversion) : « 0.8.1-beta.1 ». */
+const IS_PRERELEASE = /-/.test(window.launcher.version)
+
+interface Props {
+  settings: Settings
+  onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>
+}
+
+export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Element {
   const notify = useToast()
   const now = useNow()
   const [update, setUpdate] = useUpdateState()
@@ -68,6 +77,7 @@ export function AboutSection(): React.JSX.Element {
           <div className="set-ab-name">Player X</div>
           <div className="caption">
             Version <span className="num">{window.launcher.version}</span>
+            {IS_PRERELEASE && ' · version de test'}
           </div>
         </div>
         <p className="set-ab-tagline">Lance tes jeux Steam, Epic et EA et vois tes amis en ligne.</p>
@@ -122,6 +132,26 @@ export function AboutSection(): React.JSX.Element {
             {null}
           </SettingRow>
         )}
+        <SettingRow
+          label="Canal"
+          value={
+            settings.updateChannel === 'beta'
+              ? 'Bêta · tu reçois aussi les versions de test, avant tout le monde. Elles peuvent avoir des bugs.'
+              : IS_PRERELEASE
+                ? 'Stable · tu restes sur cette version de test jusqu’à la prochaine version stable, qui arrivera toute seule.'
+                : 'Stable · seulement les versions publiées pour tout le monde.'
+          }
+        >
+          <Segmented
+            label="Canal des mises à jour"
+            value={settings.updateChannel}
+            options={[
+              { value: 'stable', label: 'Stable' },
+              { value: 'beta', label: 'Bêta' }
+            ]}
+            onChange={(updateChannel) => onSaveSettings({ updateChannel }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+          />
+        </SettingRow>
         <SettingRow label="Animation de mise à jour" value="Rejoue la séquence sans rien télécharger ni installer">
           <button
             className="btn btn-secondary"
