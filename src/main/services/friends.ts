@@ -125,13 +125,14 @@ async function steamFriends(account: Account, key: string): Promise<Friend[]> {
 // public d'un serveur (paramètres du serveur, « Activer le widget du serveur ») : membres en ligne et jeu en cours.
 
 interface DiscordWidget {
+  name: string
   members: { id: string; username: string; avatar_url: string; status: string; activity?: { name: string } }[]
 }
 
 const DISCORD_WIDGET_OFF =
   'Le widget de ce serveur est désactivé. Dans les paramètres du serveur Discord, active « Activer le widget du serveur » puis enregistre les modifications.'
 
-async function discordServerMembers(rawId: string): Promise<Friend[]> {
+async function discordServerMembers(rawId: string): Promise<{ name?: string; members: Friend[] }> {
   const guildId = discordGuildIdFrom(rawId)
   if (!/^\d{15,22}$/.test(guildId))
     throw new UserError('Identifiant de serveur Discord invalide : colle l’« Identifiant du serveur » affiché à côté du widget.')
@@ -178,7 +179,7 @@ async function discordServerMembers(rawId: string): Promise<Friend[]> {
       game
     })
   }
-  return friends
+  return { name: text(widget.name, 100), members: friends }
 }
 
 // ---------- PlayStation (non officiel, via psn-api) ----------
@@ -286,7 +287,15 @@ export async function getAllFriends(): Promise<FriendsResult> {
       })
     )
   }
-  if (settings.discordGuildId) tasks.push(collect('discord', () => discordServerMembers(settings.discordGuildId)))
+  if (settings.discordGuildId) {
+    tasks.push(
+      collect('discord', async () => {
+        const { name, members } = await discordServerMembers(settings.discordGuildId)
+        if (name) result.discordServer = name
+        return members
+      })
+    )
+  }
   if (accounts.some((a) => a.platform === 'psn') && settings.psnNpsso) {
     tasks.push(collect('psn', () => psnFriends(settings.psnNpsso)))
   }
