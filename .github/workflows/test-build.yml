@@ -1,0 +1,59 @@
+# Installeur de TEST pour essayer une branche de refonte sur Windows, sans rien publier.
+# - Ni tag, ni release, ni signature : l'installeur est seulement attaché à l'exécution (onglet Actions › Artifacts).
+# - Numéro de version de test « <version>.<n° d'exécution> » (ex. 0.9.0-beta.3.12) : plus récent que la version de la
+#   branche, mais plus ancien que la bêta suivante (0.9.0-beta.4), qui arrivera donc normalement par la mise à jour.
+name: Installeur de test
+
+on:
+  push:
+    branches:
+      - 'claude/refonte-lot-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérifier les types
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Numéro de version de test
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version").${GITHUB_RUN_NUMBER}"
+          case "${version}" in *-*) ;; *) version="$(node -p "require('./package.json').version")-test.${GITHUB_RUN_NUMBER}" ;; esac
+          npm version "${version}" --no-git-tag-version --allow-same-version > /dev/null
+          echo "VERSION=${version}" >> "${GITHUB_ENV}"
+
+      - name: Compiler
+        run: npx electron-vite build
+
+      - name: Construire l'installeur (sans publier)
+        run: npx electron-builder --win --x64 --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Player-X-Setup-${{ env.VERSION }}
+          path: dist/Player-X-Setup-${{ env.VERSION }}.exe
+          retention-days: 14
+          if-no-files-found: error
