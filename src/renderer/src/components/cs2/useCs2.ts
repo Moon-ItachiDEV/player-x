@@ -21,11 +21,15 @@ export function openCs2Recap(recap: Cs2Recap): void {
     .catch(() => {})
 }
 
-/** État complet, relu quand la liaison ou les bilans changent ; le match en direct arrive à part, au plus une fois par seconde. */
-export function useCs2(): { state: Cs2State | null; live: Cs2Live | null } {
+/**
+ * État complet, relu quand la liaison ou les bilans changent ; le match en direct arrive à part, au plus une fois par seconde.
+ * `active` à false (fiche d'un autre jeu) : rien n'est lu ni écouté.
+ */
+export function useCs2(active = true): { state: Cs2State | null; live: Cs2Live | null } {
   const [state, setState] = useState<Cs2State | null>(null)
   const [live, setLive] = useState<Cs2Live | null>(null)
   useEffect(() => {
+    if (!active) return
     let alive = true
     const load = (): void => {
       api
@@ -49,8 +53,8 @@ export function useCs2(): { state: Cs2State | null; live: Cs2Live | null } {
       offLive()
       offShown()
     }
-  }, [])
-  return { state, live }
+  }, [active])
+  return active ? { state, live } : { state: null, live: null }
 }
 
 /** Exemple : chiffres fictifs, toujours présentés comme tels. Un match compétitif 13–9 sur Mirage. */

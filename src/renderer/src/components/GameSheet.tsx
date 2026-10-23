@@ -4,18 +4,20 @@ import { PLAYED_SOURCE } from '@shared/played'
 import { capitalize, cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
 import type { Friend, Game, NewsPost } from '@shared/types'
 import { isBf6Game, useBf6Summary } from './stats/bf6'
-import type { GameSheetProps, LaunchFn } from '../contracts'
+import type { GameSheetProps, LaunchFn, View } from '../contracts'
 import { sheetLine } from '../launch/copy'
 import { isPending } from '../launch/phase'
 import { PlayLabel } from '../launch/PlayLabel'
 import { useWindowActive } from '../update/useCardPhase'
 import { usePlayState, type PlayInfo } from '../launch/usePlayState'
-import { ACH_VIEW, AchievementsSection, AchievementsView } from './achievements/SheetAchievements'
-import { useAchievements } from './achievements/useAchievements'
-import { Cs2Section } from './cs2/Cs2Section'
+import { AchievementsSection, AchievementsTab } from './achievements/SheetAchievements'
+import { useAchievements, type AchievementsLoad } from './achievements/useAchievements'
+import { Cs2Matches, Cs2Overview } from './cs2/Cs2Section'
+import { useCs2 } from './cs2/useCs2'
 import { NewsReader } from './news/NewsReader'
-import { NewsBanner, NewsSection } from './news/NewsSection'
-import { useGameNews } from './news/useGameNews'
+import { NewsSection, type GameArt } from './news/NewsSection'
+import { NewsThumb } from './news/NewsThumb'
+import { useGameNews, type NewsState } from './news/useGameNews'
 import { Avatar } from './ui/Avatar'
 import { CountUp } from './ui/CountUp'
 import { Cover } from './ui/Cover'
@@ -32,8 +34,30 @@ import './library/uninstalled.css'
 const CLOSE_MS = 180
 /** Délai de double-clic de Windows : un clic sur le voile juste après l'ouverture vient d'un double-clic sur une jaquette. */
 const DBL_CLICK_MS = 500
+/** Hauteur de la barre collante du haut de la fiche (doit suivre gamesheet.css) : « Jouer » passe dedans sous cette ligne. */
+const BAR_H = 64
 
-/** Tiroir de fiche de jeu, à droite. `game === null` : fermé. */
+/** Page d'où vient la fiche, pour le fil d'Ariane et « Retour ». */
+const FROM_LABEL: Record<View, string> = {
+  home: 'Accueil',
+  library: 'Bibliothèque',
+  friends: 'Amis',
+  profile: 'Profil',
+  stats: 'Stats de jeu',
+  trophies: 'Trophées',
+  settings: 'Paramètres',
+  news: 'Actus des jeux'
+}
+
+type Tab = 'overview' | 'matches' | 'ach' | 'news'
+const TAB_LABEL: Record<Tab, string> = {
+  overview: 'Aperçu',
+  matches: 'Matchs',
+  ach: 'Succès',
+  news: 'Actus'
+}
+
+/** Fiche d'un jeu : une page par-dessus le contenu (le rail reste sous le voile). `game === null` : fermée. */
 export function GameSheet(props: GameSheetProps): React.JSX.Element | null {
   const { game } = props
   // On garde le dernier jeu affiché le temps de l'animation de sortie.
@@ -41,7 +65,7 @@ export function GameSheet(props: GameSheetProps): React.JSX.Element | null {
   if (game && game !== last) setLast(game)
   useEffect(() => {
     if (game) return
-    // Fermeture en transition de vue : le tiroir est déjà masqué dans le nouvel état, on le retire tout de suite.
+    // Fermeture en transition de vue : la fiche est déjà masquée dans le nouvel état, on la retire tout de suite.
     const t = setTimeout(() => setLast(null), document.documentElement.classList.contains('vt-close') ? 0 : CLOSE_MS)
     return () => clearTimeout(t)
   }, [game])
@@ -51,28 +75,58 @@ export function GameSheet(props: GameSheetProps): React.JSX.Element | null {
   return <Sheet {...props} game={shown} closing={!game} />
 }
 
-type SheetProps = Omit<GameSheetProps, 'game'> & { game: Game; closing: boolean }
+type SheetProps = Omit<GameSheetProps, 'game'> & {
+  game: Game
+  closing: boolean
+}
 
-function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan, onFavorite, onOpenFolder, onInstall, onOpenStats }: SheetProps): React.JSX.Element {
+function Sheet({
+  game,
+  friends,
+  closing,
+  news,
+  post,
+  from,
+  onClose,
+  onLaunch,
+  onRescan,
+  onFavorite,
+  onOpenFolder,
+  onInstall,
+  onOpenStats
+}: SheetProps): React.JSX.Element {
   const panelRef = useRef<HTMLElement>(null)
   const posterRef = useRef<HTMLDivElement>(null)
   const playRef = useRef<HTMLButtonElement>(null)
+  const actionsRef = useRef<HTMLDivElement>(null)
+  const tabsRef = useRef<HTMLDivElement>(null)
   const p = usePlayState(game, onLaunch)
-  const sentinelRef = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(false)
   const [pop, setPop] = useState(0)
   const openedAt = useRef(0)
-  // Ouverte par une transition de vue : pas de glissement CSS en plus (la classe reste pour cette ouverture).
+  // Ouverte par une transition de vue : pas d'entrée CSS en plus (la classe reste pour cette ouverture).
   const [morph] = useState(() => document.documentElement.classList.contains('vt-open'))
 
-  // Actus : lues à l'ouverture. Le patch signalé par le badge reste en haut tant que la fiche est ouverte,
+  // Actus : lues à l'ouverture. Le patch signalé par le badge reste en avant tant que la fiche est ouverte,
   // même une fois marqué comme vu (le badge des cartes, lui, disparaît).
   const { state: newsState, reload: reloadNews } = useGameNews(game.id, news && !closing)
   const [opened, setOpened] = useState({ id: game.id, patch: game.newPatch })
   if (opened.id !== game.id) setOpened({ id: game.id, patch: game.newPatch })
   const patch = news ? opened.patch : undefined
-  // Succès Steam : lus à l'ouverture, pour les jeux Steam seulement. La liste complète s'ouvre comme une annonce (ACH_VIEW).
+  // Succès Steam : lus à l'ouverture, pour les jeux Steam seulement. La liste complète est l'onglet « Succès ».
   const { state: achState, reload: reloadAch } = useAchievements(game.id, game.store === 'steam' && !closing)
+  // Counter-Strike 2 : match en direct et bilans (onglet « Matchs »), lus seulement sur sa fiche.
+  const isCs2 = game.id === CS2_GAME_ID && !game.notInstalled
+  const { state: cs2, live } = useCs2(isCs2 && !closing)
+
+  // Onglets montrés : ceux qui ont quelque chose à dire pour ce jeu.
+  const achShown = game.store === 'steam' && !(achState.status === 'ready' && (achState.data.state === 'not-steam' || achState.data.state === 'none'))
+  const hasMatches = isCs2 && !!cs2?.enabled
+  const tabs: Tab[] = ['overview', ...(hasMatches ? (['matches'] as const) : []), ...(achShown ? (['ach'] as const) : []), ...(news ? (['news'] as const) : [])]
+  const [tab, setTab] = useState<Tab>('overview')
+  const current = tabs.includes(tab) ? tab : 'overview'
+  const focusTab = useRef(false)
+
   // Annonce ouverte dans le lecteur (identifiant), et d'où on vient pour y revenir. Ouverte depuis l'accueil ou la page
   // Actus des jeux (`post`) : la fiche s'ouvre directement sur le lecteur.
   const [reading, setReading] = useState<string | null>(news && post ? post : null)
@@ -84,12 +138,15 @@ function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan
   const seenFor = useRef<string | null>(null)
   const readSeen = useRef<string | null>(null)
 
-  // Autre jeu, ou fiche rouverte pendant l'animation de fermeture : on repart de l'annonce demandée (ou de la fiche).
+  // Autre jeu, ou fiche rouverte pendant l'animation de fermeture : on repart de l'annonce demandée (ou de l'aperçu).
   // Pendant le rendu (et pas dans un effet) : l'effet de focus de l'ouverture doit déjà voir le bon état.
   const [resetKey, setResetKey] = useState(`${game.id}|${closing}`)
   if (resetKey !== `${game.id}|${closing}`) {
     setResetKey(`${game.id}|${closing}`)
-    if (!closing) setReading(news && post ? post : null)
+    if (!closing) {
+      setReading(news && post ? post : null)
+      setTab('overview')
+    }
   }
 
   const markSeen = useCallback(() => {
@@ -98,16 +155,16 @@ function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan
     window.launcher.markNewsSeen(game.id).catch(() => {})
   }, [game.id])
 
-  // Le bandeau du patch est en haut de la fiche : vu dès que les actus sont là. Pas tant que la fiche montre une annonce
-  // ou les succès (bandeau caché) : ouverte sur une annonce plus ancienne, le patch plus récent garde « Nouveau ». Au retour
-  // à la fiche, le bandeau s'affiche et la règle s'applique.
+  // Le patch est en avant dans l'aperçu : vu dès que les actus sont là. Pas tant que la fiche montre une annonce ou un
+  // autre onglet : ouverte sur une annonce plus ancienne, le patch plus récent garde « Nouveau ». Au retour à l'aperçu,
+  // la règle s'applique.
   useEffect(() => {
-    if (patch && !reading && newsState.status === 'ready') markSeen()
-  }, [patch, reading, newsState.status, markSeen])
+    if (patch && !reading && current === 'overview' && newsState.status === 'ready') markSeen()
+  }, [patch, reading, current, newsState.status, markSeen])
 
   // Annonce lue : vue jusqu'à elle (les plus récentes gardent « Nouveau »).
   useEffect(() => {
-    if (!reading || reading === ACH_VIEW || newsState.status !== 'ready') return
+    if (!reading || newsState.status !== 'ready') return
     const read = newsState.news.posts.find((p) => p.id === reading)
     const key = `${game.id}:${reading}`
     if (!read || readSeen.current === key) return
@@ -122,9 +179,39 @@ function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan
   }
   const closeReader = (): void => setReading(null)
 
+  /** Passe à un onglet depuis un lien de l'aperçu (« Tous les matchs », « Voir les succès ») : focus sur l'onglet. */
+  const goTab = (t: Tab): void => {
+    focusTab.current = true
+    setTab(t)
+  }
+  useLayoutEffect(() => {
+    if (!focusTab.current) return
+    focusTab.current = false
+    tabsRef.current?.scrollIntoView({ block: 'nearest' })
+    document.getElementById(`sheet-tab-${current}`)?.focus({ preventScroll: true })
+  }, [current])
+
+  // Onglets : flèches gauche/droite, Début et Fin (activation directe).
+  const onTabKey = (e: React.KeyboardEvent): void => {
+    const i = tabs.indexOf(current)
+    const next =
+      e.key === 'ArrowRight'
+        ? (i + 1) % tabs.length
+        : e.key === 'ArrowLeft'
+          ? (i - 1 + tabs.length) % tabs.length
+          : e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? tabs.length - 1
+              : -1
+    if (next < 0) return
+    e.preventDefault()
+    goTab(tabs[next])
+  }
+
   // Lecteur ouvert : en haut, focus sur « Retour ». Refermé : retour à la même hauteur, focus sur l'actu d'origine.
   // Ouvert depuis l'extérieur de la fiche (accueil, page Actus) : le focus est encore sur la carte cliquée, c'est l'effet
-  // d'ouverture qui le prend (et qui retient la carte pour y revenir) ; au retour, haut de la fiche et focus sur le tiroir.
+  // d'ouverture qui le prend (et qui retient la carte pour y revenir) ; au retour, haut de la fiche et focus sur la page.
   // On retient le jeu dont le lecteur était ouvert : sur un autre jeu, pas de retour à la hauteur de l'ancien.
   const wasReading = useRef<string | null>(null)
   useLayoutEffect(() => {
@@ -147,8 +234,12 @@ function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan
     wasReading.current = reading ? game.id : null
   }, [reading, game.id])
 
-  useEscape(!closing && !reading, onClose)
-  useEscape(!closing && !!reading, closeReader)
+  // Échap : ferme le lecteur, sinon la fiche. Un menu (tri des succès) ou un bilan ouvert par-dessus se ferme d'abord, seul.
+  useEscape(!closing, () => {
+    if (document.querySelector('.menu, .dialog-scrim')) return
+    if (readingRef.current) closeReader()
+    else onClose()
+  })
 
   useEffect(() => {
     if (!closing) openedAt.current = performance.now()
@@ -163,7 +254,7 @@ function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan
     onClose()
   }
 
-  // Focus : on entre dans le tiroir à l'ouverture (sur « Retour » si elle s'ouvre sur une annonce), on rend la main à
+  // Focus : on entre dans la fiche à l'ouverture (sur « Retour » si elle s'ouvre sur une annonce), on rend la main à
   // l'élément d'origine à la fermeture.
   useEffect(() => {
     if (closing) return
@@ -180,12 +271,12 @@ function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan
     if (panelRef.current) panelRef.current.scrollTop = 0
   }, [game.id])
 
-  // Filet sous la rangée d'actions quand elle colle en haut.
+  // « Jouer » passe sous la barre du haut : la barre prend un fond et sa propre copie du bouton.
   useEffect(() => {
     const root = panelRef.current
-    const el = sentinelRef.current
+    const el = actionsRef.current
     if (!root || !el) return
-    const io = new IntersectionObserver(([entry]) => setStuck(!entry.isIntersecting), { root })
+    const io = new IntersectionObserver(([entry]) => setStuck(!entry.isIntersecting), { root, rootMargin: `-${BAR_H}px 0px 0px 0px` })
     io.observe(el)
     return () => io.disconnect()
   }, [])
@@ -194,7 +285,7 @@ function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan
     if (e.key !== 'Tab' || !panelRef.current) return
     // Le contenu de la fiche reste monté (caché) pendant la lecture d'une actu : on ne garde que ce qui est visible.
     const items = [...panelRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input, [tabindex]:not([tabindex="-1"])')].filter(
-      (el) => el.checkVisibility?.() ?? true
+      (el) => el.checkVisibility?.({ visibilityProperty: true }) ?? true
     )
     if (!items.length) return
     const first = items[0]
@@ -211,211 +302,256 @@ function Sheet({ game, friends, closing, news, post, onClose, onLaunch, onRescan
 
   const title = cleanName(game.name)
   const titleId = `sheet-title-${game.id}`
+  const fromLabel = FROM_LABEL[from ?? 'library']
   const playing = friends.filter((f) => f.status === 'in-game' && f.game && norm(f.game) === norm(game.name))
   // Discord : membres en ligne d'un serveur, jamais des amis.
   const pals = playing.filter((f) => f.platform !== 'discord')
   const members = playing.filter((f) => f.platform === 'discord')
-  // D'où vient la dernière partie : en cours, c'est Player X qui la voit.
-  const playedSrc = game.running ? 'session' : game.lastPlayedSource
   const toggleFavorite = (): void => {
     if (!game.favorite) setPop((n) => n + 1)
     onFavorite(game)
   }
 
+  const achCard = game.store === 'steam' && <AchievementsSection state={achState} onOpenAll={() => goTab('ach')} onRetry={reloadAch} />
+
   return (
     <div className={`sheet-root ${morph ? 'is-morph' : ''} ${closing ? 'is-closing' : ''}`} inert={closing}>
       <div className="sheet-scrim" onClick={onScrimClick} aria-hidden="true" />
-      <aside ref={panelRef} className={`sheet-panel ${reading ? (reading === ACH_VIEW ? 'is-ach' : 'is-reading') : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={trapFocus}>
-        <header className="sheet-art">
-          <Cover key={game.id} game={game} variant="landscape" showTitle={false} />
-          <div className="sheet-art-shade" />
-          <button className="icon-btn sheet-close" onClick={onClose} aria-label="Fermer" title="Fermer (Échap)">
-            <Icon name="x" size={18} />
+      <aside
+        ref={panelRef}
+        className={`sheet-panel ${reading ? 'is-reading' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onKeyDown={trapFocus}
+      >
+        <header className={`sheet-bar ${stuck ? 'is-stuck' : ''}`}>
+          <button className="sheet-back" onClick={onClose} aria-label={`Retour : ${fromLabel}`} title="Retour (Échap)">
+            <Icon name="chevron-left" size={18} />
           </button>
-        </header>
-        <div className="sheet-head">
-          <div ref={posterRef} className="sheet-poster">
-            <Cover key={`p-${game.id}`} game={game} variant="portrait" showTitle={false} />
-          </div>
-          <div className="sheet-heading">
-            <span className="sheet-tags">
-              <StoreTag kind={game.store} long />
-              {game.running && <LiveBadge />}
-              {game.notInstalled && <span className="sheet-uninstalled">Pas installé</span>}
+          <p className="sheet-crumbs">
+            <span className="sheet-crumbs-from">{fromLabel}</span>
+            <span className="sheet-crumbs-sep" aria-hidden="true">
+              /
             </span>
-            <h2 id={titleId} className="sheet-title">
-              {title}
-            </h2>
-          </div>
-        </div>
-
-        <div ref={sentinelRef} className="sheet-sentinel" />
-        <div className={`sheet-actions ${stuck ? 'is-stuck' : ''}`}>
-          {game.notInstalled ? (
-            // Pas installé sur ce PC : Steam s'occupe du téléchargement ; ni favori ni dossier tant que le jeu n'est pas là.
-            <button className="btn btn-primary btn-play sheet-play" onClick={() => onInstall(game)} title="Installer avec Steam" data-magnetic>
-              <Icon name="download" size={18} />
-              Installer
-            </button>
-          ) : (
-            <>
+            <span className="sheet-crumbs-here">{title}</span>
+          </p>
+          <span className="sheet-bar-actions" inert={!stuck}>
+            {game.notInstalled ? (
+              <button className="btn btn-primary btn-sm" onClick={() => onInstall(game)} title="Installer avec Steam">
+                <Icon name="download" size={16} />
+                Installer
+              </button>
+            ) : (
               <button
-                ref={playRef}
-                className={`btn btn-primary btn-play sheet-play ${p.className}`}
+                className={`btn btn-primary btn-play sheet-bar-play ${p.className}`}
                 onClick={() => p.activate(posterRef.current)}
                 aria-disabled={p.inert || undefined}
                 aria-busy={p.busy || undefined}
                 aria-label={p.ariaLabel}
                 title={p.state === 'idle' ? undefined : p.title}
-                data-magnetic={p.state === 'idle' ? '' : undefined}
               >
-                <PlayLabel p={p} size={18} />
+                <PlayLabel p={p} size={16} />
               </button>
-              <button
-                className={`btn btn-secondary sheet-square ${game.favorite ? 'is-fav' : ''}`}
-                onClick={toggleFavorite}
-                aria-pressed={!!game.favorite}
-                aria-label={game.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                title={game.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-              >
-                <span key={pop} className={pop ? 'sheet-star-pop' : undefined}>
-                  <Icon name="star" size={20} filled={!!game.favorite} />
+            )}
+          </span>
+        </header>
+
+        <div className="sheet-page">
+          <section className="sheet-hero" aria-labelledby={titleId}>
+            <div className="sheet-art">
+              <Cover key={game.id} game={game} variant="landscape" showTitle={false} />
+              <div className="sheet-art-shade" />
+            </div>
+            <div className="sheet-hero-body">
+              <div ref={posterRef} className="sheet-poster">
+                <Cover key={`p-${game.id}`} game={game} variant="portrait" showTitle={false} />
+              </div>
+              <div className="sheet-heading">
+                <span className="sheet-tags">
+                  <StoreTag kind={game.store} long />
+                  {game.running && <LiveBadge />}
+                  {game.notInstalled ? <span className="sheet-uninstalled">Pas installé</span> : <span className="sheet-installed">Installé</span>}
                 </span>
-              </button>
-              <button
-                className="btn btn-secondary sheet-square"
-                onClick={() => onOpenFolder(game)}
-                disabled={!game.installDir}
-                aria-label="Ouvrir le dossier d'installation"
-                title={game.installDir ? "Ouvrir le dossier d'installation" : "Dossier d'installation inconnu"}
-              >
-                <Icon name="folder" size={20} />
-              </button>
-            </>
+                <h2 id={titleId} className="sheet-title">
+                  {title}
+                </h2>
+                <Facts game={game} ach={achState} />
+                {!game.notInstalled && <LaunchLine game={game} p={p} playRef={playRef} onLaunch={onLaunch} onRescan={onRescan} />}
+              </div>
+              <div ref={actionsRef} className="sheet-actions">
+                {game.notInstalled ? (
+                  // Pas installé sur ce PC : Steam s'occupe du téléchargement ; ni favori ni dossier tant que le jeu n'est pas là.
+                  <button className="btn btn-primary btn-play sheet-play" onClick={() => onInstall(game)} title="Installer avec Steam" data-magnetic>
+                    <Icon name="download" size={20} />
+                    Installer
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      ref={playRef}
+                      className={`btn btn-primary btn-play sheet-play ${p.className}`}
+                      onClick={() => p.activate(posterRef.current)}
+                      aria-disabled={p.inert || undefined}
+                      aria-busy={p.busy || undefined}
+                      aria-label={p.ariaLabel}
+                      title={p.state === 'idle' ? undefined : p.title}
+                      data-magnetic={p.state === 'idle' ? '' : undefined}
+                    >
+                      <PlayLabel p={p} size={20} />
+                    </button>
+                    <button
+                      className={`sheet-round ${game.favorite ? 'is-fav' : ''}`}
+                      onClick={toggleFavorite}
+                      aria-pressed={!!game.favorite}
+                      aria-label={game.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                      title={game.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                    >
+                      <span key={pop} className={pop ? 'sheet-star-pop' : undefined}>
+                        <Icon name="star" size={20} filled={!!game.favorite} />
+                      </span>
+                    </button>
+                    <button
+                      className="sheet-round"
+                      onClick={() => onOpenFolder(game)}
+                      disabled={!game.installDir}
+                      aria-label="Ouvrir le dossier d'installation"
+                      title={game.installDir ? "Ouvrir le dossier d'installation" : "Dossier d'installation inconnu"}
+                    >
+                      <Icon name="folder" size={20} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {tabs.length > 1 && (
+            <div ref={tabsRef} className="sheet-tabs" role="tablist" aria-label="Sections du jeu" onKeyDown={onTabKey}>
+              {tabs.map((t) => (
+                <button
+                  key={t}
+                  id={`sheet-tab-${t}`}
+                  className="sheet-tab"
+                  role="tab"
+                  aria-selected={t === current}
+                  aria-controls="sheet-tabpanel"
+                  tabIndex={t === current ? 0 : -1}
+                  onClick={() => setTab(t)}
+                >
+                  {TAB_LABEL[t]}
+                </button>
+              ))}
+            </div>
           )}
+
+          <div
+            id="sheet-tabpanel"
+            className="sheet-tabpanel"
+            role={tabs.length > 1 ? 'tabpanel' : undefined}
+            aria-labelledby={tabs.length > 1 ? `sheet-tab-${current}` : undefined}
+          >
+            {current === 'overview' && (
+              <div className="sheet-cols">
+                <div className="sheet-main">
+                  {isBf6Game(game) && <Bf6Link onOpen={onOpenStats} />}
+                  {isCs2 && cs2 && <Cs2Overview state={cs2} live={live} onRetry={onRescan} onOpenFolder={() => onOpenFolder(game)} onShowAll={() => goTab('matches')} />}
+                  {!hasMatches && achCard}
+                  <section className="sheet-card" aria-labelledby="sheet-install-h">
+                    <h3 id="sheet-install-h" className="sheet-h">
+                      Installation
+                    </h3>
+                    <InstallPath game={game} onOpenFolder={onOpenFolder} />
+                  </section>
+                </div>
+                <div className="sheet-side">
+                  {hasMatches && achCard}
+                  {/* Personne sur ce jeu : pas de carte (pas de ligne de remplissage). */}
+                  {pals.length > 0 && <FriendsCard title="Amis sur ce jeu" list={pals} />}
+                  {members.length > 0 && <FriendsCard title="Membres du serveur Discord" list={members} />}
+                  {news && <LatestNews game={game} patch={patch} state={newsState} onOpen={openPost} onRetry={reloadNews} />}
+                </div>
+              </div>
+            )}
+            {current === 'matches' && cs2 && <Cs2Matches state={cs2} live={live} onRetry={onRescan} onOpenFolder={() => onOpenFolder(game)} />}
+            {current === 'ach' && <AchievementsTab state={achState} onRetry={reloadAch} />}
+            {current === 'news' && (
+              <NewsSection
+                game={game}
+                state={newsState}
+                seenAt={newsState.status === 'ready' ? newsState.news.seenAt : 0}
+                onRead={(post: NewsPost, opener) => openPost(post.id, opener)}
+                onRetry={reloadNews}
+                onSeen={markSeen}
+              />
+            )}
+          </div>
         </div>
 
-        {!game.notInstalled && <LaunchLine game={game} p={p} playRef={playRef} onLaunch={onLaunch} onRescan={onRescan} />}
-
-        <div className="sheet-stats">
-          {game.running || game.lastPlayed ? (
-            <StatTile
-              label="Dernière partie"
-              value={game.running || !game.lastPlayed ? 'En cours' : capitalize(timeAgo(game.lastPlayed))}
-              caption={playedSrc ? PLAYED_SOURCE[playedSrc] : undefined}
-              hint={!game.running && game.lastPlayed ? formatDate(game.lastPlayed) : undefined}
-            />
-          ) : game.notInstalled && !game.playtime ? (
-            <StatTile label="Dernière partie" value="Jamais" caption="selon Steam" />
-          ) : (
-            <StatTile label="Dernière partie" value="—" caption={game.playtime ? 'Date inconnue' : 'Aucune partie connue'} />
-          )}
-          {game.notInstalled ? (
-            <StatTile label="Sur ce PC" value="Pas installé" caption="via Steam" />
-          ) : (
-            // Aucun lancement depuis Player X : pas de « 0 » (le jeu a pu être joué ailleurs).
-            (game.launches ?? 0) > 0 && <StatTile label="Lancements" value={String(game.launches)} caption="depuis Player X" />
-          )}
-          <StatTile
-            label="Temps de jeu"
-            value={game.playtime ? formatPlaytime(game.playtime) : '0 min'}
-            countTo={game.playtime}
-            caption={game.running ? 'Partie en cours' : game.playtimeSource === 'steam' || game.notInstalled ? 'selon Steam' : 'mesuré par Player X'}
-            live={game.running}
-          />
-        </div>
-
-        {isBf6Game(game) && <Bf6Link onOpen={onOpenStats} />}
-
-        {game.id === CS2_GAME_ID && !game.notInstalled && <Cs2Section onRetry={onRescan} onOpenFolder={() => onOpenFolder(game)} />}
-
-        {patch && (
-          <NewsBanner
-            patch={patch}
-            game={game}
-            image={newsState.status === 'ready' ? newsState.news.posts.find((p) => p.id === patch.id)?.image : undefined}
-            onOpen={(opener) => openPost(patch.id, opener)}
-          />
-        )}
-
-        {/* Personne sur ce jeu : pas de section (pas de ligne de remplissage). */}
-        {pals.length > 0 && (
-          <section className="sheet-section">
-            <h3 className="sheet-h">
-              Amis sur ce jeu
-              <span className="sheet-h-count num">{pals.length}</span>
-            </h3>
-            <ul className="sheet-friends">
-              {pals.map((f) => (
-                <FriendRow key={f.id} friend={f} />
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {members.length > 0 && (
-          <section className="sheet-section">
-            <h3 className="sheet-h">
-              Membres du serveur Discord
-              <span className="sheet-h-count num">{members.length}</span>
-            </h3>
-            <ul className="sheet-friends">
-              {members.map((f) => (
-                <FriendRow key={f.id} friend={f} />
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {game.store === 'steam' && <AchievementsSection state={achState} onOpenAll={(opener) => openPost(ACH_VIEW, opener)} onRetry={reloadAch} />}
-
-        {news && (
-          <NewsSection
-            game={game}
-            state={newsState}
-            seenAt={newsState.status === 'ready' ? newsState.news.seenAt : 0}
-            onRead={(post: NewsPost, opener) => openPost(post.id, opener)}
-            onRetry={reloadNews}
-            onSeen={markSeen}
-          />
-        )}
-
-        <section className="sheet-section sheet-install">
-          <h3 className="sheet-h">Installation</h3>
-          <InstallPath game={game} onOpenFolder={onOpenFolder} />
-        </section>
-        {reading === ACH_VIEW && (
-          <AchievementsView gameName={title} state={achState} backRef={readerBack} onBack={closeReader} onClose={onClose} onRetry={reloadAch} />
-        )}
-        {reading && reading !== ACH_VIEW && (
-          <NewsReader
-            gameName={title}
-            state={newsState}
-            postId={reading}
-            backRef={readerBack}
-            onBack={closeReader}
-            onClose={onClose}
-            onRetry={reloadNews}
-          />
-        )}
+        {reading && <NewsReader gameName={title} state={newsState} postId={reading} backRef={readerBack} onBack={closeReader} onClose={onClose} onRetry={reloadNews} />}
       </aside>
     </div>
   )
 }
 
-/** `hint` : bulle du chiffre (la date exacte sous « Il y a 2 h »). */
-function StatTile(props: { label: string; value: string; caption?: string; hint?: string; countTo?: number; live?: boolean }): React.JSX.Element {
-  const { label, value, caption, hint, countTo, live } = props
+/**
+ * Chiffres du jeu sous le titre : temps de jeu, dernière partie, lancements depuis Player X, succès.
+ * D'où vient chaque chiffre : en infobulle, et lu par les lecteurs d'écran.
+ */
+function Facts({ game, ach }: { game: Game; ach: AchievementsLoad }): React.JSX.Element {
+  const playedSrc = game.running ? 'session' : game.lastPlayedSource
+  const timeSrc = game.running ? 'partie en cours' : game.playtimeSource === 'steam' || game.notInstalled ? 'selon Steam' : 'mesuré par Player X'
+  const achData = ach.status === 'ready' && ach.data.state === 'ready' && ach.data.total > 0 ? ach.data : null
+  let last: React.JSX.Element
+  if (game.running) {
+    last = (
+      <span className="sheet-fact is-live">
+        <b>Partie en cours</b>
+      </span>
+    )
+  } else if (game.lastPlayed) {
+    const src = playedSrc ? PLAYED_SOURCE[playedSrc] : undefined
+    last = (
+      <span className="sheet-fact" title={[formatDate(game.lastPlayed), src].filter(Boolean).join(' · ')}>
+        Dernière partie <b>{timeAgo(game.lastPlayed)}</b>
+        {src && <span className="sr-only">, {src}</span>}
+      </span>
+    )
+  } else if (game.notInstalled && !game.playtime) {
+    last = (
+      <span className="sheet-fact" title="selon Steam">
+        <b>Jamais joué</b>
+        <span className="sr-only">, selon Steam</span>
+      </span>
+    )
+  } else {
+    last = <span className="sheet-fact">{game.playtime ? 'Date de la dernière partie inconnue' : 'Aucune partie connue'}</span>
+  }
   return (
-    <div className="sheet-tile">
-      <span className="sheet-tile-label">{label}</span>
-      <span className="sheet-tile-value num" title={hint ?? value}>
-        {countTo ? <CountUp value={countTo} format={formatPlaytime} /> : value}
+    <p className="sheet-facts">
+      <span className={`sheet-fact ${game.running ? 'is-live' : ''}`} title={timeSrc}>
+        <b>{game.playtime ? <CountUp value={game.playtime} format={formatPlaytime} /> : '0 min'}</b> de jeu
+        <span className="sr-only">, {timeSrc}</span>
       </span>
-      <span className={`sheet-tile-caption ${live ? 'is-live' : ''}`} title={caption}>
-        {caption}
-      </span>
-    </div>
+      {!game.running && last}
+      {/* Aucun lancement depuis Player X : pas de « 0 » (le jeu a pu être joué ailleurs). */}
+      {!game.notInstalled && (game.launches ?? 0) > 0 && (
+        <span className="sheet-fact" title="depuis Player X">
+          <b className="num">{game.launches}</b> lancement
+          {game.launches! > 1 ? 's' : ''}
+          <span className="sr-only"> depuis Player X</span>
+        </span>
+      )}
+      {achData && (
+        <span className="sheet-fact">
+          <b className="num">
+            {achData.unlocked} / {achData.total}
+          </b>{' '}
+          succès
+        </span>
+      )}
+    </p>
   )
 }
 
@@ -442,16 +578,87 @@ function Bf6Link({ onOpen }: { onOpen: () => void }): React.JSX.Element {
   )
 }
 
-function FriendRow({ friend }: { friend: Friend }): React.JSX.Element {
+function FriendsCard({ title, list }: { title: string; list: Friend[] }): React.JSX.Element {
   return (
-    <li className="sheet-friend">
-      <Avatar name={friend.name} url={friend.avatarUrl} size={32} status="in-game" />
-      <span className="sheet-friend-text">
-        <span className="sheet-friend-name">{friend.name}</span>
-        <span className="sheet-friend-sub">{friend.device ? `En jeu · ${friend.device}` : 'En jeu'}</span>
-      </span>
-      <StoreTag kind={friend.platform} size={18} className="sheet-friend-pf" />
-    </li>
+    <section className="sheet-card is-list" aria-label={title}>
+      <h3 className="sheet-h">
+        {title}
+        <span className="sheet-h-count num">{list.length}</span>
+      </h3>
+      <ul className="sheet-friends">
+        {list.map((f) => (
+          <li key={f.id} className="sheet-friend">
+            <Avatar name={f.name} url={f.avatarUrl} size={40} status="in-game" />
+            <span className="sheet-friend-text">
+              <span className="sheet-friend-name">{f.name}</span>
+              <span className="sheet-friend-sub">{f.device ? `En jeu · ${f.device}` : 'En jeu maintenant'}</span>
+            </span>
+            <StoreTag kind={f.platform} size={20} className="sheet-friend-pf" />
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+interface LatestProps {
+  game: GameArt
+  /** Patch qui a valu son badge au jeu : en avant tant que la fiche est ouverte. */
+  patch?: Game['newPatch']
+  state: NewsState
+  onOpen: (id: string, opener: HTMLElement) => void
+  onRetry: () => void
+}
+
+/** Dernière actu du jeu (ou le patch signalé par le badge), ouverte dans le lecteur. Toutes les actus : onglet « Actus ». */
+function LatestNews({ game, patch, state, onOpen, onRetry }: LatestProps): React.JSX.Element | null {
+  const posts = state.status === 'ready' ? state.news.posts : []
+  const post = patch ? posts.find((x) => x.id === patch.id) : posts[0]
+  if (!patch && !post) {
+    if (state.status === 'loading') {
+      return (
+        <section className="sheet-card sheet-news" aria-label="Dernière actu" aria-busy="true">
+          <span className="skel sheet-news-thumb" />
+          <span className="sheet-news-text" aria-hidden="true">
+            <span className="skel" style={{ width: '30%', height: 12 }} />
+            <span className="skel" style={{ width: '80%', height: 15 }} />
+          </span>
+        </section>
+      )
+    }
+    if (state.status === 'error') {
+      return (
+        <section className="sheet-card" aria-labelledby="sheet-news-h">
+          <h3 id="sheet-news-h" className="sheet-h">
+            Dernière actu
+          </h3>
+          <p className="caption">{state.message}</p>
+          <button className="btn btn-secondary btn-sm" onClick={onRetry}>
+            <Icon name="refresh" size={14} />
+            Réessayer
+          </button>
+        </section>
+      )
+    }
+    // Pas d'annonce (ou jeu introuvable sur Steam) : l'onglet « Actus » le dit.
+    return null
+  }
+  const id = patch?.id ?? post!.id
+  const at = post?.date ?? patch!.at
+  const kicker = patch ? 'Nouveau patch' : post!.patch ? 'Dernier patch' : 'Dernière actu'
+  return (
+    <section className="sheet-card sheet-news" aria-label={kicker}>
+      <button className="sheet-news-link" onClick={(e) => onOpen(id, e.currentTarget)}>
+        <NewsThumb game={game} image={post?.image} patch={!!patch || !!post?.patch} className="sheet-news-thumb" />
+        <span className="sheet-news-text">
+          <span className="sheet-news-kicker">{kicker}</span>
+          <span className="sheet-news-title">{post?.title ?? patch!.title}</span>
+          <span className="sheet-news-date num" title={formatDate(at)}>
+            {capitalize(timeAgo(at))}
+          </span>
+        </span>
+      </button>
+    </section>
   )
 }
 
@@ -558,7 +765,7 @@ function middleEllipsis(text: string, max: number, measure: (s: string) => numbe
 }
 
 /**
- * Ligne sous « Jouer » (spec launch-sequence.md §3.3) : où en est le lancement, compteur compris. Pas une région
+ * Ligne sous le titre (spec launch-sequence.md §3.3) : où en est le lancement, compteur compris. Pas une région
  * annoncée (la carte du lancement s'en charge). Un échec reste affiché jusqu'à la fermeture de la fiche.
  */
 interface LaunchLineProps {
@@ -587,7 +794,10 @@ function LaunchLine({ game, p, playRef, onLaunch, onRescan }: LaunchLineProps): 
   // La partie simulée de la démo tient lieu de « Partie en cours » : dite même si elle a commencé avant l'ouverture.
   const demoRunning = !!s?.demo && s.phase === 'running'
   if (!v || !s || v.checking || (!pending && !demoRunning && v.changedAt < openedAt)) return null
-  const line = sheetLine(s, { name: cleanName(game.name), now: active ? Date.now() : now })
+  const line = sheetLine(s, {
+    name: cleanName(game.name),
+    now: active ? Date.now() : now
+  })
   if (!line?.text) return null
   const act = line.action
   return (

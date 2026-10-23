@@ -12,30 +12,7 @@ const NEW_MS = 7 * 24 * 3600_000
 
 export const steamNewsUrl = (appId: string): string => `https://store.steampowered.com/news/app/${appId}`
 
-type GameArt = Pick<Game, 'name' | 'coverUrl' | 'heroUrl'>
-
-interface BannerProps {
-  patch: NonNullable<Game['newPatch']>
-  /** Image du jeu, quand l'annonce n'en a pas (ou pas encore lue). */
-  game: GameArt
-  /** Première image de l'annonce, une fois les actus lues. */
-  image?: string
-  onOpen: (opener: HTMLElement) => void
-}
-
-/** En haut de la fiche : le patch qui a valu son badge au jeu. */
-export function NewsBanner({ patch, game, image, onOpen }: BannerProps): React.JSX.Element {
-  return (
-    <button className="news-banner" onClick={(e) => onOpen(e.currentTarget)}>
-      <NewsThumb game={game} image={image} patch className="news-banner-thumb" />
-      <span className="news-banner-text">
-        <span className="news-banner-kicker">Nouveau patch · {timeAgo(patch.at)}</span>
-        <span className="news-banner-title">{patch.title}</span>
-      </span>
-      <Icon name="chevron-right" size={16} className="news-banner-go" />
-    </button>
-  )
-}
+export type GameArt = Pick<Game, 'name' | 'coverUrl' | 'heroUrl'>
 
 interface SectionProps {
   /** Image du jeu, pour les annonces qui n'en ont pas. */
@@ -49,7 +26,7 @@ interface SectionProps {
   onSeen: () => void
 }
 
-/** Section « Actus » de la fiche : les dernières annonces officielles du jeu sur Steam. */
+/** Onglet « Actus » de la fiche : les dernières annonces officielles du jeu sur Steam. */
 export function NewsSection({ game, state, seenAt, onRead, onRetry, onSeen }: SectionProps): React.JSX.Element {
   const ref = useRef<HTMLElement>(null)
   const seenRef = useRef(onSeen)
@@ -74,7 +51,7 @@ export function NewsSection({ game, state, seenAt, onRead, onRetry, onSeen }: Se
 
   const now = Date.now()
   return (
-    <section ref={ref} className="sheet-section news" aria-labelledby="news-h" aria-busy={state.status === 'loading'}>
+    <section ref={ref} className="sheet-card news" aria-labelledby="news-h" aria-busy={state.status === 'loading'}>
       <h3 id="news-h" className="sheet-h">
         Actus
         <span className="sheet-h-count">annonces officielles sur Steam</span>

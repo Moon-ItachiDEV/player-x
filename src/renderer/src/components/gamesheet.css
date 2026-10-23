@@ -1,4 +1,5 @@
-/* Fiche de jeu : panneau à droite, sous la barre du haut. */
+/* Fiche d'un jeu : une page par-dessus le contenu, sous la barre du haut. Le rail reste visible sous le voile
+   (un clic dessus ferme la fiche). Barre « Retour » collante, bandeau du jeu, onglets, puis deux colonnes de cartes. */
 
 .sheet-scrim {
   position: fixed;
@@ -13,27 +14,25 @@
 .sheet-panel {
   position: fixed;
   top: var(--topbar-h);
+  left: var(--nav-w);
   right: 0;
   bottom: 0;
   z-index: var(--z-sheet);
-  width: min(var(--sheet-w), calc(100vw - var(--rail-w)));
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--bg-2);
-  border-left: 1px solid var(--glass-line);
-  box-shadow: -24px 0 60px -20px rgba(0, 0, 0, 0.7);
+  background: var(--bg-1);
   outline: none;
   animation: sheet-in var(--d-3) var(--ease-out);
-  /* Défilement du tiroir : pilote la parallaxe de l'en-tête (.sheet-art est overflow: hidden, pas de scroll(nearest)). */
+  /* Défilement de la fiche : pilote la parallaxe du bandeau (.sheet-art est overflow: hidden, pas de scroll(nearest)). */
   scroll-timeline: --px-sheet y;
 }
-/* Le tiroir reçoit le focus à l'ouverture : pas d'anneau autour du panneau entier. */
+/* La fiche reçoit le focus à l'ouverture : pas d'anneau autour de la page entière. */
 .sheet-panel:focus-visible {
-  box-shadow: -24px 0 60px -20px rgba(0, 0, 0, 0.7);
+  box-shadow: none;
 }
 
-/* Ouverte par une transition de vue : le morphing remplace le glissement. Avant .is-closing pour que la fermeture gagne. */
+/* Ouverte par une transition de vue : le morphing remplace l'entrée. Avant .is-closing pour que la fermeture gagne. */
 .sheet-root.is-morph .sheet-panel,
 .sheet-root.is-morph .sheet-scrim {
   animation: none;
@@ -52,13 +51,13 @@
 @keyframes sheet-in {
   from {
     opacity: 0;
-    transform: translateX(32px);
+    transform: translateY(12px);
   }
 }
 @keyframes sheet-out {
   to {
     opacity: 0;
-    transform: translateX(32px);
+    transform: translateY(12px);
   }
 }
 @keyframes sheet-fade-in {
@@ -69,115 +68,6 @@
 @keyframes sheet-fade-out {
   to {
     opacity: 0;
-  }
-}
-
-/* ---------- visuel d'en-tête ---------- */
-
-.sheet-art {
-  position: relative;
-  height: 200px;
-  overflow: hidden;
-}
-.sheet-art .cover {
-  position: absolute;
-  inset: 0;
-  height: 100%;
-  aspect-ratio: auto;
-  box-shadow: none;
-}
-.sheet-art-shade {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(0deg, var(--bg-2) 0%, color-mix(in srgb, var(--bg-2) 55%, transparent) 38%, transparent 70%),
-    linear-gradient(180deg, color-mix(in srgb, var(--ink) 45%, transparent) 0%, transparent 35%);
-  pointer-events: none;
-}
-.sheet-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  color: var(--text-1);
-  background: var(--badge-bg);
-  border: 1px solid var(--line-2);
-  backdrop-filter: blur(8px);
-}
-.sheet-close:hover:not(:disabled) {
-  background: var(--surface-2);
-}
-
-/* Affiche et titre, à cheval sur le visuel */
-.sheet-head {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: flex-end;
-  gap: 16px;
-  margin: -64px 24px 0;
-}
-/* Affiche (jaquette 2:3) : cible du morphing depuis la carte de la grille. */
-.sheet-poster {
-  flex-shrink: 0;
-  width: 96px;
-  height: 128px;
-  border-radius: var(--r-md);
-  overflow: hidden;
-  box-shadow:
-    0 0 0 3px var(--bg-2),
-    0 16px 30px -12px rgba(0, 0, 0, 0.8);
-}
-.sheet-poster .cover {
-  height: 100%;
-  aspect-ratio: auto;
-}
-.sheet-heading {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  min-width: 0;
-  padding-bottom: 2px;
-}
-.sheet-tags {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.sheet-title {
-  font: 700 29px/1.02 var(--font-display);
-  letter-spacing: -0.01em;
-  color: #fff;
-  text-wrap: balance;
-  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Parallaxe au défilement (effets riches seulement) : le visuel suit à ~0,6x, l'affiche et le titre s'effacent
-   avant que la rangée d'actions collante les recouvre. */
-:root[data-fx='on'] .sheet-art > .cover {
-  animation: sheet-art-parallax linear both;
-  animation-timeline: --px-sheet;
-  animation-range: 0 200px;
-}
-@keyframes sheet-art-parallax {
-  to {
-    translate: 0 80px;
-    scale: 1.06;
-  }
-}
-:root[data-fx='on'] .sheet-head {
-  animation: sheet-head-out linear both;
-  animation-timeline: --px-sheet;
-  animation-range: 40px 190px;
-}
-@keyframes sheet-head-out {
-  to {
-    opacity: 0;
-    translate: 0 -12px;
   }
 }
 
@@ -198,45 +88,256 @@
   display: none;
 }
 
-/* ---------- rangée d'actions (collante) ---------- */
+/* ---------- barre du haut : retour et fil d'Ariane (collante) ---------- */
 
-.sheet-sentinel {
-  height: 10px;
-}
-.sheet-actions {
+/* Hauteur : BAR_H dans GameSheet.tsx. */
+.sheet-bar {
   position: sticky;
   top: 0;
   z-index: 3;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 24px;
+  gap: 12px;
+  height: 64px;
+  padding: 0 32px;
+  background: var(--bg-1);
+  transition:
+    background-color var(--d-2) var(--ease-out),
+    box-shadow var(--d-2) var(--ease-out);
+}
+/* « Jouer » est passé dessous : verre et filet, et la barre prend sa copie du bouton. */
+.sheet-bar.is-stuck {
+  background: var(--glass-bar);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 -1px 0 var(--line-1);
+}
+.sheet-back {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--text-2);
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    scale 160ms var(--ease-glide);
 }
-.sheet-actions::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: var(--line-1);
-  opacity: 0;
-  transition: opacity var(--d-1) var(--ease-out);
+.sheet-back:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
 }
-.sheet-actions.is-stuck::after {
-  opacity: 1;
+.sheet-back:active {
+  scale: 0.94;
 }
-.sheet-play {
+.sheet-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: 500 14px/20px var(--font-ui);
+  white-space: nowrap;
 }
-/* Où en est le lancement, sous « Jouer » : 12/16, icône 14 px, sans animation. */
+.sheet-crumbs-from {
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+.sheet-crumbs-sep {
+  color: var(--text-4);
+}
+.sheet-crumbs-here {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  color: var(--text-1);
+  text-overflow: ellipsis;
+}
+.sheet-bar-actions {
+  display: flex;
+  flex-shrink: 0;
+  opacity: 0;
+  visibility: hidden;
+  translate: 0 4px;
+  transition:
+    opacity var(--d-2) var(--ease-out),
+    translate var(--d-2) var(--ease-out),
+    visibility 0s linear var(--d-2);
+}
+.sheet-bar.is-stuck .sheet-bar-actions {
+  opacity: 1;
+  visibility: visible;
+  translate: 0 0;
+  transition-delay: 0s;
+}
+.btn-play.sheet-bar-play {
+  height: 40px;
+  min-width: 132px;
+  padding: 0 20px 0 16px;
+  font-size: 14px;
+}
+
+/* ---------- page ---------- */
+
+.sheet-page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 8px 32px 40px;
+}
+
+/* ---------- bandeau du jeu ---------- */
+
+.sheet-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 380px;
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.sheet-art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.sheet-art .cover {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  aspect-ratio: auto;
+  box-shadow: none;
+}
+/* Voile du bas pour lire le titre, plus un fondu léger en haut. */
+.sheet-art-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(0deg, color-mix(in srgb, var(--ink) 90%, transparent) 0%, color-mix(in srgb, var(--ink) 20%, transparent) 70%),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 40%, transparent) 0%, transparent 60%);
+  pointer-events: none;
+}
+/* Parallaxe au défilement (effets riches seulement) : le visuel suit à ~0,6x. */
+:root[data-fx='on'] .sheet-art > .cover {
+  animation: sheet-art-parallax linear both;
+  animation-timeline: --px-sheet;
+  animation-range: 0 420px;
+}
+@keyframes sheet-art-parallax {
+  to {
+    translate: 0 120px;
+    scale: 1.06;
+  }
+}
+.sheet-hero-body {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 24px 28px;
+  flex: 1;
+  min-width: 0;
+  padding: 36px;
+}
+/* Jaquette (3:4) : cible du morphing depuis la carte de la grille, et de l'allumage au lancement. */
+.sheet-poster {
+  flex: 0 0 150px;
+  aspect-ratio: 3 / 4;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 1px var(--line-2),
+    0 20px 40px rgba(0, 0, 0, 0.5);
+}
+.sheet-poster .cover {
+  height: 100%;
+  aspect-ratio: auto;
+}
+.sheet-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1 1 360px;
+  min-width: 0;
+}
+.sheet-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+/* Pastilles du bandeau : 26 px, posées sur l'image. */
+.sheet-tags > .store-tag.long,
+.sheet-tags > .sheet-installed,
+.sheet-tags > .sheet-uninstalled,
+.sheet-tags > .live-badge {
+  height: 26px;
+  padding: 0 11px;
+  border-radius: var(--r-pill);
+  font: 600 12px/16px var(--font-ui);
+}
+.sheet-tags > .store-tag.long {
+  background: var(--badge-bg);
+  backdrop-filter: blur(8px);
+}
+.sheet-tags > .sheet-uninstalled {
+  background: var(--badge-bg);
+}
+.sheet-installed {
+  display: inline-flex;
+  align-items: center;
+  background: var(--success-soft);
+  color: var(--success);
+  white-space: nowrap;
+}
+.sheet-title {
+  font: 700 48px/52px var(--font-display);
+  letter-spacing: -0.025em;
+  color: var(--text-1);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sheet-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  margin: 0;
+  font: 500 14px/20px var(--font-ui);
+  color: var(--text-2);
+}
+.sheet-fact {
+  white-space: nowrap;
+}
+.sheet-fact b {
+  font-weight: 600;
+  color: var(--text-1);
+}
+.sheet-fact.is-live b {
+  color: var(--live-text);
+}
+/* Où en est le lancement, sous les chiffres : 13/18, icône 14 px, sans animation. */
 .sheet-launch-line {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: -2px 24px 8px;
-  font: 400 12px/16px var(--font-ui);
+  max-width: 100%;
+  margin: 0;
+  font: 500 13px/18px var(--font-ui);
   color: var(--text-2);
 }
 .sheet-launch-line > svg {
@@ -253,18 +354,52 @@
 }
 .sheet-launch-line > .link-btn {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 13px;
 }
-.sheet-square {
-  width: 48px;
-  height: 48px;
-  padding: 0;
-  border-radius: var(--r-md);
+
+/* Actions : Jouer en grand, favori et dossier en boutons ronds de verre. */
+.sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
-.sheet-square.is-fav {
+.btn-play.sheet-play {
+  height: 56px;
+  min-width: 172px;
+  padding: 0 34px 0 30px;
+  gap: 10px;
+  font-size: 17px;
+}
+.sheet-round {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--line-3);
+  backdrop-filter: var(--glass-blur);
+  color: var(--text-1);
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    scale 160ms var(--ease-glide);
+}
+.sheet-round:hover:not(:disabled) {
+  background: var(--btn2-bg-hover);
+}
+.sheet-round:active:not(:disabled) {
+  scale: 0.94;
+}
+.sheet-round:disabled {
+  opacity: 0.45;
+}
+.sheet-round.is-fav {
   color: var(--favorite);
 }
-.sheet-square > span {
+.sheet-round > span {
   display: inline-grid;
   place-items: center;
 }
@@ -277,48 +412,105 @@
   }
 }
 
-/* ---------- tuiles de chiffres ---------- */
+/* ---------- onglets ---------- */
 
-/* 2 ou 3 tuiles (« Lancements » absent à 0) : elles se partagent la largeur. */
-.sheet-stats {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: 10px;
-  margin: 6px 24px 0;
-}
-.sheet-tile {
+.sheet-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  padding: 12px 14px;
-  border-radius: var(--r-lg);
-  background: var(--card-bg);
-  border: 1px solid var(--line-1);
+  gap: 28px;
+  box-shadow: inset 0 -1px 0 var(--line-1);
+  /* « Voir les succès » amène les onglets sous la barre collante, pas dessous. */
+  scroll-margin-top: 72px;
 }
-.sheet-tile-label {
-  font: 500 11px/14px var(--font-ui);
+.sheet-tab {
+  padding: 0 0 14px;
   color: var(--text-3);
+  font: 600 15px/22px var(--font-ui);
+  transition:
+    color var(--d-1) var(--ease-out),
+    box-shadow var(--d-2) var(--ease-out);
 }
-.sheet-tile-value {
-  font: 700 20px/24px var(--font-display);
+.sheet-tab:hover {
   color: var(--text-1);
 }
-.sheet-tile-caption {
-  font: 500 11px/14px var(--font-ui);
+.sheet-tab[aria-selected='true'] {
+  color: var(--text-1);
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+.sheet-tab:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 4px;
+  border-radius: var(--r-xs);
+}
+
+/* Changer d'onglet ne fait pas remonter la page (un onglet court garde la hauteur). */
+.sheet-tabpanel {
+  min-height: 60vh;
+}
+
+/* ---------- aperçu : deux colonnes de cartes ---------- */
+
+.sheet-cols {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px;
+}
+.sheet-main {
+  flex: 2 1 600px;
+}
+.sheet-side {
+  flex: 1 1 300px;
+}
+.sheet-main,
+.sheet-side {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+.sheet-side:empty {
+  display: none;
+}
+
+.sheet-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border-radius: var(--r-xl);
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+/* Listes (amis, membres) : les rangées vont jusqu'au bord de la carte. */
+.sheet-card.is-list {
+  gap: 6px;
+  padding: 16px 8px;
+}
+.sheet-card.is-list > .sheet-h {
+  padding: 4px 12px;
+}
+.sheet-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sheet-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font: 600 17px/22px var(--font-display);
+  color: var(--text-1);
+}
+.sheet-h-count {
+  font: 600 13px/18px var(--font-ui);
   color: var(--text-3);
 }
-.sheet-tile-caption.is-live {
-  color: var(--live-text);
-  font-weight: 600;
+.sheet-card > .caption {
+  margin: 0;
 }
-.sheet-tile-label,
-.sheet-tile-value,
-.sheet-tile-caption {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.sheet-card > .btn {
+  align-self: flex-start;
 }
 
 /* Raccourci « Tes stats Battlefield 6 » */
@@ -326,20 +518,19 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  width: calc(100% - 48px);
-  margin: 12px 24px 0;
-  padding: 12px 14px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--line-2);
-  background: var(--surface-1);
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: var(--r-xl);
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
   text-align: left;
   transition:
-    border-color var(--d-1) var(--ease-out),
-    background-color var(--d-1) var(--ease-out);
+    background-color var(--d-1) var(--ease-out),
+    box-shadow var(--d-1) var(--ease-out);
 }
 .sheet-link:hover {
-  border-color: var(--line-3);
-  background: var(--surface-2);
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
 }
 .sheet-link-icon {
   display: grid;
@@ -347,7 +538,7 @@
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--live-soft);
   color: var(--live-text);
 }
@@ -359,7 +550,7 @@
   min-width: 0;
 }
 .sheet-link-title {
-  font: 700 14px/18px var(--font-ui);
+  font: 600 15px/20px var(--font-ui);
   color: var(--text-1);
 }
 .sheet-link-sub {
@@ -380,47 +571,19 @@
   translate: 2px 0;
 }
 
-/* ---------- sections ---------- */
-
-.sheet-section {
-  margin: 24px 24px 0;
-}
-.sheet-install {
-  padding-bottom: 28px;
-}
-.sheet-h {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 10px;
-  font: 700 15px/20px var(--font-display);
-  letter-spacing: -0.01em;
-  color: var(--text-1);
-}
-.sheet-h-count {
-  font: 600 12px/16px var(--font-ui);
-  letter-spacing: 0;
-  color: var(--text-3);
-}
-.sheet-section > .caption {
-  color: var(--text-3);
-}
-
-/* Amis en jeu */
+/* Amis et membres en jeu */
 .sheet-friends {
   list-style: none;
-  margin: 0 -8px;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 .sheet-friend {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 48px;
-  padding: 0 8px;
+  gap: 12px;
+  padding: 9px 12px;
   border-radius: var(--r-md);
   transition: background-color var(--d-1) var(--ease-out);
 }
@@ -440,7 +603,7 @@
   flex: 1;
 }
 .sheet-friend-name {
-  font: 600 13.5px/18px var(--font-ui);
+  font: 600 14px/18px var(--font-ui);
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
@@ -465,6 +628,53 @@
   background: color-mix(in srgb, var(--tint) 16%, transparent);
 }
 
+/* Dernière actu : image 16:9, puis le titre. Toute la carte ouvre le lecteur. */
+.sheet-news {
+  padding: 8px;
+}
+.sheet-news-link {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-radius: 18px;
+  text-align: left;
+}
+.sheet-news-link:hover .sheet-news-title {
+  color: var(--accent-text);
+}
+.news-thumb.sheet-news-thumb,
+.skel.sheet-news-thumb {
+  display: grid;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+}
+.sheet-news-thumb .news-glyph {
+  left: 10px;
+  bottom: 10px;
+}
+.sheet-news-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 10px 10px;
+}
+.sheet-news-kicker {
+  font: 600 12px/16px var(--font-ui);
+  color: var(--accent-text);
+}
+.sheet-news-title {
+  font: 600 15px/20px var(--font-ui);
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+  transition: color var(--d-1) var(--ease-out);
+}
+.sheet-news-date {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+
 /* Installation */
 .sheet-path {
   height: 36px;
@@ -482,7 +692,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
 }
 .sheet-unknown {
   padding: 10px 12px;
@@ -497,4 +706,18 @@
   font: 500 12px/16px var(--font-ui);
   color: var(--text-3);
   user-select: text;
+}
+
+/* ---------- lecteur d'annonce, dans la page ---------- */
+
+/* Pleine largeur : le texte garde une longueur de ligne lisible. */
+.sheet-panel .news-article {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 32px 40px;
+}
+.sheet-panel .news-bar {
+  height: 64px;
+  padding: 0 32px;
+  background: var(--bg-1);
 }
