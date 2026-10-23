@@ -162,6 +162,17 @@ export interface ScanReport {
 /** Pourquoi une mise à jour a échoué. Absent sur les erreurs de vérification de version (« Rechercher une mise à jour »). */
 export type UpdateErrorCode = 'unsigned' | 'verify' | 'network' | 'other'
 
+/**
+ * Ce que l'annonce d'une mise à jour dit d'elle-même, seulement si electron-updater le donne (rien n'est deviné) :
+ * repris sur chaque état de cette version, du téléchargement à l'erreur.
+ */
+export interface UpdateMeta {
+  /** Taille de l'installeur en octets (latest.yml ; une fois prête, celle du fichier téléchargé). */
+  size?: number
+  /** Noms des nouveautés de la release GitHub, en texte brut (« Canal Bêta · Bilan de fin de match CS2 »). */
+  summary?: string
+}
+
 /** État des mises à jour automatiques (GitHub Releases, via electron-updater). */
 export type UpdateState =
   /** Version de développement ou non installée : pas de mise à jour automatique. */
@@ -169,7 +180,7 @@ export type UpdateState =
   | { state: 'idle' }
   | { state: 'checking' }
   | { state: 'none'; checkedAt: number }
-  | {
+  | (UpdateMeta & {
       state: 'downloading'
       version: string
       percent: number
@@ -178,9 +189,9 @@ export type UpdateState =
       total?: number
       /** Moyenne d'electron-updater depuis le début du téléchargement. */
       bytesPerSecond?: number
-    }
+    })
   /** Téléchargée, signature en cours de vérification : rien ne s'installe, même à la fermeture. */
-  | {
+  | (UpdateMeta & {
       state: 'verifying'
       version: string
       step: 'signature' | 'hash' | 'check'
@@ -188,18 +199,17 @@ export type UpdateState =
       total?: number
       /** SHA-512 de l'installeur, 128 caractères hexadécimaux. Présent à partir de l'étape « check ». */
       fingerprint?: string
-    }
+    })
   /** Téléchargée et signée : s'installe au prochain redémarrage (ou tout de suite via installUpdate). */
-  | {
+  | (UpdateMeta & {
       state: 'ready'
       version: string
       fingerprint?: string
-      size?: number
       downloadMs?: number
-    }
+    })
   /** installUpdate accepté : Player X se ferme à quitAt (Date.now() du processus principal). */
-  | { state: 'installing'; version: string; quitAt: number }
-  | { state: 'error'; message: string; code?: UpdateErrorCode; version?: string }
+  | (UpdateMeta & { state: 'installing'; version: string; quitAt: number })
+  | (UpdateMeta & { state: 'error'; message: string; code?: UpdateErrorCode; version?: string })
 
 export interface InstallResult {
   ok: boolean

@@ -3,6 +3,8 @@
 // Chargé seulement quand l'appli n'est pas installée (import dynamique dans initUpdater) : ses chiffres ne sont jamais montrés aux joueurs.
 import { generateKeyPairSync, sign } from 'node:crypto'
 import { EventEmitter } from 'node:events'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { app } from 'electron'
 import type { AppUpdater, Logger, UpdateDownloadedEvent } from 'electron-updater'
 import { sha512File, signedMessage } from './updateSignature'
@@ -43,6 +45,36 @@ const RELAUNCH_MS = 2_500
 
 const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
+const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/**
+ * Notes de la release comme GitHub les donne (HTML), rendues ici depuis docs/release-notes/<version>.md :
+ * titres, listes et gras seulement, assez pour le résumé de la carte. Rien si le fichier manque.
+ */
+function releaseNotes(version: string): string | null {
+  let md: string
+  try {
+    md = readFileSync(join(app.getAppPath(), 'docs', 'release-notes', `${version}.md`), 'utf8')
+  } catch {
+    return null
+  }
+  const out: string[] = []
+  let list = false
+  for (const line of md.split(/\r?\n/)) {
+    const li = /^\s*[-*]\s+(.+)/.exec(line)
+    if (list && !li) out.push('</ul>')
+    if (li && !list) out.push('<ul>')
+    list = !!li
+    const inline = (t: string): string => esc(t).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    const h = /^#{1,3}\s+(.+)/.exec(line)
+    if (h) out.push(`<h2>${inline(h[1])}</h2>`)
+    else if (li) out.push(`<li>${inline(li[1])}</li>`)
+    else if (line.trim()) out.push(`<p>${inline(line.trim())}</p>`)
+  }
+  if (list) out.push('</ul>')
+  return out.join('\n')
+}
+
 export function createSim(raw: string, ctx: { consumePending(): void; logger: Logger }): Sim {
   const known: Mode[] = ['1', 'unsigned', 'stall', 'offline']
   const mode: Mode = known.includes(raw as Mode) ? (raw as Mode) : '1'
@@ -65,6 +97,7 @@ export function createSim(raw: string, ctx: { consumePending(): void; logger: Lo
     path: `Player-X-Setup-${version}.exe`,
     sha512: '',
     releaseDate: new Date().toISOString(),
+    releaseNotes: releaseNotes(version),
     downloadedFile: file
   })
 
