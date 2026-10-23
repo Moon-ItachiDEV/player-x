@@ -542,52 +542,51 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
           </SettingRow>
         )}
       </SettingsCard>
-      {(settings.updateChannel === 'beta' || /-/.test(window.launcher.version)) && (
-        <SettingsCard title="Overlay CS2" beta>
-          <SettingRow
-            label="Overlay CS2 (bêta)"
-            value={
-              settings.cs2Overlay === 'off'
-                ? 'Désactivé · rien par-dessus le jeu'
-                : 'Activé · tes chiffres par-dessus CS2 en plein écran fenêtré, pendant les matchs. Alt+X le masque'
-            }
-          >
-            <div className="set-inline">
-              <Switch
-                checked={settings.cs2Overlay !== 'off'}
-                // Activé : le style Verre (B), celui gardé par défaut.
-                onChange={(on) => onSaveSettings({ cs2Overlay: on ? 'b' : 'off' }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-                label="Overlay CS2"
-              />
-              <button
-                className="btn btn-secondary btn-sm"
-                disabled={settings.cs2Overlay === 'off'}
-                onClick={() => window.launcher.cs2OverlayPreview().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-              >
-                Aperçu à l’écran
-              </button>
-            </div>
-          </SettingRow>
-          {settings.cs2Overlay !== 'off' && (
-            <SettingRow
-              label="Style de l’overlay"
-              value={settings.cs2Overlay === 'b' ? 'Verre, le style par défaut · les deux autres restent là pour comparer' : `${OVERLAY_LABEL[settings.cs2Overlay]}, à l’essai · Verre est le style par défaut`}
+      {/* Overlay CS2 : proposé à tous depuis la 0.9.1, désactivé par défaut. */}
+      <SettingsCard title="Overlay CS2" beta>
+        <SettingRow
+          label="Overlay CS2 (bêta)"
+          value={
+            settings.cs2Overlay === 'off'
+              ? 'Désactivé · rien par-dessus le jeu'
+              : 'Activé · tes chiffres par-dessus CS2 en plein écran fenêtré, pendant les matchs. Alt+X le masque'
+          }
+        >
+          <div className="set-inline">
+            <Switch
+              checked={settings.cs2Overlay !== 'off'}
+              // Activé : le style Verre (B), celui gardé par défaut.
+              onChange={(on) => onSaveSettings({ cs2Overlay: on ? 'b' : 'off' }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+              label="Overlay CS2"
+            />
+            <button
+              className="btn btn-secondary btn-sm"
+              disabled={settings.cs2Overlay === 'off'}
+              onClick={() => window.launcher.cs2OverlayPreview().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
             >
-              <Segmented
-                className="set-seg"
-                label="Style de l’overlay"
-                value={settings.cs2Overlay}
-                options={[
-                  { value: 'b', label: 'Verre' },
-                  { value: 'a', label: 'Apple' },
-                  { value: 'c', label: 'Player X' }
-                ]}
-                onChange={(cs2Overlay) => onSaveSettings({ cs2Overlay }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-              />
-            </SettingRow>
-          )}
-        </SettingsCard>
-      )}
+              Aperçu à l’écran
+            </button>
+          </div>
+        </SettingRow>
+        {settings.cs2Overlay !== 'off' && (
+          <SettingRow
+            label="Style de l’overlay"
+            value={settings.cs2Overlay === 'b' ? 'Verre, le style par défaut · les deux autres restent là pour comparer' : `${OVERLAY_LABEL[settings.cs2Overlay]}, à l’essai · Verre est le style par défaut`}
+          >
+            <Segmented
+              className="set-seg"
+              label="Style de l’overlay"
+              value={settings.cs2Overlay}
+              options={[
+                { value: 'b', label: 'Verre' },
+                { value: 'a', label: 'Apple' },
+                { value: 'c', label: 'Player X' }
+              ]}
+              onChange={(cs2Overlay) => onSaveSettings({ cs2Overlay }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+            />
+          </SettingRow>
+        )}
+      </SettingsCard>
     </>
   )
 }
