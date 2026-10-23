@@ -44,12 +44,17 @@ type Progress struct {
 	Note    string `json:"note,omitempty"`
 }
 
-// defaultDir : l'installation existante si Player X est déjà là, sinon %LOCALAPPDATA%\Programs\Player X.
+// standardDir : le dossier d'installation habituel (par utilisateur), %LOCALAPPDATA%\Programs\Player X.
+func standardDir() string {
+	return filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", appName)
+}
+
+// defaultDir : l'installation existante si Player X est déjà là, sinon le dossier habituel.
 func defaultDir() string {
 	if d := existingDir(); d != "" {
 		return d
 	}
-	return filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", appName)
+	return standardDir()
 }
 
 // existingDir lit le dossier d'une installation précédente (clé de désinstallation écrite par NSIS).
@@ -69,12 +74,14 @@ func existingDir() string {
 		loc, _, _ := sk.GetStringValue("InstallLocation")
 		sk.Close()
 		if strings.HasPrefix(name, appName+" ") || name == appName {
-			if loc != "" {
-				if _, err := os.Stat(filepath.Join(loc, appName+".exe")); err == nil {
-					return loc
-				}
+			if loc != "" && exists(filepath.Join(loc, appName+".exe")) {
+				return loc
 			}
 		}
+	}
+	// La clé ne donne pas toujours le dossier : l'emplacement habituel suffit s'il contient Player X.
+	if d := standardDir(); exists(filepath.Join(d, appName+".exe")) {
+		return d
 	}
 	return ""
 }
