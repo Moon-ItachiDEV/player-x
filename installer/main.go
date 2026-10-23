@@ -272,8 +272,8 @@ func drawn(hwnd uintptr, shot string, scale float64) bool {
 			}
 		}
 		b := img.Bounds()
-		// Le logo (136 px CSS, centré, haut à 137 px) est rose autour de la manette blanche : part de pixels roses dans son carré.
-		cx, top, side := b.Dx()/2, int(137*scale), int(136*scale)
+		// Le logo (128 px CSS, centré, haut à 122 px) est rose autour de la manette blanche : part de pixels roses dans son carré.
+		cx, top, side := b.Dx()/2, int(122*scale), int(128*scale)
 		pink, all := 0, 0
 		for y := top; y < top+side && y < b.Dy(); y += 4 {
 			for x := cx - side/2; x < cx+side/2; x += 4 {
