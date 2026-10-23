@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, globalShortcut, screen } from 'electron'
 import type { Cs2OverlayConfig } from '@shared/types'
 import { handle } from '../ipc'
-import { markOverlay } from '../windows'
+import { appWindows, isOverlay, markOverlay } from '../windows'
 import { cs2IsRunning, onCs2Running } from './cs2Live'
 import { getSettings } from './settings'
 
@@ -21,15 +21,18 @@ let hidden = false
 let previewAt: number | undefined
 let previewTimer: ReturnType<typeof setTimeout> | undefined
 let hotkey = false
+/** Une fenêtre de Player X a le focus : l'overlay s'efface pour ne pas la couvrir. */
+let appFocused = false
 
-/** Proposé sur le canal Bêta, sur une version de test, et en développement. */
+/** Proposé sur le canal Bêta et sur une version de test (la même règle que la ligne de Paramètres). */
 export function overlayAllowed(): boolean {
-  return getSettings().updateChannel === 'beta' || app.getVersion().includes('-') || !app.isPackaged
+  return getSettings().updateChannel === 'beta' || app.getVersion().includes('-')
 }
 
 function config(): Cs2OverlayConfig {
   const style = overlayAllowed() ? getSettings().cs2Overlay : 'off'
-  return { style, hidden, ...(previewAt !== undefined ? { previewAt } : {}) }
+  // L'aperçu se lance depuis Paramètres, donc Player X au premier plan : il se voit quand même.
+  return { style, hidden: hidden || (appFocused && previewAt === undefined), ...(previewAt !== undefined ? { previewAt } : {}) }
 }
 
 function send(): void {
@@ -75,7 +78,7 @@ function create(): void {
   w.setAlwaysOnTop(true, 'screen-saver')
   // Les clics traversent : la souris reste au jeu.
   w.setIgnoreMouseEvents(true)
-  w.once('ready-to-show', () => w.showInactive())
+  // Affichée seulement quand la page a peint son fond transparent (cs2:overlay-ready), jamais le fond de l'appli.
   w.on('closed', () => win === w && (win = null))
   const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
   if (devUrl) void w.loadURL(`${devUrl}#overlay`)
@@ -130,6 +133,23 @@ function preview(): void {
 export function startCs2Overlay(): void {
   handle('cs2:overlay-config', () => config())
   handle('cs2:overlay-preview', () => preview())
+  handle('cs2:overlay-ready', (e) => {
+    if (win && !win.isDestroyed() && e.sender === win.webContents && !win.isVisible()) win.showInactive()
+  })
+  // Player X au premier plan (fenêtre principale) : l'overlay ne la couvre pas. Il revient quand on retourne au jeu.
+  app.on('browser-window-focus', (_e, w) => {
+    if (isOverlay(w) || appFocused) return
+    appFocused = true
+    send()
+  })
+  app.on('browser-window-blur', () => {
+    setTimeout(() => {
+      const now = appWindows().some((w) => w.isFocused())
+      if (now === appFocused) return
+      appFocused = now
+      send()
+    }, 0)
+  })
   onCs2Running((now) => {
     // Nouvelle partie : l'overlay revient visible.
     if (now) hidden = false

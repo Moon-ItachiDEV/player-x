@@ -731,6 +731,8 @@ export interface LauncherApi {
   cs2OverlayConfig(): Promise<Cs2OverlayConfig>
   /** Paramètres : montre l'overlay quelques secondes avec des chiffres d'exemple, même sans CS2. */
   cs2OverlayPreview(): Promise<void>
+  /** Page de l'overlay peinte : la fenêtre peut s'afficher. */
+  cs2OverlayReady(): Promise<void>
   onCs2OverlayConfig(cb: (c: Cs2OverlayConfig) => void): () => void
   /** Alertes d'amis à afficher dans la fenêtre (quand elle est au premier plan ; sinon Windows les affiche). */
   onFriendAlert(cb: (alerts: FriendAlert[]) => void): () => void

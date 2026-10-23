@@ -79,7 +79,8 @@ export default function OverlayApp(): React.JSX.Element | null {
   const [scale, setScale] = useState(() => window.innerHeight / DESIGN_H)
 
   useEffect(() => {
-    document.documentElement.classList.add('ov-page')
+    // Peint une première fois (transparent) : la fenêtre peut s'afficher sans éclair de fond.
+    requestAnimationFrame(() => requestAnimationFrame(() => void api.cs2OverlayReady().catch(() => {})))
     api.cs2OverlayConfig().then(setCfg).catch(() => {})
     api
       .cs2State()
@@ -100,6 +101,13 @@ export default function OverlayApp(): React.JSX.Element | null {
       window.removeEventListener('resize', onResize)
     }
   }, [])
+
+  // Bilan replié : on l'oublie, l'horloge s'arrête.
+  useEffect(() => {
+    if (!end) return
+    const id = setTimeout(() => setEnd(null), Math.max(0, END_MS - (Date.now() - end.endedAt)))
+    return () => clearTimeout(id)
+  }, [end])
 
   // Horloge : l'aperçu avance et le bilan se replie tout seul.
   const ticking = cfg.previewAt !== undefined || !!end
@@ -234,7 +242,11 @@ function Pill({ live, style }: { live: Cs2Live; style: Cs2OverlayStyle }): React
 }
 
 function Half({ live, style }: { live: Cs2Live; style: Cs2OverlayStyle }): React.JSX.Element {
-  const s = live.score
+  // Pendant la mi-temps, CS2 peut déjà donner le camp de la suite : le camp joué est celui du dernier round,
+  // et le score (compté pour le camp actuel) est retourné si le camp a déjà changé.
+  const played = live.rounds.at(-1)?.side ?? live.side
+  const flipped = !!played && !!live.side && played !== live.side
+  const s = live.score && flipped ? { us: live.score.them, them: live.score.us } : live.score
   const lead = !s ? 'Mi-temps' : s.us > s.them ? 'Devant' : s.us < s.them ? 'Derrière' : 'À égalité'
   return (
     <section className="ov-card ov-buy ov-enter">
@@ -249,9 +261,9 @@ function Half({ live, style }: { live: Cs2Live; style: Cs2OverlayStyle }): React
           </span>
         )}
       </div>
-      {live.side && (
+      {played && (
         <p className="ov-line ov-s2">
-          Tu passes <b>{other(live.side)}</b> pour la deuxième moitié.
+          Tu passes <b>{other(played)}</b> après la mi-temps.
         </p>
       )}
       {live.rounds.length > 0 && (

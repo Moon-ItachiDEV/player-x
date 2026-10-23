@@ -122,7 +122,8 @@ export const busyTitle = (): string => (launchBusy.get() ? 'Indisponible pendant
 export const lastUpdate = createStore<{ loaded: boolean; value: LastUpdate | null }>({ loaded: false, value: null })
 {
   const t400 = setTimeout(() => lastUpdate.set((p) => (p.loaded ? p : { ...p, loaded: true })), 400)
-  const get = window.launcher.getLastUpdate as (() => Promise<LastUpdate | null>) | undefined
+  // Pas dans la fenêtre de l'overlay CS2, qui n'a accès qu'aux envois de CS2.
+  const get = location.hash === '#overlay' ? undefined : (window.launcher.getLastUpdate as (() => Promise<LastUpdate | null>) | undefined)
   Promise.resolve()
     .then(() => (get ? get.call(window.launcher) : null))
     .then((value) => lastUpdate.set({ loaded: true, value: value ?? null }))

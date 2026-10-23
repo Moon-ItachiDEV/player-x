@@ -458,10 +458,16 @@ export const cs2IsRunning = (): boolean => running
 function setRunning(now: boolean): void {
   if (now === running) return
   running = now
-  for (const cb of runningListeners) cb(now)
   runningAt = now ? Date.now() : 0
   recheckQuiet()
   emitState()
+  for (const cb of runningListeners) {
+    try {
+      cb(now)
+    } catch (e) {
+      console.error('[cs2] overlay :', e)
+    }
+  }
   if (now) return
   // Jeu fermé (ou planté) : le match en cours est mis de côté (il reprend si CS2 revient dans le même match), et les
   // bilans en attente partent en une notification.

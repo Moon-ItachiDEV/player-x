@@ -26,7 +26,6 @@ let playing: string[] = []
 let hint: Notification | null = null
 let onHide = (): void => {}
 
-
 /** Montre la fenêtre, qu'elle soit cachée, réduite ou derrière une autre. */
 export function showMainWindow(): void {
   const win = mainWindow()

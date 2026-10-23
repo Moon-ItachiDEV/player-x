@@ -170,7 +170,6 @@ function record(s: Session, after: Bf6Stats): 'new' | 'same' | 'none' {
   return 'new'
 }
 
-
 function send(win: BrowserWindow | undefined, e: Bf6RecapEvent): void {
   win?.webContents.send('bf6:recap', e)
 }
