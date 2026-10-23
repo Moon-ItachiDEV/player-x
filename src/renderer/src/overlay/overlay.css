@@ -1,7 +1,8 @@
 /* Overlay CS2 (bêta), overlay/OverlayApp.tsx : la fenêtre transparente par-dessus le jeu. Classes en .ov- seulement.
    Placement commun (écran de 1080 px de haut, mis à l'échelle par `zoom`) : achat et mi-temps sous le radar (zone A),
    bilan de fin sous le fil des éliminations (zone B), pastille au-dessus des munitions (zone C, l'île du style A sous le score).
-   Trois styles : .ov-a façon Apple, .ov-b verre, .ov-c finition du style Player X. */
+   Trois styles : .ov-a façon Apple, .ov-b verre, .ov-c finition du style Player X (design Braise).
+   Camps : bleu CT et ocre T, les couleurs du jeu lui-même (pas celles de l'appli). */
 
 html.ov-page,
 html.ov-page body,
@@ -11,6 +12,8 @@ html.ov-page #root {
 }
 
 .ov-root {
+  --ov-ct: #7fb2ff;
+  --ov-t: #f0b54a;
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -75,7 +78,7 @@ html.ov-page #root {
   translate: -50% 0;
   padding: 8px 14px;
   border-radius: 999px;
-  background: rgba(8, 21, 42, 0.86);
+  background: rgba(12, 10, 17, 0.86);
   font: 600 13px/1 var(--font-ui);
   color: var(--accent-text);
 }
@@ -88,6 +91,18 @@ html.ov-page #root {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+/* En-tête du bilan sur une ligne : Inter est plus large que l'ancienne police étroite. */
+.ov-end-top .ov-kicker {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  letter-spacing: 0.03em;
+}
+.ov-end-top .ov-sub {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .ov-title {
   font: 600 15px/20px var(--font-ui);
@@ -118,7 +133,8 @@ html.ov-page #root {
   gap: 4px;
 }
 .ov-score-side b {
-  font: 800 44px/1.05 var(--font-display);
+  font: 700 44px/1.05 var(--font-display);
+  letter-spacing: -0.03em;
 }
 .ov-score-side.is-them b {
   opacity: 0.65;
@@ -137,10 +153,10 @@ html.ov-page #root {
   text-transform: uppercase;
 }
 .ov-side.is-ct {
-  background: color-mix(in srgb, var(--info) 24%, transparent);
+  background: color-mix(in srgb, var(--ov-ct) 26%, transparent);
 }
 .ov-side.is-t {
-  background: color-mix(in srgb, var(--warning) 24%, transparent);
+  background: color-mix(in srgb, var(--ov-t) 26%, transparent);
 }
 .ov-money {
   margin-left: auto;
@@ -180,11 +196,12 @@ html.ov-page #root {
   gap: 12px;
 }
 .ov-lead b {
-  font: 800 38px/1.1 var(--font-display);
-  text-transform: uppercase;
+  font: 700 34px/1.1 var(--font-display);
+  letter-spacing: -0.02em;
 }
 .ov-lead span {
-  font: 800 32px/1.1 var(--font-display);
+  font: 700 28px/1.1 var(--font-display);
+  letter-spacing: -0.02em;
   opacity: 0.8;
 }
 .ov-line {
@@ -202,12 +219,12 @@ html.ov-page #root {
   gap: 4px 12px;
 }
 .ov-end-title b {
-  font: 800 36px/1.1 var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
+  font: 700 32px/1.1 var(--font-display);
+  letter-spacing: -0.02em;
 }
 .ov-end-title span {
-  font: 700 30px/1.1 var(--font-display);
+  font: 700 26px/1.1 var(--font-display);
+  letter-spacing: -0.02em;
   opacity: 0.8;
 }
 .ov-res.is-win {
@@ -425,11 +442,11 @@ html.ov-page #root {
    ===================================================================== */
 
 .ov-b {
-  color: #f2f7ff;
+  color: #fbf3f7;
 }
 .ov-b .ov-card {
   isolation: isolate;
-  background: rgba(10, 22, 40, 0.58);
+  background: rgba(22, 12, 26, 0.58);
   border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow:
     0 18px 44px rgba(0, 0, 0, 0.35),
@@ -469,8 +486,8 @@ html.ov-page #root {
   height: 170px;
   z-index: -1;
   background:
-    radial-gradient(60% 90% at 20% 30%, rgba(52, 211, 153, 0.45), transparent 70%),
-    radial-gradient(50% 80% at 85% 20%, rgba(120, 190, 255, 0.4), transparent 70%);
+    radial-gradient(60% 90% at 20% 30%, rgba(251, 79, 122, 0.42), transparent 70%),
+    radial-gradient(50% 80% at 85% 20%, rgba(255, 138, 128, 0.36), transparent 70%);
 }
 @media (prefers-reduced-motion: no-preference) {
   .ov-b .ov-liquid {
@@ -519,7 +536,7 @@ html.ov-page #root {
 }
 @media (prefers-reduced-transparency: reduce) {
   .ov-b .ov-card {
-    background: #13233a;
+    background: #1a1622;
   }
 }
 
@@ -530,11 +547,23 @@ html.ov-page #root {
 
 .ov-c .ov-card {
   border: 1px solid transparent;
-  background: rgba(22, 44, 72, 0.96);
+  background: rgba(19, 16, 25, 0.95);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 2px 4px rgba(0, 0, 0, 0.18),
-    0 18px 40px rgba(0, 0, 0, 0.32);
+    0 0 0 1px rgba(255, 200, 220, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    0 18px 40px rgba(0, 0, 0, 0.36);
+}
+/* Le dégradé de l'icône (corail → rose → framboise) en filet sur le haut des grandes cartes */
+.ov-c .ov-buy::before,
+.ov-c .ov-end::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18px;
+  right: 18px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(90deg, var(--brand-1), var(--brand-2) 55%, var(--brand-3));
 }
 .ov-c .ov-buy {
   padding: 12px;
@@ -548,8 +577,8 @@ html.ov-page #root {
 }
 .ov-c .ov-stat {
   padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--surface-1);
+  border-radius: 10px;
+  background: var(--surface-2);
 }
 .ov-c .ov-end {
   padding: 12px;
