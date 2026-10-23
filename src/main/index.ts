@@ -42,7 +42,7 @@ import {
   storeWasRunning,
   withPlaytime
 } from './services/playtime'
-import { attachWindow, onHideToTray, setTrayPlaying, startHidden, startTray, startupState, syncStartup } from './services/tray'
+import { applyInstallOptions, attachWindow, onHideToTray, setTrayPlaying, startHidden, startTray, startupState, syncStartup } from './services/tray'
 import { initUpdater, takeRelaunchBounds, updateChannelChanged } from './services/updater'
 import type { LaunchSim } from './launchSim'
 
@@ -568,6 +568,8 @@ app.whenReady().then(async () => {
       .then(notifyGamesChanged)
       .catch(() => {})
   })
+  // Premier lancement après l'installeur sur mesure : ses choix (Démarrer avec Windows), avant l'inscription au démarrage.
+  applyInstallOptions()
   startTray()
   updateRunning()
   // Développement seulement : PX_BF6_SIM simule une partie de Battlefield 6 (bf6Sim.ts, jamais dans l'installeur).
