@@ -758,6 +758,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         }}
         news={settings.gameNews}
         post={openPostId}
+        from={view}
       />
       <FriendAlerts games={games} onShowFriends={showFriends} />
       <RecapHost

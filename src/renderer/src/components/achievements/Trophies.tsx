@@ -187,7 +187,7 @@ function ScanBand({ progress, first }: { progress?: { done: number; total: numbe
       </div>
       {total > 0 && (
         <span className="tro-bar tro-scan-bar" aria-hidden="true">
-          <span style={{ width: `${(done / total) * 100}%` }} />
+          <span style={{ transform: `scaleX(${done / total})` }} />
         </span>
       )}
     </div>
@@ -318,7 +318,7 @@ function OpenGame({ ref, game, gameOf, onOpen }: OpenGameProps): React.JSX.Eleme
             </span>
           </div>
           <span className="tro-bar is-big" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Succès débloqués dans ${name}`}>
-            <span style={{ width: `${pct}%` }} />
+            <span style={{ transform: `scaleX(${pct / 100})` }} />
           </span>
         </div>
         <div className="tro-seg" role="group" aria-label="Filtrer les succès">
@@ -464,7 +464,7 @@ function GameList({ list, gameOf, onShow }: { list: AchievementGame[]; gameOf: G
                   </span>
                   <span className="tro-game-name">{name}</span>
                   <span className="tro-bar" aria-hidden="true">
-                    <span style={{ width: `${pct}%` }} />
+                    <span style={{ transform: `scaleX(${pct / 100})` }} />
                   </span>
                   <span className="tro-game-count num">
                     {g.unlocked} / {g.total}
@@ -553,7 +553,7 @@ function Footer({ data, onRefresh }: { data: AchievementsOverview; onRefresh: ()
             </span>
           </span>
           <span className="tro-bar tro-level-bar" aria-hidden="true">
-            <span style={{ width: `${xpPct}%` }} />
+            <span style={{ transform: `scaleX(${xpPct / 100})` }} />
           </span>
         </div>
       )}

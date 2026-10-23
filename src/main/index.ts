@@ -13,7 +13,7 @@ import { getAchievementsOverview, getGameAchievements, onRareUnlocks, startAchie
 import { demoAchievements, demoAchievementsOverview } from './services/achievementsDemo'
 import { checkFriends, deliverRare, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
-import { applyArtwork, updateArtwork } from './services/artwork'
+import { applyArtwork, updateArtwork, withLogos } from './services/artwork'
 import { bf6RecapState, markBf6RecapSeen, setBf6Running, startBf6Recaps, syncBf6Recaps } from './services/bf6Recap'
 import { cs2DemoChanged, cs2State, markCs2RecapSeen, setCs2Running, startCs2Live, syncCs2 } from './services/cs2Live'
 import { closeCs2Overlay, startCs2Overlay, syncCs2Overlay } from './services/cs2Overlay'
@@ -181,7 +181,7 @@ async function games(refresh = false): Promise<Game[]> {
     // Le mode démo a pu s'activer pendant le scan : on rend alors la bibliothèque de démo.
     if (getSettings().demoMode) return games()
   }
-  return withNews(withPlaytime(db.listGames()))
+  return withNews(withPlaytime(withLogos(db.listGames())))
 }
 
 /** La bibliothèque déjà connue (vraie ou de démo), sans relancer de scan : pour les actus des jeux. */

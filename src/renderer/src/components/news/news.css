@@ -1,4 +1,4 @@
-/* Actus des jeux : badge « Nouveau patch », bandeau et section de la fiche, lecteur d'annonce.
+/* Actus des jeux : badge « Nouveau patch », onglet Actus de la fiche, lecteur d'annonce.
    Couleur d'information (--info) : ce n'est ni une action (rose) ni quelque chose en direct (cyan). */
 
 /* ---------- badge sur les cartes ---------- */
@@ -29,66 +29,7 @@
   height: 24px;
 }
 
-/* ---------- bandeau en haut de la fiche ---------- */
-
-.news-banner {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: calc(100% - 48px);
-  margin: 12px 24px 0;
-  padding: 12px 14px;
-  border-radius: var(--r-lg);
-  border: 1px solid color-mix(in srgb, var(--info) 34%, transparent);
-  background: color-mix(in srgb, var(--info) 7%, var(--surface-1));
-  text-align: left;
-  transition:
-    border-color var(--d-1) var(--ease-out),
-    background-color var(--d-1) var(--ease-out);
-}
-.news-banner:hover {
-  border-color: color-mix(in srgb, var(--info) 55%, transparent);
-  background: color-mix(in srgb, var(--info) 11%, var(--surface-1));
-}
-.news-thumb.news-banner-thumb {
-  flex-shrink: 0;
-  width: 72px;
-  height: 40px;
-  border-radius: 8px;
-}
-.news-banner-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-.news-banner-kicker {
-  font: 700 11px/14px var(--font-ui);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--info);
-}
-.news-banner-title {
-  font: 700 14px/18px var(--font-ui);
-  color: var(--text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.news-banner-go {
-  flex-shrink: 0;
-  color: var(--text-3);
-  transition:
-    color var(--d-1) var(--ease-out),
-    translate var(--d-2) var(--ease-out);
-}
-.news-banner:hover .news-banner-go {
-  color: var(--text-1);
-  translate: 2px 0;
-}
-
-/* ---------- section « Actus » ---------- */
+/* ---------- onglet « Actus » de la fiche ---------- */
 
 .news .sheet-h-count {
   font-weight: 500;

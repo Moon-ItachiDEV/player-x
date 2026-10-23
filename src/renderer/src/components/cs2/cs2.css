@@ -37,39 +37,57 @@
   color: var(--text-2);
 }
 
-/* ---------- section de la fiche ---------- */
+/* ---------- fiche : match en direct ---------- */
 
-.cs2-section {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.cs2-section > .sheet-h {
-  margin-bottom: 0;
-}
-
-/* Match en direct : bord cyan (en ce moment). */
+/* Carte cyan (en ce moment) : en-tête, score en grand, quatre tuiles de chiffres, puis le reste du round. */
 .cs2-live {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px 12px;
-  border-radius: var(--r-lg);
-  background: var(--card-bg);
-  border: 1px solid var(--live-line);
-  box-shadow: inset 0 1px 0 var(--glass-hi);
+  gap: 20px;
+  padding: 24px;
+  border-radius: var(--r-xl);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--live) 10%, transparent), transparent 60%), var(--bg-2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--live) 35%, transparent);
 }
 .cs2-live-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px 12px;
   min-width: 0;
+}
+.cs2-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  background: var(--live);
+  color: var(--on-live);
+  font: 700 11px/14px var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cs2-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--on-live);
+}
+:root[data-fx='on'] .cs2-live-dot {
+  animation: cs2-live-pulse 1.4s var(--ease-in-out) infinite;
+}
+@keyframes cs2-live-pulse {
+  50% {
+    opacity: 0.35;
+  }
 }
 .cs2-live-where {
   min-width: 0;
   overflow: hidden;
-  font: 600 14px/18px var(--font-ui);
-  color: var(--text-2);
+  font: 600 18px/24px var(--font-display);
+  color: var(--text-1);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -82,79 +100,76 @@
 .cs2-live-warm {
   margin: 0;
 }
+.cs2-live-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px 32px;
+}
 
 .cs2-score {
   display: flex;
-  align-items: flex-end;
-  gap: 14px;
+  align-items: flex-start;
+  gap: 20px;
 }
 .cs2-score-side {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-.cs2-score-side.is-them {
-  align-items: flex-end;
+  align-items: center;
+  gap: 4px;
 }
 .cs2-score-side b {
-  font: 700 40px/38px var(--font-display);
+  font: 700 56px/56px var(--font-display);
   color: var(--text-1);
 }
-.cs2-score-side.is-them b {
-  color: var(--text-3);
+.cs2-score-side.is-us b {
+  color: var(--live-text);
 }
 .cs2-score-dash {
-  padding-bottom: 8px;
-  font: 700 24px/1 var(--font-display);
-  color: var(--text-3);
+  font: 600 28px/56px var(--font-display);
+  color: var(--text-4);
 }
 .cs2-side {
-  width: fit-content;
-  padding: 0 7px;
-  border-radius: var(--r-xs);
-  font: 700 11px/18px var(--font-ui);
-  letter-spacing: 0.06em;
+  font: 600 11px/14px var(--font-ui);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-.cs2-side.is-ct {
-  background: color-mix(in srgb, var(--info) 18%, transparent);
-  color: var(--text-1);
-}
-.cs2-side.is-t {
-  background: color-mix(in srgb, var(--warning) 18%, transparent);
-  color: var(--text-1);
+  color: var(--text-3);
+  white-space: nowrap;
 }
 
 .cs2-live-stats {
+  flex: 1 1 300px;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--line-1);
 }
 .cs2-live-stats div {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   min-width: 0;
+  padding: 12px;
+  border-radius: var(--r-md);
+  background: var(--field-bg);
 }
 .cs2-live-stats dt {
-  font: 700 11px/14px var(--font-ui);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  order: 2;
+  font: 500 12px/16px var(--font-ui);
   color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cs2-live-stats dd {
   margin: 0;
-  font: 700 20px/24px var(--font-display);
+  font: 600 22px/26px var(--font-display);
   color: var(--text-1);
   white-space: nowrap;
 }
 .cs2-live-foot {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
+  gap: 4px 16px;
   margin: 0;
   font: 500 13px/18px var(--font-ui);
   color: var(--text-2);
@@ -169,16 +184,16 @@
   margin: 0;
 }
 
-/* Liaison avec le jeu. */
+/* ---------- fiche : liaison ---------- */
+
 .cs2-link {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0;
+  margin: 0 8px;
   padding: 10px 12px;
   border-radius: var(--r-md);
-  background: var(--surface-1);
-  border: 1px solid var(--line-1);
+  background: var(--field-bg);
   font: 500 13px/18px var(--font-ui);
   color: var(--text-2);
 }
@@ -204,76 +219,113 @@
   flex-shrink: 0;
 }
 
-/* Derniers matchs. */
-.cs2-rows-title {
-  margin: 6px 0 0;
+/* ---------- fiche : matchs ---------- */
+
+.cs2-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.cs2-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-radius: var(--r-xl);
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.cs2-matches-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 14px 16px 10px;
+}
+.cs2-matches-title {
+  font: 600 17px/22px var(--font-display);
+  color: var(--text-1);
+}
+.cs2-matches-all {
+  margin-left: auto;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--accent-text);
 }
 .cs2-rows {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 0;
+  margin: 4px 0 0;
   padding: 0;
   list-style: none;
 }
+/* Résultat · carte et date · score · K/D/A · K/D · MVP · chevron */
 .cs2-row {
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr) auto 14px;
+  grid-template-columns: 96px minmax(0, 1fr) 48px 64px 68px 52px 14px;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 9px 12px;
+  padding: 12px 16px;
   border-radius: var(--r-md);
-  background: var(--surface-1);
-  border: 1px solid var(--line-1);
   color: inherit;
+  font: 500 14px/20px var(--font-ui);
   text-align: left;
   cursor: pointer;
-  transition:
-    background-color 140ms var(--ease-out),
-    border-color 140ms var(--ease-out);
+  transition: background-color var(--d-1) var(--ease-out);
 }
 .cs2-row:hover {
-  background: var(--surface-2);
-  border-color: var(--line-2);
+  background: var(--surface-1);
 }
 .cs2-row:focus-visible {
   outline: none;
   box-shadow: var(--focus);
 }
+/* Résultat en pastille, dans la liste seulement (le bilan garde la sienne). */
+.cs2-row .cs2-res {
+  justify-self: start;
+  height: 26px;
+  padding: 0 11px;
+  border-radius: var(--r-pill);
+  font: 600 12px/16px var(--font-ui);
+  letter-spacing: 0;
+  text-transform: none;
+}
 .cs2-row-main {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
   min-width: 0;
+  white-space: nowrap;
 }
 .cs2-row-map {
-  font: 700 14px/18px var(--font-ui);
+  flex-shrink: 0;
   color: var(--text-1);
-  white-space: nowrap;
+}
+.cs2-row-sub {
+  min-width: 0;
+  padding-left: 0.3em;
   overflow: hidden;
+  color: var(--text-3);
   text-overflow: ellipsis;
 }
 .cs2-row-new {
-  margin-left: 6px;
+  flex-shrink: 0;
+  margin-left: 8px;
   font: 700 10px/14px var(--font-ui);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--accent-text);
 }
-.cs2-row-sub {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.cs2-row-score {
+  color: var(--text-1);
 }
-.cs2-row-kda {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  font: 500 13px/18px var(--font-ui);
+.cs2-row-kda,
+.cs2-row-stat {
   color: var(--text-2);
   white-space: nowrap;
 }
 .cs2-row-kda b {
+  font-weight: 600;
   color: var(--text-1);
 }
 .cs2-row-go {
@@ -283,6 +335,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 8px 16px 12px;
 }
 .cs2-empty .caption {
   flex: 1;

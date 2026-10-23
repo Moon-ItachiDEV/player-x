@@ -162,6 +162,8 @@ export interface GameSheetProps {
   news: boolean
   /** Annonce à ouvrir directement dans le lecteur. */
   post?: string | null
+  /** Page d'où la fiche est ouverte (fil d'Ariane et bouton « Retour »). */
+  from?: View
 }
 
 /** components/Profile.tsx → `export function Profile` */
