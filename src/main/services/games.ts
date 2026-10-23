@@ -140,7 +140,8 @@ export async function steamLibraryDirs(checked: string[] = []): Promise<string[]
 
 export async function scanSteam(report: ScanReport): Promise<Game[]> {
   const games = new Map<string, Game>()
-  for (const lib of await steamLibraryDirs(report.checked)) {
+  const libraries = await steamLibraryDirs(report.checked)
+  for (const lib of libraries) {
     const appsDir = join(lib, 'steamapps')
     for (const file of await safeReaddir(appsDir)) {
       if (!/^appmanifest_\d+\.acf$/i.test(file)) continue
@@ -169,6 +170,7 @@ export async function scanSteam(report: ScanReport): Promise<Game[]> {
     fromRegistry++
   }
   if (isWin) report.checked.push(`Programmes installés : ${fromRegistry} jeu(x) Steam en plus`)
+  if (libraries.length === 0 && games.size === 0) report.absent = true
   return [...games.values()]
 }
 
@@ -187,6 +189,7 @@ interface EpicManifest {
 export async function scanEpic(report: ScanReport): Promise<Game[]> {
   const dir = join(process.env.ProgramData ?? 'C:\\ProgramData', 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests')
   report.checked.push(existsSync(dir) ? `Manifestes : ${dir}` : `Dossier absent : ${dir}`)
+  if (!existsSync(dir)) report.absent = true
   const games: Game[] = []
   for (const file of await safeReaddir(dir)) {
     if (!file.endsWith('.item')) continue
@@ -294,7 +297,10 @@ async function eaRegistryDirs(): Promise<{ name: string; dir: string }[]> {
 }
 
 export async function scanEa(report: ScanReport): Promise<Game[]> {
-  if (!isWin) return []
+  if (!isWin) {
+    report.absent = true
+    return []
+  }
   const games = new Map<string, Game>()
   const add = (g: Game | null): boolean => {
     if (!g || games.has(g.installDir!.toLowerCase()) || [...games.values()].some((x) => x.id === g.id)) return false
@@ -337,6 +343,7 @@ export async function scanEa(report: ScanReport): Promise<Game[]> {
     if (add(await readEaGame(dir, e.DisplayName, exe?.toLowerCase().endsWith('.exe') ? exe : undefined))) fromPrograms++
   }
   report.checked.push(`Programmes installés : ${fromPrograms} jeu(x) EA en plus`)
+  if (appDirs.length === 0 && roots.length === 0 && games.size === 0) report.absent = true
   return [...games.values()]
 }
 

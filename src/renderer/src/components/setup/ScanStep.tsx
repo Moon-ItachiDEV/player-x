@@ -1,106 +1,100 @@
-// Étape 1 : analyse du PC. Résultat par store, jaquettes distribuées en éventail, puis passage au choix des favoris.
-import { useCallback, useMemo, useState, type CSSProperties, type RefObject } from 'react'
-import { plural } from '@shared/text'
+// Étape « Analyse » : le scan plateforme par plateforme (Steam, Epic Games, EA app), chacune avec son état et son compteur,
+// et les jaquettes trouvées qui remplissent deux murs de part et d'autre. Le scan renvoie tout d'un coup : les plateformes
+// sont révélées une à une à partir du vrai rapport (animation courte, coupée par « Réduire les animations »).
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type RefObject } from 'react'
+import { cleanName, plural } from '@shared/text'
 import type { Game, ScanReport, Store } from '@shared/types'
 import { motionReduced } from '../../motion'
+import { BrandMark } from '../ui/Brand'
+import { CountUp } from '../ui/CountUp'
 import { Cover } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
 import { STORE_LONG, StoreTag } from '../ui/StoreTag'
 
 export const STORES: Store[] = ['steam', 'epic', 'ea']
-const DECK_MAX = 7
+/** Emplacements de chaque mur (3 colonnes × 4 rangées). */
+const WALL_SLOTS = 12
+/** Délai avant la première plateforme, puis entre deux plateformes. */
+const REVEAL_FIRST_MS = 420
+const REVEAL_NEXT_MS = 620
+/** L'anneau : rayon 92 dans une boîte de 200. */
+const RING_C = 2 * Math.PI * 92
+
+/** « Non installé » : le genre suit le nom du store (l'EA app). */
+const ABSENT: Record<Store, string> = { steam: 'Non installé', epic: 'Non installé', ea: 'Non installée' }
 
 interface StoreResult {
   store: Store
   count: number
   error?: string
+  absent: boolean
   checked: string[]
 }
 
-/** Nombre de jeux par store (ce que l'étape 2 montrera) ; le rapport du scan donne les erreurs et les dossiers examinés. */
+/** Nombre de jeux par store (ce que l'étape Favoris montrera) ; le rapport du scan donne les erreurs, l'absence et les dossiers examinés. */
 export function storeResults(games: Game[], report: ScanReport[], demo: boolean): StoreResult[] {
   return STORES.map((store) => {
     const r = demo ? undefined : report.find((x) => x.store === store)
-    const count = games.filter((g) => g.store === store).length
-    return { store, count: count || r?.found || 0, error: r?.error, checked: r?.checked ?? [] }
+    const count = games.filter((g) => g.store === store).length || r?.found || 0
+    return { store, count, error: r?.error, absent: !count && !!r?.absent, checked: r?.checked ?? [] }
   })
 }
 
-/** Le meilleur jeu au centre, puis alternativement à droite et à gauche. */
-function arrangeDeck(games: Game[]): { game: Game; rank: number }[] {
-  const score = (g: Game): number => (g.favorite ? 8 : 0) + (g.coverUrl ? 4 : 0) + (g.lastPlayed ? 2 : 0)
-  const best = [...games].sort((a, b) => score(b) - score(a) || (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0)).slice(0, DECK_MAX)
-  const slots: { game: Game; rank: number }[] = []
-  best.forEach((game, rank) => {
-    if (rank % 2 === 1) slots.push({ game, rank })
-    else slots.unshift({ game, rank })
-  })
-  return slots
-}
-
-function fan(i: number, n: number, rank: number): CSSProperties {
-  const k = i - (n - 1) / 2
-  return { '--k': k, '--k2': k * k, '--ak': Math.abs(k), '--i': rank, zIndex: 20 - Math.round(Math.abs(k) * 2) } as CSSProperties
-}
-
-/** Éventail décoratif : les jaquettes trouvées, des squelettes pendant l'analyse, des cadres vides sinon. */
-function Deck({ games, scanning }: { games: Game[]; scanning: boolean }): React.JSX.Element {
-  const cards = useMemo(() => arrangeDeck(games), [games])
-  if (cards.length === 0) {
-    const n = scanning ? 5 : 3
-    return (
-      <div className={`deck ${scanning ? 'is-scanning' : 'is-empty'}`} style={{ '--half': (n - 1) / 2 } as CSSProperties} aria-hidden="true">
-        {Array.from({ length: n }, (_, i) => (
-          <div key={i} className="deck-card" style={fan(i, n, Math.abs(i - (n - 1) / 2))}>
-            <div className={`deck-card-in ${scanning ? 'skel' : 'is-ghost'}`}>
-              {!scanning && i === 1 && <Icon name="gamepad" size={28} />}
-            </div>
-          </div>
-        ))}
-        {scanning && <div className="deck-beam fx-loop" />}
-      </div>
-    )
-  }
+/** Jaquettes d'abord, puis joués récemment, puis par nom : le haut du mur est le plus parlant. */
+function wallOrder(a: Game, b: Game): number {
   return (
-    <div className={`deck ${scanning ? 'is-scanning' : ''}`} style={{ '--half': (cards.length - 1) / 2 } as CSSProperties} aria-hidden="true">
-      {cards.map(({ game, rank }, i) => (
-        <div key={game.id} className="deck-card" style={fan(i, cards.length, rank)}>
-          <div className="deck-card-in">
-            <Cover game={game} />
-          </div>
-        </div>
-      ))}
-      {scanning && <div className="deck-beam fx-loop" />}
-    </div>
+    Number(!!b.coverUrl) - Number(!!a.coverUrl) ||
+    (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0) ||
+    cleanName(a.name).localeCompare(cleanName(b.name), 'fr')
   )
 }
 
-function StoreRow({ r, i, scanning }: { r: StoreResult; i: number; scanning: boolean }): React.JSX.Element {
-  const state = scanning ? 'scanning' : r.error ? 'error' : r.count ? 'found' : 'none'
+type RowState = 'pending' | 'found' | 'none' | 'absent' | 'error'
+
+function rowState(r: StoreResult, shown: boolean): RowState {
+  if (!shown) return 'pending'
+  return r.error ? 'error' : r.count ? 'found' : r.absent ? 'absent' : 'none'
+}
+
+function StoreRow({ r, state }: { r: StoreResult; state: RowState }): React.JSX.Element {
   return (
-    <li className={`scan-store is-${state}`} style={{ '--i': i } as CSSProperties}>
-      <StoreTag kind={r.store} size={34} />
-      <span className="scan-store-text">
-        <span className="scan-store-name">{STORE_LONG[r.store]}</span>
-        <span key={state} className="scan-store-status" title={state === 'error' ? r.error : undefined}>
-          {state === 'scanning' && 'Recherche…'}
-          {state === 'found' && (
-            <>
-              <strong className="num">{r.count}</strong> {r.count > 1 ? 'jeux trouvés' : 'jeu trouvé'}
-            </>
-          )}
-          {state === 'none' && 'Aucun jeu'}
-          {state === 'error' && <>Erreur&nbsp;: {r.error}</>}
-        </span>
-      </span>
-      <span key={`i-${state}`} className="scan-store-mark" aria-hidden="true">
-        {state === 'scanning' && <span className="spinner" />}
+    <li className={`scan-row is-${state}`}>
+      <span key={state} className="scan-row-mark" aria-hidden="true">
+        {state === 'pending' && <span className="spinner" />}
         {state === 'found' && <Icon name="check" size={14} />}
-        {state === 'error' && <Icon name="alert-circle" size={16} />}
-        {state === 'none' && <span className="scan-store-dash" />}
+        {state === 'error' && <Icon name="alert-circle" size={14} />}
+        {(state === 'none' || state === 'absent') && <span className="scan-row-dash" />}
       </span>
-      <span className="scan-store-bar fx-loop" aria-hidden="true" />
+      <span className="scan-row-text">
+        <span className="scan-row-name">{STORE_LONG[r.store]}</span>
+        {state === 'error' && <span className="scan-row-error">{r.error}</span>}
+      </span>
+      <span key={`v-${state}`} className="scan-row-value">
+        {state === 'pending' && 'Recherche…'}
+        {state === 'found' && <CountUp value={r.count} format={(n) => plural(Math.round(n), 'jeu', 'jeux')} />}
+        {state === 'none' && 'Aucun jeu'}
+        {state === 'absent' && ABSENT[r.store]}
+        {state === 'error' && 'Erreur'}
+      </span>
     </li>
+  )
+}
+
+/** Un mur de jaquettes : les emplacements libres sont des cadres vides pendant l'analyse, puis s'effacent. */
+function Wall({ games, side, done }: { games: Game[]; side: 'left' | 'right'; done: boolean }): React.JSX.Element {
+  return (
+    <div className={`scan-wall is-${side} ${done ? 'is-done' : ''}`} aria-hidden="true">
+      {Array.from({ length: WALL_SLOTS }, (_, i) => {
+        const g = games[i]
+        return g ? (
+          <span key={g.id} className="scan-tile" style={{ '--i': i } as CSSProperties}>
+            <Cover game={g} />
+          </span>
+        ) : (
+          <span key={`slot-${i}`} className="scan-slot" />
+        )
+      })}
+    </div>
   )
 }
 
@@ -146,23 +140,58 @@ interface ScanStepProps {
   report: ScanReport[]
   scanning: boolean
   demo: boolean
+  /** Déjà révélée une fois (retour depuis une autre étape) : tout s'affiche sans animation. */
+  instant: boolean
   headingRef: RefObject<HTMLHeadingElement | null>
+  nextLabel: string
+  onRevealed: () => void
   onNext: () => void
   onRescan: () => void
   onEnableDemo: () => void
   onSkip: () => void
 }
 
-export function ScanStep({ games, report, scanning, demo, headingRef, onNext, onRescan, onEnableDemo, onSkip }: ScanStepProps): React.JSX.Element {
+export function ScanStep(props: ScanStepProps): React.JSX.Element {
+  const { games, report, scanning, demo, instant, headingRef, nextLabel, onRevealed, onNext, onRescan, onEnableDemo, onSkip } = props
   const [showChecked, setShowChecked] = useState(false)
   const results = useMemo(() => storeResults(games, report, demo), [games, report, demo])
+  const [revealed, setRevealed] = useState(() => (!scanning && (instant || motionReduced()) ? STORES.length : 0))
+
+  // Pendant le scan, rien n'est révélé ; ensuite une plateforme après l'autre (tout d'un coup si les animations sont réduites).
+  useEffect(() => {
+    if (scanning) {
+      setRevealed(0)
+      return
+    }
+    if (revealed >= STORES.length) return
+    if (motionReduced()) {
+      setRevealed(STORES.length)
+      return
+    }
+    const t = setTimeout(() => setRevealed((n) => n + 1), revealed === 0 ? REVEAL_FIRST_MS : REVEAL_NEXT_MS)
+    return () => clearTimeout(t)
+  }, [scanning, revealed])
+
+  const done = !scanning && revealed >= STORES.length
+  useEffect(() => {
+    if (done) onRevealed()
+  }, [done, onRevealed])
+
+  // Les jaquettes des plateformes révélées, réparties à gauche et à droite en partant du centre.
+  const walls = useMemo(() => {
+    const shown = STORES.slice(0, scanning ? 0 : revealed)
+    const list = shown.flatMap((s) => games.filter((g) => g.store === s).sort(wallOrder)).slice(0, WALL_SLOTS * 2)
+    return { left: list.filter((_, i) => i % 2 === 0), right: list.filter((_, i) => i % 2 === 1) }
+  }, [games, revealed, scanning])
+
   const total = games.length
-  const phase = scanning ? 'scanning' : total ? 'found' : 'none'
+  const phase = !done ? 'scanning' : total ? 'found' : 'none'
+  const progress = scanning ? 0 : revealed / STORES.length
   const summary =
     phase === 'scanning'
       ? 'Analyse en cours'
       : phase === 'found'
-        ? `${plural(total, 'jeu trouvé', 'jeux trouvés')}\u00a0: ${results
+        ? `${plural(total, 'jeu trouvé', 'jeux trouvés')} : ${results
             .filter((r) => r.count)
             .map((r) => `${r.count} ${STORE_LONG[r.store]}`)
             .join(', ')}`
@@ -170,108 +199,142 @@ export function ScanStep({ games, report, scanning, demo, headingRef, onNext, on
 
   return (
     <section className={`scan is-${phase}`} aria-labelledby="setup-title">
-      <header className="setup-head">
-        <p className="setup-overline">
-          {phase === 'scanning' ? (
-            <>
-              <span className="setup-pulse fx-loop" aria-hidden="true" />
-              Analyse en cours
-            </>
-          ) : demo && phase === 'found' ? (
-            'Mode démo'
-          ) : (
-            'Analyse terminée'
-          )}
-        </p>
-        <h1 id="setup-title" ref={headingRef} tabIndex={-1} className="setup-title">
-          {phase === 'scanning' && 'Analyse de ton PC'}
+      <Wall games={walls.left} side="left" done={done} />
+
+      <div className="scan-core">
+        <div className="scan-ring" aria-hidden="true">
+          <svg viewBox="0 0 200 200" className={`scan-ring-svg ${phase === 'scanning' ? 'fx-loop' : ''}`}>
+            <defs>
+              <linearGradient id="scan-ring-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="var(--brand-1)" />
+                <stop offset=".5" stopColor="var(--brand-2)" />
+                <stop offset="1" stopColor="var(--brand-3)" stopOpacity={phase === 'scanning' ? 0 : 1} />
+              </linearGradient>
+            </defs>
+            <circle className="scan-ring-track" cx="100" cy="100" r="92" />
+            {phase !== 'none' && (
+              <circle
+                className="scan-ring-arc"
+                cx="100"
+                cy="100"
+                r="92"
+                stroke="url(#scan-ring-grad)"
+                strokeDasharray={phase === 'scanning' ? `${RING_C * 0.62} ${RING_C}` : `${RING_C} ${RING_C}`}
+              />
+            )}
+          </svg>
+          <BrandMark height={120} className="scan-ring-mark" />
           {phase === 'found' && (
-            <>
-              <span className="setup-num num">{total}</span> {total > 1 ? 'jeux trouvés' : 'jeu trouvé'}
-            </>
+            <span className="scan-ring-check">
+              <Icon name="check" size={20} />
+            </span>
           )}
-          {phase === 'none' && 'Aucun jeu trouvé'}
-        </h1>
-        <p className="setup-sub">
-          {phase === 'scanning' && "On cherche les jeux installés avec Steam, Epic Games et l'EA app. Ça ne prend que quelques secondes."}
-          {phase === 'found' &&
-            (demo
-              ? 'Des jeux fictifs pour découvrir Player X. Prochaine étape\u00a0: choisir tes favoris.'
-              : 'Ta bibliothèque est prête. Prochaine étape\u00a0: choisir les jeux que tu lances le plus.')}
-          {phase === 'none' && "On n'a trouvé aucun jeu Steam, Epic Games ou EA sur ce PC. Si tu viens d'en installer un, relance le scan."}
-        </p>
-        <p className="sr-only" aria-live="polite">
-          {summary}
-        </p>
-      </header>
+        </div>
 
-      <Deck games={games} scanning={scanning} />
-
-      <ul className="scan-stores" aria-label="Résultat par store">
-        {results.map((r, i) => (
-          <StoreRow key={r.store} r={r} i={i} scanning={scanning} />
-        ))}
-      </ul>
-
-      {phase !== 'none' ? (
-        <div className="scan-actions">
-          <button type="button" className="btn btn-primary btn-lg setup-cta" onClick={onNext} disabled={scanning || total === 0}>
-            {scanning ? (
+        <header className="scan-head">
+          <h1 id="setup-title" ref={headingRef} tabIndex={-1} className="scan-title">
+            {phase === 'scanning' && 'On cherche tes jeux…'}
+            {phase === 'found' && (
               <>
-                <span className="spinner" aria-hidden="true" />
-                Analyse en cours…
-              </>
-            ) : (
-              <>
-                Choisir mes favoris
-                <Icon name="chevron-right" size={18} />
+                <span className="setup-num num">
+                  <CountUp value={total} format={(n) => String(Math.round(n))} />
+                </span>{' '}
+                {total > 1 ? 'jeux trouvés' : 'jeu trouvé'}
               </>
             )}
-          </button>
-          <p className="scan-foot">
-            {!demo && phase === 'found' && (
-              <>
-                Il manque un jeu&nbsp;?{' '}
-                <button type="button" className="link-btn" onClick={onRescan}>
-                  Relancer le scan
-                </button>
-                <span className="scan-foot-sep" aria-hidden="true" />
-              </>
-            )}
-            <button type="button" className="link-btn muted" onClick={onSkip}>
-              Passer pour l'instant
-            </button>
+            {phase === 'none' && 'Aucun jeu trouvé'}
+          </h1>
+          <p className="scan-sub">
+            {phase === 'scanning' && (demo ? 'Mode démo : des jeux fictifs pour découvrir Player X.' : 'Steam, Epic Games et l’EA app. Ça prend quelques secondes.')}
+            {phase === 'found' &&
+              (demo ? 'Mode démo : des jeux fictifs pour découvrir Player X.' : 'Ta bibliothèque est prête.')}
+            {phase === 'none' && "Aucun jeu Steam, Epic Games ou EA sur ce PC. Si tu viens d'en installer un, relance le scan."}
           </p>
+          <p className="sr-only" aria-live="polite">
+            {summary}
+          </p>
+        </header>
+
+        <ul className="scan-rows" aria-label="Résultat par plateforme">
+          {results.map((r, i) => (
+            <StoreRow key={r.store} r={r} state={rowState(r, !scanning && i < revealed)} />
+          ))}
+        </ul>
+
+        <div
+          className={`scan-progress ${scanning ? 'is-busy' : ''}`}
+          role="progressbar"
+          aria-label="Plateformes analysées"
+          aria-valuemin={0}
+          aria-valuemax={STORES.length}
+          aria-valuenow={scanning ? undefined : revealed}
+        >
+          <span className={scanning ? 'fx-loop' : ''} style={{ '--p': progress } as CSSProperties} />
         </div>
-      ) : (
-        <div className="scan-actions">
-          <div className="scan-actions-row">
-            <button type="button" className="btn btn-primary btn-lg" onClick={onRescan}>
-              <Icon name="refresh" size={16} />
-              Relancer le scan
+
+        {phase !== 'none' ? (
+          <div className="scan-actions">
+            {/* Pendant la révélation, le scan est fini : on peut déjà continuer. */}
+            <button type="button" className="btn btn-primary btn-lg setup-cta" onClick={onNext} disabled={scanning || total === 0}>
+              {scanning ? (
+                <>
+                  <span className="spinner" aria-hidden="true" />
+                  Analyse en cours…
+                </>
+              ) : (
+                <>
+                  {nextLabel}
+                  <Icon name="chevron-right" size={18} />
+                </>
+              )}
             </button>
-            {!demo && (
-              <button type="button" className="btn btn-secondary btn-lg" onClick={onEnableDemo}>
-                Essayer le mode démo
+            <p className="scan-foot">
+              {!demo && phase === 'found' && (
+                <>
+                  Il manque un jeu&nbsp;?{' '}
+                  <button type="button" className="link-btn" onClick={onRescan}>
+                    Relancer le scan
+                  </button>
+                  <span className="scan-foot-sep" aria-hidden="true" />
+                </>
+              )}
+              <button type="button" className="link-btn muted" onClick={onSkip}>
+                Passer pour l'instant
               </button>
-            )}
-            <button type="button" className="btn btn-ghost btn-lg" onClick={onSkip}>
-              Continuer
-            </button>
+            </p>
           </div>
-          <button
-            type="button"
-            className="link-btn muted scan-checked-toggle"
-            aria-expanded={showChecked}
-            aria-controls="setup-checked"
-            onClick={() => setShowChecked((o) => !o)}
-          >
-            Voir les dossiers examinés
-            <Icon name="chevron-down" size={14} className={showChecked ? 'is-open' : ''} />
-          </button>
-          {showChecked && <Checked results={results} />}
-        </div>
-      )}
+        ) : (
+          <div className="scan-actions">
+            <div className="scan-actions-row">
+              <button type="button" className="btn btn-primary btn-lg" onClick={onRescan}>
+                <Icon name="refresh" size={16} />
+                Relancer le scan
+              </button>
+              {!demo && (
+                <button type="button" className="btn btn-secondary btn-lg" onClick={onEnableDemo}>
+                  Essayer le mode démo
+                </button>
+              )}
+              <button type="button" className="btn btn-ghost btn-lg" onClick={onSkip}>
+                Continuer
+              </button>
+            </div>
+            <button
+              type="button"
+              className="link-btn muted scan-checked-toggle"
+              aria-expanded={showChecked}
+              aria-controls="setup-checked"
+              onClick={() => setShowChecked((o) => !o)}
+            >
+              Voir les dossiers examinés
+              <Icon name="chevron-down" size={14} className={showChecked ? 'is-open' : ''} />
+            </button>
+            {showChecked && <Checked results={results} />}
+          </div>
+        )}
+      </div>
+
+      <Wall games={walls.right} side="right" done={done} />
     </section>
   )
 }

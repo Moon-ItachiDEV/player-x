@@ -67,7 +67,8 @@ function loadUi(): UiPrefs {
 export default function App(): React.JSX.Element {
   const [ui, setUi] = useState<UiPrefs>(loadUi)
   // Écran de démarrage (choix des favoris) : une fois après l'entrée, puis à la demande. `first` = premier passage.
-  const [setup, setSetup] = useState<{ open: boolean; first: boolean }>(() => ({ open: !setupDone(), first: !setupDone() }))
+  // `replay` : rejoué depuis les paramètres (« Revoir l'accueil de Player X »), le scan est relancé au départ.
+  const [setup, setSetup] = useState<SetupState>(() => ({ open: !setupDone(), first: !setupDone() }))
   const systemReduced = useSystemReducedMotion()
   const systemOpaque = useSystemReducedTransparency()
   useWindowActivity()
@@ -102,11 +103,17 @@ export default function App(): React.JSX.Element {
   )
 }
 
+interface SetupState {
+  open: boolean
+  first: boolean
+  replay?: boolean
+}
+
 interface ShellProps {
   ui: UiPrefs
   updateUi: (p: Partial<UiPrefs>) => void
-  setup: { open: boolean; first: boolean }
-  setSetup: (v: { open: boolean; first: boolean }) => void
+  setup: SetupState
+  setSetup: (v: SetupState) => void
 }
 
 function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element {
@@ -552,12 +559,15 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     return (
       <Setup
         firstRun={setup.first}
+        replay={setup.replay}
         games={games}
         report={report}
         scanning={scanning}
         demo={settings.demoMode}
         onRescan={() => loadGames(true)}
         onEnableDemo={enableDemo}
+        settings={settings}
+        onSaveSettings={saveSettings}
         onDone={finishSetup}
         onSkip={() => closeSetup(setup.first)}
       />
@@ -707,6 +717,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               onLogout={logout}
               onRescan={() => loadGames(true)}
               onOpenSetup={() => setSetup({ open: true, first: false })}
+              onReplaySetup={() => setSetup({ open: true, first: true, replay: true })}
               steamLibrary={steamLib}
               onRefreshSteamLibrary={() => loadSteamLib(true)}
               loginPending={loginPending}

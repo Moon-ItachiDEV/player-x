@@ -155,6 +155,8 @@ export interface ScanReport {
   /** Dossiers et sources examinés, pour comprendre un scan vide. */
   checked: string[]
   error?: string
+  /** Le store n'a pas l'air installé sur ce PC : ni dossier ni réglage trouvé, et aucun jeu. */
+  absent?: boolean
 }
 
 /** Pourquoi une mise à jour a échoué. Absent sur les erreurs de vérification de version (« Rechercher une mise à jour »). */
