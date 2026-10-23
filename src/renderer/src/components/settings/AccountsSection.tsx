@@ -220,6 +220,10 @@ function ConnectionCard({ platform, account, state, count, masked, settings, log
   // Steam et Discord passent par le navigateur (même port de retour) : une connexion à la fois.
   const blocked = !!loginPending && !pending
 
+  // Pas encore relié, une seule chose à faire dans Avancé : le bouton prend la place de « Connecter » et le message
+  // devient la légende, pour garder des cartes de même hauteur (maquette). Les erreurs gardent leur encadré.
+  const inlineFix = !account && !pending && state.tone !== 'danger' && state.fixes?.length === 1 && state.fixes[0].to === 'advanced' ? state.fixes[0] : null
+
   const caption = pending
     ? platform === 'psn'
       ? 'Connexion à PlayStation…'
@@ -232,11 +236,15 @@ function ConnectionCard({ platform, account, state, count, masked, settings, log
             : 'Aucun serveur choisi'
           : plural(count, 'ami', 'amis')
         : 'Amis indisponibles pour le moment'
-      : platform === 'psn'
-        ? 'API non officielle'
-        : platform === 'discord' && !(settings.discordClientId && settings.discordClientSecret)
-          ? 'Application développeur requise'
-          : 'Connexion dans ton navigateur'
+      : inlineFix || (state.canConnect && !state.fixes)
+        ? state.message
+        : platform === 'psn'
+          ? 'API non officielle'
+          : platform === 'discord' && !(settings.discordClientId && settings.discordClientSecret)
+            ? 'Application développeur requise'
+            : 'Connexion dans ton navigateur'
+  // Légende longue (message) : sur trois lignes au plus, au lieu d’une ligne coupée.
+  const longCap = !pending && !account && (inlineFix || (state.canConnect && !state.fixes))
 
   return (
     <article className={`set-acc ${state.tone}`} aria-labelledby={`set-conn-${platform}`}>
@@ -260,7 +268,7 @@ function ConnectionCard({ platform, account, state, count, masked, settings, log
               )}
             </span>
           </p>
-          <p className="set-acc-cap">
+          <p className={`set-acc-cap ${longCap ? 'set-acc-cap-long' : ''}`}>
             {caption}
             {account?.id && account.id !== 'me' && <span className="num"> · ID {account.id}</span>}
           </p>
@@ -275,9 +283,18 @@ function ConnectionCard({ platform, account, state, count, masked, settings, log
             <button className="btn btn-secondary btn-sm set-ghost-danger" onClick={(e) => onDisconnect(e.currentTarget)}>
               Déconnecter
             </button>
+          ) : inlineFix ? (
+            <button className="btn btn-secondary btn-sm" onClick={onConfigure}>
+              {inlineFix.label}
+            </button>
           ) : (
             state.canConnect && (
-              <button className="btn btn-primary btn-sm" onClick={onConnect} disabled={pending || blocked}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={onConnect}
+                disabled={pending || blocked}
+                title={platform === 'psn' ? undefined : 'Connexion dans ton navigateur'}
+              >
                 {pending && <span className="spinner" />}
                 {pending ? 'Connexion…' : CONNECT_LABEL[platform]}
               </button>
@@ -306,7 +323,7 @@ function ConnectionCard({ platform, account, state, count, masked, settings, log
             </div>
           )}
         </>
-      ) : state.fixes ? (
+      ) : state.fixes && !inlineFix ? (
         <div className={`set-alert ${state.tone}`}>
           <Icon name={state.tone === 'danger' ? 'alert-circle' : 'alert-triangle'} size={16} />
           <div>
@@ -328,7 +345,7 @@ function ConnectionCard({ platform, account, state, count, masked, settings, log
           </div>
         </div>
       ) : (
-        <p className="set-acc-note">{state.message}</p>
+        !inlineFix && !longCap && !pending && state.message && <p className="set-acc-note">{state.message}</p>
       )}
     </article>
   )
