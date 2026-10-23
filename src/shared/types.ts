@@ -82,6 +82,8 @@ export interface Settings {
   bf6Recap: boolean
   /** Counter-Strike 2 : ton match en direct et son bilan, envoyés par le jeu lui-même (Game State Integration de Valve). */
   cs2Live: boolean
+  /** À la fermeture de CS2, Player X s'ouvre de lui-même sur le dernier bilan (sinon une notification Windows). */
+  cs2RecapOpen: boolean
   /** Mises à jour : `stable` (versions pour tout le monde) ou `beta` (aussi les versions de test, publiées en préversion). */
   updateChannel: UpdateChannel
   /** Overlay CS2 (bêta) : coupé, ou un des trois styles à essayer en jeu. Proposé seulement sur le canal Bêta. */

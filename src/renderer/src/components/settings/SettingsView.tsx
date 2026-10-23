@@ -459,6 +459,22 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
             </button>
           </div>
         </SettingRow>
+        {settings.cs2Live && (
+          <SettingRow
+            label="Ouvrir le bilan à la fermeture de CS2"
+            value={
+              settings.cs2RecapOpen
+                ? 'Activé · quand tu quittes le jeu, Player X s’ouvre de lui-même sur ton dernier bilan'
+                : 'Désactivé · une notification Windows, à cliquer pour voir le bilan'
+            }
+          >
+            <Switch
+              checked={settings.cs2RecapOpen}
+              onChange={(cs2RecapOpen) => onSaveSettings({ cs2RecapOpen }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+              label="Ouvrir le bilan à la fermeture de CS2"
+            />
+          </SettingRow>
+        )}
         {(settings.updateChannel === 'beta' || /-/.test(window.launcher.version)) && (
           <>
             <SettingRow
