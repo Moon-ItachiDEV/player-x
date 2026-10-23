@@ -181,8 +181,8 @@ function maskedLabel(hidden: HiddenMember[]): string {
  * et à droite les membres du serveur Discord.
  */
 export function SideFriends(props: SideFriendsProps): React.JSX.Element {
-  const { result, accounts, games, demo, discordConfigured, loading, onRefresh, onOpenAccounts, onHideMember, onManageHidden } = props
-  const [query, setQuery] = useState('')
+  const { result, accounts, games, demo, discordConfigured, loading, onRefresh, onOpenAccounts, onHideMember, onManageHidden, initialQuery } = props
+  const [query, setQuery] = useState(initialQuery ?? '')
   const [filter, setFilter] = useState<Filter>('all')
   const [showOffline, setShowOffline] = useState(readShowOffline)
 

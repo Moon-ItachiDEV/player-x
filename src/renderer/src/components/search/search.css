@@ -1,0 +1,136 @@
+/* Recherche globale (Ctrl K) : liste des résultats sous le champ de la barre du haut. */
+
+.srch-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: var(--z-popover);
+  width: max(100%, 480px);
+  max-width: calc(100vw - 48px);
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  box-shadow: var(--sh-3);
+  cursor: default;
+  -webkit-app-region: no-drag;
+  transform-origin: top right;
+  animation: srch-in var(--d-2) var(--ease-out);
+}
+@keyframes srch-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+.srch-list {
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  padding: 6px;
+  margin: 0;
+  list-style: none;
+  overscroll-behavior: contain;
+}
+.srch-group + .srch-group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line-1);
+}
+.srch-group-title {
+  margin: 0;
+  padding: 8px 10px 4px;
+  font: 600 12px/1.3 var(--font-ui);
+  color: var(--text-3);
+}
+.srch-group-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.srch-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  color: var(--text-2);
+  font: 500 14px/1.3 var(--font-ui);
+  cursor: pointer;
+}
+.srch-opt.is-active {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+.srch-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.srch-hint {
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+/* Vignette : jaquette 2:3, avatar rond ou icône dans un carré, toutes alignées sur 28 px de large. */
+.srch-art {
+  flex-shrink: 0;
+}
+.srch-art-cover {
+  width: 28px;
+  overflow: hidden;
+  border-radius: 5px;
+}
+.srch-art-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-xs);
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+.srch-opt .avatar {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.srch-opt.is-active .srch-art-icon {
+  color: var(--accent);
+}
+.srch-opt-library .srch-label {
+  color: var(--accent-text);
+}
+
+.srch-empty {
+  padding: 18px 12px;
+  font: 500 14px/1.4 var(--font-ui);
+  color: var(--text-3);
+  text-align: center;
+}
+
+.srch-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line-1);
+  font: 500 12px/1 var(--font-ui);
+  color: var(--text-3);
+}
+.srch-keys span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.srch-keys kbd + kbd {
+  margin-left: -1px;
+}

@@ -2,6 +2,7 @@
 import type { RefObject } from 'react'
 import type { LaunchVia } from '@shared/launch'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
+import type { SearchItem } from './components/search/SearchResults'
 
 export type View = 'home' | 'library' | 'friends' | 'profile' | 'stats' | 'trophies' | 'settings' | 'news'
 export type SettingsSection = 'accounts' | 'library' | 'interface' | 'advanced' | 'about'
@@ -59,16 +60,22 @@ export interface SideFriendsProps {
   onHideMember: (f: Friend) => Promise<boolean>
   /** Ouvre Paramètres › Comptes › Membres masqués. */
   onManageHidden: () => void
+  /** Texte de recherche au départ (ami choisi dans la recherche globale). */
+  initialQuery?: string
 }
 
 /** components/TopBar.tsx → `export function TopBar` */
 export interface TopBarProps {
   /** Titre de la page ; absent quand la page pose ses onglets dans la barre (TopTabs). */
   title?: string
-  /** Recherche globale : filtre la bibliothèque (bascule sur Bibliothèque quand on tape). */
+  /** Recherche globale (Ctrl K) : le texte filtre aussi la Bibliothèque quand elle est affichée. */
   query: string
   onQueryChange: (q: string) => void
   searchRef: RefObject<HTMLInputElement | null>
+  /** Jeux, amis, membres du serveur, pages et actions proposés sous le champ ; null = « Voir dans la Bibliothèque ». */
+  search: { items: SearchItem[]; onPick: (item: SearchItem | null, launch: boolean) => void }
+  /** La Bibliothèque est affichée : la liste ne propose pas d'y aller. */
+  onLibraryView: boolean
   /** Reçoit l'élément où les pages posent leurs onglets. */
   slotRef: (el: HTMLElement | null) => void
   /** Bouton du compte (avatar, à droite) : ouvre le menu du compte. */
