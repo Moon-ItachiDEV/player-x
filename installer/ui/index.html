@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Installation de Player X</title>
+<!-- Installeur de Player X : la page de la fenêtre (installer/main.go). Polices et icône intégrées à la construction
+     (scripts/build-installer.mjs). Rien n'est chargé depuis Internet. -->
+<style>
+/*__PX_FONTS__*/
+:root {
+  --bg: #0c0a11; --panel: rgba(30, 24, 40, .62); --field: rgba(12, 10, 17, .55); --chip: #221d2c; --chip-2: #2c2538;
+  --line: rgba(255, 190, 215, .14); --line-2: rgba(255, 200, 220, .28); --hi: rgba(255, 255, 255, .07);
+  --text-1: #f7f1f5; --text-2: #cdbfca; --text-3: #a898a6;
+  --accent: #ff5c86; --accent-hover: #ff7598; --on-accent: #2a0612; --accent-text: #ff9db5;
+  --ok: #5be49b; --on-ok: #04140b; --danger: #ff9a80;
+  --ui: 'Inter', 'Segoe UI', system-ui, sans-serif; --display: 'Sora', 'Inter', 'Segoe UI', sans-serif;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text-1); font-family: var(--ui); -webkit-font-smoothing: antialiased; user-select: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+@keyframes pxIn { from { opacity: 0; transform: translateY(14px) scale(.98) } to { opacity: 1; transform: none } }
+@keyframes pxUp { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: none } }
+@keyframes pxGlow { 0%, 100% { opacity: .55; transform: scale(1) } 50% { opacity: .9; transform: scale(1.12) } }
+@keyframes pxFloat { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+@keyframes pxPop { 0% { transform: scale(0); opacity: 0 } 70% { transform: scale(1.15); opacity: 1 } 100% { transform: scale(1) } }
+@keyframes pxDrift { 0%, 100% { transform: translate(0, 0) } 50% { transform: translate(24px, -16px) } }
+@keyframes pxSpin { to { transform: rotate(360deg) } }
+
+.win { position: relative; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); box-shadow: inset 0 0 0 1px rgba(255, 200, 220, .14); animation: pxIn .6s var(--ease) both; }
+.halo { position: absolute; left: 50%; top: -260px; width: 760px; height: 560px; margin-left: -380px; border-radius: 50%; background: radial-gradient(circle, rgba(251, 79, 122, .38), rgba(224, 32, 126, .12) 45%, transparent 70%); animation: pxDrift 12s ease-in-out infinite; pointer-events: none; }
+.fade { position: absolute; inset: 0; background: radial-gradient(120% 60% at 50% 100%, rgba(12, 10, 17, 1) 30%, rgba(12, 10, 17, 0) 70%); pointer-events: none; }
+
+/* Barre de titre : on déplace la fenêtre en la tenant. */
+.bar { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 12px 6px 0 18px; }
+.bar img { width: 20px; height: 20px; }
+.bar-title { flex: 1; font: 600 13px/18px var(--ui); color: var(--text-2); }
+.wbtn { display: grid; place-items: center; width: 42px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--text-3); }
+.wbtn:hover { background: rgba(255, 255, 255, .06); color: var(--text-1); }
+.wbtn.close:hover { background: #c42b1c; color: #fff; }
+.wbtn:disabled { opacity: .35; pointer-events: none; }
+
+.steps { position: relative; display: flex; justify-content: center; gap: 8px; padding-top: 10px; margin: 0; list-style: none; }
+.step { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px 0 5px; border-radius: 999px; font: 600 13px/18px var(--ui); background: rgba(30, 24, 40, .6); color: var(--text-3); transition: background .3s, color .3s, box-shadow .3s; }
+.step-n { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font: 700 11px/1 var(--ui); background: var(--chip); color: var(--text-3); }
+.step.is-cur { background: rgba(255, 92, 134, .16); color: #ffc2d2; box-shadow: inset 0 0 0 1px rgba(255, 92, 134, .45); }
+.step.is-cur .step-n { background: var(--accent); color: var(--on-accent); }
+.step.is-done { background: rgba(91, 228, 155, .10); color: var(--ok); }
+.step.is-done .step-n { background: var(--ok); color: var(--on-ok); }
+
+.hero { position: relative; display: grid; place-items: center; height: 210px; margin-top: 14px; }
+.hero-glow { position: absolute; width: 190px; height: 190px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 92, 134, .5), transparent 68%); animation: pxGlow 3.2s ease-in-out infinite; }
+.ring { position: absolute; transform: rotate(-90deg); }
+.ring-bar { transition: stroke-dashoffset .35s var(--ease); }
+.logo { position: relative; width: 136px; height: 136px; filter: drop-shadow(0 18px 34px rgba(42, 6, 18, .55)); animation: pxFloat 4s ease-in-out infinite; }
+.check { position: absolute; left: 50%; top: 50%; margin: 34px 0 0 34px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--ok); color: var(--on-ok); box-shadow: 0 0 0 5px var(--bg); animation: pxPop .5s .1s var(--ease) both; }
+
+.body { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 6px 48px 32px; }
+.head { text-align: center; animation: pxUp .4s var(--ease) both; }
+h1 { margin: 0; font: 700 30px/36px var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.sub { margin: 6px 0 0; font: 400 15px/22px var(--ui); color: var(--text-2); }
+
+.panel { width: 600px; padding: 8px; border-radius: 24px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line), inset 0 1px 0 var(--hi); display: flex; flex-direction: column; gap: 4px; animation: pxUp .45s .08s var(--ease) both; }
+.folder { display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 14px; border-radius: 18px; background: var(--field); }
+.folder-txt { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.k { font: 600 11px/14px var(--ui); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.path { font: 500 14px/20px var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; }
+.chip-btn { height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--chip); color: var(--text-1); font: 600 13px/18px var(--ui); }
+.chip-btn:hover { background: var(--chip-2); }
+.opt { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 0; border-radius: 18px; background: transparent; color: var(--text-1); font: 500 14px/20px var(--ui); text-align: left; }
+.opt:hover { background: rgba(255, 255, 255, .03); }
+.opt span:first-child { flex: 1; }
+.track { position: relative; flex-shrink: 0; width: 46px; height: 28px; border-radius: 999px; background: var(--chip-2); transition: background .2s; }
+.knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--text-3); transition: left .2s var(--ease), background .2s; }
+.opt[aria-checked='true'] .track { background: var(--accent); }
+.opt[aria-checked='true'] .knob { left: 21px; background: var(--on-accent); }
+
+.foot { width: 600px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.space { font: 500 12px/16px var(--ui); color: var(--text-3); }
+.space.is-short { color: var(--danger); }
+.cta { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 32px; border: 0; border-radius: 999px; background: var(--accent); color: var(--on-accent); font: 700 16px/22px var(--ui); box-shadow: 0 0 0 1px rgba(255, 92, 134, .5), 0 12px 34px rgba(224, 32, 126, .45); transition: transform .12s, background .2s; text-decoration: none; }
+.cta:hover { background: var(--accent-hover); }
+.cta:active { transform: scale(.97); }
+.cta:disabled { opacity: .45; pointer-events: none; }
+.ghost { min-height: 54px; padding: 0 24px; border: 0; border-radius: 999px; background: var(--panel); color: var(--text-1); font: 600 15px/22px var(--ui); box-shadow: inset 0 0 0 1px var(--line-2); }
+.ghost:hover { background: rgba(44, 36, 56, .8); }
+
+.tasks { width: 480px; display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.task { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 16px; background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255, 200, 220, .10); font: 600 14px/20px var(--ui); opacity: .5; transition: opacity .3s; }
+.task.is-run, .task.is-done { opacity: 1; }
+.task-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--chip); color: transparent; }
+.task.is-run .task-mark { background: rgba(255, 92, 134, .2); box-shadow: inset 0 0 0 2px var(--accent); border-top-color: transparent; }
+.task.is-run .task-mark::after { content: ''; width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--accent); animation: pxSpin .9s linear infinite; }
+.task.is-done .task-mark { background: var(--ok); color: var(--on-ok); }
+.task-label { flex: 1; }
+.task-state { font: 500 12px/16px var(--ui); color: var(--text-3); }
+
+.done { display: flex; flex-direction: column; align-items: center; gap: 14px; animation: pxUp .45s .15s var(--ease) both; }
+.row { display: flex; gap: 12px; }
+.small { font: 500 12px/16px var(--ui); color: var(--text-3); text-align: center; max-width: 560px; }
+.err { width: 600px; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px; border-radius: 20px; background: rgba(255, 122, 92, .08); box-shadow: inset 0 0 0 1px rgba(255, 122, 92, .3); text-align: center; animation: pxUp .35s var(--ease) both; }
+.err p { margin: 0; font: 500 14px/20px var(--ui); color: var(--danger); }
+[hidden] { display: none !important; }
+/* Erreur : le logo se fait plus petit pour laisser la place au message et aux boutons. */
+.is-err .hero { height: 120px; margin-top: 6px; }
+.is-err .logo { width: 88px; height: 88px; }
+.is-err .ring, .is-err .hero-glow { display: none; }
+.is-err .body { gap: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="win" role="dialog" aria-labelledby="title">
+  <div class="halo" aria-hidden="true"></div>
+  <div class="fade" aria-hidden="true"></div>
+
+  <div class="bar" id="bar">
+    <img src="__PX_ICON__" alt="">
+    <span class="bar-title">Installation de Player X</span>
+    <button type="button" class="wbtn" id="min" aria-label="Réduire"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6h10" stroke="currentColor" stroke-width="1.2"></path></svg></button>
+    <button type="button" class="wbtn close" id="close" aria-label="Fermer"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.2"></path></svg></button>
+  </div>
+
+  <ol class="steps" aria-label="Étapes">
+    <li class="step" data-step="0"><span class="step-n">1</span>Emplacement</li>
+    <li class="step" data-step="1"><span class="step-n">2</span>Installation</li>
+    <li class="step" data-step="2"><span class="step-n">3</span>Prêt</li>
+  </ol>
+
+  <div class="hero">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <svg class="ring" id="ring" width="196" height="196" viewBox="0 0 196 196" aria-hidden="true" hidden>
+      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a80"></stop><stop offset=".5" stop-color="#fb4f7a"></stop><stop offset="1" stop-color="#e0207e"></stop></linearGradient></defs>
+      <circle cx="98" cy="98" r="90" fill="none" stroke="rgba(255,200,220,.10)" stroke-width="6"></circle>
+      <circle class="ring-bar" id="ringBar" cx="98" cy="98" r="90" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round" stroke-dasharray="565.5" stroke-dashoffset="565.5"></circle>
+    </svg>
+    <img class="logo" src="__PX_ICON__" alt="Player X">
+    <span class="check" id="check" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+  </div>
+
+  <div class="body">
+    <div class="head" id="head">
+      <h1 id="title">Installer Player X</h1>
+      <p class="sub" id="sub">Tous tes jeux au même endroit. Ça prend moins d’une minute.</p>
+    </div>
+
+    <!-- 1. Emplacement -->
+    <section id="s0">
+      <div class="panel">
+        <div class="folder">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff9db5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v8A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5z"></path></svg>
+          <span class="folder-txt"><span class="k">Dossier</span><span class="path" id="path" title=""></span></span>
+          <button type="button" class="chip-btn" id="pick">Changer</button>
+        </div>
+        <button type="button" class="opt" role="switch" aria-checked="true" id="desk"><span>Créer un raccourci sur le Bureau</span><span class="track"><span class="knob"></span></span></button>
+        <button type="button" class="opt" role="switch" aria-checked="true" id="boot"><span>Démarrer avec Windows (près de l’horloge)</span><span class="track"><span class="knob"></span></span></button>
+      </div>
+      <div class="foot" style="margin-top: 18px">
+        <span class="space" id="space"></span>
+        <button type="button" class="cta" id="go">Installer<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M6 11l6 6 6-6M5 20h14"></path></svg></button>
+      </div>
+    </section>
+
+    <!-- 2. Installation -->
+    <section id="s1" hidden>
+      <ol class="tasks" aria-live="polite">
+        <li class="task" data-task="0"><span class="task-mark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span class="task-label">Copie des fichiers</span><span class="task-state"></span></li>
+        <li class="task" data-task="1"><span class="task-mark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span class="task-label">Création des raccourcis</span><span class="task-state"></span></li>
+        <li class="task" data-task="2"><span class="task-mark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span class="task-label">Liaison des mises à jour signées</span><span class="task-state"></span></li>
+      </ol>
+      <div class="err" id="err" hidden style="margin-top: 16px">
+        <p id="errText"></p>
+        <div class="row">
+          <button type="button" class="cta" id="retry" style="min-height: 46px; padding: 0 24px">Réessayer</button>
+          <button type="button" class="ghost" id="classic" style="min-height: 46px">Installeur classique</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Prêt -->
+    <section id="s2" hidden>
+      <div class="done">
+        <div class="row">
+          <button type="button" class="cta" id="launch" style="min-height: 54px; padding: 0 34px"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"></path></svg>Lancer Player X</button>
+          <button type="button" class="ghost" id="finish">Fermer</button>
+        </div>
+        <span class="small" id="note"></span>
+        <span class="small">Les prochaines mises à jour s’installeront toutes seules.</span>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+'use strict'
+// Liaisons avec l'installeur (main.go) : pxInfo, pxFree, pxPick, pxInstall, pxLaunch, pxClassic, pxDrag, pxMinimize,
+// pxClose, pxReady ; il appelle window.pxProgress pendant l'installation.
+const $ = (id) => document.getElementById(id)
+const C = 565.5
+const state = { step: 0, dir: '', need: 0, free: 0, busy: false, update: false }
+const mo = (b) => Math.max(1, Math.round(b / 1048576)).toLocaleString('fr-FR')
+const go = (b) => (b / 1073741824).toLocaleString('fr-FR', { maximumFractionDigits: b < 10737418240 ? 1 : 0 })
+
+const TXT = [
+  ['Installer Player X', 'Tous tes jeux au même endroit. Ça prend moins d’une minute.'],
+  ['Installation… 0 %', 'Tu peux continuer à utiliser ton PC.'],
+  ['Player X est prêt', 'Tu le retrouves dans le menu Démarrer.']
+]
+
+function setStep(step) {
+  state.step = step
+  document.querySelectorAll('.step').forEach((el) => {
+    const i = Number(el.dataset.step)
+    el.classList.toggle('is-cur', i === step)
+    el.classList.toggle('is-done', i < step)
+    el.querySelector('.step-n').textContent = i < step ? '✓' : String(i + 1)
+    if (i === step) el.setAttribute('aria-current', 'step')
+    else el.removeAttribute('aria-current')
+  })
+  $('s0').hidden = step !== 0
+  $('s1').hidden = step !== 1
+  $('s2').hidden = step !== 2
+  $('ring').toggleAttribute('hidden', step === 0)
+  $('check').hidden = step !== 2
+  document.querySelector('.win').classList.remove('is-err')
+  $('title').textContent = TXT[step][0]
+  $('sub').textContent = TXT[step][1]
+  if (step === 2) {
+    $('sub').textContent = state.desk ? 'Tu le retrouves sur le Bureau et dans le menu Démarrer.' : 'Tu le retrouves dans le menu Démarrer.'
+    if (state.update) $('title').textContent = 'Player X est à jour'
+  }
+  // Relance l'entrée animée du titre.
+  const h = $('head')
+  h.style.animation = 'none'
+  void h.offsetWidth
+  h.style.animation = ''
+}
+
+function setRing(p) {
+  $('ringBar').setAttribute('stroke-dashoffset', String(C - (C * p) / 100))
+}
+
+function showSpace() {
+  const el = $('space')
+  if (!state.need) {
+    el.textContent = ''
+    return
+  }
+  const short = state.free > 0 && state.free < state.need
+  el.textContent = mo(state.need) + ' Mo nécessaires' + (state.free ? ' · ' + go(state.free) + ' Go libres' : '')
+  el.classList.toggle('is-short', short)
+  $('go').disabled = short
+}
+
+function showDir(d) {
+  state.dir = d
+  $('path').textContent = d
+  $('path').title = d
+}
+
+function toggle(el) {
+  const on = el.getAttribute('aria-checked') !== 'true'
+  el.setAttribute('aria-checked', String(on))
+}
+
+function setTasks(p) {
+  document.querySelectorAll('.task').forEach((el) => {
+    const i = Number(el.dataset.task)
+    const done = p.step > i
+    const run = p.step === i && !p.error
+    el.classList.toggle('is-done', done)
+    el.classList.toggle('is-run', run)
+    el.querySelector('.task-state').textContent = done ? 'Fait' : run ? 'En cours…' : p.error && p.step === i ? 'Échec' : ''
+  })
+}
+
+window.pxProgress = (p) => {
+  if (p.error) {
+    state.busy = false
+    $('close').disabled = false
+    setTasks(p)
+    $('errText').textContent = p.error
+    document.querySelector('.win').classList.add('is-err')
+    $('err').hidden = false
+    $('title').textContent = 'L’installation s’est arrêtée'
+    $('sub').textContent = 'Rien n’est perdu : tu peux réessayer.'
+    return
+  }
+  setRing(p.percent)
+  setTasks(p)
+  if (p.step < 3) {
+    $('title').textContent = 'Installation… ' + p.percent + ' %'
+    return
+  }
+  state.busy = false
+  $('close').disabled = false
+  $('note').textContent = p.note || ''
+  $('note').hidden = !p.note
+  setTimeout(() => setStep(2), 450)
+}
+
+async function start() {
+  if (state.busy) return
+  state.busy = true
+  state.desk = $('desk').getAttribute('aria-checked') === 'true'
+  $('err').hidden = true
+  document.querySelector('.win').classList.remove('is-err')
+  $('close').disabled = true
+  setStep(1)
+  setRing(0)
+  setTasks({ step: 0 })
+  try {
+    await window.pxInstall({ dir: state.dir, desktop: state.desk, boot: $('boot').getAttribute('aria-checked') === 'true' })
+  } catch (e) {
+    window.pxProgress({ step: 0, error: String(e) })
+  }
+}
+
+$('bar').addEventListener('mousedown', (e) => {
+  if (e.button === 0 && !e.target.closest('button')) window.pxDrag()
+})
+$('min').addEventListener('click', () => window.pxMinimize())
+$('close').addEventListener('click', () => window.pxClose())
+$('finish').addEventListener('click', () => window.pxClose())
+$('desk').addEventListener('click', (e) => toggle(e.currentTarget))
+$('boot').addEventListener('click', (e) => toggle(e.currentTarget))
+$('go').addEventListener('click', start)
+$('retry').addEventListener('click', start)
+$('classic').addEventListener('click', () => window.pxClassic().catch(() => {}))
+$('launch').addEventListener('click', () => window.pxLaunch(state.dir).catch((e) => {
+  $('note').textContent = 'Impossible de lancer Player X : ' + e
+  $('note').hidden = false
+}))
+$('pick').addEventListener('click', async () => {
+  try {
+    const d = await window.pxPick(state.dir)
+    if (!d) return
+    showDir(d)
+    state.free = await window.pxFree(d)
+    showSpace()
+  } catch (e) {
+    $('space').textContent = String(e)
+  }
+})
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !state.busy) window.pxClose()
+})
+document.addEventListener('contextmenu', (e) => e.preventDefault())
+
+;(async () => {
+  try {
+    const i = await window.pxInfo()
+    state.need = i.need
+    state.free = i.free
+    state.update = !!i.update
+    showDir(i.dir)
+    if (i.update) {
+      TXT[0] = ['Mettre à jour Player X', 'Player X est déjà installé ici : on le remplace par la version ' + i.version + '.']
+      $('go').firstChild.textContent = 'Mettre à jour'
+    }
+  } catch (e) {}
+  setStep(0)
+  showSpace()
+  // Deux images peintes : la fenêtre peut s'afficher sans éclair.
+  requestAnimationFrame(() => requestAnimationFrame(() => window.pxReady()))
+  $('go').focus()
+})()
+</script>
+</body>
+</html>

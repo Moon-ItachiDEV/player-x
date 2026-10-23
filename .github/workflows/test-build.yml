@@ -1,5 +1,6 @@
-# Installeur de TEST pour essayer une branche de refonte sur Windows, sans rien publier.
-# - Ni tag, ni release, ni signature : l'installeur est seulement attaché à l'exécution (onglet Actions › Artifacts).
+# Installeur de TEST pour essayer une branche sur Windows, sans rien publier.
+# - Ni tag, ni release, ni signature : les installeurs sont seulement attachés à l'exécution (onglet Actions › Artifacts) :
+#   l'installeur sur mesure (Player-X-Installer, installer/) et l'installeur classique (Player-X-Setup).
 # - Numéro de version de test « <version>.<n° d'exécution> » (ex. 0.9.0-beta.3.12) : plus récent que la version de la
 #   branche, mais plus ancien que la bêta suivante (0.9.0-beta.4), qui arrivera donc normalement par la mise à jour.
 name: Installeur de test
@@ -8,6 +9,7 @@ on:
   push:
     branches:
       - 'claude/refonte-lot-*'
+      - 'claude/installeur'
   workflow_dispatch:
 
 permissions:
@@ -50,6 +52,36 @@ jobs:
 
       - name: Construire l'installeur (sans publier)
         run: npx electron-builder --win --x64 --publish never
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: installer/go.mod
+          cache: false
+
+      - name: Construire l'installeur sur mesure
+        shell: bash
+        run: node scripts/build-installer.mjs "dist/Player-X-Setup-${VERSION}.exe" dist/win-unpacked "${VERSION}" "dist/Player-X-Installer-${VERSION}.exe"
+
+      # Vérification réelle sur Windows : installation silencieuse dans un dossier temporaire, puis la fenêtre (WebView2).
+      - name: Essayer l'installeur sur mesure
+        shell: bash
+        run: |
+          dir="$(cygpath -w "${RUNNER_TEMP}")\\pxtest\\Player X"
+          "dist/Player-X-Installer-${VERSION}.exe" --selftest-install "${dir}" > "${RUNNER_TEMP}/selftest.log" 2>&1 || { cat "${RUNNER_TEMP}/selftest.log"; echo "::error::L'installeur sur mesure a échoué"; exit 1; }
+          cat "${RUNNER_TEMP}/selftest.log"
+          echo "::notice::Installation silencieuse réussie : $(tail -n 1 "${RUNNER_TEMP}/selftest.log")"
+          if "dist/Player-X-Installer-${VERSION}.exe" --selftest; then
+            echo "::notice::Fenêtre de l'installeur : affichée et refermée sans erreur"
+          else
+            echo "::warning::Fenêtre de l'installeur non vérifiable sur cette machine (code $?)"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Player-X-Installer-${{ env.VERSION }}
+          path: dist/Player-X-Installer-${{ env.VERSION }}.exe
+          retention-days: 14
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
