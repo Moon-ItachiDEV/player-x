@@ -67,6 +67,8 @@ type WindowOptions struct {
 	// Player X : fenêtre sans cadre (WS_POPUP), et cachée jusqu'à Show() pour éviter tout éclair blanc.
 	Frameless bool
 	Hidden    bool
+	// Couleur de fond de la fenêtre elle-même (0x00BBGGRR), peinte tant que la page n'est pas dessinée : jamais transparente.
+	Background uint32
 }
 
 type WebViewOptions struct {
@@ -285,12 +287,17 @@ func (w *webview) CreateWithOptions(opts WindowOptions) bool {
 	}
 
 	className, _ := windows.UTF16PtrFromString("webview")
+	// Player X : curseur flèche et fond plein (sinon la fenêtre laisse voir ce qu'il y a derrière avant le rendu de la page).
+	cursor, _, _ := w32.User32LoadCursorW.Call(0, 32512)
+	brush, _, _ := w32.Gdi32CreateSolidBrush.Call(uintptr(opts.Background))
 	wc := w32.WndClassExW{
 		CbSize:        uint32(unsafe.Sizeof(w32.WndClassExW{})),
 		HInstance:     hinstance,
 		LpszClassName: className,
 		HIcon:         windows.Handle(icon),
 		HIconSm:       windows.Handle(icon),
+		HCursor:       windows.Handle(cursor),
+		HbrBackground: windows.Handle(brush),
 		LpfnWndProc:   windows.NewCallback(wndproc),
 	}
 	_, _, _ = w32.User32RegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
@@ -392,6 +399,12 @@ func (w *webview) Show() {
 	_, _, _ = w32.User32ShowWindow.Call(w.hwnd, w32.SWShow)
 	_, _, _ = w32.User32UpdateWindow.Call(w.hwnd)
 	_, _, _ = w32.User32SetFocus.Call(w.hwnd)
+	// La page a été créée dans une fenêtre cachée : on la rend visible et on la recale sur la fenêtre affichée.
+	if c, ok := w.browser.(*edge.Chromium); ok {
+		_ = c.Show()
+	}
+	w.browser.Resize()
+	_ = w.browser.NotifyParentWindowPositionChanged()
 	w.browser.Focus()
 }
 
