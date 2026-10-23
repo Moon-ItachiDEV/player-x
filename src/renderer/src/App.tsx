@@ -529,7 +529,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       page('settings:advanced', 'Paramètres › Avancé', 'settings', ['démo', 'démarrer avec windows']),
       page('settings:about', 'Paramètres › À propos', 'settings', ['version', 'mise à jour', 'nouveautés', 'bêta']),
       page('action:rescan', 'Relancer le scan', 'refresh', ['rechercher les jeux', 'scanner']),
-      page('action:favorites', 'Choisir mes jeux favoris', 'star', ['favoris', 'rail'])
+      page('action:favorites', 'Choisir mes jeux favoris', 'star', ['favoris', 'rail']),
+      page('action:replay', "Revoir l'accueil de Player X", 'gamepad', ['première connexion', 'bienvenue', 'scan'])
     ]
     return [...games, ...people, ...pages]
   }, [shownGames, friends.friends, settings?.gameNews])
@@ -592,6 +593,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     } else if (key.startsWith('settings:')) goSettings(key.slice('settings:'.length) as SettingsSection)
     else if (key === 'action:rescan') loadGames(true)
     else if (key === 'action:favorites') setSetup({ open: true, first: false })
+    else if (key === 'action:replay') setSetup({ open: true, first: true, replay: true })
     else go(key as View)
   }
 
