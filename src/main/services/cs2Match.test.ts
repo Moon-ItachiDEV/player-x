@@ -404,3 +404,30 @@ test('CS2 revient après une coupure : même match si rien n’a reculé, et bil
   assert.equal(back.match?.id, match!.id)
   assert.equal(back.match?.partial, true)
 })
+
+// ---------- overlay ----------
+
+test('en direct pour l’overlay : phase du round, frise des rounds finis, ADR et HS % des rounds suivis', () => {
+  let wins: Record<string, string> = {}
+  const list: P[] = []
+  const add = (part: P[]): void => {
+    list.push(...part)
+    wins = part[part.length - 1].wins!
+  }
+  add(round(0, { ct: 0, t: 0 }, 'ct', 'elimination', { team: 'CT', kills: 3, rk: 3, rhs: 2, rdmg: 280 }, wins))
+  add(round(1, { ct: 1, t: 0 }, 't', 'bomb', { team: 'CT', kills: 3, deaths: 1, rk: 0, rdmg: 40 }, wins))
+  list.push({ team: 'CT', round: 2, ct: 1, t: 1, wins, rp: 'freezetime', kills: 3, deaths: 1, rk: 0, money: 2900 })
+  const live = liveOf(play(list).match)!
+  assert.equal(live.roundPhase, 'freezetime')
+  assert.equal(live.round, 3)
+  assert.deepEqual(
+    live.rounds.map((r) => [r.n, r.winner, r.side, r.kills]),
+    [
+      [1, 'CT', 'CT', 3],
+      [2, 'T', 'CT', 0]
+    ]
+  )
+  assert.equal(live.adr, 160)
+  assert.equal(live.hsPct, 67)
+  assert.equal(live.money, 2900)
+})

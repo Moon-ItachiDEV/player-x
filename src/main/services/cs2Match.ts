@@ -285,6 +285,23 @@ function endOf(code: string): Cs2RoundEnd {
   return 'other'
 }
 
+/** Frise des rounds terminés : vainqueur, façon de gagner, ton camp et tes éliminations quand Player X les a vus. */
+function stripOf(m: MatchState, tracked: RoundAcc[]): Cs2Round[] {
+  const byN = new Map(tracked.map((r) => [r.n, r]))
+  return Object.entries(m.roundWins)
+    .map(([k, code]) => ({ n: Number(k), code }))
+    .filter((r) => r.n >= 1 && /^(ct|t)_/.test(r.code))
+    .sort((a, b) => a.n - b.n)
+    .map(({ n, code }) => {
+      const r: Cs2Round = { n, winner: code.startsWith('ct_') ? 'CT' : 'T', end: endOf(code) }
+      const s = m.sides[String(n)]
+      if (s) r.side = s
+      const t = byN.get(n)
+      if (t) r.kills = t.kills
+      return r
+    })
+}
+
 /** Bilan d'un match terminé. null : rien à montrer (quitté pendant l'échauffement, aucun round joué). */
 export function recapOf(m: MatchState, by: EndReason): Omit<Cs2Recap, 'seen' | 'sample'> | null {
   if (!m.live) return null
@@ -300,21 +317,7 @@ export function recapOf(m: MatchState, by: EndReason): Omit<Cs2Recap, 'seen' | '
   const result: Cs2Recap['result'] =
     by === 'left' ? 'left' : !score ? 'done' : score.us > score.them ? 'win' : score.us < score.them ? 'loss' : 'tie'
 
-  const byN = new Map(tracked.map((r) => [r.n, r]))
-  const strip: Cs2Round[] = !hasRounds
-    ? []
-    : Object.entries(m.roundWins)
-        .map(([k, code]) => ({ n: Number(k), code }))
-        .filter((r) => r.n >= 1 && /^(ct|t)_/.test(r.code))
-        .sort((a, b) => a.n - b.n)
-        .map(({ n, code }) => {
-          const r: Cs2Round = { n, winner: code.startsWith('ct_') ? 'CT' : 'T', end: endOf(code) }
-          const s = m.sides[String(n)]
-          if (s) r.side = s
-          const t = byN.get(n)
-          if (t) r.kills = t.kills
-          return r
-        })
+  const strip = hasRounds ? stripOf(m, tracked) : []
 
   const best = tracked.reduce<RoundAcc | undefined>((b, r) => (r.kills > 0 && (!b || r.kills > b.kills || (r.kills === b.kills && r.dmg > b.dmg)) ? r : b), undefined)
   const sum = (f: (r: RoundAcc) => number): number => tracked.reduce((s, r) => s + f(r), 0)
@@ -359,11 +362,19 @@ export function liveOf(m: MatchState | null): Cs2Live | null {
   const n = roundOf(m)
   const us = m.side === 'CT' ? m.score.ct : m.score.t
   const them = m.side === 'CT' ? m.score.t : m.score.ct
+  const hasRounds = modeHasRounds(m.mode)
+  // Rounds terminés et suivis (celui en cours compte dès qu'il est fini).
+  const done = m.rounds.filter((r) => r.own && r.n < n)
+  const kills = done.reduce((s, r) => s + r.kills, 0)
   return {
     map: m.map,
     mode: m.mode,
     phase: m.phase,
+    ...(m.roundPhase ? { roundPhase: m.roundPhase } : {}),
     round: n,
+    rounds: hasRounds ? stripOf(m, m.rounds.filter((r) => r.own)) : [],
+    ...(hasRounds && done.length ? { adr: Math.round(done.reduce((s, r) => s + r.dmg, 0) / done.length) } : {}),
+    ...(kills ? { hsPct: Math.round((done.reduce((s, r) => s + Math.min(r.hs, r.kills), 0) / kills) * 100) } : {}),
     ...(m.side ? { side: m.side, score: { us, them } } : {}),
     ...m.stats,
     ...(m.health !== undefined ? { health: m.health } : {}),

@@ -5,6 +5,7 @@ import type { Bf6Account, Bf6Recap, Bf6RecapEvent, Bf6RecapState, Bf6Stats, Bf6T
 import { deleteKv, getKv, lastSeenAt, listGames, setKv } from '../db'
 import { recapLine, sessionNumbers } from './bf6Diff'
 import { getSettings } from './settings'
+import { mainWindow } from '../windows'
 import { getBf6Stats } from './stats'
 import { showMainWindow } from './tray'
 
@@ -169,9 +170,6 @@ function record(s: Session, after: Bf6Stats): 'new' | 'same' | 'none' {
   return 'new'
 }
 
-function mainWindow(): BrowserWindow | undefined {
-  return BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
-}
 
 function send(win: BrowserWindow | undefined, e: Bf6RecapEvent): void {
   win?.webContents.send('bf6:recap', e)

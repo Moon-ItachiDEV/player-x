@@ -20,7 +20,8 @@ function defaults(): Settings {
     startWithWindows: false,
     bf6Recap: true,
     cs2Live: true,
-    updateChannel: 'stable'
+    updateChannel: 'stable',
+    cs2Overlay: 'off'
   }
 }
 
@@ -30,6 +31,7 @@ const SECRET_KEYS = ['steamApiKey', 'discordClientSecret', 'psnNpsso'] as const
 const ALERT_MODES = ['all', 'games', 'off']
 const WINDOW_MODES = ['stay', 'minimize']
 const CHANNELS = ['stable', 'beta']
+const OVERLAY_STYLES = ['off', 'a', 'b', 'c']
 /** Bien au-delà des vraies valeurs (clé Steam 32, NPSSO 64, secret Discord 32 caractères). */
 const MAX_TEXT = 256
 
@@ -52,6 +54,7 @@ function cleanPatch(patch: unknown): Partial<Settings> {
   if (typeof p.friendAlerts === 'string' && ALERT_MODES.includes(p.friendAlerts)) clean.friendAlerts = p.friendAlerts as Settings['friendAlerts']
   if (typeof p.launchWindow === 'string' && WINDOW_MODES.includes(p.launchWindow)) clean.launchWindow = p.launchWindow as Settings['launchWindow']
   if (typeof p.updateChannel === 'string' && CHANNELS.includes(p.updateChannel)) clean.updateChannel = p.updateChannel as Settings['updateChannel']
+  if (typeof p.cs2Overlay === 'string' && OVERLAY_STYLES.includes(p.cs2Overlay)) clean.cs2Overlay = p.cs2Overlay as Settings['cs2Overlay']
   return clean
 }
 

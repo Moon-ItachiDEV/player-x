@@ -74,6 +74,14 @@ Pendant un match, la fiche de CS2 montre une carte **En match** : carte et mode,
 
 Les chiffres viennent de CS2 lui-même, par la [Game State Integration](https://developer.valvesoftware.com/wiki/Counter-Strike:_Global_Offensive_Game_State_Integration) de Valve : officielle, gratuite, sans clé ni compte, et sans risque pour l’anti-triche. Player X dépose un petit fichier `gamestate_integration_playerx.cfg` dans le dossier `game/csgo/cfg` de CS2 ; le jeu le lit à son démarrage (relance-le s’il tournait déjà) et envoie ensuite l’état du match à Player X, sur ton PC seulement (`127.0.0.1`, avec un jeton). En partie, CS2 ne donne que tes chiffres, pas ceux des autres joueurs ; mort, il envoie le joueur que tu regardes, que Player X ignore. Un match rejoint en cours de route a un bilan partiel (headshots et ADR sur les rounds suivis). Se coupe dans **Paramètres › Interface** (le fichier est alors retiré).
 
+### Overlay CS2 (bêta)
+
+![Overlay CS2, style C](docs/screenshots/overlay-c.png)
+
+*Montage sur un décor factice : le temps d'achat, la pastille et le bilan ne s'affichent pas en même temps.*
+
+Sur le canal Bêta, **Paramètres › Interface › Overlay CS2 (bêta)** pose les mêmes chiffres par-dessus le jeu, dans trois styles à essayer : **A** façon Apple, **B** verre, **C** finition Player X. **Aperçu à l'écran** les montre 24 s avec des chiffres d'exemple. En match, l'overlay suit tout seul : carte du temps d'achat (score, argent, frise des rounds, K/D/A, ADR, HS), pastille pendant le round, carte de mi-temps, puis bilan 20 s à la fin. C'est une fenêtre transparente de Player X : rien n'est injecté dans CS2, elle ne prend ni la souris ni le clavier. Elle ne se voit qu'avec CS2 en **plein écran fenêtré** (Windows ne montre rien devant un jeu en plein écran exclusif). **Alt+X** la masque ou la réaffiche. En jeu, le style B est un verre teinté sans flou : une fenêtre ne peut pas flouter le jeu derrière elle.
+
 ## Profil
 
 ![Profil](docs/screenshots/profil.png)

@@ -84,6 +84,19 @@ export interface Settings {
   cs2Live: boolean
   /** Mises à jour : `stable` (versions pour tout le monde) ou `beta` (aussi les versions de test, publiées en préversion). */
   updateChannel: UpdateChannel
+  /** Overlay CS2 (bêta) : coupé, ou un des trois styles à essayer en jeu. Proposé seulement sur le canal Bêta. */
+  cs2Overlay: Cs2OverlayStyle
+}
+
+/** `a` : façon Apple (matériaux, ressorts, sheet) ; `b` : verre ; `c` : finition du style Player X. */
+export type Cs2OverlayStyle = 'off' | 'a' | 'b' | 'c'
+
+/** Ce que l'overlay doit faire : son style, masqué par Alt+X, ou un aperçu en cours (chiffres d'exemple). */
+export interface Cs2OverlayConfig {
+  style: Cs2OverlayStyle
+  hidden: boolean
+  /** Aperçu lancé depuis Paramètres : l'overlay passe ses pièces avec des chiffres d'exemple. */
+  previewAt?: number
 }
 
 export type UpdateChannel = 'stable' | 'beta'
@@ -375,8 +388,15 @@ export interface Cs2Live {
   map: string
   mode: string
   phase: 'warmup' | 'live' | 'intermission' | 'gameover'
+  /** Phase du round : temps d'achat, en jeu, fin du round. */
+  roundPhase?: 'freezetime' | 'live' | 'over'
   /** Round en cours (à partir de 1). */
   round: number
+  /** Frise des rounds terminés (vide pour un mode sans rounds). */
+  rounds: Cs2Round[]
+  /** Dégâts par round et % de headshots sur les rounds terminés que Player X a suivis. */
+  adr?: number
+  hsPct?: number
   side?: Cs2Side
   /** Rounds gagnés par ton camp et par l'autre (absents tant que ton camp est inconnu). */
   score?: { us: number; them: number }
@@ -707,6 +727,11 @@ export interface LauncherApi {
   onCs2State(cb: () => void): () => void
   /** Bilan CS2 prêt, ou à ouvrir (clic sur la notification Windows). Renvoie la fonction de désabonnement. */
   onCs2Recap(cb: (e: Cs2RecapEvent) => void): () => void
+  /** Overlay CS2 (bêta) : réglages de la fenêtre de l'overlay. */
+  cs2OverlayConfig(): Promise<Cs2OverlayConfig>
+  /** Paramètres : montre l'overlay quelques secondes avec des chiffres d'exemple, même sans CS2. */
+  cs2OverlayPreview(): Promise<void>
+  onCs2OverlayConfig(cb: (c: Cs2OverlayConfig) => void): () => void
   /** Alertes d'amis à afficher dans la fenêtre (quand elle est au premier plan ; sinon Windows les affiche). */
   onFriendAlert(cb: (alerts: FriendAlert[]) => void): () => void
   /** Clic sur une notification Windows : ouvrir le panneau d'amis. */
