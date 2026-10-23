@@ -13,7 +13,12 @@ export const shownCs2 = createStore<Cs2Recap | null>(null)
 /** Ouvre la carte d'un bilan. Un vrai bilan ouvert n'est plus proposé. */
 export function openCs2Recap(recap: Cs2Recap): void {
   shownCs2.set(recap)
-  if (!recap.sample && !recap.seen) api.cs2RecapSeen(recap.id).catch(() => {})
+  if (recap.sample || recap.seen) return
+  // Une fois enregistré comme vu, la carte ouverte change d'objet : les listes la relisent sans « Nouveau ».
+  api
+    .cs2RecapSeen(recap.id)
+    .then(() => shownCs2.set((cur) => (cur?.id === recap.id ? { ...cur, seen: true } : cur)))
+    .catch(() => {})
 }
 
 /** État complet, relu quand la liaison ou les bilans changent ; le match en direct arrive à part, au plus une fois par seconde. */

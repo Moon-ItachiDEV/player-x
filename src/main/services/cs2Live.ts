@@ -7,7 +7,7 @@ import { CS2_GAME_ID, cs2RecapLine } from '@shared/cs2'
 import type { Cs2Config, Cs2Recap, Cs2RecapEvent, Cs2State } from '@shared/types'
 import { deleteKv, getKv, listGames, setKv } from '../db'
 import { BASE_PORT, cfgDir, cfgText, GSI_FILE, isToken, MAX_BODY, PORT_TRIES, refuse, tokenMatches } from './cs2Gsi'
-import { expire, liveOf, readPayload, recapOf, step, type EndReason, type MatchState } from './cs2Match'
+import { expire, liveOf, readPayload, recapOf, sameMatch, step, type EndReason, type MatchState } from './cs2Match'
 import { getSettings } from './settings'
 import { showMainWindow } from './tray'
 
@@ -24,6 +24,11 @@ const MAX_RECAPS = 20
 const SILENCE_MS = 35_000
 /** Player X relancé pendant un match : il continue si le dernier envoi date de moins de 10 min. */
 const RESUME_MS = 10 * 60_000
+/**
+ * Match coupé sans fin (plus d'envoi, CS2 fermé ou planté) : mis de côté 5 min. CS2 relancé dans le même match (même
+ * compte, carte et mode, rounds qui n'ont pas reculé) : il continue, sans deuxième bilan. Sinon son bilan est fait.
+ */
+const HOLD_MS = 5 * 60_000
 /** Match en cours gardé en base au plus souvent toutes les 15 s (la base est réécrite sur le disque à chaque fois). */
 const SAVE_MS = 15_000
 /** « Liaison active » : un envoi il y a moins d'une minute. */
@@ -45,6 +50,8 @@ let server: Server | null = null
 let port: number | null = null
 let config: Cs2Config = 'off'
 let match: MatchState | null = null
+/** Match coupé, en attente d'un retour de CS2 (voir HOLD_MS). Il reste aussi en base. */
+let held: { match: MatchState; until: number } | null = null
 let savedAt = 0
 let lastPayloadAt = 0
 /** CS2 tourne (dernier état donné par le suivi du temps de jeu), et depuis quand Player X le voit. */
@@ -54,6 +61,7 @@ let runningAt = 0
 let readyAt = 0
 let quietTimer: ReturnType<typeof setTimeout> | undefined
 let silenceTimer: ReturnType<typeof setInterval> | undefined
+let connectedTimer: ReturnType<typeof setTimeout> | undefined
 let liveTimer: ReturnType<typeof setTimeout> | undefined
 let liveSentAt = 0
 /** Bilans prêts pendant que Player X n'était pas devant : une seule notification Windows, à la fermeture de CS2. */
@@ -112,12 +120,43 @@ function saveMatch(force = false): void {
   setKv(MATCH_KEY, match)
 }
 
+/** Toutes les 5 s, tant qu'un match est suivi ou mis de côté : coupure, puis fin de l'attente. */
+function silenceTick(): void {
+  try {
+    const now = Date.now()
+    if (match && expire(match, now, SILENCE_MS).ended) hold(match, now + HOLD_MS)
+    if (held && now >= held.until) {
+      const m = held.match
+      held = null
+      if (!match) saveMatch(true)
+      record(m, 'left')
+    }
+    watchSilence()
+  } catch (e) {
+    console.warn('[cs2]', e)
+  }
+}
+
 function watchSilence(): void {
-  if (match && !silenceTimer) silenceTimer = setInterval(() => apply(expire(match, Date.now(), SILENCE_MS)), 5_000)
-  if (!match && silenceTimer) {
+  const busy = !!match || !!held
+  if (busy && !silenceTimer) silenceTimer = setInterval(silenceTick, 5_000)
+  if (!busy && silenceTimer) {
     clearInterval(silenceTimer)
     silenceTimer = undefined
   }
+}
+
+/** Met le match de côté : plus de carte « En match », mais il reste en base et peut reprendre. */
+function hold(m: MatchState, until: number): void {
+  if (held && held.match.id !== m.id) record(held.match, 'left')
+  held = { match: m, until }
+  if (match?.id === m.id) {
+    match = null
+    emitLive()
+  }
+  setKv(MATCH_KEY, m)
+  savedAt = Date.now()
+  watchSilence()
 }
 
 function apply(r: { match: MatchState | null; ended?: { match: MatchState; by: EndReason } }): void {
@@ -125,8 +164,9 @@ function apply(r: { match: MatchState | null; ended?: { match: MatchState; by: E
   const roundBefore = before?.mapRound
   match = r.match
   if (r.ended) record(r.ended.match, r.ended.by)
-  // Nouveau match, nouveau round ou fin : gardé tout de suite. Sinon au plus toutes les 15 s.
-  if (match !== before) saveMatch(!match || !before || match.id !== before.id || match.mapRound !== roundBefore)
+  // Nouveau match, nouveau round ou fin : gardé tout de suite. Sinon au plus toutes les 15 s. Un match mis de côté
+  // garde sa place en base.
+  if (match !== before && (match || !held)) saveMatch(!match || !before || match.id !== before.id || match.mapRound !== roundBefore)
   watchSilence()
   if (match !== before) emitLive()
 }
@@ -145,14 +185,15 @@ function front(): boolean {
 function record(m: MatchState, by: EndReason): void {
   const recap = recapOf(m, by)
   if (!recap) return
-  if (getSettings().demoMode) {
+  if (simulated && getSettings().demoMode) {
     // Simulateur en mode démo : un exemple, jamais enregistré.
-    if (!simulated) return
     const sample: Cs2Recap = { ...recap, sample: true }
     simRecaps = [sample, ...simRecaps.filter((r) => r.id !== sample.id)].slice(0, MAX_RECAPS)
     return announce(sample)
   }
   setKv(RECAPS_KEY, [recap, ...recaps().filter((r) => r.id !== recap.id)].sort((a, b) => b.endedAt - a.endedAt).slice(0, MAX_RECAPS))
+  // Mode démo : ton vrai bilan est gardé sans être montré ; il est proposé au retour (moins de 12 h).
+  if (getSettings().demoMode) return
   announce(recap)
 }
 
@@ -214,16 +255,30 @@ function gsi(): Gsi {
 }
 
 function onPayload(body: unknown): void {
+  // Envoi parti juste avant la coupure du réglage : ignoré.
+  if (!getSettings().cs2Live) return
   const snap = readPayload(body)
   if (!snap) return
   const first = Date.now() - lastPayloadAt > CONNECTED_MS
   lastPayloadAt = Date.now()
+  // « Liaison active » redevient « prête » une minute après le dernier envoi (jeu fermé) : l'interface relit l'état.
+  clearTimeout(connectedTimer)
+  connectedTimer = setTimeout(emitState, CONNECTED_MS + 500)
   // Le simulateur de développement tient lieu de CS2 : la liaison est active, quel que soit l'état du vrai jeu.
   if (simulated && config !== 'ready') config = 'ready'
   // Premier envoi depuis un moment : « Relance CS2 » disparaît, « Liaison active » s'affiche.
   if (first) emitState()
-  if (hidden()) return
-  apply(step(match, snap, Date.now()))
+  // En mode démo aussi : ton vrai match continue d'être suivi (seul l'affichage est masqué), son bilan est gardé.
+  let base = match
+  // Au menu (CS2 relancé après un plantage, avant « Reconnecter ») : le match mis de côté attend encore.
+  if (!base && held && snap.map) {
+    // Retour de CS2 après une coupure : le même match continue, sinon celui mis de côté est terminé.
+    const h = held
+    held = null
+    if (sameMatch(h.match, snap)) base = h.match
+    else record(h.match, 'left')
+  }
+  apply(step(base, snap, Date.now()))
 }
 
 function listen(at: number): Promise<Server | null> {
@@ -292,6 +347,7 @@ async function startServer(): Promise<number | null> {
 
 function stopServer(): void {
   server?.close()
+  server?.closeAllConnections()
   server = null
   port = null
 }
@@ -350,6 +406,10 @@ async function doSync(): Promise<void> {
     await removeCfg()
     config = 'off'
     if (match) apply({ match: null })
+    if (held) {
+      held = null
+      saveMatch(true)
+    }
   } else {
     const at = await startServer()
     config = at === null ? 'no-port' : await writeCfg(at)
@@ -371,10 +431,12 @@ export function syncCs2(): Promise<void> {
 export function startCs2Live(): void {
   const saved = getKv<MatchState | null>(MATCH_KEY, null)
   if (saved && typeof saved.id === 'string' && typeof saved.lastAt === 'number' && Array.isArray(saved.rounds)) {
-    match = saved
-    // Plus d'envoi depuis longtemps : il s'est terminé pendant que Player X était fermé. Sinon on attend la suite.
-    if (Date.now() - saved.lastAt > RESUME_MS) apply(expire(match, Date.now(), 0))
-    else watchSilence()
+    // Plus d'envoi depuis longtemps : il s'est terminé pendant que Player X était fermé. Sinon il attend la suite,
+    // mis de côté (pas de carte « En match » avant le prochain envoi de CS2).
+    if (Date.now() - saved.lastAt > RESUME_MS) {
+      deleteKv(MATCH_KEY)
+      record(saved, 'left')
+    } else hold(saved, saved.lastAt + RESUME_MS)
   }
   void syncCs2()
 }
@@ -393,8 +455,9 @@ function setRunning(now: boolean): void {
   recheckQuiet()
   emitState()
   if (now) return
-  // Jeu fermé : le match en cours est coupé, et les bilans en attente partent en une notification.
-  if (match) apply(expire(match, Date.now(), 0))
+  // Jeu fermé (ou planté) : le match en cours est mis de côté (il reprend si CS2 revient dans le même match), et les
+  // bilans en attente partent en une notification.
+  if (match) hold(match, Date.now() + HOLD_MS)
   flushToasts()
 }
 

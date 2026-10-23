@@ -27,6 +27,8 @@ export interface Snapshot {
   }
   roundPhase?: RoundPhase
   team?: Cs2Side
+  /** Mort : le camp du joueur regardé (un coéquipier en compétitif), pour suivre l'échange de camps à la mi-temps. */
+  viewTeam?: Cs2Side
   stats?: { kills: number; deaths: number; assists: number; mvps: number; points: number }
   state?: { health: number; money: number; roundKills: number; roundHs: number; roundDmg: number }
 }
@@ -55,6 +57,8 @@ export interface MatchState {
   partial: boolean
   /** Sorti de l'échauffement : un bilan est possible. */
   live: boolean
+  /** Au moins un envoi avec tes chiffres : sinon c'est un match regardé (démo, GOTV), pas le tien. */
+  sawOwn?: boolean
   phase: MapPhase
   /** Rounds terminés (map.round). */
   mapRound: number
@@ -122,6 +126,7 @@ export function readPayload(body: unknown): Snapshot | null {
   const rp = str(obj(root.round)?.phase) as RoundPhase
   if (ROUND_PHASES.includes(rp)) snap.roundPhase = rp
 
+  if (!own && player) snap.viewTeam = side(player.team)
   if (own && player) {
     snap.team = side(player.team)
     const ms = obj(player.match_stats)
@@ -176,6 +181,10 @@ function roundOf(m: MatchState): number {
 }
 
 /** Un nouveau match ? Autre carte, autre mode, autre compte, échauffement après des rounds, ou compteur qui recule. */
+export function sameMatch(m: MatchState, snap: Snapshot): boolean {
+  return !!snap.map && !isOther(m, snap)
+}
+
 function isOther(m: MatchState, snap: Snapshot): boolean {
   const map = snap.map!
   return (
@@ -214,12 +223,17 @@ export function step(prev: MatchState | null, snap: Snapshot, now: number): Step
     health: snap.state?.health,
     money: snap.state?.money
   }
+  // Des rounds sont passés sans envoi (Player X relancé, CS2 qui revient après une coupure) : bilan partiel.
+  if (prev && m.live && map.round > prev.mapRound + 1) m.partial = true
+  if (snap.own) m.sawOwn = true
   if (!m.live && map.phase !== 'warmup') {
     // Fin de l'échauffement : le match commence vraiment, les compteurs de l'échauffement sont remis à zéro par CS2.
     m.live = true
     m.startedAt = now
   }
   if (snap.team) m.side = snap.team
+  // Mort pendant la mi-temps : le camp change aussi pour toi (celui du coéquipier regardé).
+  else if (snap.viewTeam && m.sawOwn && (m.phase === 'intermission' || m.roundPhase === 'freezetime')) m.side = snap.viewTeam
   if (snap.stats && m.live) m.stats = snap.stats
 
   if (m.live) {
@@ -230,9 +244,12 @@ export function step(prev: MatchState | null, snap: Snapshot, now: number): Step
     }
     if (!m.cur || n === m.cur.n) {
       const cur: RoundAcc = m.cur ? { ...m.cur } : { n, kills: 0, hs: 0, dmg: 0, own: false }
-      if (snap.own && snap.team) m.sides[String(n)] = snap.team
+      // Camp du round : seulement pendant le round lui-même (à la fin et à la mi-temps, CS2 peut déjà donner le suivant).
+      const playing = m.roundPhase === 'freezetime' || m.roundPhase === 'live'
+      if (snap.own && snap.team && playing && m.phase !== 'intermission') m.sides[String(n)] = snap.team
       // Pendant le temps d'achat, rien ne peut arriver : on ne lit pas les compteurs (parfois pas encore remis à zéro).
-      if (snap.own && snap.state && m.roundPhase !== 'freezetime') {
+      // Sans phase de round dans l'envoi, on ne sait pas à quel round ils appartiennent : ignorés aussi.
+      if (snap.own && snap.state && m.roundPhase !== undefined && m.roundPhase !== 'freezetime') {
         cur.own = true
         // Le plus haut vu : un tir sur un coéquipier fait reculer round_kills, il ne retire pas l'élimination d'avant.
         cur.kills = Math.max(cur.kills, snap.state.roundKills)
@@ -319,11 +336,14 @@ export function recapOf(m: MatchState, by: EndReason): Omit<Cs2Recap, 'seen' | '
     damage: hasRounds ? sum((r) => r.dmg) : 0,
     trackedKills: sum((r) => r.kills),
     roundsTracked: hasRounds ? tracked.length : 0,
-    multi: {
-      k3: tracked.filter((r) => r.kills === 3).length,
-      k4: tracked.filter((r) => r.kills === 4).length,
-      k5: tracked.filter((r) => r.kills >= 5).length
-    },
+    // Sans rounds (match à mort), tout le match est un seul « round » : pas de 3K ni d'ace.
+    multi: hasRounds
+      ? {
+          k3: tracked.filter((r) => r.kills === 3).length,
+          k4: tracked.filter((r) => r.kills === 4).length,
+          k5: tracked.filter((r) => r.kills >= 5).length
+        }
+      : { k3: 0, k4: 0, k5: 0 },
     ...(best && hasRounds ? { best: { n: best.n, kills: best.kills, damage: best.dmg } } : {}),
     rounds: strip,
     hasRounds,
@@ -334,7 +354,8 @@ export function recapOf(m: MatchState, by: EndReason): Omit<Cs2Recap, 'seen' | '
 // ---------- match en direct ----------
 
 export function liveOf(m: MatchState | null): Cs2Live | null {
-  if (!m) return null
+  // Match regardé (démo, GOTV, spectateur) : pas « En match ».
+  if (!m?.sawOwn) return null
   const n = roundOf(m)
   const us = m.side === 'CT' ? m.score.ct : m.score.t
   const them = m.side === 'CT' ? m.score.t : m.score.ct

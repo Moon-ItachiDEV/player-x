@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { cs2RecapLine, longestStreak, mapLabel, modeLabel } from '@shared/cs2'
-import { expire, liveOf, readPayload, recapOf, step, type MatchState, type Snapshot } from './cs2Match'
+import { expire, liveOf, readPayload, recapOf, sameMatch, step, type MatchState, type Snapshot } from './cs2Match'
 
 const ME = '76561198000000001'
 const MATE = '76561198000000002'
@@ -312,6 +312,9 @@ test('match à mort : pas de rounds, ni score d’équipe, ni ADR', () => {
   assert.equal(r.roundsTracked, 0)
   assert.equal(r.headshots, 9)
   assert.deepEqual(r.rounds, [])
+  // Tout le match est un seul « round » : 18 éliminations ne font pas un ace.
+  assert.deepEqual(r.multi, { k3: 0, k4: 0, k5: 0 })
+  assert.equal(r.best, undefined)
 })
 
 // ---------- en direct ----------
@@ -348,4 +351,56 @@ test('libellés des cartes et des modes', () => {
   assert.equal(modeLabel('scrimcomp2v2'), 'Wingman')
   assert.equal(modeLabel('competitive'), 'Compétitif')
   assert.equal(modeLabel('new_mode'), 'New Mode')
+})
+
+// ---------- cas limites (relecture) ----------
+
+test('mi-temps : le camp donné pendant la pause ne recolore pas le round qui vient de finir', () => {
+  const { ended } = play([
+    { team: 'CT', round: 0, rp: 'live', kills: 1, rk: 1 },
+    { team: 'CT', round: 1, ct: 1, wins: { 1: 'ct_win_elimination' }, rp: 'over', kills: 1, rk: 1 },
+    // CS2 échange déjà les camps pendant la pause.
+    { phase: 'intermission', team: 'T', round: 1, ct: 0, t: 1, wins: { 1: 'ct_win_elimination' }, rp: 'over', kills: 1 },
+    { phase: 'gameover', team: 'T', round: 1, ct: 0, t: 1, wins: { 1: 'ct_win_elimination' }, rp: 'over', kills: 1 }
+  ])
+  const r = recapOf(ended[0].match, 'gameover')!
+  assert.deepEqual(r.rounds.map((x) => [x.n, x.side]), [[1, 'CT']])
+})
+
+test('mort avant la mi-temps : ton camp suit celui du coéquipier regardé pendant la pause', () => {
+  let { match } = play([{ team: 'CT', round: 11, ct: 6, t: 5, rp: 'live', kills: 9, rk: 0 }])
+  ;({ match } = play([{ who: MATE, team: 'T', phase: 'intermission', round: 12, ct: 5, t: 7, rp: 'over' }], match))
+  assert.equal(match?.side, 'T')
+  assert.deepEqual(liveOf(match)?.score, { us: 7, them: 5 })
+})
+
+test('envoi sans phase de round : ses compteurs ne sont pas attribués au round suivant', () => {
+  const b = body({ round: 1, ct: 1, rk: 3, rdmg: 300, kills: 3 })
+  delete b.round
+  const first = play([{ round: 0, rp: 'live', kills: 3, rk: 3, rdmg: 300 }, { round: 1, ct: 1, rp: 'over', kills: 3, rk: 3, rdmg: 300 }])
+  const r = step(first.match, readPayload(b)!, first.t + 1000)
+  const recap = recapOf(r.match!, 'left')!
+  assert.equal(recap.trackedKills, 3)
+  assert.equal(recap.damage, 300)
+})
+
+test('match regardé (démo, GOTV) : jamais « En match », jamais de bilan', () => {
+  const { match, ended } = play([
+    { who: MATE, round: 4, ct: 2, t: 2, rp: 'live' },
+    { who: MATE, phase: 'gameover', round: 5, ct: 3, t: 2, rp: 'over' }
+  ])
+  assert.equal(match, null)
+  assert.equal(liveOf(play([{ who: MATE, round: 4, rp: 'live' }]).match), null)
+  assert.equal(recapOf(ended[0].match, 'gameover'), null)
+})
+
+test('CS2 revient après une coupure : même match si rien n’a reculé, et bilan partiel si des rounds ont manqué', () => {
+  const { match } = play([{ round: 4, ct: 2, t: 2, rp: 'live', kills: 5, rk: 1 }])
+  assert.ok(sameMatch(match!, snap({ round: 6, ct: 3, t: 3 })))
+  assert.ok(!sameMatch(match!, snap({ round: 2 })))
+  assert.ok(!sameMatch(match!, snap({ map: 'de_nuke', round: 6 })))
+  assert.ok(!sameMatch(match!, snap({ map: null })))
+  const back = step(match, snap({ round: 7, ct: 4, t: 3, rp: 'live', kills: 9, rk: 0 }), 9_000_000)
+  assert.equal(back.match?.id, match!.id)
+  assert.equal(back.match?.partial, true)
 })
