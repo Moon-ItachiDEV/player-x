@@ -71,7 +71,8 @@ func main() {
 			IconId:    1,
 			Center:    true,
 			Frameless: true,
-			Hidden:    true,
+			// Diagnostic (essai automatique) : PXI_EARLY=1 affiche la fenêtre avant la page.
+			Hidden: os.Getenv("PXI_EARLY") != "1",
 			// Fond de l'appli (#0c0a11, en 0x00BBGGRR) : la fenêtre n'est jamais transparente, même avant la page.
 			Background: 0x00110A0C,
 		},
@@ -89,8 +90,12 @@ func main() {
 	}
 	defer w.Destroy()
 	hwnd := uintptr(w.Window())
-	roundWindow(hwnd)
-	w.SetBackground(0x0c, 0x0a, 0x11)
+	if os.Getenv("PXI_NOROUND") != "1" {
+		roundWindow(hwnd)
+	}
+	if os.Getenv("PXI_NOBG") != "1" {
+		w.SetBackground(0x0c, 0x0a, 0x11)
+	}
 
 	var (
 		mu      sync.Mutex
