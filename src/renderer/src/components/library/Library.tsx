@@ -25,7 +25,8 @@ interface LibPrefs {
 }
 
 const DEFAULT_PREFS: LibPrefs = {
-  install: 'all',
+  // Installés par défaut : un gros compte Steam noierait la grille sous les jeux à installer.
+  install: 'installed',
   fav: false,
   store: 'all',
   sort: 'recent',
@@ -41,7 +42,8 @@ function loadPrefs(): LibPrefs {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Partial<LibPrefs> & { tab?: string; chip?: string }
     const isStore = (v: unknown): v is Store => STORES.includes(v as Store)
     const fav = typeof raw.fav === 'boolean' ? raw.fav : raw.tab === 'fav' || (raw.tab === undefined && raw.chip === 'fav')
-    const install: LibInstall = raw.install && INSTALLS.includes(raw.install) ? raw.install : raw.tab === 'uninstalled' ? 'uninstalled' : 'all'
+    const old: LibInstall = raw.tab === 'uninstalled' ? 'uninstalled' : 'installed'
+    const install: LibInstall = raw.install && INSTALLS.includes(raw.install) ? raw.install : old
     const store: LibStore = isStore(raw.store) ? raw.store : raw.store === undefined && isStore(raw.chip) ? raw.chip : 'all'
     return {
       install,

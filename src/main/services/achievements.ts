@@ -246,7 +246,7 @@ async function runScan(key: string, id: string): Promise<void> {
           // Rien de débloqué : pas besoin des icônes ni de la rareté pour la page.
           const meta = player.list.some((a) => a.achieved) ? await fetchMeta(g.appId, key) : { schema: [], global: {} }
           const merged = mergeAchievements(player.list, meta.schema, meta.global)
-          reportRare(g.appId, g.name, merged, start.games[g.appId])
+          reportRare(g.appId, g.name, merged, loadIndex(id).games[g.appId] ?? start.games[g.appId])
           games[g.appId] = summarize(merged, g.name, g.minutes, Date.now())
         } catch {
           failed++

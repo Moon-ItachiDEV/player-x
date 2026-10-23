@@ -65,7 +65,11 @@ export function searchAll<T extends SearchEntry>(entries: T[], query: string): S
   })).filter((g) => g.items.length > 0)
 }
 
-/** Nombre total de jeux trouvés (au-delà des 5 montrés), pour « Voir les N jeux dans la Bibliothèque ». */
+/** Nombre de jeux que la Bibliothèque montrera pour cette requête (même règle qu'elle : sous-chaîne tolérante), pour « Voir les N jeux ». */
 export function countGames(entries: SearchEntry[], query: string): number {
-  return entries.filter((e) => e.kind === 'game' && score(e, query) >= 0).length
+  const q = query.trim()
+  if (!q) return 0
+  const key = norm(q)
+  const low = q.toLowerCase()
+  return entries.filter((e) => e.kind === 'game' && (key ? norm(e.label).includes(key) : e.label.toLowerCase().includes(low))).length
 }

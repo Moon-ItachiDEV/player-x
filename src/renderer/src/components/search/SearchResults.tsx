@@ -8,7 +8,7 @@ import './search.css'
 /** Une entrée de la recherche globale avec de quoi la dessiner (jaquette, avatar ou icône). */
 export type SearchItem = SearchEntry &
   (
-    | { art: 'cover'; game: Pick<Game, 'name' | 'coverUrl' | 'heroUrl'> }
+    | { art: 'cover'; game: Pick<Game, 'name' | 'coverUrl' | 'heroUrl'>; /** Installé : Ctrl Entrée le lance. */ launchable: boolean }
     | { art: 'avatar'; avatarUrl?: string; status: FriendStatus }
     | { art: 'icon'; icon: IconName }
   )
@@ -102,7 +102,7 @@ export function SearchResults({ id, groups, gameCount, query, active, onActive, 
         <span>
           <kbd>Entrée</kbd> ouvrir
         </span>
-        {activeItem?.kind === 'game' && (
+        {activeItem?.art === 'cover' && activeItem.launchable && (
           <span>
             <kbd>Ctrl</kbd>
             <kbd>Entrée</kbd> jouer

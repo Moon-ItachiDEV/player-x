@@ -491,7 +491,17 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   const searchItems = useMemo<SearchItem[]>(() => {
     const games: SearchItem[] = [...shownGames]
       .sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0))
-      .map((g) => ({ id: `game:${g.id}`, kind: 'game', label: g.name, hint: KIND_LABEL[g.store], art: 'cover', game: g }))
+      .map((g) => ({ id: `game:${g.id}`, kind: 'game', label: g.name, hint: KIND_LABEL[g.store], art: 'cover', game: g, launchable: true }))
+    // Jeux du compte Steam absents de ce PC : après les installés, la fiche propose de les installer.
+    const missing: SearchItem[] = notInstalled.map((g) => ({
+      id: `game:${g.id}`,
+      kind: 'game',
+      label: g.name,
+      hint: `${KIND_LABEL[g.store]} · Pas installé`,
+      art: 'cover',
+      game: g,
+      launchable: false
+    }))
     const people: SearchItem[] = friends.friends.map((f) => ({
       id: `friend:${f.id}`,
       kind: f.platform === 'discord' ? 'member' : 'friend',
@@ -532,8 +542,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       page('action:favorites', 'Choisir mes jeux favoris', 'star', ['favoris', 'rail']),
       page('action:replay', "Revoir l'accueil de Player X", 'gamepad', ['première connexion', 'bienvenue', 'scan'])
     ]
-    return [...games, ...people, ...pages]
-  }, [shownGames, friends.friends, settings?.gameNews])
+    return [...games, ...missing, ...people, ...pages]
+  }, [shownGames, notInstalled, friends.friends, settings?.gameNews])
 
   // Le filtre posé par la recherche globale ne sert qu'une fois : il s'efface en quittant la page Amis.
   useEffect(() => {
@@ -586,7 +596,9 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     const key = rest.join(':')
     if (kind === 'game') {
       const g = shownGames.find((x) => x.id === key)
+      const missing = notInstalled.find((x) => x.id === key)
       if (g) launch ? startLaunch(g) : openSheet(g)
+      else if (missing) openSheet(missing)
     } else if (kind === 'friend') {
       setFriendsQuery((q) => ({ text: item.label, n: q.n + 1 }))
       go('friends')

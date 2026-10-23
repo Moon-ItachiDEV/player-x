@@ -390,7 +390,12 @@ document.addEventListener('contextmenu', (e) => e.preventDefault())
     state.update = !!i.update
     state.version = i.version
     showDir(i.dir)
-    if (i.update) $('goLabel').textContent = 'Mettre à jour'
+    if (i.update) {
+      $('goLabel').textContent = 'Mettre à jour'
+      // Mise à jour : raccourci et démarrage avec Windows restent comme l'utilisateur les a réglés (install.go).
+      $('desk').hidden = true
+      $('boot').hidden = true
+    }
   } catch (e) {}
   setStep(0)
   showSpace()

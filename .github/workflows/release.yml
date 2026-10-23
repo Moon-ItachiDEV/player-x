@@ -87,26 +87,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Installeur sur mesure (installer/, Go + WebView2) : pour une première installation. Il contient l'installeur ci-dessus,
-      # lancé en silencieux ; les fichiers des mises à jour (latest.yml, .blockmap, .sig) n'en dépendent pas.
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: installer/go.mod
-          cache: false
-
-      - name: Construire, essayer et envoyer l'installeur sur mesure
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          version="$(node -p "require('./package.json').version")"
-          out="dist/Player-X-Installer-${version}.exe"
-          node scripts/build-installer.mjs "dist/Player-X-Setup-${version}.exe" dist/win-unpacked "${version}" "${out}"
-          dir="$(cygpath -w "${RUNNER_TEMP}")\\pxtest\\Player X"
-          "${out}" --selftest-install "${dir}" > "${RUNNER_TEMP}/selftest.log" 2>&1 || { cat "${RUNNER_TEMP}/selftest.log"; echo "::error::L'installeur sur mesure a échoué"; exit 1; }
-          cat "${RUNNER_TEMP}/selftest.log"
-          gh release upload "v${version}" "${out}" --clobber
-
       # Les trois fichiers attendus par electron-updater doivent être là. La release reste en brouillon :
       # le workflow « Publish » la publie une fois l'installeur signé (empreinte affichée ci-dessous).
       - name: Vérifier la release et afficher l'empreinte à signer
@@ -132,3 +112,28 @@ jobs:
             echo ""
             echo "Puis lancer le workflow **Publish** avec la signature obtenue."
           } >> "${GITHUB_STEP_SUMMARY}"
+
+      # Installeur sur mesure (installer/, Go + WebView2) : pour une première installation. Il contient l'installeur ci-dessus,
+      # lancé en silencieux ; les fichiers des mises à jour (latest.yml, .blockmap, .sig) n'en dépendent pas.
+      # Après la vérification : un échec ici ne cache ni l'empreinte à signer ni les fichiers des mises à jour.
+      - uses: actions/setup-go@v5
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          go-version-file: installer/go.mod
+          cache: false
+
+      - name: Construire, essayer et envoyer l'installeur sur mesure
+        continue-on-error: true
+        timeout-minutes: 10
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          out="dist/Player-X-Installer-${version}.exe"
+          node scripts/build-installer.mjs "dist/Player-X-Setup-${version}.exe" dist/win-unpacked "${version}" "${out}"
+          dir="$(cygpath -w "${RUNNER_TEMP}")\\pxtest\\Player X"
+          "${out}" --selftest-install "${dir}" > "${RUNNER_TEMP}/selftest.log" 2>&1 || { cat "${RUNNER_TEMP}/selftest.log"; echo "::error::L'installeur sur mesure a échoué"; exit 1; }
+          cat "${RUNNER_TEMP}/selftest.log"
+          gh release upload "v${version}" "${out}" --clobber

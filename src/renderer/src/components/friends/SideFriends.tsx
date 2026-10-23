@@ -184,7 +184,8 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
   const { result, accounts, games, demo, discordConfigured, loading, onRefresh, onOpenAccounts, onHideMember, onManageHidden, initialQuery } = props
   const [query, setQuery] = useState(initialQuery ?? '')
   const [filter, setFilter] = useState<Filter>('all')
-  const [showOffline, setShowOffline] = useState(readShowOffline)
+  // Ami choisi dans la recherche globale : la section hors ligne s'ouvre, il peut y être.
+  const [showOffline, setShowOffline] = useState(() => !!initialQuery || readShowOffline())
 
   const library = useMemo(() => libraryIndex(games), [games])
   const entries = useMemo(() => result.friends.map((f) => classify(f, library)), [result.friends, library])

@@ -168,6 +168,8 @@ func install(info payloadInfo, o Options, report func(Progress)) {
 		fail(0, "Pas assez de place sur ce disque.")
 		return
 	}
+	// Mise à jour d'une installation existante : ses réglages (démarrage avec Windows, raccourci du Bureau) sont gardés.
+	update := existingDir() != ""
 	report(Progress{Percent: 1, Step: 0})
 	setup, err := writeSetup(info.Version)
 	if err != nil {
@@ -229,7 +231,10 @@ wait:
 		note = "Le raccourci du menu Démarrer n'a pas été trouvé."
 	}
 	if !o.Desktop {
-		_ = os.Remove(desk)
+		// Nouvelle installation seulement : une mise à jour ne retire pas un raccourci que l'utilisateur a gardé.
+		if !update {
+			_ = os.Remove(desk)
+		}
 	} else if !exists(desk) {
 		// L'installeur silencieux ne crée pas toujours celui du Bureau : copie de celui du menu Démarrer (même cible).
 		if !copyFile(startLnk, desk) {
@@ -244,7 +249,9 @@ wait:
 		fail(2, "Le fichier des mises à jour automatiques manque. Lance l'installeur classique pour réparer.")
 		return
 	}
-	writeFirstRun(o)
+	if !update {
+		writeFirstRun(o)
+	}
 	time.Sleep(350 * time.Millisecond)
 	report(Progress{Percent: 100, Step: 3, Note: note})
 }

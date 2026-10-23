@@ -390,7 +390,7 @@ function wire(u: AppUpdater): void {
   u.on('update-not-available', () => setState({ state: 'none', checkedAt: Date.now() }))
   u.on('update-available', (info) => {
     // Taille de l'installeur (latest.yml) et noms des nouveautés de la release : seulement s'ils sont lisibles.
-    const exe = info.files?.find((f) => f.url.toLowerCase().endsWith('.exe'))
+    const exe = info.files?.find((f) => typeof f.url === 'string' && f.url.toLowerCase().endsWith('.exe'))
     let summary: string | undefined
     try {
       summary = summarizeReleaseNotes(info.releaseNotes, info.version)

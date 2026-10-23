@@ -335,5 +335,6 @@ export function Cs2RecapHost({ games }: { games: Game[] }): React.JSX.Element | 
   }, [offer])
 
   if (!recap) return null
-  return <Cs2RecapDialog recap={recap} art={cs2Art(games)} onClose={() => shownCs2.set(null)} />
+  // Une clé par bilan : un nouveau bilan arrivé pendant la fermeture du précédent repart d'une fenêtre neuve.
+  return <Cs2RecapDialog key={recap.id} recap={recap} art={cs2Art(games)} onClose={() => shownCs2.set(null)} />
 }
