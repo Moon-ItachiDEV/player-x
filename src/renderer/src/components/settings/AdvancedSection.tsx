@@ -6,7 +6,7 @@ import { Icon } from '../ui/Icon'
 import { Switch } from '../ui/Overlay'
 import { StoreTag } from '../ui/StoreTag'
 import { errorMessage, useToast } from '../ui/Toasts'
-import { Collapse, prefersReducedMotion, readLocal, reportText, SectionHead, SettingRow, writeLocal } from './parts'
+import { Collapse, prefersReducedMotion, readLocal, reportText, SectionHead, SettingRow, SettingsCard, writeLocal } from './parts'
 import { SecretField, TextField } from './SecretField'
 
 const STEAM_KEY_URL = 'https://steamcommunity.com/dev/apikey'
@@ -88,11 +88,11 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
         <p>Ces réglages servent aux connexions qui demandent une clé ou une application développeur. Ils restent sur ce PC.</p>
       </div>
 
-      <h3 className="set-block-title">Clés API & intégrations</h3>
+      <h3 className="set-block-title">Clés API et intégrations</h3>
       <div className="set-adv-cards">
         <section className="set-adv-card" ref={(el) => void (cards.current.steam = el)} aria-labelledby="set-adv-steam">
           <header className="set-adv-head">
-            <StoreTag kind="steam" size={28} />
+            <StoreTag kind="steam" size={40} />
             <h4 id="set-adv-steam">Steam</h4>
           </header>
           <SecretField
@@ -115,7 +115,7 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
 
         <section className="set-adv-card" ref={(el) => void (cards.current.discord = el)} aria-labelledby="set-adv-discord">
           <header className="set-adv-head">
-            <StoreTag kind="discord" size={28} />
+            <StoreTag kind="discord" size={40} />
             <h4 id="set-adv-discord">Discord</h4>
           </header>
           <TextField
@@ -164,7 +164,7 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
 
         <section className="set-adv-card" ref={(el) => void (cards.current.psn = el)} aria-labelledby="set-adv-psn">
           <header className="set-adv-head">
-            <StoreTag kind="psn" size={28} />
+            <StoreTag kind="psn" size={40} />
             <h4 id="set-adv-psn">PlayStation</h4>
             <span className="pill pill-outline-warning no-dot">Expérimental</span>
           </header>
@@ -193,42 +193,40 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
         </section>
       </div>
 
-      <h3 className="set-block-title">Données et diagnostic</h3>
-      <div className="set-rows">
+      <SettingsCard title="Données et diagnostic" className="set-adv-data">
         <SettingRow
           label="Mode démo"
           value={settings.demoMode ? 'Activé · jeux et amis fictifs pour tester l\'interface' : 'Remplace tes jeux et amis par des données fictives pour tester l\'interface.'}
         >
           <Switch checked={settings.demoMode} onChange={setDemo} label="Mode démo" />
         </SettingRow>
-      </div>
-
-      <div className="set-diag">
-        <button className="set-diag-toggle" aria-expanded={diagOpen} aria-controls="set-diag-body" onClick={toggleDiag}>
-          <span className="set-row-text">
-            <span className="set-row-label">Dossiers examinés au dernier scan</span>
-            <span className="set-row-value">
-              {report.length ? `${report.length} store${report.length > 1 ? 's' : ''} · ${checkedCount} emplacement${checkedCount > 1 ? 's' : ''}` : 'Aucun scan pour le moment'}
+        <div className="set-diag">
+          <button className="set-diag-toggle" aria-expanded={diagOpen} aria-controls="set-diag-body" onClick={toggleDiag}>
+            <span className="set-row-text">
+              <span className="set-row-label">Dossiers examinés au dernier scan</span>
+              <span className="set-row-value">
+                {report.length ? `${report.length} store${report.length > 1 ? 's' : ''} · ${checkedCount} emplacement${checkedCount > 1 ? 's' : ''}` : 'Aucun scan pour le moment'}
+              </span>
             </span>
-          </span>
-          <Icon name="chevron-down" size={16} className="set-chev" />
-        </button>
-        <Collapse open={diagOpen} id="set-diag-body">
-          <div className="set-diag-body">
-            {report.length ? (
-              <>
-                <pre className="set-pre">{reportText(report)}</pre>
-                <button className="btn btn-secondary btn-sm" onClick={() => copy(reportText(report), 'Rapport copié')}>
-                  <Icon name="copy" size={14} />
-                  Copier le rapport
-                </button>
-              </>
-            ) : (
-              <p className="set-help">Lance un scan depuis Bibliothèque pour voir les dossiers examinés.</p>
-            )}
-          </div>
-        </Collapse>
-      </div>
+            <Icon name="chevron-down" size={16} className="set-chev" />
+          </button>
+          <Collapse open={diagOpen} id="set-diag-body">
+            <div className="set-diag-body">
+              {report.length ? (
+                <>
+                  <pre className="set-pre">{reportText(report)}</pre>
+                  <button className="btn btn-secondary btn-sm" onClick={() => copy(reportText(report), 'Rapport copié')}>
+                    <Icon name="copy" size={14} />
+                    Copier le rapport
+                  </button>
+                </>
+              ) : (
+                <p className="set-help">Lance un scan depuis Bibliothèque pour voir les dossiers examinés.</p>
+              )}
+            </div>
+          </Collapse>
+        </div>
+      </SettingsCard>
     </>
   )
 }
