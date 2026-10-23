@@ -121,7 +121,9 @@ export function parseBadges(body: unknown): AchievementsOverview['level'] | unde
  */
 export function mergeAchievements(player: PlayerAch[], schema: SchemaAch[], global: Record<string, number>): Achievement[] {
   const mine = new Map(player.map((a) => [a.id, a]))
-  const base: SchemaAch[] = schema.length ? schema : player.map((a) => ({ id: a.id, name: a.name || a.id, hidden: false, ...(a.description ? { description: a.description } : {}) }))
+  const base: SchemaAch[] = schema.length
+    ? schema
+    : player.map((a) => ({ id: a.id, name: a.name || a.id, hidden: false, ...(a.description ? { description: a.description } : {}) }))
   return base.map((s) => {
     const p = mine.get(s.id)
     const description = s.description || p?.description
@@ -140,6 +142,16 @@ export function mergeAchievements(player: PlayerAch[], schema: SchemaAch[], glob
 }
 
 export const isUnlocked = (a: Achievement): boolean => a.unlockedAt !== undefined
+
+/** Rare : moins de 15 % des joueurs (même seuil que l'étiquette « Rare » de l'interface). */
+export const RARE_PERCENT = 15
+
+/** Succès rares débloqués après `since` (date du relevé précédent), les plus rares d'abord. */
+export function freshRare(list: Achievement[], since: number): Achievement[] {
+  return list
+    .filter((a) => a.unlockedAt !== undefined && a.unlockedAt > since && a.percent !== undefined && a.percent < RARE_PERCENT)
+    .sort((a, b) => a.percent! - b.percent!)
+}
 
 /** Ce que la page Trophées garde d'un jeu. */
 export interface GameSummary {
@@ -163,7 +175,10 @@ const byRarity = (a: Achievement, b: Achievement): number => (a.percent ?? 101) 
 export function summarize(list: Achievement[], name: string, minutes: number, at: number): GameSummary {
   const done = list.filter(isUnlocked)
   const recent = [...done].sort(byRecent).slice(0, PICKS)
-  const rare = [...done].filter((a) => a.percent !== undefined).sort(byRarity).slice(0, PICKS)
+  const rare = [...done]
+    .filter((a) => a.percent !== undefined)
+    .sort(byRarity)
+    .slice(0, PICKS)
   const picks = [...new Map([...recent, ...rare].map((a) => [a.id, a])).values()]
   const lastAt = recent[0]?.unlockedAt
   return { at, minutes, name, total: list.length, unlocked: done.length, ...(lastAt ? { lastAt } : {}), picks }

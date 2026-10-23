@@ -1,8 +1,9 @@
+import { existsSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, BrowserWindow, Menu, Notification, Tray } from 'electron'
 import type { StartupState } from '@shared/types'
 import { getKv, setKv } from '../db'
-import { getSettings } from './settings'
+import { getSettings, saveSettings } from './settings'
 import { mainWindow } from '../windows'
 
 // Zone de notification (près de l'horloge) : la croix y range Player X au lieu de le fermer, pour que le temps de jeu,
@@ -85,6 +86,26 @@ export function attachWindow(win: BrowserWindow): void {
 /** La croix vient de ranger la fenêtre : un choix de l'utilisateur, que la fin d'une partie ne défait pas. */
 export function onHideToTray(cb: () => void): void {
   onHide = cb
+}
+
+/**
+ * Choix faits dans l'installeur sur mesure (installer/, « Démarrer avec Windows ») : un fichier déposé dans le dossier de
+ * Player X, appliqué au premier lancement puis supprimé. À appeler après l'ouverture de la base, avant startTray().
+ */
+export function applyInstallOptions(): void {
+  const file = join(app.getPath('userData'), 'install-options.json')
+  if (!existsSync(file)) return
+  try {
+    const o = JSON.parse(readFileSync(file, 'utf8')) as { startWithWindows?: unknown }
+    if (typeof o.startWithWindows === 'boolean') saveSettings({ startWithWindows: o.startWithWindows })
+  } catch (e) {
+    console.warn('[install-options]', e)
+  }
+  try {
+    unlinkSync(file)
+  } catch {
+    // Laissé en place : appliqué de nouveau au prochain lancement, sans dommage.
+  }
 }
 
 /** Inscrit (ou retire) Player X des programmes lancés à l'ouverture de la session Windows. Version installée seulement. */

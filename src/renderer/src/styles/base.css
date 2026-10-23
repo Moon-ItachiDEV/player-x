@@ -496,7 +496,12 @@ kbd {
   color: var(--text-2);
   transition:
     background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out);
+    color var(--d-1) var(--ease-out),
+    scale var(--d-1) var(--ease-out);
+}
+/* Retour au clic : la surface s'enfonce un peu (audit animations). */
+.seg button:active:not(:disabled):not([aria-disabled='true']) {
+  scale: 0.97;
 }
 .seg button:hover:not([aria-disabled='true']) {
   color: var(--text-1);
@@ -774,6 +779,25 @@ kbd {
   gap: 8px;
   margin-top: 24px;
 }
+/* Sortie (motion.ts useLeave, LEAVE_MS) : par le même chemin que l'entrée, sans clic pendant la sortie. */
+.dialog-scrim.is-leaving {
+  pointer-events: none;
+  animation: fade-out 160ms var(--ease-out) forwards;
+}
+.dialog-scrim.is-leaving .dialog {
+  animation: dialog-out 160ms var(--ease-out) forwards;
+}
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
 @keyframes dialog-in {
   from {
     opacity: 0;
@@ -833,6 +857,16 @@ kbd {
 .toast.info .toast-icon {
   color: var(--accent);
 }
+/* Succès rare : la seule carte dorée de l'appli (or réservé aux succès). */
+.toast.trophy {
+  border-color: color-mix(in srgb, var(--trophy) 45%, transparent);
+  background:
+    radial-gradient(120% 140% at 0% 50%, color-mix(in srgb, var(--trophy) 16%, transparent), transparent 60%),
+    color-mix(in srgb, var(--surface-2) 96%, transparent);
+}
+.toast.trophy .toast-icon {
+  color: var(--trophy);
+}
 .toast-close {
   opacity: 0;
   width: 24px;
@@ -842,6 +876,16 @@ kbd {
 .toast:focus-within .toast-close,
 .toast-close:focus-visible {
   opacity: 1;
+}
+.toast.is-leaving {
+  pointer-events: none;
+  animation: toast-out 160ms var(--ease-out) forwards;
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(12px);
+  }
 }
 @keyframes toast-in {
   from {

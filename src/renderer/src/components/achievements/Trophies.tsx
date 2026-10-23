@@ -1,23 +1,28 @@
-import { useMemo, useState } from 'react'
-import { capitalize, cleanName, plural, timeAgo } from '@shared/text'
-import type { AchievementGame, AchievementPick, AchievementsOverview, Game } from '@shared/types'
+import { useMemo, useRef, useState } from 'react'
+import { capitalize, cleanName, formatDate, plural, timeAgo } from '@shared/text'
+import type { Achievement, AchievementGame, AchievementPick, AchievementsOverview, Game, GameAchievements } from '@shared/types'
 import type { TrophiesProps } from '../../contracts'
+import { motionReduced } from '../../motion'
 import { Cover } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
 import { PickMenu } from '../ui/PickMenu'
-import { AchIcon } from './AchIcon'
-import { completion, formatPercent, rarityOf } from './format'
-import { useAchievementsOverview } from './useAchievements'
+import { completion, formatPercent, isUnlocked, rarityOf } from './format'
+import { useAchievements, useAchievementsOverview } from './useAchievements'
 import './achievements.css'
 
 export type { TrophiesProps }
 
 const fmt = new Intl.NumberFormat('fr-FR')
+const dayFmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' })
 const CARDS = 8
+/** Succès montrés d'abord dans le jeu ouvert (trois rangées) ; le reste derrière « Afficher… ». */
+const ACH_FIRST = 12
 const STEAM_PRIVACY_URL = 'https://steamcommunity.com/my/edit/settings'
 
+type GameOf = (id: string, name: string) => Game
 type GameFilter = 'started' | 'perfect' | 'todo' | 'all'
 type GameSort = 'progress' | 'recent' | 'name'
+type AchFilter = 'all' | 'done' | 'todo'
 
 const SORTS: { value: GameSort; label: string }[] = [
   { value: 'progress', label: 'Progression' },
@@ -25,9 +30,15 @@ const SORTS: { value: GameSort; label: string }[] = [
   { value: 'name', label: 'Nom' }
 ]
 
-/** Page Trophées : les succès Steam de tous les jeux joués, le niveau Steam, les plus rares et les derniers débloqués. */
+const byName = (a: AchievementGame, b: AchievementGame): number => cleanName(a.name).localeCompare(cleanName(b.name), 'fr', { sensitivity: 'base' })
+const byProgress = (a: AchievementGame, b: AchievementGame): number => b.unlocked / b.total - a.unlocked / a.total || b.unlocked - a.unlocked || byName(a, b)
+
+/** Page Trophées : les succès Steam de tous les jeux joués, un jeu ouvert avec sa grille de succès, puis les autres jeux. */
 export function Trophies({ games, notInstalled, onOpen, onOpenAccounts }: TrophiesProps): React.JSX.Element {
   const { data, error, refresh } = useAchievementsOverview()
+  // Jeu ouvert choisi dans la liste (sinon : celui du dernier succès).
+  const [picked, setPicked] = useState<string | null>(null)
+  const panelRef = useRef<HTMLElement>(null)
 
   // Le jeu de la bibliothèque (jaquette, fiche), ou un jeu Steam minimal s'il n'y est plus.
   const gameOf = useMemo(() => {
@@ -53,38 +64,45 @@ export function Trophies({ games, notInstalled, onOpen, onOpenAccounts }: Trophi
     )
   }
 
+  const open = openGameOf(data, picked)
+  // Ouvre un jeu ici, puis amène le panneau à l'écran et y place le focus (clavier, lecteur d'écran).
+  const show = (gameId: string): void => {
+    setPicked(gameId)
+    requestAnimationFrame(() => {
+      const panel = panelRef.current
+      if (!panel) return
+      panel.scrollIntoView({ block: 'start', behavior: motionReduced() ? 'auto' : 'smooth' })
+      panel.querySelector<HTMLElement>('.tro-open-title')?.focus({ preventScroll: true })
+    })
+  }
+
   return (
     <div className="page tro">
       {data.state === 'scanning' && <ScanBand progress={data.progress} first={!data.updatedAt} />}
       {blocked && <Blocked {...blocked} inline />}
 
-      {!(empty && data.state === 'scanning') && <Figures data={data} gameOf={gameOf} />}
+      {!(empty && data.state === 'scanning') && <Summary data={data} onShow={show} />}
 
-      {!empty && (
+      {!empty && open && (
         <>
-          {data.recent.length > 0 && (
-            <PickSection title="Derniers débloqués" picks={data.recent.slice(0, CARDS)} gameOf={gameOf} onOpen={onOpen} meta={(p) => capitalize(timeAgo(p.unlockedAt))} />
-          )}
-          {data.rarest.length > 0 && (
-            <PickSection title="Tes plus rares" picks={data.rarest.slice(0, CARDS)} gameOf={gameOf} onOpen={onOpen} meta={(p) => `${formatPercent(p.percent!)} des joueurs`} rare />
-          )}
-          <GameList list={data.games} gameOf={gameOf} onOpen={onOpen} />
+          <OpenGame key={open.gameId} ref={panelRef} game={open} gameOf={gameOf} onOpen={onOpen} />
+          <GameList list={data.games.filter((g) => g.gameId !== open.gameId)} gameOf={gameOf} onShow={show} />
+          <Highlights data={data} onShow={show} />
         </>
       )}
       {empty && data.state === 'ready' && (
         <Blocked icon="trophy" title="Aucun succès pour l'instant" text="Aucun de tes jeux Steam joués n'a de succès débloqué ou à débloquer." />
       )}
 
-      <p className="caption tro-foot">
-        {data.updatedAt ? `Relevé ${timeAgo(data.updatedAt)} · ` : ''}Succès des jeux Steam seulement : Epic et EA ne les partagent pas.
-        {data.state !== 'scanning' && (
-          <button className="link-btn" onClick={refresh}>
-            Actualiser
-          </button>
-        )}
-      </p>
+      <Footer data={data} onRefresh={refresh} />
     </div>
   )
+}
+
+/** Le jeu choisi s'il est toujours là, sinon celui du dernier succès, sinon le plus avancé. */
+function openGameOf(data: AchievementsOverview, picked: string | null): AchievementGame | undefined {
+  const find = (id: string | undefined): AchievementGame | undefined => (id ? data.games.find((g) => g.gameId === id) : undefined)
+  return find(picked ?? undefined) ?? find(data.recent[0]?.gameId) ?? [...data.games].sort(byProgress)[0]
 }
 
 /* ---------- états ---------- */
@@ -129,7 +147,7 @@ function blockedOf(data: AchievementsOverview, onOpenAccounts: () => void, refre
 
 function Blocked({ icon, title, text, action, then, inline = false }: BlockedInfo & { inline?: boolean }): React.JSX.Element {
   return (
-    <div className={`card-surface tro-blocked ${inline ? 'is-inline' : ''}`} role={inline ? 'status' : undefined}>
+    <div className={`tro-blocked ${inline ? 'is-inline' : ''}`} role={inline ? 'status' : undefined}>
       <span className="tro-blocked-icon">
         <Icon name={icon} size={inline ? 20 : 26} />
       </span>
@@ -157,7 +175,7 @@ function ScanBand({ progress, first }: { progress?: { done: number; total: numbe
   const total = progress?.total ?? 0
   const done = Math.min(progress?.done ?? 0, total)
   return (
-    <div className="card-surface tro-scan" role="status">
+    <div className="tro-scan" role="status">
       <span className="spinner" aria-hidden="true" />
       <div className="tro-scan-text">
         <p className="tro-scan-title">
@@ -168,7 +186,7 @@ function ScanBand({ progress, first }: { progress?: { done: number; total: numbe
         </p>
       </div>
       {total > 0 && (
-        <span className="ach-bar tro-scan-bar" aria-hidden="true">
+        <span className="tro-bar tro-scan-bar" aria-hidden="true">
           <span style={{ width: `${(done / total) * 100}%` }} />
         </span>
       )}
@@ -178,122 +196,212 @@ function ScanBand({ progress, first }: { progress?: { done: number; total: numbe
 
 function TrophiesSkeleton(): React.JSX.Element {
   return (
-    <div className="tro-figures" aria-hidden="true">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="skel tro-figure" />
-      ))}
+    <div className="tro-skel" aria-hidden="true">
+      <div className="tro-tiles">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="skel tro-tile-skel" />
+        ))}
+      </div>
+      <div className="skel tro-open-skel" />
     </div>
   )
 }
 
-/* ---------- chiffres ---------- */
+/* ---------- résumé ---------- */
 
-function Figures({ data, gameOf }: { data: AchievementsOverview; gameOf: (id: string, name: string) => Game }): React.JSX.Element {
-  const pct = completion(data.unlocked, data.total)
-  const perfect = data.games.filter((g) => g.total > 0 && g.unlocked === g.total).sort((a, b) => (b.lastAt ?? 0) - (a.lastAt ?? 0))
+function Summary({ data, onShow }: { data: AchievementsOverview; onShow: (gameId: string) => void }): React.JSX.Element {
   const started = data.games.filter((g) => g.unlocked > 0).length
-  const lvl = data.level
-  const xpPct = lvl && lvl.xpForLevel ? Math.round((lvl.xpInLevel / lvl.xpForLevel) * 100) : 0
+  const last = data.recent[0] as AchievementPick | undefined
   return (
-    <section className="tro-figures" aria-label="Chiffres">
-      <div className="card-surface tro-figure is-main">
-        <span className="overline">Succès débloqués</span>
-        <span className="tro-big num">{fmt.format(data.unlocked)}</span>
-        <span className="ach-bar" aria-hidden="true">
-          <span style={{ width: `${pct}%` }} />
-        </span>
-        <span className="caption num">
-          sur {fmt.format(data.total)} · {pct}&#8239;%
-        </span>
+    <section className="tro-tiles" aria-label="Résumé">
+      <div className="tro-tile is-gold">
+        <span className="tro-tile-num num">{fmt.format(data.unlocked)}</span>
+        <span className="tro-tile-label">Succès débloqués</span>
+        <span className="tro-tile-sub num">sur {fmt.format(data.total)}</span>
       </div>
-      <div className="card-surface tro-figure">
-        <span className="overline">Jeux à 100 %</span>
-        <div className="tro-fig-row">
-          <span className="tro-big num">{fmt.format(data.perfect)}</span>
-          {perfect.length > 0 && (
-            <span className="tro-minis" aria-hidden="true">
-              {perfect.slice(0, 3).map((g) => (
-                <span key={g.gameId} className="tro-mini">
-                  <Cover game={gameOf(g.gameId, g.name)} showTitle={false} />
-                </span>
-              ))}
-            </span>
-          )}
+      <div className="tro-tile">
+        <span className="tro-tile-num num">{fmt.format(data.games.length)}</span>
+        <span className="tro-tile-label">Jeux avec des succès</span>
+        <span className="tro-tile-sub num">{data.perfect ? `dont ${fmt.format(data.perfect)} à 100 %` : 'Aucun à 100 % pour l’instant'}</span>
+      </div>
+      <div className="tro-tile">
+        <span className="tro-tile-num num">{data.average}&#8239;%</span>
+        <span className="tro-tile-label">Progression moyenne</span>
+        <span className="tro-tile-sub">{started ? `sur ${plural(started, 'jeu commencé', 'jeux commencés')}` : 'Aucun jeu commencé'}</span>
+      </div>
+      {last ? (
+        <button className="tro-tile is-last" onClick={() => onShow(last.gameId)} title={`${last.name} · ${formatDate(last.unlockedAt)}`}>
+          <span className="tro-tile-name">{last.name}</span>
+          <span className="tro-tile-label">
+            Dernier succès · {cleanName(last.gameName)} · <span className="tro-tile-when num">{timeAgo(last.unlockedAt)}</span>
+          </span>
+        </button>
+      ) : (
+        <div className="tro-tile is-last">
+          <span className="tro-tile-name is-none">Aucun succès débloqué</span>
+          <span className="tro-tile-label">Dernier succès</span>
         </div>
-        <span className="caption">{perfect[0] ? `Dernier : ${cleanName(perfect[0].name)}` : 'Aucun jeu terminé à 100 % pour l’instant'}</span>
+      )}
+    </section>
+  )
+}
+
+/* ---------- jeu ouvert ---------- */
+
+const byRecent = (a: Achievement, b: Achievement): number => (b.unlockedAt ?? 0) - (a.unlockedAt ?? 0)
+// Pas encore débloqués : les plus courants d'abord (les plus faciles à aller chercher).
+const byCommon = (a: Achievement, b: Achievement): number => (b.percent ?? -1) - (a.percent ?? -1)
+
+/** Pourquoi la liste d'un jeu ne vient pas (le relevé de la page, lui, a pu la lire). */
+function gameBlockedText(state: GameAchievements['state']): string {
+  switch (state) {
+    case 'no-account':
+      return 'Connecte ton compte Steam (Paramètres › Comptes) pour voir ces succès.'
+    case 'no-key':
+      return 'Ajoute ta clé Steam Web API (Paramètres › Comptes) pour voir ces succès.'
+    case 'key-refused':
+      return 'Steam refuse ta clé Web API : vérifie-la dans Paramètres › Comptes.'
+    case 'private':
+      return 'Ton profil Steam cache les détails de tes jeux : passe-les en « Public » dans ta confidentialité Steam.'
+    default:
+      return 'Steam ne donne pas la liste des succès de ce jeu.'
+  }
+}
+
+interface OpenGameProps {
+  ref: React.Ref<HTMLElement>
+  game: AchievementGame
+  gameOf: GameOf
+  onOpen: (g: Game) => void
+}
+
+function OpenGame({ ref, game, gameOf, onOpen }: OpenGameProps): React.JSX.Element {
+  const { state, reload } = useAchievements(game.gameId, true)
+  const [filter, setFilter] = useState<AchFilter>('all')
+  const [all, setAll] = useState(false)
+  const full = gameOf(game.gameId, game.name)
+  const name = cleanName(game.name)
+
+  const data = state.status === 'ready' && state.data.state === 'ready' ? state.data : null
+  // Les chiffres du relevé tant que la liste n'est pas lue, puis ceux de Steam.
+  const unlocked = data?.unlocked ?? game.unlocked
+  const total = data?.total ?? game.total
+  const pct = completion(unlocked, total)
+
+  const list = useMemo(() => {
+    if (!data) return []
+    const done = data.list.filter(isUnlocked).sort(byRecent)
+    const todo = data.list.filter((a) => !isUnlocked(a)).sort(byCommon)
+    return filter === 'done' ? done : filter === 'todo' ? todo : [...done, ...todo]
+  }, [data, filter])
+  const shown = all ? list : list.slice(0, ACH_FIRST)
+
+  const filters: { id: AchFilter; label: string }[] = [
+    { id: 'all', label: 'Tous' },
+    { id: 'done', label: 'Débloqués' },
+    { id: 'todo', label: 'À faire' }
+  ]
+
+  return (
+    <section ref={ref} className="tro-open" aria-labelledby="tro-open-h" aria-busy={state.status === 'loading'}>
+      <div className="tro-open-head">
+        <span className="tro-thumb is-lg">
+          <Cover game={full} showTitle={false} />
+        </span>
+        <div className="tro-open-main">
+          <div className="tro-open-line">
+            <h2 id="tro-open-h" className="tro-open-title" tabIndex={-1}>
+              {name}
+            </h2>
+            <span className="tro-open-count num">
+              {unlocked} / {total} · {pct}&#8239;%
+            </span>
+          </div>
+          <span className="tro-bar is-big" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Succès débloqués dans ${name}`}>
+            <span style={{ width: `${pct}%` }} />
+          </span>
+        </div>
+        <div className="tro-seg" role="group" aria-label="Filtrer les succès">
+          {filters.map((f) => (
+            <button key={f.id} className="tro-seg-btn" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)} disabled={!data}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <button className="btn btn-secondary btn-sm tro-open-sheet" onClick={() => onOpen(full)}>
+          Ouvrir la fiche
+          <Icon name="chevron-right" size={14} />
+        </button>
       </div>
-      <div className="card-surface tro-figure">
-        <span className="overline">Complétion moyenne</span>
-        <span className="tro-big num">{data.average}&#8239;%</span>
-        <span className="caption">{started ? `sur ${plural(started, 'jeu commencé', 'jeux commencés')}` : 'Aucun jeu commencé'}</span>
-      </div>
-      <div className="card-surface tro-figure">
-        <span className="overline">Niveau Steam</span>
-        {lvl ? (
+
+      {state.status === 'loading' && (
+        <div className="tro-achs" aria-hidden="true">
+          {Array.from({ length: CARDS }, (_, i) => (
+            <span key={i} className="skel tro-ach-skel" />
+          ))}
+        </div>
+      )}
+      {state.status === 'error' && (
+        <div className="tro-open-note">
+          <p className="caption">{state.message}</p>
+          <button className="btn btn-secondary btn-sm" onClick={reload}>
+            <Icon name="refresh" size={14} />
+            Réessayer
+          </button>
+        </div>
+      )}
+      {state.status === 'ready' && !data && (
+        <div className="tro-open-note">
+          <p className="caption">{gameBlockedText(state.data.state)}</p>
+        </div>
+      )}
+      {data &&
+        (shown.length ? (
           <>
-            <div className="tro-fig-row">
-              <span className="tro-level num" aria-label={`Niveau ${lvl.level}`}>
-                {lvl.level}
-              </span>
-              <span className="caption">{plural(lvl.badges, 'badge', 'badges')}</span>
-            </div>
-            <span className="ach-bar" aria-hidden="true">
-              <span style={{ width: `${xpPct}%` }} />
-            </span>
-            <span className="caption num">
-              {fmt.format(lvl.xpInLevel)} / {fmt.format(lvl.xpForLevel)} XP vers le niveau {lvl.level + 1}
-            </span>
+            <ul className="tro-achs">
+              {shown.map((a) => (
+                <li key={a.id}>
+                  <AchCard ach={a} />
+                </li>
+              ))}
+            </ul>
+            {list.length > ACH_FIRST && (
+              <button className="btn btn-ghost btn-sm tro-achs-more" onClick={() => setAll((v) => !v)} aria-expanded={all}>
+                {all ? 'Réduire' : `Afficher les ${list.length - ACH_FIRST} autres`}
+                <Icon name="chevron-down" size={14} className={`tro-more-chevron ${all ? 'is-open' : ''}`} />
+              </button>
+            )}
           </>
         ) : (
-          <span className="caption tro-fig-empty">Lu au prochain relevé</span>
-        )}
-      </div>
+          <p className="caption tro-open-note">{filter === 'done' ? 'Aucun succès débloqué dans ce jeu pour l’instant.' : 'Tous les succès de ce jeu sont débloqués.'}</p>
+        ))}
     </section>
   )
 }
 
-/* ---------- succès choisis ---------- */
-
-interface PickSectionProps {
-  title: string
-  picks: AchievementPick[]
-  gameOf: (id: string, name: string) => Game
-  onOpen: (g: Game) => void
-  meta: (p: AchievementPick) => string
-  rare?: boolean
-}
-
-function PickSection({ title, picks, gameOf, onOpen, meta, rare = false }: PickSectionProps): React.JSX.Element {
+/** Un succès du jeu ouvert : trophée doré une fois débloqué, cadenas sinon. Un succès caché reste masqué. */
+function AchCard({ ach }: { ach: Achievement }): React.JSX.Element {
+  const done = isUnlocked(ach)
+  const secret = ach.hidden && !done
+  const name = secret ? 'Succès caché' : ach.name
+  const rarity = ach.percent !== undefined ? `${formatPercent(ach.percent)} des joueurs` : ''
+  const tip = [secret ? 'Steam ne le dévoile qu’une fois débloqué.' : ach.description, rarity].filter(Boolean).join(' · ')
   return (
-    <section className="tro-section" aria-label={title}>
-      <h2 className="tro-section-title">{title}</h2>
-      <ul className="tro-picks">
-        {picks.map((p) => {
-          const rarity = rare ? rarityOf(p.percent) : null
-          return (
-            <li key={`${p.gameId}:${p.id}`}>
-              <button className="card-surface tro-pick" onClick={() => onOpen(gameOf(p.gameId, p.gameName))} title={p.description}>
-                <AchIcon ach={p} size={56} />
-                <span className="tro-pick-text">
-                  <span className="tro-pick-name">{p.name}</span>
-                  <span className="tro-pick-game">{cleanName(p.gameName)}</span>
-                  <span className={`tro-pick-meta num ${rarity ? `ach-rarity is-${rarity.tier}` : ''}`}>
-                    {meta(p)}
-                    {rarity && <small>{rarity.label}</small>}
-                  </span>
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
+    <div className={`tro-ach ${done ? 'is-done' : ''}`} title={tip || undefined}>
+      <span className="tro-ach-icon" aria-hidden="true">
+        <Icon name={done ? 'trophy' : 'lock'} size={22} />
+      </span>
+      <span className="tro-ach-text">
+        <span className="tro-ach-name">{name}</span>
+        <span className="tro-ach-sub num">{done ? `Débloqué le ${dayFmt.format(ach.unlockedAt!)}` : 'Pas encore débloqué'}</span>
+      </span>
+    </div>
   )
 }
 
-/* ---------- par jeu ---------- */
+/* ---------- les autres jeux ---------- */
 
-function GameList({ list, gameOf, onOpen }: { list: AchievementGame[]; gameOf: (id: string, name: string) => Game; onOpen: (g: Game) => void }): React.JSX.Element {
+function GameList({ list, gameOf, onShow }: { list: AchievementGame[]; gameOf: GameOf; onShow: (gameId: string) => void }): React.JSX.Element | null {
   const groups = useMemo(
     () => ({
       started: list.filter((g) => g.unlocked > 0 && g.unlocked < g.total),
@@ -308,11 +416,12 @@ function GameList({ list, gameOf, onOpen }: { list: AchievementGame[]; gameOf: (
 
   const shown = useMemo(() => {
     const base = groups[filter]
-    const byName = (a: AchievementGame, b: AchievementGame): number => cleanName(a.name).localeCompare(cleanName(b.name), 'fr', { sensitivity: 'base' })
     if (sort === 'name') return [...base].sort(byName)
     if (sort === 'recent') return [...base].sort((a, b) => (b.lastAt ?? 0) - (a.lastAt ?? 0) || byName(a, b))
-    return [...base].sort((a, b) => b.unlocked / b.total - a.unlocked / a.total || b.unlocked - a.unlocked || byName(a, b))
+    return [...base].sort(byProgress)
   }, [groups, filter, sort])
+
+  if (!list.length) return null
 
   const filters: { id: GameFilter; label: string; count: number }[] = [
     { id: 'started', label: 'En cours', count: groups.started.length },
@@ -322,14 +431,16 @@ function GameList({ list, gameOf, onOpen }: { list: AchievementGame[]; gameOf: (
   ]
 
   return (
-    <section className="tro-section" aria-label="Par jeu">
-      <div className="tro-list-head">
-        <h2 className="tro-section-title">Par jeu</h2>
-        <div className="ach-chips" role="group" aria-label="Afficher">
+    <section className="tro-others" aria-labelledby="tro-others-h">
+      <div className="tro-others-head">
+        <h2 id="tro-others-h" className="tro-h">
+          Tes autres jeux
+        </h2>
+        <div className="tro-seg" role="group" aria-label="Afficher">
           {filters.map((f) => (
-            <button key={f.id} className="ach-chip" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
+            <button key={f.id} className="tro-seg-btn" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
               {f.label}
-              <span className="num">{f.count}</span>
+              <span className="tro-seg-count num">{f.count}</span>
             </button>
           ))}
         </div>
@@ -338,35 +449,122 @@ function GameList({ list, gameOf, onOpen }: { list: AchievementGame[]; gameOf: (
       {shown.length ? (
         <ul className="tro-games">
           {shown.map((g) => {
-            const game = gameOf(g.gameId, g.name)
             const pct = completion(g.unlocked, g.total)
+            const name = cleanName(g.name)
             return (
               <li key={g.gameId}>
-                <button className="tro-game" onClick={() => onOpen(game)}>
-                  <span className="tro-game-cover">
-                    <Cover game={game} showTitle={false} />
+                <button
+                  className="tro-game"
+                  onClick={() => onShow(g.gameId)}
+                  aria-label={`${name} : ${g.unlocked} succès sur ${g.total}, ${pct} %`}
+                  title={g.lastAt ? `Dernier succès ${timeAgo(g.lastAt)}` : 'Aucun succès débloqué'}
+                >
+                  <span className="tro-thumb">
+                    <Cover game={gameOf(g.gameId, g.name)} showTitle={false} />
                   </span>
-                  <span className="tro-game-text">
-                    <span className="tro-game-name">{cleanName(g.name)}</span>
-                    <span className="caption">{g.lastAt ? `Dernier succès ${timeAgo(g.lastAt)}` : 'Aucun succès débloqué'}</span>
+                  <span className="tro-game-name">{name}</span>
+                  <span className="tro-bar" aria-hidden="true">
+                    <span style={{ width: `${pct}%` }} />
                   </span>
-                  <span className="tro-game-progress">
-                    <span className="ach-bar" aria-hidden="true">
-                      <span style={{ width: `${pct}%` }} className={pct === 100 ? 'is-perfect' : undefined} />
-                    </span>
-                    <span className="tro-game-count num">
-                      {g.unlocked} / {g.total}
-                    </span>
-                    <span className={`tro-game-pct num ${pct === 100 ? 'is-perfect' : ''}`}>{pct === 100 ? <Icon name="trophy" size={16} /> : `${pct} %`}</span>
+                  <span className="tro-game-count num">
+                    {g.unlocked} / {g.total}
                   </span>
+                  <Icon name="chevron-right" size={18} className="tro-game-chevron" />
                 </button>
               </li>
             )
           })}
         </ul>
       ) : (
-        <p className="caption">Aucun jeu ici pour l'instant.</p>
+        <p className="caption tro-others-empty">Aucun jeu ici pour l'instant.</p>
       )}
     </section>
+  )
+}
+
+/* ---------- derniers et plus rares ---------- */
+
+function Highlights({ data, onShow }: { data: AchievementsOverview; onShow: (gameId: string) => void }): React.JSX.Element | null {
+  const tabs = [
+    { id: 'recent' as const, label: 'Derniers débloqués', picks: data.recent.slice(0, CARDS) },
+    { id: 'rarest' as const, label: 'Tes plus rares', picks: data.rarest.slice(0, CARDS) }
+  ].filter((t) => t.picks.length)
+  const [tab, setTab] = useState<'recent' | 'rarest'>('recent')
+  const current = tabs.find((t) => t.id === tab) ?? tabs[0]
+  if (!current) return null
+
+  return (
+    <section className="tro-picks" aria-labelledby="tro-picks-h">
+      <div className="tro-others-head">
+        <h2 id="tro-picks-h" className="tro-h">
+          Succès à retenir
+        </h2>
+        {tabs.length > 1 && (
+          <div className="tro-seg" role="group" aria-label="Succès à retenir">
+            {tabs.map((t) => (
+              <button key={t.id} className="tro-seg-btn" aria-pressed={current.id === t.id} onClick={() => setTab(t.id)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <ul className="tro-achs">
+        {current.picks.map((p) => {
+          const rarity = current.id === 'rarest' ? rarityOf(p.percent) : null
+          return (
+            <li key={`${p.gameId}:${p.id}`}>
+              <button className="tro-ach is-done is-pick" onClick={() => onShow(p.gameId)} title={p.description}>
+                <span className="tro-ach-icon" aria-hidden="true">
+                  <Icon name="trophy" size={22} />
+                </span>
+                <span className="tro-ach-text">
+                  <span className="tro-ach-name">{p.name}</span>
+                  <span className="tro-ach-sub">{cleanName(p.gameName)}</span>
+                  <span className={`tro-ach-sub num ${rarity ? `is-${rarity.tier}` : ''}`}>
+                    {current.id === 'rarest' ? `${formatPercent(p.percent!)} des joueurs${rarity ? ` · ${rarity.label}` : ''}` : capitalize(timeAgo(p.unlockedAt))}
+                  </span>
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
+/* ---------- pied ---------- */
+
+function Footer({ data, onRefresh }: { data: AchievementsOverview; onRefresh: () => void }): React.JSX.Element {
+  const lvl = data.level
+  const xpPct = lvl && lvl.xpForLevel ? Math.round((lvl.xpInLevel / lvl.xpForLevel) * 100) : 0
+  return (
+    <footer className="tro-foot">
+      {lvl && (
+        <div className="tro-level-row">
+          <span className="tro-level num" aria-label={`Niveau Steam ${lvl.level}`}>
+            {lvl.level}
+          </span>
+          <span className="tro-level-text">
+            <span className="tro-level-title">Niveau Steam</span>
+            <span className="caption num">
+              {plural(lvl.badges, 'badge', 'badges')} · {fmt.format(lvl.xpInLevel)} / {fmt.format(lvl.xpForLevel)} XP vers le niveau {lvl.level + 1}
+            </span>
+          </span>
+          <span className="tro-bar tro-level-bar" aria-hidden="true">
+            <span style={{ width: `${xpPct}%` }} />
+          </span>
+        </div>
+      )}
+      <p className="caption tro-foot-note">
+        {data.updatedAt ? `Relevé ${timeAgo(data.updatedAt)} · ` : ''}Succès des jeux Steam seulement : Epic et EA ne les partagent pas.
+        {data.state !== 'scanning' && (
+          <button className="link-btn" onClick={onRefresh}>
+            Actualiser
+          </button>
+        )}
+      </p>
+    </footer>
   )
 }

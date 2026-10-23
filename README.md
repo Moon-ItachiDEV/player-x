@@ -8,7 +8,8 @@ Launcher de bureau qui regroupe tes jeux **Steam, Epic Games et EA**, compte ton
 
 ## Installer
 
-- **Le plus simple :** télécharge `Player-X-Setup-<version>.exe` depuis les [Releases](https://github.com/Moon-ItachiDEV/player-x/releases/latest) et suis l’assistant. L’installeur n’est pas signé, donc Windows SmartScreen peut afficher « Windows a protégé votre ordinateur » : clique sur **Informations complémentaires** puis **Exécuter quand même**.
+- **Le plus simple :** télécharge `Player-X-Installer-<version>.exe` depuis les [Releases](https://github.com/Moon-ItachiDEV/player-x/releases/latest). Une seule fenêtre aux couleurs de l’appli : dossier, raccourci du Bureau, démarrage avec Windows, puis **Installer** (ou **Mettre à jour** si Player X est déjà là). L’installeur n’est pas signé, donc Windows SmartScreen peut afficher « Windows a protégé votre ordinateur » : clique sur **Informations complémentaires** puis **Exécuter quand même**.
+- **Installeur classique :** `Player-X-Setup-<version>.exe`, l’assistant Windows habituel. C’est aussi lui que les mises à jour automatiques installent ; l’installeur sur mesure le lance en silencieux et s’en sert de repli si WebView2 manque.
 - **Depuis le code** (Node.js 22+ sous Windows ; le scan de jeux vise Windows, macOS et Linux ne détectent que Steam) :
 
 ```bash
@@ -18,7 +19,7 @@ npm run dev
 
 Sur l’écran d’accueil, **Essayer le mode démo** remplit l’interface avec des jeux et des amis fictifs, sans aucune configuration.
 
-Pour fabriquer l’installeur Windows : `npm run dist` (sortie dans `dist/`). Depuis Linux, il faut `wine64` et `wine32:i386`.
+Pour fabriquer l’installeur Windows : `npm run dist` (sortie dans `dist/`). Depuis Linux, il faut `wine64` et `wine32:i386`. L’installeur sur mesure (Go + WebView2, dossier `installer/`) se construit ensuite avec Go 1.22+ : `node scripts/build-installer.mjs dist/Player-X-Setup-<version>.exe dist/win-unpacked <version> dist/Player-X-Installer-<version>.exe`.
 
 ## Bibliothèque
 
@@ -160,7 +161,7 @@ Tout se règle dans **Paramètres** de l’appli (ou, en développement seulemen
 
 ## Design
 
-Direction « Arène · Abysse » depuis la 0.7.0 : bleu nuit, jaune réservé à l’action principale (**Jouer**), cyan réservé à « en jeu ». Le rail des favoris, le menu latéral (navigation et amis) et la barre du haut à onglets restent en place sur toutes les pages. Titres en Barlow Condensed majuscules, interface en Barlow, logo PX et nom en Michroma. Les couleurs du logo (violet vers cyan) ne servent plus qu’au logo et à l’animation de mise à jour. Les effets riches (survol, lueurs, animations) se coupent dans **Paramètres** et respectent « réduire les animations » du système. Les règles sont dans [`docs/design/arene-abysse.md`](docs/design/arene-abysse.md) ; l’ancienne direction « Nuit Néon », la critique et les recherches restent dans [`docs/design/`](docs/design/).
+Direction « Braise » depuis la 0.9.0 : fond prune très sombre, rose (#ff5c86) pour l’action et le focus, cyan réservé à « en jeu », or réservé aux succès. Un seul rail à gauche (pages, favoris, Paramètres) et une barre du haut avec la recherche globale (**Ctrl K** : jeux, amis, membres du serveur, pages). Titres en Sora, interface en Inter. Les effets riches (survol, lueurs, animations) se coupent dans **Paramètres** et respectent « réduire les animations » du système. Les couleurs sont dans `src/renderer/src/styles/tokens.css` ; les anciennes directions (« Arène · Abysse », « Nuit Néon ») restent dans [`docs/design/`](docs/design/).
 
 ## Choix techniques
 

@@ -211,11 +211,27 @@ function flushToasts(): void {
   const list = recaps()
   const ready = toastQueue.map((id) => list.find((r) => r.id === id)).filter((r): r is Cs2Recap => !!r && !r.seen)
   toastQueue = []
-  if (!ready.length || front() || hidden() || !Notification.isSupported()) return
+  if (!ready.length || front() || hidden()) return
   const last = ready[ready.length - 1]
   toast?.close()
+  if (getSettings().cs2RecapOpen) {
+    // Player X s'ouvre de lui-même sur le dernier bilan (les autres restent dans la fiche de CS2).
+    showMainWindow()
+    broadcast('cs2:recap', { recap: last, reason: 'open' } satisfies Cs2RecapEvent)
+    // Windows peut refuser de passer la fenêtre devant : la notification prend le relais.
+    setTimeout(() => {
+      if (!front()) notifyRecaps(ready.length, last)
+    }, 1500)
+    return
+  }
+  notifyRecaps(ready.length, last)
+}
+
+function notifyRecaps(count: number, last: Cs2Recap): void {
+  if (!Notification.isSupported()) return
+  toast?.close()
   const n = new Notification({
-    title: ready.length > 1 ? `Tes ${ready.length} bilans Counter-Strike 2 sont prêts` : 'Ton bilan Counter-Strike 2 est prêt',
+    title: count > 1 ? `Tes ${count} bilans Counter-Strike 2 sont prêts` : 'Ton bilan Counter-Strike 2 est prêt',
     body: cs2RecapLine(last),
     icon: join(app.getAppPath(), 'resources', 'icon.png')
   })

@@ -2,44 +2,112 @@ import { useEffect, useRef, useState } from 'react'
 import type { Store } from '@shared/types'
 import type { UiPrefs } from '../../contracts'
 import { withViewTransition } from '../../motion'
-import { Icon } from '../ui/Icon'
+import { Icon, type IconName } from '../ui/Icon'
 import { PickMenu } from '../ui/PickMenu'
 import { KIND_LABEL } from '../ui/StoreTag'
 
-/** `uninstalled` : jeux du compte Steam pas installés sur ce PC. */
-export type LibTab = 'all' | 'fav' | 'uninstalled'
 export type LibStore = 'all' | Store
+/** `uninstalled` : jeux du compte Steam pas installés sur ce PC ; `all` les mêle aux jeux installés. */
+export type LibInstall = 'all' | 'installed' | 'uninstalled'
 export type LibSort = 'recent' | 'name' | 'launches' | 'playtime'
+export type LibView = 'grid' | 'list'
 type CoverSize = UiPrefs['coverSize']
 
-export const SORT_LABEL: Record<LibSort, string> = { recent: 'Récents', name: 'Nom (A–Z)', launches: 'Plus lancés', playtime: 'Plus joués' }
+export const SORT_LABEL: Record<LibSort, string> = {
+  recent: 'Dernière partie',
+  name: 'Nom (A–Z)',
+  launches: 'Plus lancés',
+  playtime: 'Plus joués'
+}
 export const STORES: Store[] = ['steam', 'epic', 'ea']
-const SIZE_LABEL: Record<CoverSize, string> = { S: 'Petites', M: 'Moyennes', L: 'Grandes' }
+const SIZE_LABEL: Record<CoverSize, string> = {
+  S: 'Petites',
+  M: 'Moyennes',
+  L: 'Grandes'
+}
+const INSTALL_LABEL: Record<LibInstall, string> = {
+  all: 'Tous',
+  installed: 'Installés',
+  uninstalled: 'Non installés'
+}
+
+interface SegOption<T extends string> {
+  value: T
+  label?: string
+  /** Compteur après le libellé (« Steam · 8 »). */
+  count?: number
+  icon?: IconName
+  /** Bouton à icône seule : nom accessible et infobulle. */
+  name?: string
+  disabled?: boolean
+}
+
+/** Pilules à choix unique (boutons à bascule, aria-pressed). */
+function Seg<T extends string>({
+  label,
+  value,
+  options,
+  onPick,
+  icons
+}: {
+  label: string
+  value: T
+  options: SegOption<T>[]
+  onPick: (v: T) => void
+  icons?: boolean
+}): React.JSX.Element {
+  return (
+    <div className={`lib-seg ${icons ? 'is-icons' : ''}`} role="group" aria-label={label}>
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          className="lib-seg-btn"
+          aria-pressed={o.value === value}
+          aria-label={o.name}
+          title={o.name}
+          disabled={o.disabled}
+          onClick={() => o.value !== value && onPick(o.value)}
+        >
+          {o.icon && <Icon name={o.icon} size={16} />}
+          {o.label}
+          {o.count !== undefined && <span className="lib-seg-count num">· {o.count}</span>}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 interface ToolbarProps {
-  /** Jeux de l'onglet (tous, favoris ou non installés), avant le filtre de store. */
-  total: number
-  /** Nombre de jeux affichés dans la grille (pour « Résultats pour … »). */
-  resultCount: number
-  /** Jeux par store dans l'onglet. */
+  /** Stores présents dans la bibliothèque (installés ou non). */
+  stores: Store[]
+  /** Jeux par store dans la sélection en cours (installation, favoris), avant le filtre de store. */
   storeCounts: Record<Store, number>
+  /** Jeux de la sélection en cours, avant le filtre de store. */
+  total: number
   store: LibStore
+  /** null : aucun jeu non installé connu, le choix n'a pas lieu d'être. */
+  install: LibInstall | null
+  fav: boolean
+  favCount: number
   sort: LibSort
+  view: LibView
   coverSize: CoverSize
-  query: string
   scanning: boolean
   /** Premier scan sans aucun jeu : bouton de scan seulement. */
   loading?: boolean
   onStore: (s: LibStore) => void
+  onInstall: (i: LibInstall) => void
+  onFav: (on: boolean) => void
   onSort: (s: LibSort) => void
+  onView: (v: LibView) => void
   onCoverSize: (s: CoverSize) => void
-  onClearQuery: () => void
   onRescan: () => void
 }
 
-/** Barre collante : menus Store / Trier par / Taille, résumé, relance du scan. Le filet n'apparaît qu'une fois collée. */
+/** Barre collante : plateforme, installation, favoris, tri, taille, grille ou liste, relance du scan. Le verre n'apparaît qu'une fois collée. */
 export function LibraryToolbar(props: ToolbarProps): React.JSX.Element {
-  const { total, resultCount, storeCounts, store, sort, coverSize, query, scanning, loading, onStore, onSort, onCoverSize, onClearQuery, onRescan } = props
+  const { stores, storeCounts, total, store, install, fav, favCount, sort, view, coverSize, scanning, loading } = props
   const sentinel = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(false)
 
@@ -57,69 +125,100 @@ export function LibraryToolbar(props: ToolbarProps): React.JSX.Element {
     return () => io.disconnect()
   }, [])
 
-  const present = STORES.filter((s) => storeCounts[s] > 0)
   // Les jaquettes glissent vers leur nouvelle place (transition de vue).
   const reorder = (fn: () => void): void => withViewTransition(fn, { kind: 'reorder' })
+
+  const rescan = (
+    <button
+      type="button"
+      className="lib-icon-btn"
+      aria-label={scanning ? 'Scan en cours…' : 'Relancer le scan'}
+      title={scanning ? 'Scan en cours…' : 'Relancer le scan : chercher à nouveau les jeux installés'}
+      aria-disabled={scanning}
+      aria-busy={scanning}
+      onClick={() => !scanning && props.onRescan()}
+    >
+      <Icon name="refresh" size={17} className={scanning ? 'spin' : ''} />
+    </button>
+  )
 
   return (
     <>
       <div ref={sentinel} className="lib-sentinel" aria-hidden="true" />
       <div className={`lib-toolbar ${stuck ? 'is-stuck' : ''}`}>
-        {loading ? (
-          <span className="caption">Recherche des jeux installés…</span>
-        ) : (
-          <div className="lib-picks">
-            <PickMenu<LibStore>
-              label="Store"
-              value={store}
-              options={[{ value: 'all', label: 'Tous', hint: total }, ...present.map((s) => ({ value: s as LibStore, label: KIND_LABEL[s], hint: storeCounts[s] }))]}
-              onPick={(v) => reorder(() => onStore(v))}
-            />
-            <PickMenu<LibSort>
-              label="Trier par"
-              value={sort}
-              options={(Object.keys(SORT_LABEL) as LibSort[]).map((s) => ({ value: s, label: SORT_LABEL[s] }))}
-              onPick={(v) => reorder(() => onSort(v))}
-            />
-            <PickMenu<CoverSize>
-              label="Taille"
-              value={coverSize}
-              display={coverSize}
-              options={(Object.keys(SIZE_LABEL) as CoverSize[]).map((s) => ({ value: s, label: SIZE_LABEL[s], hint: s }))}
-              onPick={onCoverSize}
-            />
-          </div>
-        )}
-
-        <div className="lib-tb-end">
-          {query ? (
-            <p className="lib-tb-summary" aria-live="polite">
-              <span className="lib-tb-query" title={query}>
-                Résultats pour « {query} »
-              </span>{' '}
-              · <span className="num">{resultCount}</span>
-              <button className="link-btn lib-tb-clear" onClick={onClearQuery}>
-                Effacer
-              </button>
-            </p>
+        <div className="lib-filters">
+          {loading ? (
+            <>
+              <span className="lib-filters-status caption">Recherche des jeux installés…</span>
+              <div className="lib-filters-end">{rescan}</div>
+            </>
           ) : (
-            !loading && (
-              <p className="lib-tb-summary num">
-                {total} jeu{total > 1 ? 'x' : ''}
-                {present.length > 1 && present.map((s) => ` · ${KIND_LABEL[s]} ${storeCounts[s]}`).join('')}
-              </p>
-            )
+            <>
+              <Seg<LibStore>
+                label="Plateforme"
+                value={store}
+                options={[
+                  { value: 'all', label: 'Tout', count: total },
+                  ...stores.map((s) => ({
+                    value: s as LibStore,
+                    label: KIND_LABEL[s],
+                    count: storeCounts[s],
+                    disabled: storeCounts[s] === 0 && store !== s
+                  }))
+                ]}
+                onPick={(v) => reorder(() => props.onStore(v))}
+              />
+              {install && (
+                <Seg<LibInstall>
+                  label="Installation"
+                  value={install}
+                  options={(Object.keys(INSTALL_LABEL) as LibInstall[]).map((i) => ({ value: i, label: INSTALL_LABEL[i] }))}
+                  onPick={(v) => reorder(() => props.onInstall(v))}
+                />
+              )}
+              <div className="lib-seg">
+                <button type="button" className="lib-seg-btn lib-fav-btn" aria-pressed={fav} onClick={() => reorder(() => props.onFav(!fav))}>
+                  <Icon name="star" size={15} filled={fav} />
+                  Favoris
+                  <span className="lib-seg-count num">· {favCount}</span>
+                </button>
+              </div>
+              {/* Tri et affichage : ensemble, calés à droite, même quand la barre passe sur deux lignes */}
+              <div className="lib-filters-end">
+                <PickMenu<LibSort>
+                  label="Trier"
+                  value={sort}
+                  className="lib-pick"
+                  options={(Object.keys(SORT_LABEL) as LibSort[]).map((s) => ({
+                    value: s,
+                    label: SORT_LABEL[s]
+                  }))}
+                  onPick={(v) => reorder(() => props.onSort(v))}
+                />
+                {view === 'grid' && (
+                  <PickMenu<CoverSize>
+                    label="Taille"
+                    value={coverSize}
+                    display={coverSize}
+                    className="lib-pick"
+                    options={(Object.keys(SIZE_LABEL) as CoverSize[]).map((s) => ({ value: s, label: SIZE_LABEL[s], hint: s }))}
+                    onPick={props.onCoverSize}
+                  />
+                )}
+                <Seg<LibView>
+                  label="Affichage"
+                  icons
+                  value={view}
+                  options={[
+                    { value: 'grid', icon: 'grid', name: 'Grille' },
+                    { value: 'list', icon: 'list', name: 'Liste' }
+                  ]}
+                  onPick={props.onView}
+                />
+                {rescan}
+              </div>
+            </>
           )}
-          <button
-            className="btn btn-secondary btn-sm lib-rescan"
-            title={scanning ? 'Scan en cours…' : 'Chercher à nouveau les jeux installés'}
-            aria-disabled={scanning}
-            aria-busy={scanning}
-            onClick={() => !scanning && onRescan()}
-          >
-            <Icon name="refresh" size={15} className={scanning ? 'spin' : ''} />
-            {scanning ? 'Scan en cours…' : 'Relancer le scan'}
-          </button>
         </div>
       </div>
     </>

@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { LEAVE_MS, motionReduced } from '../../motion'
 
 /** Ferme sur Échap. */
 export function useEscape(active: boolean, onEscape: () => void): void {
@@ -65,6 +66,35 @@ interface DialogProps {
 
 export function Dialog({ open, title, children, onClose, actions }: DialogProps): React.JSX.Element | null {
   useEscape(open, onClose)
+  // Fermé : le dialogue reste affiché le temps de sa sortie (LEAVE_MS), avec le contenu qu'il avait ouvert.
+  const last = useRef({ title, children, actions })
+  if (open) last.current = { title, children, actions }
+  const [shown, setShown] = useState(open)
+  useEffect(() => {
+    if (open) {
+      setShown(true)
+      return
+    }
+    if (!shown) return
+    if (motionReduced()) {
+      setShown(false)
+      return
+    }
+    const t = setTimeout(() => setShown(false), LEAVE_MS)
+    return () => clearTimeout(t)
+  }, [open, shown])
+  if (!open && shown) {
+    const l = last.current
+    return (
+      <div className="dialog-scrim is-leaving" aria-hidden="true">
+        <div className="dialog" role="dialog" aria-label={l.title}>
+          <h2>{l.title}</h2>
+          <div>{l.children}</div>
+          <div className="dialog-actions">{l.actions}</div>
+        </div>
+      </div>
+    )
+  }
   if (!open) return null
   return (
     <div className="dialog-scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>

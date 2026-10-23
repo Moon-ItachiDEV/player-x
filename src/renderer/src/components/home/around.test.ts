@@ -43,15 +43,15 @@ test('membres Discord : exclus à côté de vrais amis, sauf sur ce jeu', () => 
     ['Sol', 'Pixel']
   )
   assert.equal(a.kind, 'friends')
-  assert.equal(aroundLabel(a), '1 ami et 1 membre Discord en ligne, dont 1 sur ce jeu')
+  assert.equal(aroundLabel(a), '1 ami et 1 membre du serveur en ligne, dont 1 sur ce jeu')
 })
 
-test('seulement un serveur Discord : « membres »', () => {
+test('seulement un serveur Discord : « membres du serveur »', () => {
   const a = whoIsAround(ELDEN, [f('discord', 'Mira', 'online'), f('discord', 'Lunaa', 'in-game', { game: 'Valorant' }), f('discord', 'Zed', 'away')])
   assert.ok(a)
   assert.equal(a.kind, 'members')
   assert.equal(a.people.length, 3)
-  assert.equal(aroundLabel(a), '3 membres Discord en ligne')
+  assert.equal(aroundLabel(a), '3 membres du serveur en ligne')
 })
 
 test('vrais amis tous hors ligne et un membre sur ce jeu : « membres », une personne', () => {
@@ -62,7 +62,7 @@ test('vrais amis tous hors ligne et un membre sur ce jeu : « membres », une pe
     a.people.map((p) => p.name),
     ['Sol']
   )
-  assert.equal(aroundLabel(a), '1 membre Discord en ligne, dont 1 sur ce jeu')
+  assert.equal(aroundLabel(a), '1 membre du serveur en ligne, dont 1 sur ce jeu')
 })
 
 test('ordre : sur ce jeu, en jeu ailleurs, en ligne, absents, puis par nom', () => {
@@ -109,12 +109,12 @@ test('libellés au singulier et au pluriel', () => {
     f('steam', 'G', 'in-game', { game: 'ELDEN RING' })
   ])
   assert.ok(mixed)
-  assert.equal(aroundLabel(mixed), '7 amis et 1 membre Discord en ligne, dont 2 sur ce jeu')
+  assert.equal(aroundLabel(mixed), '7 amis et 1 membre du serveur en ligne, dont 2 sur ce jeu')
   const p1 = f('steam', 'Rook', 'in-game', { game: 'Counter-Strike 2' })
   const p2 = f('steam', 'Ace', 'in-game', { game: 'Counter-Strike 2' })
   const m1 = f('discord', 'Sol', 'in-game', { game: 'Counter-Strike 2' })
-  assert.equal(playersLabel([p1]), '1 ami y joue')
-  assert.equal(playersLabel([p1, p2]), '2 amis y jouent')
-  assert.equal(playersLabel([p1, m1]), '1 ami et 1 membre Discord y jouent')
-  assert.equal(playersLabel([m1]), '1 membre Discord y joue')
+  assert.equal(playersLabel([p1]), '1 ami en jeu')
+  assert.equal(playersLabel([p1, p2]), '2 amis en jeu')
+  assert.equal(playersLabel([p1, m1]), '1 ami et 1 membre du serveur en jeu')
+  assert.equal(playersLabel([m1]), '1 membre du serveur en jeu')
 })
