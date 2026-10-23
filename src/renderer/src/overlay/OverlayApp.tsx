@@ -1,6 +1,6 @@
 // Overlay CS2 (bêta) : la page de la fenêtre transparente posée par-dessus le jeu (main/services/cs2Overlay.ts).
 // Elle suit le match tout seul : temps d'achat, pastille pendant le round, mi-temps, fin du match. Trois styles à essayer
-// en jeu (Paramètres › Interface) : A façon Apple, B verre, C finition du style Player X. Rien ne se clique : la souris
+// en jeu (Paramètres › Overlay) : A façon Apple, B verre, C finition du style Player X. Rien ne se clique : la souris
 // et le clavier restent au jeu ; Alt+X masque l'overlay.
 import { useEffect, useState } from 'react'
 import { formatKd, killDeath, mapLabel, modeLabel, RESULT_LABEL } from '@shared/cs2'
