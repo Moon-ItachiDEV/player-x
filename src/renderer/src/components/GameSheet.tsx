@@ -374,9 +374,7 @@ function Sheet({
                   {game.running && <LiveBadge />}
                   {game.notInstalled ? <span className="sheet-uninstalled">Pas installé</span> : <span className="sheet-installed">Installé</span>}
                 </span>
-                <h2 id={titleId} className="sheet-title">
-                  {title}
-                </h2>
+                <SheetTitle id={titleId} title={title} logo={game.logoUrl} />
                 <Facts game={game} ach={achState} />
                 {!game.notInstalled && <LaunchLine game={game} p={p} playRef={playRef} onLaunch={onLaunch} onRescan={onRescan} />}
               </div>
@@ -492,6 +490,41 @@ function Sheet({
         {reading && <NewsReader gameName={title} state={newsState} postId={reading} backRef={readerBack} onBack={closeReader} onClose={onClose} onRetry={reloadNews} />}
       </aside>
     </div>
+  )
+}
+
+/** Logos qui n'ont pas chargé (absents du CDN de Steam, hors ligne) : pas de nouvel essai pendant la session. */
+const brokenLogos = new Set<string>()
+
+/**
+ * Titre du bandeau : le logo du jeu quand Steam en a un, sinon (ou s'il ne charge pas) le nom en texte. Le logo garde
+ * sa place pendant le chargement (hauteur fixe) et apparaît en fondu ; le titre reste le nom accessible.
+ */
+function SheetTitle({ id, title, logo }: { id: string; title: string; logo?: string }): React.JSX.Element {
+  const [, setBroken] = useState(0)
+  const [loaded, setLoaded] = useState<string | null>(null)
+  if (logo && !brokenLogos.has(logo)) {
+    return (
+      <h2 id={id} className="sheet-title is-logo">
+        <img
+          key={logo}
+          className={`sheet-logo ${loaded === logo ? 'is-loaded' : ''}`}
+          src={logo}
+          alt={title}
+          draggable={false}
+          onLoad={() => setLoaded(logo)}
+          onError={() => {
+            brokenLogos.add(logo)
+            setBroken((n) => n + 1)
+          }}
+        />
+      </h2>
+    )
+  }
+  return (
+    <h2 id={id} className="sheet-title">
+      {title}
+    </h2>
   )
 }
 

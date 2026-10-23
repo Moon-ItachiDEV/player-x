@@ -81,7 +81,7 @@ export function AchievementsSection({ state, onOpenAll, onRetry }: SectionProps)
         <>
           <div className="ach-progress">
             <span className="ach-bar is-big is-gold" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Succès débloqués">
-              <span style={{ width: `${pct}%` }} className={pct === 100 ? 'is-perfect' : undefined} />
+              <span style={{ transform: `scaleX(${pct / 100})` }} className={pct === 100 ? 'is-perfect' : undefined} />
             </span>
             <span className="ach-pct num">{pct === 100 ? '100 %' : `${pct} %`}</span>
           </div>
@@ -239,7 +239,7 @@ export function AchievementsTab({ state, onRetry }: TabProps): React.JSX.Element
               <small> / {data.total}</small>
             </span>
             <span className="ach-bar is-big is-gold" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Succès débloqués">
-              <span style={{ width: `${pct}%` }} className={pct === 100 ? 'is-perfect' : undefined} />
+              <span style={{ transform: `scaleX(${pct / 100})` }} className={pct === 100 ? 'is-perfect' : undefined} />
             </span>
             <span className="ach-pct num">{pct}&#8239;%</span>
           </div>

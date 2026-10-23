@@ -15,6 +15,8 @@ export interface Game {
   exePath?: string
   coverUrl?: string
   heroUrl?: string
+  /** Logo du jeu (catalogue Steam), affiché à la place du titre sur le visuel de la fiche ; le titre revient s'il ne charge pas. */
+  logoUrl?: string
   /** Dernière partie : la plus récente entre le dernier lancement depuis Player X, la dernière fois où Player X l'a vu tourner, et Steam. */
   lastPlayed?: number
   /** D'où vient `lastPlayed`. */
