@@ -1,15 +1,36 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { CS2_GAME_ID } from '@shared/cs2'
 import { timeAgo } from '@shared/text'
 import type { Bf6Account, Bf6Art, Bf6Match, Bf6Point, Bf6Row, Bf6Snapshot, Bf6Tracked } from '@shared/types'
 import type { StatsProps } from '../../contracts'
-import { TopTabs, TopTitle } from '../TopTabs'
+import { useCs2 } from '../cs2/useCs2'
+import { TopSlot } from '../TopTabs'
 import { Avatar } from '../ui/Avatar'
 import { Icon } from '../ui/Icon'
+import { Segmented } from '../ui/Overlay'
 import { errorMessage } from '../ui/Toasts'
-import { dec, duration, inWindow, int, isBf6Game, kdOf, keyOf, percent, periodOf, PLATFORM_LABEL, playedFor, useBf6, useBf6History } from './bf6'
+import {
+  dec,
+  duration,
+  inWindow,
+  int,
+  isBf6Game,
+  keyOf,
+  loadStatsGame,
+  percent,
+  periodOf,
+  PLATFORM_LABEL,
+  saveStatsGame,
+  type StatsGame,
+  useBf6,
+  useBf6History
+} from './bf6'
 import { ClassIcon, classKind } from './ClassIcon'
-import { Progress } from './Progress'
+import { Cs2Stats } from './Cs2Stats'
+import { Chart, Progress, RANGE_DAYS, type Range } from './Progress'
 import { LastSession } from './Recap'
+import { StatsTabs } from './StatsTabs'
 import './stats.css'
 
 export type { StatsProps }
@@ -44,9 +65,100 @@ function loadTab(): StatsTab {
 /** « 1er », « 2e » */
 const ordinal = (n: number): string => (n === 1 ? '1er' : `${n}e`)
 
+/** Écart signé : « +0,05 », « −0,12 ». */
+const signed = (n: number): string => `${n >= 0 ? '+' : '−'}${dec.format(Math.abs(n))}`
+
+/** Page Stats de jeu : Battlefield 6 (gametools.network) et, quand le suivi est actif, Counter-Strike 2 (envoyé par le jeu). */
 export function Stats({ games }: StatsProps): React.JSX.Element {
-  const [tracked, setTracked] = useState<Bf6Tracked | null>(null)
+  const cs2 = useCs2()
+  const [game, setGame] = useState<StatsGame>(loadStatsGame)
   const [gameArt, setGameArt] = useState<Bf6Art>({})
+
+  useEffect(() => {
+    api
+      .bf6Art()
+      .then(setGameArt)
+      .catch(() => {})
+  }, [])
+
+  // Visuel de Battlefield 6 : celui de la bibliothèque s'il y est, sinon celui du catalogue Steam.
+  const bf6Art = useMemo(() => {
+    const g = games.find(isBf6Game)
+    return g?.heroUrl || gameArt.heroUrl || g?.coverUrl
+  }, [games, gameArt])
+  const cs2Art = useMemo(() => {
+    const g = games.find((x) => x.id === CS2_GAME_ID)
+    return g?.heroUrl || g?.coverUrl
+  }, [games])
+
+  // CS2 n'a sa vue que si son suivi est activé (Paramètres) ; tant que son état n'est pas lu, rien n'est choisi à sa place.
+  const cs2On = !!cs2.state?.enabled
+  const shown: StatsGame | null = game === 'cs2' ? (cs2.state ? (cs2On ? 'cs2' : 'bf6') : null) : 'bf6'
+
+  const pickGame = (next: StatsGame): void => {
+    if (next === shown) return
+    setGame(next)
+    saveStatsGame(next)
+    document.querySelector('.content')?.scrollTo({ top: 0 })
+  }
+
+  return (
+    <div className="page bf">
+      <h1 className="sr-only">Stats de jeu</h1>
+      <StatsTop
+        value={shown}
+        onChange={pickGame}
+        choices={
+          cs2On
+            ? [
+                { id: 'bf6', label: 'Battlefield 6', art: bf6Art },
+                { id: 'cs2', label: 'Counter-Strike 2', art: cs2Art }
+              ]
+            : null
+        }
+      />
+      {shown === 'bf6' && <Bf6Stats art={bf6Art} logo={gameArt.logoUrl} />}
+      {shown === 'cs2' && cs2.state && <Cs2Stats state={cs2.state} live={cs2.live} />}
+      {shown === null && <div className="skel bf-skel" />}
+    </div>
+  )
+}
+
+/* ---------- barre du haut : titre et choix du jeu ---------- */
+
+interface GameChoice {
+  id: StatsGame
+  label: string
+  art?: string
+}
+
+function StatsTop({ value, onChange, choices }: { value: StatsGame | null; onChange: (g: StatsGame) => void; choices: GameChoice[] | null }): React.JSX.Element | null {
+  const slot = useContext(TopSlot)
+  if (!slot) return null
+  return createPortal(
+    <div className="bf-top">
+      <p className="tb-title">Stats de jeu</p>
+      {choices && (
+        <div className="bf-games" role="group" aria-label="Jeu">
+          {choices.map((c) => (
+            <button key={c.id} type="button" className="bf-game" aria-pressed={value === c.id} onClick={() => onChange(c.id)}>
+              <span className={`bf-game-thumb is-${c.id}`} aria-hidden="true">
+                {c.art && <img src={c.art} alt="" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}
+              </span>
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>,
+    slot
+  )
+}
+
+/* ---------- Battlefield 6 ---------- */
+
+function Bf6Stats({ art, logo: logoUrl }: { art?: string; logo?: string }): React.JSX.Element {
+  const [tracked, setTracked] = useState<Bf6Tracked | null>(null)
   const [logoFailed, setLogoFailed] = useState(false)
   const [tab, setTab] = useState<StatsTab>(loadTab)
   const me = useBf6(tracked?.me ?? null)
@@ -55,22 +167,11 @@ export function Stats({ games }: StatsProps): React.JSX.Element {
 
   useEffect(() => {
     api.bf6GetTracked().then(setTracked)
-    api
-      .bf6Art()
-      .then(setGameArt)
-      .catch(() => {})
   }, [])
 
   const save = useCallback(async (next: Bf6Tracked) => setTracked(await api.bf6SetTracked(next)), [])
+  const logo = !logoFailed ? logoUrl : undefined
 
-  // Visuel du jeu : celui de la bibliothèque s'il y est, sinon celui du catalogue Steam.
-  const art = useMemo(() => {
-    const g = games.find(isBf6Game)
-    return g?.heroUrl || gameArt.heroUrl || g?.coverUrl
-  }, [games, gameArt])
-  const logo = !logoFailed && gameArt.logoUrl
-
-  const name = me.snap?.stats.account.name ?? tracked?.me?.name
   const standing = useMemo(() => standingOf(tracked, me.snap, rivals.data), [tracked, me.snap, rivals.data])
 
   const pick = (next: StatsTab): void => {
@@ -84,83 +185,50 @@ export function Stats({ games }: StatsProps): React.JSX.Element {
     document.querySelector('.content')?.scrollTo({ top: 0 })
   }
 
-  const linked = !!tracked?.me
   const snap = me.snap
 
   return (
-    <div className="page bf">
-      {linked ? (
-        <TopTabs<StatsTab>
+    <>
+      {tracked?.me && (
+        <StatsTabs<StatsTab>
           label="Stats Battlefield 6"
           idBase="bf"
           value={tab}
           onChange={pick}
           tabs={[
-            { id: 'overview', label: 'Vue d’ensemble', short: 'Aperçu' },
+            { id: 'overview', label: 'Vue d’ensemble' },
             { id: 'progress', label: 'Progression' },
             { id: 'arsenal', label: 'Arsenal' },
-            { id: 'maps', label: 'Cartes et modes', short: 'Cartes' },
+            { id: 'maps', label: 'Cartes et modes' },
             { id: 'board', label: 'Classement', badge: standing ? ordinal(standing.rank) : undefined }
           ]}
-        />
-      ) : (
-        <TopTitle>Stats de jeu</TopTitle>
-      )}
-
-      {(!linked || tab === 'overview') && (
-        <header className={`bf-hero ${art ? 'has-art' : ''} ${linked ? 'is-profile' : ''}`}>
-          <div className="bf-hero-art" aria-hidden="true">
-            {art && <img src={art} alt="" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}
-            <span className="bf-hero-mark">BF6</span>
-            <div className="bf-hero-grid" />
-            <div className="bf-hero-scrim" />
-          </div>
-
-          <div className="bf-hero-body">
-            {tracked?.me && name ? (
-              <PlayerIdentity
-                account={tracked.me}
-                name={name}
-                state={me}
-                logo={logo || undefined}
-                onLogoError={() => setLogoFailed(true)}
-                onUnlink={() => save({ me: null, rivals: tracked.rivals })}
-              />
-            ) : (
-              <>
-                <span className="bf-kicker">Stats de jeu</span>
-                {logo ? (
-                  <h1 className="bf-logo-title">
-                    <img className="bf-logo" src={logo} alt="Battlefield 6" draggable={false} onError={() => setLogoFailed(true)} />
-                  </h1>
-                ) : (
-                  <h1 className="bf-hero-title">Battlefield 6</h1>
-                )}
-              </>
-            )}
-          </div>
-
-          {linked && standing && <RankCard standing={standing} onOpen={() => pick('board')} />}
-          {linked && snap && <Band snap={snap} history={history} />}
-          {linked && !snap && me.loading && <div className="skel bf-band-skel" aria-hidden="true" />}
-        </header>
+        >
+          <PlayerIdentity account={tracked.me} name={snap?.stats.account.name ?? tracked.me.name} state={me} onUnlink={() => save({ me: null, rivals: tracked.rivals })} />
+        </StatsTabs>
       )}
 
       {!tracked ? (
         <div className="skel bf-skel" />
       ) : !tracked.me ? (
-        <section className="card-surface bf-card bf-link">
-          <span className="bf-link-icon" aria-hidden="true">
-            <Icon name="chart" size={22} />
-          </span>
-          <h2 className="bf-card-title">Relie ton profil Battlefield 6</h2>
-          <p className="bf-text">Entre ton pseudo EA (celui affiché en jeu). Player X retrouve ton compte, même si tu joues sur Steam, PlayStation ou Xbox.</p>
-          <PlayerSearch action="C’est moi" onPick={(a) => save({ me: a, rivals: tracked.rivals })} />
+        <section className="bf-card bf-link" aria-labelledby="bf-link-title">
+          <div className="bf-link-art" aria-hidden="true">
+            {art && <img src={art} alt="" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}
+            {logo ? <img className="bf-logo" src={logo} alt="" draggable={false} onError={() => setLogoFailed(true)} /> : <span className="bf-link-mark">BF6</span>}
+          </div>
+          <div className="bf-link-body">
+            <span className="bf-overline">Battlefield 6</span>
+            <h2 id="bf-link-title" className="bf-link-title">
+              Relie ton profil Battlefield 6
+            </h2>
+            <p className="bf-text">Entre ton pseudo EA (celui affiché en jeu). Player X retrouve ton compte, même si tu joues sur Steam, PlayStation ou Xbox.</p>
+            <PlayerSearch action="C’est moi" onPick={(a) => save({ me: a, rivals: tracked.rivals })} />
+          </div>
         </section>
       ) : (
         <div id="bf-panel" className="bf-panel" role="tabpanel" aria-labelledby={`bf-tab-${tab}`}>
           {(me.error || snap?.stale) && (
             <p className={me.error ? 'bf-error bf-banner-msg' : 'bf-warn bf-banner-msg'}>
+              <Icon name="alert-triangle" size={16} />
               {me.error ?? `${snap?.stale} Dernières stats connues affichées.`}
             </p>
           )}
@@ -170,8 +238,12 @@ export function Stats({ games }: StatsProps): React.JSX.Element {
             <>
               {tab === 'overview' && (
                 <>
-                  <LastSession />
-                  <Highlights snap={snap} history={history} onOpen={pick} />
+                  <KpiRow snap={snap} history={history} standing={standing} onOpenBoard={() => pick('board')} />
+                  <div className="bf-duo">
+                    <KdCard history={history} onOpen={() => pick('progress')} />
+                    <LastSession art={art} />
+                  </div>
+                  <Favorites snap={snap} onOpen={pick} />
                   <KeyTiles snap={snap} />
                 </>
               )}
@@ -205,7 +277,7 @@ export function Stats({ games }: StatsProps): React.JSX.Element {
         </button>
         , un service communautaire non officiel : EA ne propose pas d’API publique pour Battlefield 6. Player X n’est affilié ni à EA ni à DICE.
       </p>
-    </div>
+    </>
   )
 }
 
@@ -278,8 +350,6 @@ interface Standing {
   total: number
   /** Le joueur juste devant toi (ou juste derrière quand tu es premier). */
   next?: { name: string; kd: number; ahead: boolean }
-  /** Joueurs classés, du premier au dernier, pour la pile d'avatars. */
-  ranked: { name: string; avatarUrl?: string; me: boolean }[]
 }
 
 /** Ta place au K/D parmi les joueurs suivis (dès qu'un autre joueur est classé). */
@@ -298,82 +368,154 @@ function standingOf(tracked: Bf6Tracked | null, meSnap: Bf6Snapshot | null, riva
   return {
     rank: i + 1,
     total: all.length,
-    next: { name: other.stats.account.name, kd: other.stats.killDeath, ahead: i > 0 },
-    ranked: all.map((e) => ({ name: e.stats.account.name, avatarUrl: e.stats.avatarUrl, me: e.me }))
+    next: { name: other.stats.account.name, kd: other.stats.killDeath, ahead: i > 0 }
   }
 }
 
-/** Carte du classement dans l'en-tête : ton rang au K/D, qui est juste devant, accès à l'onglet. */
-function RankCard({ standing, onOpen }: { standing: Standing; onOpen: () => void }): React.JSX.Element {
-  const { rank, total, next, ranked } = standing
+/* ---------- profil relié (à droite des onglets) ---------- */
+
+function PlayerIdentity({ account, name, state, onUnlink }: { account: Bf6Account; name: string; state: ReturnType<typeof useBf6>; onUnlink: () => void }): React.JSX.Element {
+  const { snap, loading, refresh } = state
   return (
-    <div className="bf-rank-card">
-      <span className="bf-overline">Classement · K/D</span>
-      <p className="bf-rank-value">
-        <b className="num">{ordinal(rank)}</b>
-        <span>
-          sur {total}
-          {next && (
-            <>
-              {' · '}
-              {next.ahead ? 'derrière' : 'devant'} {next.name} (<span className="num">{dec.format(next.kd)}</span>)
-            </>
-          )}
+    <div className="bf-id">
+      <Avatar name={name} url={snap?.stats.avatarUrl} size={28} />
+      <span className="bf-id-text">
+        <span className="bf-id-name" title={name}>
+          {name}
         </span>
-      </p>
-      <div className="bf-rank-row">
-        <span className="bf-stack" aria-hidden="true">
-          {ranked.slice(0, 5).map((p) => (
-            <span key={p.name} className={p.me ? 'is-me' : ''}>
-              <Avatar name={p.name} url={p.avatarUrl} size={28} />
-            </span>
-          ))}
-        </span>
-        <button className="btn btn-ghost btn-sm bf-rank-open" onClick={onOpen}>
-          Voir le classement
-          <Icon name="chevron-right" size={14} />
-        </button>
-      </div>
+        <span className="bf-plat">{PLATFORM_LABEL[account.platform]}</span>
+        {snap && <span className="bf-id-when">· mis à jour {timeAgo(snap.fetchedAt)}</span>}
+      </span>
+      <button className="icon-btn icon-btn-sm bf-id-refresh" onClick={refresh} disabled={loading} aria-label="Actualiser les stats" title="Actualiser les stats">
+        {loading ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
+      </button>
+      <button className="link-btn muted bf-id-unlink" onClick={onUnlink}>
+        Changer de compte
+      </button>
     </div>
   )
 }
 
-/** Bandeau vitré au bas de l'en-tête : les trois chiffres phares et l'évolution du K/D sur 30 jours. */
-function Band({ snap, history }: { snap: Bf6Snapshot; history: Bf6Point[] | null }): React.JSX.Element {
+/* ---------- vue d'ensemble : chiffres phares ---------- */
+
+function KpiRow(props: { snap: Bf6Snapshot; history: Bf6Point[] | null; standing: Standing | null; onOpenBoard: () => void }): React.JSX.Element {
+  const { snap, history, standing, onOpenBoard } = props
   const s = snap.stats
-  const month = history ? periodOf(inWindow(history, 30)) : null
-  const change = month?.kdChange ?? 0
+  const points = history ? inWindow(history, 30) : []
+  const month = periodOf(points)
+  const kpmChange = points.length >= 2 ? points.at(-1)!.killsPerMinute - points[0].killsPerMinute : null
+  const trend = (n: number): string => (n > 0.005 ? 'is-up' : n < -0.005 ? 'is-down' : '')
+
   return (
-    <dl className="bf-band">
-      <div className="bf-band-item is-main">
-        <dt>ratio K/D</dt>
-        <dd className="num">{dec.format(s.killDeath)}</dd>
+    <section className="bf-kpis" aria-label="Chiffres phares">
+      <div className="bf-kpi" style={{ '--i': 0 } as React.CSSProperties}>
+        <span className="bf-kpi-value num">{dec.format(s.killDeath)}</span>
+        <span className="bf-kpi-label">Ratio K/D</span>
+        {month ? (
+          <span className={`bf-kpi-foot num ${trend(month.kdChange)}`}>
+            <Icon name={month.kdChange < -0.005 ? 'trend-down' : 'trend'} size={14} />
+            {signed(month.kdChange)} sur 30 jours
+          </span>
+        ) : (
+          <span className="bf-kpi-foot num">
+            {int.format(s.kills)} élim. · {int.format(s.deaths)} morts
+          </span>
+        )}
+        {standing && (
+          <button className="bf-kpi-rank" onClick={onOpenBoard}>
+            <b className="num">{ordinal(standing.rank)}</b> sur {standing.total}
+            {standing.next && (
+              <span className="bf-kpi-rank-next">
+                {' · '}
+                {standing.next.ahead ? 'derrière' : 'devant'} {standing.next.name} (<span className="num">{dec.format(standing.next.kd)}</span>)
+              </span>
+            )}
+            <Icon name="chevron-right" size={14} />
+          </button>
+        )}
       </div>
-      <div className="bf-band-item">
-        <dt>élim. par minute</dt>
-        <dd className="num">{dec.format(s.killsPerMinute)}</dd>
+      <div className="bf-kpi" style={{ '--i': 1 } as React.CSSProperties}>
+        <span className="bf-kpi-value num">{dec.format(s.killsPerMinute)}</span>
+        <span className="bf-kpi-label">Éliminations par minute</span>
+        {kpmChange !== null ? (
+          <span className={`bf-kpi-foot num ${trend(kpmChange)}`}>
+            <Icon name={kpmChange < -0.005 ? 'trend-down' : 'trend'} size={14} />
+            {signed(kpmChange)} sur 30 jours
+          </span>
+        ) : (
+          <span className="bf-kpi-foot num">{int.format(s.kills)} éliminations</span>
+        )}
       </div>
-      <div className="bf-band-item">
-        <dt>de victoires</dt>
-        <dd className="num">{percent(s.winPercent)}</dd>
+      <div className="bf-kpi" style={{ '--i': 2 } as React.CSSProperties}>
+        <span className="bf-kpi-value num">{percent(s.winPercent)}</span>
+        <span className="bf-kpi-label">Victoires</span>
+        <span className="bf-kpi-foot num">
+          {int.format(s.matches)} {s.matches > 1 ? 'matchs' : 'match'} · {int.format(s.wins)} V · {int.format(s.losses)} D
+        </span>
       </div>
-      {month && (
-        <div className={`bf-trend ${change > 0.005 ? 'is-up' : change < -0.005 ? 'is-down' : ''}`}>
-          <Icon name={change < -0.005 ? 'trend-down' : 'trend'} size={18} />
-          <b className="num">
-            K/D {change >= 0 ? '+' : '−'}
-            {dec.format(Math.abs(change))}
-          </b>
-          <span>en 30 j</span>
-        </div>
-      )}
-    </dl>
+      <div className="bf-kpi" style={{ '--i': 3 } as React.CSSProperties}>
+        <span className="bf-kpi-value num">{duration(s.secondsPlayed)}</span>
+        <span className="bf-kpi-label">Temps de jeu</span>
+        <span className="bf-kpi-foot num">{s.matches ? `${int.format(Math.round(s.secondsPlayed / 60 / s.matches))} min par match` : '–'}</span>
+      </div>
+    </section>
   )
 }
 
-/* ---------- en bref : le meilleur de chaque onglet ---------- */
+/** Courbe du K/D (un relevé par jour, gardé sur ce PC) et sa période. */
+function KdCard({ history, onOpen }: { history: Bf6Point[] | null; onOpen: () => void }): React.JSX.Element {
+  const [range, setRange] = useState<Range>('30')
+  const points = useMemo(() => (history ? inWindow(history, RANGE_DAYS[range]) : []), [history, range])
 
-function Highlights({ snap, history, onOpen }: { snap: Bf6Snapshot; history: Bf6Point[] | null; onOpen: (t: StatsTab) => void }): React.JSX.Element | null {
+  return (
+    <section className="bf-card bf-kd" aria-labelledby="bf-kd-title">
+      <header className="bf-card-head">
+        <h2 id="bf-kd-title" className="bf-card-title">
+          Ton K/D
+        </h2>
+        {history && history.length >= 2 && (
+          <Segmented
+            className="bf-seg"
+            label="Période"
+            value={range}
+            options={[
+              { value: '7', label: '7 j' },
+              { value: '30', label: '30 j' },
+              { value: 'all', label: 'Depuis le début' }
+            ]}
+            onChange={setRange}
+          />
+        )}
+      </header>
+      <div className="bf-kd-plot">
+        {!history ? (
+          <div className="skel bf-kd-skel" />
+        ) : points.length >= 2 ? (
+          <Chart key={`${range}:${points.length}`} points={points} metric="kd" fill />
+        ) : (
+          <p className="bf-kd-empty bf-text">
+            {history.length >= 2
+              ? 'Pas encore deux relevés sur cette période : choisis « Depuis le début » pour voir toute ta courbe.'
+              : history.length
+                ? 'Premier relevé enregistré. Reviens demain : ta courbe se dessine à raison d’un relevé par jour.'
+                : 'Ta courbe commence aujourd’hui : Player X garde un relevé de tes stats chaque jour.'}
+          </p>
+        )}
+      </div>
+      <p className="bf-kd-foot caption">
+        Un relevé par jour, gardé sur ce PC
+        <button className="link-btn bf-kd-more" onClick={onOpen}>
+          Voir la progression
+          <Icon name="chevron-right" size={14} />
+        </button>
+      </p>
+    </section>
+  )
+}
+
+/* ---------- vue d'ensemble : favoris (le meilleur de chaque onglet) ---------- */
+
+function Favorites({ snap, onOpen }: { snap: Bf6Snapshot; onOpen: (t: StatsTab) => void }): React.JSX.Element | null {
   const s = snap.stats
   const weapon = entries(s.weapons)
     .filter((w) => (w.kills ?? 0) > 0)
@@ -386,116 +528,105 @@ function Highlights({ snap, history, onOpen }: { snap: Bf6Snapshot; history: Bf6
   const map = entries(s.maps)
     .filter((m) => (m.matches ?? 0) > 0)
     .sort((a, b) => (b.matches ?? 0) - (a.matches ?? 0))[0]
-  const points = history ? inWindow(history, 30) : []
-  const month = periodOf(points)
+  if (!weapon && !topClass && !map) return null
 
   return (
-    <section className="bf-brief" aria-labelledby="bf-brief-title">
-      <div className="bf-row-head">
-        <h2 id="bf-brief-title" className="h-section">
-          En bref
-        </h2>
-        <span className="caption">· le meilleur de chaque onglet</span>
-      </div>
-      <div className="bf-brief-grid">
-        {weapon && (
-          <BriefCard label="Arme favorite" name={weapon.name} foot="Voir l’arsenal" onOpen={() => onOpen('arsenal')}
-            line={[`${int.format(weapon.kills ?? 0)} élim.`, weapon.kpm !== undefined && `${dec.format(weapon.kpm)} /min`, accuracyOf(weapon) !== undefined && `${percent(accuracyOf(weapon)!)} préc.`]}
-          >
-            <span className="bf-brief-vis is-weapon">
-              <span className="bf-brief-rank num">1</span>
-              <WeaponArt image={weapon.image} name={weapon.name} />
-            </span>
-          </BriefCard>
-        )}
-        {topClass && (
-          <BriefCard label="Classe favorite" name={`${topClass.name} · ${percent(classTotal ? ((topClass.kills ?? 0) / classTotal) * 100 : 0)}`} foot="Voir les classes" onOpen={() => onOpen('arsenal')}
-            line={[`${int.format(topClass.kills ?? 0)} élim.`, topClass.killDeath !== undefined && `K/D ${dec.format(topClass.killDeath)}`, topClass.secondsPlayed !== undefined && duration(topClass.secondsPlayed)]}
-          >
-            <span className="bf-brief-vis is-classes">
-              <span className="bf-split">
-                {classes.map((c, i) => (
-                  <i key={c.id} className={`is-${i}`} style={{ flexGrow: c.kills ?? 0 }} title={c.name} />
-                ))}
-              </span>
-              <span className="caption">
-                Part des éliminations · {classes.length} classe{classes.length > 1 ? 's' : ''}
-              </span>
-            </span>
-          </BriefCard>
-        )}
-        {map && (
-          <BriefCard label="Carte la plus jouée" name={map.name} foot="Voir les cartes et modes" onOpen={() => onOpen('maps')}
-            line={[`${int.format(map.matches ?? 0)} ${(map.matches ?? 0) > 1 ? 'matchs' : 'match'}`, map.winPercent !== undefined && `${percent(map.winPercent)} de victoires`]}
-          >
-            <span className="bf-brief-vis is-map">
-              {map.image && <img src={map.image} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}
-              <span className="bf-brief-rank num">1</span>
-            </span>
-          </BriefCard>
-        )}
-        <BriefCard
-          label="Progression · 30 j"
-          name={month ? `K/D ${dec.format(month.deaths ? month.kills / month.deaths : month.kills)} sur la période` : 'Ta courbe démarre'}
-          foot="Voir la progression"
-          onOpen={() => onOpen('progress')}
-          line={
-            month
-              ? [`${int.format(month.matches)} partie${month.matches > 1 ? 's' : ''}`, `${int.format(month.wins)} gagnée${month.wins > 1 ? 's' : ''}`, playedFor(month.seconds)]
-              : ['Un relevé par jour, gardé sur ce PC']
-          }
+    <section className="bf-favs" aria-label="Tes favoris">
+      {weapon && (
+        <FavCard
+          label="Arme favorite"
+          name={weapon.name}
+          hint="Voir l’arsenal"
+          onOpen={() => onOpen('arsenal')}
+          line={[`${int.format(weapon.kills ?? 0)} élim.`, weapon.kpm !== undefined && `${dec.format(weapon.kpm)} /min`, accuracyOf(weapon) !== undefined && `${percent(accuracyOf(weapon)!)} préc.`]}
         >
-          <span className="bf-brief-vis is-spark">
-            <Spark points={points} />
+          <span className="bf-fav-vis is-weapon">
+            <WeaponArt image={weapon.image} name={weapon.name} />
           </span>
-        </BriefCard>
-      </div>
+        </FavCard>
+      )}
+      {topClass && (
+        <FavCard
+          label="Classe favorite"
+          name={topClass.name}
+          hint="Voir les classes"
+          onOpen={() => onOpen('arsenal')}
+          line={[
+            `${percent(classTotal ? ((topClass.kills ?? 0) / classTotal) * 100 : 0)} des élim.`,
+            topClass.killDeath !== undefined && `K/D ${dec.format(topClass.killDeath)}`,
+            topClass.secondsPlayed !== undefined && duration(topClass.secondsPlayed)
+          ]}
+        >
+          <span className={`bf-fav-vis is-class is-${classKind(topClass.name)}`}>
+            <ClassIcon name={topClass.name} size={24} />
+          </span>
+        </FavCard>
+      )}
+      {map && (
+        <FavCard
+          label="Carte la plus jouée"
+          name={map.name}
+          hint="Voir les cartes et modes"
+          onOpen={() => onOpen('maps')}
+          line={[`${int.format(map.matches ?? 0)} ${(map.matches ?? 0) > 1 ? 'matchs' : 'match'}`, map.winPercent !== undefined && `${percent(map.winPercent)} de victoires`]}
+        >
+          <span className="bf-fav-vis is-map">{map.image && <img src={map.image} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}</span>
+        </FavCard>
+      )}
     </section>
   )
 }
 
-function BriefCard(props: { label: string; name: string; line: (string | false | undefined)[]; foot: string; onOpen: () => void; children: React.ReactNode }): React.JSX.Element {
-  const { label, name, line, foot, onOpen, children } = props
+function FavCard(props: { label: string; name: string; line: (string | false | undefined)[]; hint: string; onOpen: () => void; children: React.ReactNode }): React.JSX.Element {
+  const { label, name, line, hint, onOpen, children } = props
   return (
-    <article className="bf-brief-card">
+    <button className="bf-fav" onClick={onOpen} title={hint}>
       {children}
-      <div className="bf-brief-body">
+      <span className="bf-fav-text">
         <span className="bf-overline">{label}</span>
-        <span className="bf-brief-name" title={name}>
-          {name}
-        </span>
-        <span className="bf-brief-line num">{line.filter(Boolean).join(' · ')}</span>
-      </div>
-      <button className="bf-brief-foot" onClick={onOpen}>
-        {foot}
-        <Icon name="chevron-right" size={14} />
-      </button>
-    </article>
+        <span className="bf-fav-name">{name}</span>
+        <span className="bf-fav-line num">{line.filter(Boolean).join(' · ')}</span>
+        <span className="sr-only">, {hint}</span>
+      </span>
+      <Icon name="chevron-right" size={16} className="bf-fav-go" />
+    </button>
   )
 }
 
-/** Petite courbe du K/D jour par jour. */
-function Spark({ points }: { points: Bf6Point[] }): React.JSX.Element {
-  const W = 228
-  const H = 56
-  if (points.length < 2) {
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-        <path className="bf-spark-empty" d={`M2 ${H - 8} C 60 ${H - 10}, 90 ${H / 2}, 130 ${H / 2 + 2} S 200 12, ${W - 2} 10`} />
-      </svg>
-    )
-  }
-  const values = points.map(kdOf)
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const span = max - min || 1
-  const xy = values.map((v, i) => [(i / (values.length - 1)) * (W - 4) + 2, H - 6 - ((v - min) / span) * (H - 14)] as const)
-  const line = xy.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+/* ---------- chiffres clés ---------- */
+
+function KeyTiles({ snap }: { snap: Bf6Snapshot }): React.JSX.Element {
+  const s = snap.stats
+  // `meter` : une vraie proportion (0-100), dessinée en jauge.
+  const tiles: { label: string; value: string; foot: string; meter?: number }[] = [
+    { label: 'Éliminations', value: int.format(s.kills), foot: `${int.format(s.assists)} ${s.assists > 1 ? 'assistances' : 'assistance'}` },
+    { label: 'Morts', value: int.format(s.deaths), foot: `${dec.format(s.killDeath)} élim. par mort` },
+    { label: 'Matchs', value: int.format(s.matches), foot: `${int.format(s.wins)} V · ${int.format(s.losses)} D`, meter: s.winPercent },
+    { label: 'Précision', value: percent(s.accuracy), foot: 'Tirs touchés', meter: s.accuracy },
+    { label: 'Tirs à la tête', value: percent(s.headshots), foot: 'Des éliminations', meter: s.headshots },
+    { label: 'Réanimations', value: int.format(s.revives), foot: 'Coéquipiers relevés' },
+    { label: 'Assistances', value: int.format(s.assists), foot: s.matches ? `${dec.format(s.assists / s.matches)} par match` : '–' }
+  ]
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-      <polygon className="bf-spark-area" points={`${line} ${W - 2},${H} 2,${H}`} />
-      <polyline className="bf-spark-line" points={line} />
-    </svg>
+    <section className="bf-card bf-keys" aria-labelledby="bf-keys-title">
+      <h2 id="bf-keys-title" className="bf-card-title">
+        Chiffres clés
+      </h2>
+      <dl className="bf-tiles">
+        {tiles.map((t, i) => (
+          <div key={t.label} className="bf-tile" style={{ '--i': i } as React.CSSProperties}>
+            <dt className="bf-tile-label">{t.label}</dt>
+            <dd className="bf-tile-value num">{t.value}</dd>
+            {t.meter !== undefined && (
+              <dd className="bf-meter" aria-hidden="true">
+                <span style={{ '--v': Math.min(100, Math.max(0, t.meter)) / 100 } as React.CSSProperties} />
+              </dd>
+            )}
+            <dd className="bf-tile-foot num">{t.foot}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   )
 }
 
@@ -572,93 +703,6 @@ function PlayerSearch({ action, onPick, exclude = [] }: { action: string; onPick
   )
 }
 
-/* ---------- en-tête du joueur ---------- */
-
-function PlayerIdentity({
-  account,
-  name,
-  state,
-  logo,
-  onLogoError,
-  onUnlink
-}: {
-  account: Bf6Account
-  name: string
-  state: ReturnType<typeof useBf6>
-  /** Logo du jeu (catalogue Steam), en petit au-dessus du pseudo. */
-  logo?: string
-  onLogoError: () => void
-  onUnlink: () => void
-}): React.JSX.Element {
-  const { snap, loading, refresh } = state
-  return (
-    <div className="bf-id">
-      <span className="bf-id-avatar">
-        <Avatar name={name} url={snap?.stats.avatarUrl} size={76} />
-      </span>
-      <div className="bf-id-text">
-        <span className="bf-kicker-row">
-          {logo && <img className="bf-logo is-small" src={logo} alt="" draggable={false} onError={onLogoError} />}
-          <span className="bf-overline">{logo ? 'Ton profil' : 'Battlefield 6 · Ton profil'}</span>
-        </span>
-        <h1 className="bf-hero-title" title={name}>
-          {name}
-        </h1>
-        <div className="bf-id-meta">
-          <span className="bf-plat">{PLATFORM_LABEL[account.platform]}</span>
-          {snap && <span className="bf-meta-item">Mis à jour {timeAgo(snap.fetchedAt)}</span>}
-        </div>
-        <div className="bf-id-actions">
-          <button className="btn btn-secondary btn-sm" onClick={refresh} disabled={loading}>
-            {loading ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
-            Actualiser
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={onUnlink}>
-            Changer de compte
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ---------- chiffres clés ---------- */
-
-function KeyTiles({ snap }: { snap: Bf6Snapshot }): React.JSX.Element {
-  const s = snap.stats
-  // `meter` : une vraie proportion (0-100), dessinée en jauge.
-  const tiles: { label: string; value: string; foot: string; meter?: number }[] = [
-    { label: 'Éliminations', value: int.format(s.kills), foot: `${int.format(s.assists)} ${s.assists > 1 ? 'assistances' : 'assistance'}` },
-    { label: 'Morts', value: int.format(s.deaths), foot: `${dec.format(s.killDeath)} élim. par mort` },
-    { label: 'Matchs', value: int.format(s.matches), foot: `${int.format(s.wins)} V · ${int.format(s.losses)} D`, meter: s.winPercent },
-    {
-      label: 'Temps de jeu',
-      value: duration(s.secondsPlayed),
-      foot: s.matches ? `${int.format(Math.round(s.secondsPlayed / 60 / s.matches))} min par match` : '–'
-    },
-    { label: 'Précision', value: percent(s.accuracy), foot: 'Tirs touchés', meter: s.accuracy },
-    { label: 'Tirs à la tête', value: percent(s.headshots), foot: 'Des éliminations', meter: s.headshots },
-    { label: 'Réanimations', value: int.format(s.revives), foot: 'Coéquipiers relevés' },
-    { label: 'Assistances', value: int.format(s.assists), foot: s.matches ? `${dec.format(s.assists / s.matches)} par match` : '–' }
-  ]
-  return (
-    <section className="bf-tiles" aria-label="Chiffres clés">
-      {tiles.map((t, i) => (
-        <div key={t.label} className="card-surface bf-tile" style={{ '--i': i } as React.CSSProperties}>
-          <span className="overline">{t.label}</span>
-          <span className="bf-tile-value num">{t.value}</span>
-          {t.meter !== undefined && (
-            <span className="bf-meter" aria-hidden="true">
-              <span style={{ width: `${Math.min(100, Math.max(0, t.meter))}%` }} />
-            </span>
-          )}
-          <span className="caption num">{t.foot}</span>
-        </div>
-      ))}
-    </section>
-  )
-}
-
 /* ---------- armes favorites et classes ---------- */
 
 /** Visuel d'une arme ; sans image (ou image en échec), son nom en filigrane. */
@@ -675,7 +719,7 @@ function Arsenal({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
     .slice(0, 3)
   if (!top.length) return null
   return (
-    <section className="card-surface bf-card" aria-labelledby="bf-arsenal-title">
+    <section className="bf-card" aria-labelledby="bf-arsenal-title">
       <header className="bf-card-head">
         <h2 id="bf-arsenal-title" className="bf-card-title">
           Armes favorites
@@ -719,7 +763,7 @@ function Classes({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
   if (!list.length) return null
   const total = list.reduce((n, c) => n + (c.kills ?? 0), 0)
   return (
-    <section className="card-surface bf-card" aria-labelledby="bf-classes-title">
+    <section className="bf-card" aria-labelledby="bf-classes-title">
       <header className="bf-card-head">
         <h2 id="bf-classes-title" className="bf-card-title">
           Classes
@@ -740,7 +784,7 @@ function Classes({ snap }: { snap: Bf6Snapshot }): React.JSX.Element | null {
                   <span className="bf-class-share num">{percent(share)}</span>
                 </span>
                 <span className="bf-meter" aria-hidden="true">
-                  <span style={{ width: `${share}%` }} />
+                  <span style={{ '--v': share / 100 } as React.CSSProperties} />
                 </span>
                 <span className="caption num">
                   {int.format(c.kills ?? 0)} élim.
@@ -865,12 +909,12 @@ function Details({ snap, tabs, title }: { snap: Bf6Snapshot; tabs: Tab[]; title:
   const shown = all ? list : list.slice(0, TOP)
 
   return (
-    <section className="card-surface bf-card" aria-labelledby={titleId}>
+    <section className="bf-card" aria-labelledby={titleId}>
       <header className="bf-card-head">
         <h2 id={titleId} className="bf-card-title">
           {title}
         </h2>
-        <div className="seg" role="tablist" aria-label="Catégorie">
+        <div className="seg bf-seg" role="tablist" aria-label="Catégorie">
           {tabs.map((id) => TABS.find((t) => t.id === id)!).map((t) => (
             <button
               key={t.id}
@@ -983,12 +1027,12 @@ function Leaderboard({ tracked, meSnap, meError, meLoading, rivals: board, onCha
   const remove = (a: Bf6Account): void => onChange({ ...tracked, rivals: tracked.rivals.filter((r) => keyOf(r) !== keyOf(a)) })
 
   return (
-    <section className="card-surface bf-card" aria-labelledby="bf-board-title">
+    <section className="bf-card bf-board-card" aria-labelledby="bf-board-title">
       <header className="bf-card-head">
         <h2 id="bf-board-title" className="bf-card-title">
           Classement
         </h2>
-        <div className="seg" role="tablist" aria-label="Classer par">
+        <div className="seg bf-seg" role="tablist" aria-label="Classer par">
           {METRICS.map((m) => (
             <button key={m.id} role="tab" aria-selected={metric === m.id} className={metric === m.id ? 'active' : ''} onClick={() => setMetric(m.id)}>
               {m.label}
@@ -1049,7 +1093,7 @@ function Leaderboard({ tracked, meSnap, meError, meLoading, rivals: board, onCha
                 </span>
                 {v !== undefined ? (
                   <span className="bf-bar" aria-hidden="true">
-                    <span style={{ width: `${max ? Math.max(3, (v / max) * 100) : 0}%` }} />
+                    <span style={{ '--v': max ? Math.max(0.03, v / max) : 0 } as React.CSSProperties} />
                   </span>
                 ) : (
                   <span className="caption">{e.error ?? 'Chargement…'}</span>
