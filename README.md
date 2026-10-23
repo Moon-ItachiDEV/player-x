@@ -66,7 +66,11 @@ EA ne propose pas d’API publique pour Battlefield 6. Les chiffres viennent de 
 
 ## Counter-Strike 2 : match en direct et bilan
 
+![Match CS2 en direct](docs/screenshots/cs2-en-match.png)
+
 Pendant un match, la fiche de CS2 montre une carte **En match** : carte et mode, round en cours, score de ton camp, tes éliminations, morts et assistances, ton K/D, tes MVP, tes points, et dans le round en cours tes éliminations, tes points de vie et ton argent. À la fin du match, un **bilan** s’ouvre (ou une notification Windows si Player X est caché, une seule à la fermeture du jeu) : résultat et score, K/D, % de headshots, dégâts par round (ADR), MVP, meilleur round, rounds à 3K, 4K ou ace, et la **frise des rounds** (gagnés, perdus, et comment : élimination, bombe, désamorçage, temps écoulé). Tes derniers matchs restent dans la fiche de CS2.
+
+![Bilan de fin de match CS2](docs/screenshots/cs2-bilan.png)
 
 Les chiffres viennent de CS2 lui-même, par la [Game State Integration](https://developer.valvesoftware.com/wiki/Counter-Strike:_Global_Offensive_Game_State_Integration) de Valve : officielle, gratuite, sans clé ni compte, et sans risque pour l’anti-triche. Player X dépose un petit fichier `gamestate_integration_playerx.cfg` dans le dossier `game/csgo/cfg` de CS2 ; le jeu le lit à son démarrage (relance-le s’il tournait déjà) et envoie ensuite l’état du match à Player X, sur ton PC seulement (`127.0.0.1`, avec un jeton). En partie, CS2 ne donne que tes chiffres, pas ceux des autres joueurs ; mort, il envoie le joueur que tu regardes, que Player X ignore. Un match rejoint en cours de route a un bilan partiel (headshots et ADR sur les rounds suivis). Se coupe dans **Paramètres › Interface** (le fichier est alors retiré).
 
