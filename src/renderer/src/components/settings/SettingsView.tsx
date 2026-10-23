@@ -16,11 +16,9 @@ import { AdvancedSection } from './AdvancedSection'
 import { openRecap, sampleRecap } from '../stats/Recap'
 import { openCs2Recap, sampleCs2Recap } from '../cs2/useCs2'
 import { BackgroundRows } from './BackgroundRows'
+import { OverlaySection } from './OverlaySection'
 import { Collapse, SectionHead, SettingRow, SettingsCard, storeCaption, useNow } from './parts'
 import './settings.css'
-
-/** Overlay CS2 : Verre (B) par défaut, les deux autres gardés pour comparer. */
-const OVERLAY_LABEL = { a: 'Façon Apple', b: 'Verre', c: 'Finition Player X' } as const
 
 const SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: 'accounts', label: 'Comptes' },
@@ -104,7 +102,7 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
           {section === 'interface' && (
             <InterfaceSection ui={props.ui} onUiChange={props.onUiChange} settings={settings} onSaveSettings={props.onSaveSettings} />
           )}
-          {section === 'overlay' && <OverlaySection settings={settings} onSaveSettings={props.onSaveSettings} />}
+          {section === 'overlay' && <OverlaySection settings={settings} onSaveSettings={props.onSaveSettings} games={props.games} />}
           {section === 'advanced' && (
             <AdvancedSection settings={settings} report={props.report} onSaveSettings={props.onSaveSettings} focusCard={focusCard} onFocused={clearFocus} />
           )}
@@ -378,78 +376,6 @@ function launchWindowCaption(settings: Settings): string {
   return settings.launchWindow === 'minimize'
     ? 'Se réduit quand le jeu est détecté et revient quand tu le quittes, sauf s’il était agrandi'
     : 'Player X reste ouvert derrière le jeu, sans jamais passer devant'
-}
-
-interface OverlayProps {
-  settings: Settings
-  onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>
-}
-
-/** Overlay : un bloc par jeu qui en a un (CS2 pour l'instant, gratuit). Premium : annoncé, rien à acheter. */
-function OverlaySection({ settings, onSaveSettings }: OverlayProps): React.JSX.Element {
-  const notify = useToast()
-  return (
-    <>
-      <SectionHead title="Overlay">
-        Tes chiffres par-dessus le jeu, pendant les matchs. Rien n'est injecté dans le jeu : c'est une fenêtre transparente de Player X, qui ne prend ni la
-        souris ni le clavier.
-      </SectionHead>
-      <SettingsCard
-        title="Counter-Strike 2"
-        meta={
-          <span className="set-plans">
-            <span className="set-plan is-free">Gratuit</span>
-            <span className="set-plan is-soon" title="Les formules Premium sont en préparation : rien à acheter pour l'instant">
-              Premium · en préparation
-            </span>
-          </span>
-        }
-      >
-        <SettingRow
-          label="Overlay (bêta)"
-          value={
-            settings.cs2Overlay === 'off'
-              ? 'Désactivé · rien par-dessus le jeu'
-              : 'Activé · tes chiffres par-dessus CS2 en plein écran fenêtré, pendant les matchs. Alt+X le masque'
-          }
-        >
-          <div className="set-inline">
-            <Switch
-              checked={settings.cs2Overlay !== 'off'}
-              // Activé : le style Verre (B), celui gardé par défaut.
-              onChange={(on) => onSaveSettings({ cs2Overlay: on ? 'b' : 'off' }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-              label="Overlay CS2"
-            />
-            <button
-              className="btn btn-secondary btn-sm"
-              disabled={settings.cs2Overlay === 'off'}
-              onClick={() => window.launcher.cs2OverlayPreview().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-            >
-              Aperçu à l’écran
-            </button>
-          </div>
-        </SettingRow>
-        {settings.cs2Overlay !== 'off' && (
-          <SettingRow
-            label="Style de l’overlay"
-            value={settings.cs2Overlay === 'b' ? 'Verre, le style par défaut · les deux autres restent là pour comparer' : `${OVERLAY_LABEL[settings.cs2Overlay]}, à l’essai · Verre est le style par défaut`}
-          >
-            <Segmented
-              className="set-seg"
-              label="Style de l’overlay"
-              value={settings.cs2Overlay}
-              options={[
-                { value: 'b', label: 'Verre' },
-                { value: 'a', label: 'Apple' },
-                { value: 'c', label: 'Player X' }
-              ]}
-              onChange={(cs2Overlay) => onSaveSettings({ cs2Overlay }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-            />
-          </SettingRow>
-        )}
-      </SettingsCard>
-    </>
-  )
 }
 
 interface InterfaceProps {

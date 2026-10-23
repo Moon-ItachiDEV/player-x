@@ -1,0 +1,184 @@
+/* Paramètres › Overlay (OverlaySection.tsx) : image du jeu avec l'overlay posé dessus, raccourci, ce qu'il montre. Classes en .ovs- */
+
+.ovs-scene {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  margin: 4px 0 14px;
+  border-radius: var(--r-lg);
+  background: radial-gradient(120% 90% at 30% 20%, var(--surface-3), var(--bg-1) 70%);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.ovs-scene-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ovs-still {
+  position: absolute;
+  inset: 0;
+}
+.ovs-sample {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 5px 10px;
+  border-radius: var(--r-pill);
+  background: rgba(12, 10, 17, 0.78);
+  font: 600 12px/16px var(--font-ui);
+  color: var(--text-2);
+}
+
+/* Raccourci en jeu : bandeau discret sous l'image. */
+.ovs-keys {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 11px 16px;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  font: 500 14px/20px var(--font-ui);
+  color: var(--text-1);
+}
+.ovs-keys kbd {
+  color: var(--text-1);
+}
+
+.ovs-features {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 28px;
+  margin: 0 0 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line-1);
+}
+.ovs-features dt {
+  font: 600 14px/20px var(--font-ui);
+  color: var(--text-1);
+}
+.ovs-features dd {
+  margin: 2px 0 0;
+  font: 400 13px/19px var(--font-ui);
+  color: var(--text-3);
+}
+
+/* Fortnite (Premium en préparation) : l'image s'assombrit, un cadenas au centre ; un clic ouvre les formules. */
+.ovs-scene-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  border-radius: var(--r-lg);
+}
+.ovs-locked .ovs-scene-art {
+  filter: grayscale(0.4) brightness(0.45);
+  transition: filter var(--d-2) var(--ease-out);
+}
+.ovs-scene-btn:hover .ovs-scene-art,
+.ovs-scene-btn:focus-visible .ovs-scene-art {
+  filter: grayscale(0.2) brightness(0.55);
+}
+.ovs-lock {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+  color: var(--trophy);
+}
+.ovs-lock b {
+  font: 700 18px/24px var(--font-display);
+  color: var(--text-1);
+}
+.ovs-lock span {
+  margin-top: 4px;
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  background: rgba(12, 10, 17, 0.7);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  font: 600 13px/16px var(--font-ui);
+  color: var(--text-1);
+}
+.ovs-scene-btn:hover .ovs-lock span {
+  box-shadow: inset 0 0 0 1px var(--line-3);
+}
+.ovs-note {
+  margin: 0 0 4px;
+  font: 400 13px/19px var(--font-ui);
+  color: var(--text-3);
+}
+
+/* Popup Gratuit ou Premium */
+.dialog.ovs-plans-dialog {
+  width: 640px;
+}
+.ovs-plans {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.ovs-plan {
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.ovs-plan.is-premium {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--trophy) 40%, transparent);
+}
+.ovs-plan h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 10px;
+  font: 700 17px/22px var(--font-display);
+}
+.ovs-plan ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ovs-plan li {
+  position: relative;
+  padding-left: 18px;
+  font: 400 13.5px/19px var(--font-ui);
+  color: var(--text-2);
+}
+.ovs-plan li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+}
+.ovs-plan.is-premium li::before {
+  background: var(--trophy);
+}
+.ovs-plans-note {
+  margin: 14px 0 0;
+  font: 400 13px/19px var(--font-ui);
+  color: var(--text-3);
+}
+
+@media (max-width: 1100px) {
+  .ovs-features {
+    grid-template-columns: 1fr;
+  }
+}

@@ -134,6 +134,20 @@ export default function OverlayApp(): React.JSX.Element | null {
   )
 }
 
+/**
+ * Image fixe de l'overlay pour Paramètres › Overlay : temps d'achat et bilan de fin, chiffres d'exemple, dans un cadre
+ * 16:9 mis à l'échelle (le parent pose `zoom`). Les vraies pièces de l'overlay, rien de dessiné à part.
+ */
+export function OverlayStill({ style }: { style: Cs2OverlayStyle }): React.JSX.Element {
+  const recap = sampleCs2Recap()
+  return (
+    <div className={`ov-root ov-${style} ov-still`} aria-hidden="true">
+      <Buy live={sampleLive('buy')} style={style} />
+      <End recap={recap} style={style} left={20} />
+    </div>
+  )
+}
+
 // ---------- pièces ----------
 
 function Strip({ rounds, style, upcoming = 0 }: { rounds: Cs2Round[]; style: Cs2OverlayStyle; upcoming?: number }): React.JSX.Element {

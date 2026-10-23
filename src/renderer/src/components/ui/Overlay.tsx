@@ -62,9 +62,11 @@ interface DialogProps {
   children: React.ReactNode
   onClose: () => void
   actions: React.ReactNode
+  /** Classe en plus sur la boîte (ex. une largeur propre). */
+  className?: string
 }
 
-export function Dialog({ open, title, children, onClose, actions }: DialogProps): React.JSX.Element | null {
+export function Dialog({ open, title, children, onClose, actions, className = '' }: DialogProps): React.JSX.Element | null {
   useEscape(open, onClose)
   // Fermé : le dialogue reste affiché le temps de sa sortie (LEAVE_MS), avec le contenu qu'il avait ouvert.
   const last = useRef({ title, children, actions })
@@ -87,7 +89,7 @@ export function Dialog({ open, title, children, onClose, actions }: DialogProps)
     const l = last.current
     return (
       <div className="dialog-scrim is-leaving" aria-hidden="true">
-        <div className="dialog" role="dialog" aria-label={l.title}>
+        <div className={`dialog ${className}`} role="dialog" aria-label={l.title}>
           <h2>{l.title}</h2>
           <div>{l.children}</div>
           <div className="dialog-actions">{l.actions}</div>
@@ -98,7 +100,7 @@ export function Dialog({ open, title, children, onClose, actions }: DialogProps)
   if (!open) return null
   return (
     <div className="dialog-scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dialog" role="dialog" aria-modal="true" aria-label={title}>
+      <div className={`dialog ${className}`} role="dialog" aria-modal="true" aria-label={title}>
         <h2>{title}</h2>
         <div>{children}</div>
         <div className="dialog-actions">{actions}</div>

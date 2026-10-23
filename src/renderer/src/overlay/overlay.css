@@ -71,6 +71,17 @@ html.ov-page #root {
   background: currentColor;
   opacity: 0.25;
 }
+/* Image fixe dans Paramètres › Overlay : dans son cadre au lieu de tout l'écran, sans animation d'entrée. */
+.ov-root.ov-still {
+  position: absolute;
+  width: 1920px;
+  height: 1080px;
+  inset: 0 auto auto 0;
+}
+.ov-still * {
+  animation: none !important;
+}
+
 .ov-sample {
   position: absolute;
   left: 50%;

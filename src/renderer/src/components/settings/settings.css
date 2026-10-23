@@ -125,12 +125,7 @@
   color: var(--text-3);
   white-space: nowrap;
 }
-/* Overlay : formules d'un jeu. Gratuit = disponible ; Premium = annoncé seulement (pointillés, pas cliquable). */
-.set-plans {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+/* Overlay : formule d'un jeu. Gratuit = disponible ; Premium = or ; en préparation = pointillés (annoncé, pas cliquable). */
 .set-plan {
   display: inline-flex;
   align-items: center;
@@ -142,6 +137,10 @@
 .set-plan.is-free {
   background: var(--success-soft);
   color: var(--success);
+}
+.set-plan.is-premium {
+  background: color-mix(in srgb, var(--trophy) 16%, transparent);
+  color: var(--trophy);
 }
 .set-plan.is-soon {
   border: 1px dashed var(--line-3);

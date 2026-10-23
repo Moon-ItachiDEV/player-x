@@ -196,6 +196,8 @@ export interface TrophiesProps {
 /** components/settings/SettingsView.tsx → `export function SettingsView` */
 export interface SettingsProps {
   section: SettingsSection
+  /** Jeux de la bibliothèque (images des jeux dans Paramètres › Overlay). */
+  games: Game[]
   onSection: (s: SettingsSection) => void
   settings: Settings
   accounts: Account[]

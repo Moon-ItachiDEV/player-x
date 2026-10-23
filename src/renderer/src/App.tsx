@@ -717,6 +717,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
           {view === 'settings' && (
             <SettingsView
               section={section}
+              games={games}
               onSection={setSection}
               settings={settings}
               accounts={accounts}
