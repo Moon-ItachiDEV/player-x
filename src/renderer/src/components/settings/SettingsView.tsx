@@ -1,10 +1,11 @@
-// Paramètres : une section par onglet (barre du haut). Pas de bouton « Enregistrer » global : chaque réglage s'applique seul.
+// Paramètres : un sous-menu à gauche (une section à la fois), les réglages en cartes à droite.
+// Pas de bouton « Enregistrer » global : chaque réglage s'applique seul.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { timeAgo } from '@shared/text'
 import type { FriendAlertMode, FriendPlatform, ScanReport, Settings, SteamLibrary, SteamLibraryState } from '@shared/types'
 import { COVER_MIN, type SettingsProps, type SettingsSection, type UiPrefs } from '../../contracts'
 import { useSystemReducedMotion, useSystemReducedTransparency } from '../../motion'
-import { TopTabs } from '../TopTabs'
+import { TopTitle } from '../TopTabs'
 import { Icon } from '../ui/Icon'
 import { Segmented, Switch } from '../ui/Overlay'
 import { STORE_LONG, StoreTag } from '../ui/StoreTag'
@@ -15,7 +16,7 @@ import { AdvancedSection } from './AdvancedSection'
 import { openRecap, sampleRecap } from '../stats/Recap'
 import { openCs2Recap, sampleCs2Recap } from '../cs2/useCs2'
 import { BackgroundRows } from './BackgroundRows'
-import { Collapse, SectionHead, SettingRow, storeCaption, useNow } from './parts'
+import { Collapse, SectionHead, SettingRow, SettingsCard, storeCaption, useNow } from './parts'
 import './settings.css'
 
 /** Overlay CS2 : Verre (B) par défaut, les deux autres gardés pour comparer. */
@@ -60,14 +61,9 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
   return (
     <div className="set-page" ref={rootRef}>
       <h1 className="sr-only">Paramètres</h1>
-      <TopTabs<SettingsSection>
-        label="Sections des paramètres"
-        idBase="set"
-        value={section}
-        onChange={onSection}
-        tabs={SECTIONS.map((t) => (t.id === 'accounts' && attention > 0 ? { ...t, alert: 'action requise' } : t))}
-      />
+      <TopTitle>Paramètres</TopTitle>
       <div className="set-layout">
+        <SettingsNav value={section} onChange={onSection} alert={attention > 0 ? 'accounts' : null} />
         <div className="set-main" id="set-panel" role="tabpanel" aria-labelledby={`set-tab-${section}`}>
           {section === 'accounts' && (
             <AccountsSection
@@ -81,6 +77,9 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
               onShowMember={props.onShowMember}
               focus={props.focus}
               onFocused={props.onFocused}
+              report={props.report}
+              scanning={props.scanning}
+              onRescan={props.onRescan}
             />
           )}
           {section === 'library' && (
@@ -109,6 +108,50 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
           {section === 'about' && <AboutSection settings={settings} onSaveSettings={props.onSaveSettings} />}
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Sous-menu des sections : onglets verticaux. Flèches, Début/Fin : section voisine (activation directe). */
+function SettingsNav({ value, onChange, alert }: { value: SettingsSection; onChange: (s: SettingsSection) => void; alert: SettingsSection | null }): React.JSX.Element {
+  const list = useRef<HTMLDivElement>(null)
+
+  const onKeyDown = (e: React.KeyboardEvent): void => {
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return
+    e.preventDefault()
+    const i = SECTIONS.findIndex((t) => t.id === value)
+    const last = SECTIONS.length - 1
+    const back = e.key === 'ArrowUp' || e.key === 'ArrowLeft'
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? last : back ? (i <= 0 ? last : i - 1) : i === last ? 0 : i + 1
+    onChange(SECTIONS[next].id)
+    list.current?.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus()
+  }
+
+  return (
+    <div ref={list} className="set-nav" role="tablist" aria-label="Sections des paramètres" aria-orientation="vertical" onKeyDown={onKeyDown}>
+      {SECTIONS.map((t) => {
+        const on = t.id === value
+        return (
+            <button
+              key={t.id}
+              id={`set-tab-${t.id}`}
+              className="set-nav-item"
+              role="tab"
+              aria-selected={on}
+              aria-controls="set-panel"
+              tabIndex={on ? 0 : -1}
+              onClick={() => onChange(t.id)}
+            >
+              {t.label}
+              {alert === t.id && (
+                <span className="set-nav-alert" title="Action requise">
+                  <Icon name="alert-circle" size={15} />
+                  <span className="sr-only">· action requise</span>
+                </span>
+              )}
+            </button>
+        )
+      })}
     </div>
   )
 }
@@ -144,60 +187,67 @@ function LibrarySection(props: LibraryProps): React.JSX.Element {
           <p>Le mode démo est actif : ta bibliothèque affiche des jeux fictifs. Le rapport ci-dessous reste celui de ce PC.</p>
         </div>
       )}
-      <div className="set-stores" aria-busy={scanning && !report.length}>
-        {report.length ? (
-          report.map((r) => <StoreRow key={r.store} report={r} />)
-        ) : scanning ? (
-          [0, 1, 2].map((i) => (
-            <div className="set-store" key={i}>
-              <div className="set-store-main">
-                <span className="skel set-skel-tag" />
-                <span className="skel set-skel-line" />
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="set-store-empty">Aucun rapport de scan pour le moment. Relance un scan pour voir ce qui est détecté.</p>
-        )}
-      </div>
-      <div className="set-scan">
-        <button className="btn btn-secondary" onClick={onRescan} disabled={scanning}>
-          {scanning ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
-          {scanning ? 'Scan en cours…' : 'Relancer le scan'}
-        </button>
-        <span className="caption">
-          {lastScanAt ? `Dernier scan : ${timeAgo(lastScanAt, Math.max(now, lastScanAt))}` : 'Aucun scan pour le moment'}
-          {' · '}
-          <span className="num">{gamesCount}</span> jeu{gamesCount > 1 ? 'x' : ''} dans ta bibliothèque
-        </span>
-      </div>
-      <SettingRow label="Jeux favoris" value="Mis en avant en tête de ta bibliothèque">
-        <button className="btn btn-secondary" onClick={onOpenSetup} disabled={gamesCount === 0} data-open-setup>
-          <Icon name="star" size={16} />
-          Choisir mes jeux favoris
-        </button>
-      </SettingRow>
-      <SettingRow
-        label="Actus des jeux"
-        value={
-          settings.gameNews
-            ? 'Activées · annonces officielles de Steam dans la fiche et dans Actus des jeux, badge « Nouveau patch » sur les jeux mis à jour cette semaine'
-            : 'Désactivées · Player X ne demande plus les actus de tes jeux à Steam'
+      <SettingsCard
+        title="Jeux détectés sur ce PC"
+        meta={
+          <>
+            <span className="num">{gamesCount}</span> jeu{gamesCount > 1 ? 'x' : ''} dans ta bibliothèque
+          </>
         }
       >
-        <Switch
-          checked={settings.gameNews}
-          onChange={(gameNews) => onSaveSettings({ gameNews }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+        <div className="set-stores" aria-busy={scanning && !report.length}>
+          {report.length ? (
+            report.map((r) => <StoreRow key={r.store} report={r} />)
+          ) : scanning ? (
+            [0, 1, 2].map((i) => (
+              <div className="set-store" key={i}>
+                <div className="set-store-main">
+                  <span className="skel set-skel-tag" />
+                  <span className="skel set-skel-line" />
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="set-store-empty">Aucun rapport de scan pour le moment. Relance un scan pour voir ce qui est détecté.</p>
+          )}
+        </div>
+        <div className="set-scan">
+          <span className="caption">{lastScanAt ? `Dernier scan : ${timeAgo(lastScanAt, Math.max(now, lastScanAt))}` : 'Aucun scan pour le moment'}</span>
+          <button className="btn btn-secondary" onClick={onRescan} disabled={scanning}>
+            {scanning ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
+            {scanning ? 'Scan en cours…' : 'Relancer le scan'}
+          </button>
+        </div>
+      </SettingsCard>
+      <SettingsCard title="Jeux et actus">
+        <SettingRow label="Jeux favoris" value="Mis en avant en tête de ta bibliothèque">
+          <button className="btn btn-secondary" onClick={onOpenSetup} disabled={gamesCount === 0} data-open-setup>
+            <Icon name="star" size={16} />
+            Choisir mes jeux favoris
+          </button>
+        </SettingRow>
+        <SettingRow
           label="Actus des jeux"
+          value={
+            settings.gameNews
+              ? 'Activées · annonces officielles de Steam dans la fiche et dans Actus des jeux, badge « Nouveau patch » sur les jeux mis à jour cette semaine'
+              : 'Désactivées · Player X ne demande plus les actus de tes jeux à Steam'
+          }
+        >
+          <Switch
+            checked={settings.gameNews}
+            onChange={(gameNews) => onSaveSettings({ gameNews }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+            label="Actus des jeux"
+          />
+        </SettingRow>
+        <SteamLibraryRow
+          lib={props.steamLibrary}
+          demo={demo}
+          onRefresh={props.onRefreshSteamLibrary}
+          onConnect={props.onConnectSteam}
+          onConfigure={props.onConfigureSteam}
         />
-      </SettingRow>
-      <SteamLibraryRow
-        lib={props.steamLibrary}
-        demo={demo}
-        onRefresh={props.onRefreshSteamLibrary}
-        onConnect={props.onConnectSteam}
-        onConfigure={props.onConfigureSteam}
-      />
+      </SettingsCard>
     </>
   )
 }
@@ -335,7 +385,7 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
   return (
     <>
       <SectionHead title="Interface">Ces préférences s'appliquent tout de suite et restent sur ce PC.</SectionHead>
-      <div className="set-rows">
+      <SettingsCard title="Affichage">
         <SettingRow
           label="Taille des jaquettes"
           value={
@@ -345,6 +395,7 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
           }
         >
           <Segmented
+            className="set-seg"
             label="Taille des jaquettes"
             value={ui.coverSize}
             options={(['S', 'M', 'L'] as const).map((v) => ({ value: v, label: SIZE_LABEL[v] }))}
@@ -387,8 +438,11 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
         >
           <Switch checked={ui.transparency} onChange={(transparency) => onUiChange({ transparency })} label="Effets de transparence" />
         </SettingRow>
+      </SettingsCard>
+      <SettingsCard title="Fenêtre">
         <SettingRow label="Quand un jeu démarre" value={launchWindowCaption(settings)}>
           <Segmented
+            className="set-seg"
             label="Quand un jeu démarre"
             value={settings.launchWindow}
             disabled={!IS_WINDOWS}
@@ -400,9 +454,12 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
           />
         </SettingRow>
         <BackgroundRows settings={settings} onSaveSettings={onSaveSettings} />
+      </SettingsCard>
+      <SettingsCard title="Notifications">
         <SettingRow label="Alertes d'amis" value={ALERT_LABEL[settings.friendAlerts]}>
           <div className="set-inline">
             <Segmented
+              className="set-seg"
               label="Alertes d'amis"
               value={settings.friendAlerts}
               options={[
@@ -421,6 +478,8 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
             </button>
           </div>
         </SettingRow>
+      </SettingsCard>
+      <SettingsCard title="Bilans de match">
         <SettingRow
           label="Bilan Battlefield 6"
           value={
@@ -459,52 +518,53 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
             </button>
           </div>
         </SettingRow>
-        {(settings.updateChannel === 'beta' || /-/.test(window.launcher.version)) && (
-          <>
-            <SettingRow
-              label="Overlay CS2 (bêta)"
-              value={
-                settings.cs2Overlay === 'off'
-                  ? 'Désactivé · rien par-dessus le jeu'
-                  : 'Activé · tes chiffres par-dessus CS2 en plein écran fenêtré, pendant les matchs. Alt+X le masque'
-              }
-            >
-              <div className="set-inline">
-                <Switch
-                  checked={settings.cs2Overlay !== 'off'}
-                  // Activé : le style Verre (B), celui gardé par défaut.
-                  onChange={(on) => onSaveSettings({ cs2Overlay: on ? 'b' : 'off' }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-                  label="Overlay CS2"
-                />
-                <button
-                  className="btn btn-secondary btn-sm"
-                  disabled={settings.cs2Overlay === 'off'}
-                  onClick={() => window.launcher.cs2OverlayPreview().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-                >
-                  Aperçu à l’écran
-                </button>
-              </div>
-            </SettingRow>
-            {settings.cs2Overlay !== 'off' && (
-              <SettingRow
-                label="Style de l’overlay"
-                value={settings.cs2Overlay === 'b' ? 'Verre, le style par défaut · les deux autres restent là pour comparer' : `${OVERLAY_LABEL[settings.cs2Overlay]}, à l’essai · Verre est le style par défaut`}
+      </SettingsCard>
+      {(settings.updateChannel === 'beta' || /-/.test(window.launcher.version)) && (
+        <SettingsCard title="Overlay CS2" beta>
+          <SettingRow
+            label="Overlay CS2 (bêta)"
+            value={
+              settings.cs2Overlay === 'off'
+                ? 'Désactivé · rien par-dessus le jeu'
+                : 'Activé · tes chiffres par-dessus CS2 en plein écran fenêtré, pendant les matchs. Alt+X le masque'
+            }
+          >
+            <div className="set-inline">
+              <Switch
+                checked={settings.cs2Overlay !== 'off'}
+                // Activé : le style Verre (B), celui gardé par défaut.
+                onChange={(on) => onSaveSettings({ cs2Overlay: on ? 'b' : 'off' }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+                label="Overlay CS2"
+              />
+              <button
+                className="btn btn-secondary btn-sm"
+                disabled={settings.cs2Overlay === 'off'}
+                onClick={() => window.launcher.cs2OverlayPreview().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
               >
-                <Segmented
-                  label="Style de l’overlay"
-                  value={settings.cs2Overlay}
-                  options={[
-                    { value: 'b', label: 'Verre' },
-                    { value: 'a', label: 'Apple' },
-                    { value: 'c', label: 'Player X' }
-                  ]}
-                  onChange={(cs2Overlay) => onSaveSettings({ cs2Overlay }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-                />
-              </SettingRow>
-            )}
-          </>
-        )}
-      </div>
+                Aperçu à l’écran
+              </button>
+            </div>
+          </SettingRow>
+          {settings.cs2Overlay !== 'off' && (
+            <SettingRow
+              label="Style de l’overlay"
+              value={settings.cs2Overlay === 'b' ? 'Verre, le style par défaut · les deux autres restent là pour comparer' : `${OVERLAY_LABEL[settings.cs2Overlay]}, à l’essai · Verre est le style par défaut`}
+            >
+              <Segmented
+                className="set-seg"
+                label="Style de l’overlay"
+                value={settings.cs2Overlay}
+                options={[
+                  { value: 'b', label: 'Verre' },
+                  { value: 'a', label: 'Apple' },
+                  { value: 'c', label: 'Player X' }
+                ]}
+                onChange={(cs2Overlay) => onSaveSettings({ cs2Overlay }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+              />
+            </SettingRow>
+          )}
+        </SettingsCard>
+      )}
     </>
   )
 }

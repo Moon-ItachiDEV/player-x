@@ -1,5 +1,5 @@
 // Petites briques communes aux sections des paramètres.
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { ScanReport } from '@shared/types'
 import { STORE_LONG } from '../ui/StoreTag'
 
@@ -9,6 +9,36 @@ export function SectionHead({ title, children }: { title: string; children?: Rea
       <h2>{title}</h2>
       {children && <p>{children}</p>}
     </header>
+  )
+}
+
+interface CardProps {
+  /** Titre du bloc (h3). Sans titre, la carte ne porte que ses lignes. */
+  title?: string
+  /** Petite mention à droite du titre (« Discord · 3 masqués »). */
+  meta?: React.ReactNode
+  /** Pastille « Bêta » après le titre. */
+  beta?: boolean
+  className?: string
+  children: React.ReactNode
+}
+
+/** Bloc de réglages : un panneau arrondi, son titre et ses lignes. */
+export function SettingsCard({ title, meta, beta, className = '', children }: CardProps): React.JSX.Element {
+  const id = useId()
+  return (
+    <section className={`set-card ${className}`} aria-labelledby={title ? id : undefined}>
+      {title && (
+        <header className="set-card-head">
+          <h3 id={id}>
+            {title}
+            {beta && <span className="set-beta">Bêta</span>}
+          </h3>
+          {meta && <span className="set-card-meta">{meta}</span>}
+        </header>
+      )}
+      {children}
+    </section>
   )
 }
 
