@@ -20,7 +20,7 @@
   overflow: hidden;
   border-radius: 14px;
   border: 1px solid var(--line-2, rgba(255, 255, 255, 0.1));
-  background: color-mix(in srgb, var(--bg-1, #12151f) 86%, transparent);
+  background: color-mix(in srgb, var(--bg-1, #0c0a11) 86%, transparent);
   box-shadow:
     0 18px 40px -18px rgba(0, 0, 0, 0.7),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -30,7 +30,7 @@
 }
 .no-blur .fa-card {
   backdrop-filter: none;
-  background: var(--bg-1, #12151f);
+  background: var(--bg-1, #0c0a11);
 }
 .fa-card.is-leaving {
   animation: fa-out 260ms cubic-bezier(0.4, 0, 1, 1) both;

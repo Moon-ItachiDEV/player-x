@@ -33,7 +33,7 @@
   overflow: hidden;
   box-shadow:
     0 0 0 1px var(--line-2),
-    0 30px 60px -36px rgba(2, 8, 20, 0.9);
+    0 30px 60px -36px rgba(0, 0, 0, 0.9);
 }
 .bf-hero.is-profile {
   min-height: 272px;
@@ -44,8 +44,8 @@
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(60% 120% at 85% 0%, rgba(46, 120, 210, 0.32) 0%, transparent 60%),
-    radial-gradient(50% 90% at 10% 10%, rgba(63, 208, 255, 0.1) 0%, transparent 70%), var(--bg-2);
+    radial-gradient(60% 120% at 85% 0%, rgba(224, 32, 126, 0.22) 0%, transparent 60%),
+    radial-gradient(50% 90% at 10% 10%, rgba(255, 138, 128, 0.1) 0%, transparent 70%), var(--bg-2);
 }
 .bf-hero-art img {
   position: absolute;
@@ -61,10 +61,10 @@
   position: absolute;
   right: 3%;
   top: 14px;
-  font: 800 180px/1 var(--font-display);
+  font: 700 155px/1 var(--font-display);
   letter-spacing: -0.02em;
   color: transparent;
-  -webkit-text-stroke: 1px rgba(140, 190, 255, 0.1);
+  -webkit-text-stroke: 1px rgba(255, 200, 220, 0.1);
   user-select: none;
 }
 .bf-hero.has-art .bf-hero-mark {
@@ -73,7 +73,7 @@
 .bf-hero-grid {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgba(140, 190, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(140, 190, 255, 0.04) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(255, 200, 220, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 200, 220, 0.04) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(70% 90% at 70% 20%, #000 0%, transparent 75%);
 }
@@ -85,7 +85,7 @@
   position: absolute;
   inset: 0;
   background:
-    repeating-linear-gradient(0deg, rgba(150, 195, 255, 0.035) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(0deg, rgba(255, 200, 220, 0.035) 0 1px, transparent 1px 4px),
     linear-gradient(90deg, color-mix(in srgb, var(--ink) 92%, transparent) 0%, color-mix(in srgb, var(--ink) 60%, transparent) 40%, transparent 72%);
 }
 .bf-hero-body {
@@ -107,9 +107,8 @@
   color: var(--accent);
 }
 .bf-hero-title {
-  font: 800 44px/1 var(--font-display);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font: 700 38px/1 var(--font-display);
+  letter-spacing: -0.01em;
   color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -130,10 +129,10 @@
   box-shadow:
     0 0 0 4px var(--bg-2),
     0 0 0 6px var(--live),
-    0 12px 30px -10px rgba(63, 208, 255, 0.55);
+    0 12px 30px -10px rgba(255, 92, 134, 0.5);
 }
 .bf-id-avatar .avatar-initial {
-  font: 700 30px/1 var(--font-display);
+  font: 700 26px/1 var(--font-display);
 }
 .bf-id-text {
   display: flex;
@@ -187,7 +186,7 @@
 }
 .bf-rank-value b {
   flex-shrink: 0;
-  font: 800 42px/1 var(--font-display);
+  font: 700 36px/1 var(--font-display);
   color: #fff;
 }
 .bf-rank-row {
@@ -246,7 +245,7 @@
 }
 .bf-band-item dd {
   margin: 0;
-  font: 800 21px/26px var(--font-display);
+  font: 700 21px/26px var(--font-display);
   color: #fff;
 }
 .bf-band-item.is-main dd {
@@ -387,7 +386,7 @@
   border-radius: 7px;
   background: var(--badge-bg);
   color: var(--text-1);
-  font: 800 11px/1 var(--font-ui);
+  font: 700 11px/1 var(--font-ui);
 }
 .bf-brief-vis.is-classes {
   display: flex;
@@ -467,8 +466,7 @@
 }
 .bf-brief-name {
   font: 700 17px/22px var(--font-display);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
@@ -497,7 +495,7 @@
 }
 .bf-brief-foot:hover {
   color: var(--text-1);
-  background: rgba(140, 190, 255, 0.05);
+  background: rgba(255, 200, 220, 0.05);
 }
 .bf-brief-foot svg {
   transition: translate var(--d-2) var(--ease-out);
@@ -524,8 +522,7 @@
 }
 .bf-card-title {
   font: 700 17px/22px var(--font-display);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
   color: var(--text-1);
 }
 .bf-text {
@@ -648,7 +645,7 @@
   translate: 0 -2px;
 }
 .bf-tile-value {
-  font: 700 28px/34px var(--font-display);
+  font: 700 24px/29px var(--font-display);
   letter-spacing: -0.01em;
   color: var(--text-1);
 }
@@ -750,7 +747,7 @@
 }
 /* Pas d'image : le nom en grand filigrane. */
 .bf-weapon-ghost {
-  font: 800 30px/1 var(--font-display);
+  font: 700 26px/1 var(--font-display);
   letter-spacing: -0.02em;
   color: transparent;
   -webkit-text-stroke: 1px rgba(255, 255, 255, 0.16);
@@ -908,7 +905,7 @@
 }
 .bf-step.is-1 .bf-step-avatar {
   background: var(--accent);
-  box-shadow: 0 10px 30px -10px rgba(255, 210, 63, 0.6);
+  box-shadow: 0 10px 30px -10px rgba(242, 198, 109, 0.55);
 }
 .bf-step-avatar .avatar {
   box-shadow: 0 0 0 2px var(--surface-1);
@@ -956,7 +953,7 @@
 }
 .bf-step.is-1 .bf-step-block {
   height: 56px;
-  background: linear-gradient(180deg, rgba(255, 210, 63, 0.16) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(242, 198, 109, 0.16) 0%, transparent 100%);
   border-top: 2px solid var(--accent);
 }
 .bf-step.is-2 .bf-step-block {
@@ -1132,7 +1129,7 @@
   background: var(--accent-soft);
   border: 1px solid var(--accent-line);
   color: var(--accent-text);
-  box-shadow: 0 8px 22px -10px rgba(255, 210, 63, 0.45);
+  box-shadow: 0 8px 22px -10px rgba(242, 198, 109, 0.42);
 }
 
 /* Cartes jouées */
@@ -1168,7 +1165,7 @@
   background:
     linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px) 0 0 / 24px 24px,
     linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px) 0 0 / 24px 24px,
-    radial-gradient(120% 120% at 100% 0%, rgba(46, 120, 210, 0.3), transparent 60%),
+    radial-gradient(120% 120% at 100% 0%, rgba(224, 32, 126, 0.22), transparent 60%),
     var(--surface-1);
 }
 .bf-map img {

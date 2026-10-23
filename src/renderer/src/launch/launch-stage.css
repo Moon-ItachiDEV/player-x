@@ -48,7 +48,7 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(closest-side, rgb(47 124 246 / 0.28), transparent) calc(50% - 120px) 50% / 360px 360px no-repeat,
+    radial-gradient(closest-side, rgb(251 79 122 / 0.22), transparent) calc(50% - 120px) 50% / 360px 360px no-repeat,
     linear-gradient(
       90deg,
       color-mix(in srgb, var(--bg-0) 30%, transparent),
@@ -142,8 +142,7 @@
   color: var(--text-2);
 }
 .launch-title {
-  font: 800 36px/0.95 var(--font-display);
-  text-transform: uppercase;
+  font: 700 31px/0.95 var(--font-display);
   color: var(--text-1);
   text-wrap: balance;
   display: -webkit-box;

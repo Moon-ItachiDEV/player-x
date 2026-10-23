@@ -4,11 +4,11 @@
 const C = 80
 const N = 48
 
-// Dégradé de la marque échantillonné par trait : #7c3aed (0) → #4f7cff (.55) → #22d3ee (1).
+// Dégradé de la marque échantillonné par trait : #e0207e (0) → #fb4f7a (.55) → #ff8a80 (1), comme l'icône.
 const STOPS: [number, [number, number, number]][] = [
-  [0, [124, 58, 237]],
-  [0.55, [79, 124, 255]],
-  [1, [34, 211, 238]]
+  [0, [224, 32, 126]],
+  [0.55, [251, 79, 122]],
+  [1, [255, 138, 128]]
 ]
 
 function gradientAt(t: number): string {

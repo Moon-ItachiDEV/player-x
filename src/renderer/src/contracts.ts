@@ -3,14 +3,12 @@ import type { RefObject } from 'react'
 import type { LaunchVia } from '@shared/launch'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 
-export type View = 'home' | 'library' | 'profile' | 'stats' | 'trophies' | 'settings' | 'news'
+export type View = 'home' | 'library' | 'friends' | 'profile' | 'stats' | 'trophies' | 'settings' | 'news'
 export type SettingsSection = 'accounts' | 'library' | 'interface' | 'advanced' | 'about'
 export type LoginPlatform = 'steam' | 'discord' | 'psn'
 
 /** Préférences d'interface, propres à ce PC (localStorage `pg.ui`). */
 export interface UiPrefs {
-  /** Liste d'amis du menu latéral : dépliée ou repliée sur son en-tête. */
-  friendsPanel: 'open' | 'hidden'
   coverSize: 'S' | 'M' | 'L'
   reduceMotion: boolean
   transparency: boolean
@@ -26,7 +24,7 @@ export const COVER_MIN: Record<UiPrefs['coverSize'], number> = { S: 136, M: 164,
  */
 export type LaunchFn = (g: Game, from?: HTMLElement | null, via?: LaunchVia) => void
 
-/** components/FavRail.tsx → `export function FavRail` (rail des jeux favoris, tout à gauche) */
+/** components/FavRail.tsx → `export function FavRail` (rail de gauche : logo, pages, jeux favoris, paramètres) */
 export interface FavRailProps {
   games: Game[]
   /** Clic : lance le jeu. */
@@ -35,25 +33,18 @@ export interface FavRailProps {
   onOpen: (g: Game) => void
   /** « + » : rouvre le choix des favoris. */
   onEditFavorites: () => void
-}
-
-/** components/Sidebar.tsx → `export function Sidebar` (salutation, navigation, amis, paramètres) */
-export interface SidebarProps {
   view: View
   onView: (v: View) => void
   gamesCount: number
-  accounts: Account[]
-  demo: boolean
-  accountMenuOpen: boolean
-  onToggleAccountMenu: () => void
-  friends: SideFriendsProps
-  /** Actus des jeux activées : entrée « Actus des jeux » du menu. */
+  /** Actus des jeux activées : entrée « Actus des jeux » du rail. */
   news: boolean
   /** Jeux qui portent le badge « Nouveau patch ». */
   newsCount: number
+  /** Amis et membres en jeu : pastille cyan sur « Amis ». */
+  friendsInGame: number
 }
 
-/** components/friends/SideFriends.tsx → `export function SideFriends` (liste d'amis du menu latéral) */
+/** components/friends/SideFriends.tsx → `export function SideFriends` (liste d'amis de la page Amis) */
 export interface SideFriendsProps {
   result: FriendsResult
   accounts: Account[]
@@ -62,9 +53,6 @@ export interface SideFriendsProps {
   /** Un serveur Discord est renseigné (ses membres s'affichent même sans compte). */
   discordConfigured: boolean
   loading: boolean
-  /** Liste dépliée (préférence `friendsPanel`). */
-  open: boolean
-  onToggleOpen: () => void
   onRefresh: () => void
   onOpenAccounts: () => void
   /** « Masquer » un membre du serveur Discord ; false si Player X a refusé (le membre reste affiché). */
@@ -83,9 +71,15 @@ export interface TopBarProps {
   searchRef: RefObject<HTMLInputElement | null>
   /** Reçoit l'élément où les pages posent leurs onglets. */
   slotRef: (el: HTMLElement | null) => void
+  /** Bouton du compte (avatar, à droite) : ouvre le menu du compte. */
+  accounts: Account[]
+  accountMenuOpen: boolean
+  onToggleAccountMenu: () => void
+  /** Mode démo : pastille « Démo » dans la barre. */
+  demo: boolean
 }
 
-/** components/AccountMenu.tsx → `export function AccountMenu` (popover ancré sous la salutation du menu latéral) */
+/** components/AccountMenu.tsx → `export function AccountMenu` (popover ancré sous l'avatar de la barre du haut) */
 export interface AccountMenuProps {
   open: boolean
   accounts: Account[]

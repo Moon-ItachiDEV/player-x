@@ -161,7 +161,7 @@ export function WhatsNew(): React.JSX.Element | null {
         <header className="wn-head" ref={headRef}>
           <div className="wn-glow" aria-hidden="true" />
           <span className="wn-sheen" aria-hidden="true" />
-          <BrandMark height={22} />
+          <BrandMark height={36} />
           <span className="overline wn-kicker">{inPreview ? 'Aperçu · Mise à jour installée' : 'Mise à jour installée'}</span>
           <h2 id="wn-title" className="wn-title">
             Quoi de neuf dans la <VersionRoll value={version} base={120} />

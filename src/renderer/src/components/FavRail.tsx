@@ -1,12 +1,12 @@
 import { useMemo, useRef, useState } from 'react'
-import { cleanName } from '@shared/text'
+import { cleanName, plural } from '@shared/text'
 import type { Game } from '@shared/types'
-import type { FavRailProps, LaunchFn } from '../contracts'
+import type { FavRailProps, LaunchFn, View } from '../contracts'
 import { railHint } from '../launch/copy'
 import { usePlayState } from '../launch/usePlayState'
 import { BrandMark } from './ui/Brand'
 import { Cover } from './ui/Cover'
-import { Icon } from './ui/Icon'
+import { Icon, type IconName } from './ui/Icon'
 import './chrome.css'
 
 export type { FavRailProps }
@@ -15,41 +15,98 @@ export type { FavRailProps }
 const IS_MAC = window.launcher?.platform === 'darwin'
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
 
-interface Tip {
-  game: Game
-  top: number
-}
+const NAV: { view: View; icon: IconName; label: string }[] = [
+  { view: 'home', icon: 'home', label: 'Accueil' },
+  { view: 'library', icon: 'grid', label: 'Bibliothèque' },
+  { view: 'friends', icon: 'users', label: 'Amis' },
+  { view: 'stats', icon: 'chart', label: 'Stats de jeu' },
+  { view: 'trophies', icon: 'trophy', label: 'Trophées' },
+  // Seulement avec les actus des jeux (Paramètres › Bibliothèque).
+  { view: 'news', icon: 'news', label: 'Actus des jeux' },
+  { view: 'profile', icon: 'user', label: 'Profil' }
+]
 
-/** Rail des jeux favoris : un clic lance le jeu, un clic droit ouvre sa fiche. Ordre alphabétique, stable. */
-export function FavRail({ games, onLaunch, onOpen, onEditFavorites }: FavRailProps): React.JSX.Element {
+/** Infobulle à droite du rail : un jeu favori (avec le rappel des clics) ou une page (avec son compteur). */
+type Tip = { top: number } & ({ kind: 'game'; game: Game } | { kind: 'page'; label: string; hint?: string })
+
+/**
+ * Rail de gauche (design Braise) : le logo, les pages, puis les jeux favoris (un clic lance le jeu,
+ * un clic droit ouvre sa fiche) et les paramètres en bas.
+ */
+export function FavRail(props: FavRailProps): React.JSX.Element {
+  const { games, onLaunch, onOpen, onEditFavorites, view, onView, gamesCount, news, newsCount, friendsInGame } = props
   const favs = useMemo(() => games.filter((g) => g.favorite).sort((a, b) => collator.compare(cleanName(a.name), cleanName(b.name))), [games])
   const [tip, setTip] = useState<Tip | null>(null)
   const list = useRef<HTMLDivElement>(null)
 
-  const show = (game: Game, el: HTMLElement): void => {
+  const place = (el: HTMLElement): number => {
     const r = el.getBoundingClientRect()
-    setTip({ game, top: r.top + r.height / 2 })
+    return r.top + r.height / 2
   }
+  const showGame = (game: Game, el: HTMLElement): void => setTip({ kind: 'game', game, top: place(el) })
+  const showPage = (label: string, hint: string | undefined, el: HTMLElement): void => setTip({ kind: 'page', label, hint, top: place(el) })
   const hide = (): void => setTip(null)
 
   // L'infobulle suit la position du bouton : on la retire dès que la liste défile.
-  const tipGame = tip ? favs.find((g) => g.id === tip.game.id) : undefined
+  const tipGame = tip?.kind === 'game' ? favs.find((g) => g.id === tip.game.id) : undefined
+
+  /** Compteur d'une page : pastille sur l'icône et texte de l'infobulle. */
+  const badge = (v: View): { count: number; hint: string; info?: boolean; live?: boolean } | null => {
+    if (v === 'library' && gamesCount > 0) return { count: gamesCount, hint: plural(gamesCount, 'jeu', 'jeux') }
+    if (v === 'news' && newsCount > 0) return { count: newsCount, hint: plural(newsCount, 'nouveau patch', 'nouveaux patchs'), info: true }
+    if (v === 'friends' && friendsInGame > 0) return { count: friendsInGame, hint: `${friendsInGame} en jeu`, live: true }
+    return null
+  }
+
+  const navButton = (v: View, icon: IconName, label: string): React.JSX.Element => {
+    const b = badge(v)
+    const hint = b?.hint
+    return (
+      <button
+        key={v}
+        className="rail-nav-btn"
+        aria-label={b ? `${label}, ${hint}` : label}
+        aria-current={view === v ? 'page' : undefined}
+        onClick={() => {
+          hide()
+          onView(v)
+        }}
+        onPointerEnter={(e) => showPage(label, hint, e.currentTarget)}
+        onPointerLeave={hide}
+        onFocus={(e) => e.currentTarget.matches(':focus-visible') && showPage(label, hint, e.currentTarget)}
+        onBlur={hide}
+      >
+        <Icon name={icon} size={22} />
+        {b && v !== 'library' && <span className={`rail-badge num ${b.live ? 'is-live' : ''} ${b.info ? 'is-info' : ''}`}>{b.count > 99 ? '99+' : b.count}</span>}
+      </button>
+    )
+  }
 
   return (
-    <nav className="favrail" aria-label="Jeux favoris">
-      <div className="favrail-logo">{!IS_MAC && <BrandMark height={15} />}</div>
-      <div ref={list} className="favrail-list" onScroll={hide}>
+    <nav className="favrail" aria-label="Navigation">
+      <div className="favrail-logo">{!IS_MAC && <BrandMark height={40} />}</div>
+
+      <div className="rail-nav" role="group" aria-label="Pages">
+        {NAV.filter((n) => n.view !== 'news' || news).map((n) => navButton(n.view, n.icon, n.label))}
+      </div>
+
+      <div className="rail-sep" aria-hidden="true" />
+      <p className="rail-label" aria-hidden="true">
+        Favoris
+      </p>
+
+      <div ref={list} className="favrail-list" role="group" aria-label="Jeux favoris" onScroll={hide}>
         {favs.map((g) => (
           <RailItem
             key={g.id}
             game={g}
-            described={tip?.game.id === g.id}
+            described={tip?.kind === 'game' && tip.game.id === g.id}
             onLaunch={onLaunch}
             onOpen={(game) => {
               hide()
               onOpen(game)
             }}
-            onShow={show}
+            onShow={showGame}
             onHide={hide}
           />
         ))}
@@ -58,7 +115,15 @@ export function FavRail({ games, onLaunch, onOpen, onEditFavorites }: FavRailPro
         </button>
       </div>
 
-      {tip && tipGame && <RailTip game={tipGame} top={tip.top} onLaunch={onLaunch} />}
+      <div className="rail-foot">{navButton('settings', 'settings', 'Paramètres')}</div>
+
+      {tip?.kind === 'game' && tipGame && <RailTip game={tipGame} top={tip.top} onLaunch={onLaunch} />}
+      {tip?.kind === 'page' && (
+        <div className="favrail-tip" role="tooltip" style={{ top: tip.top }}>
+          <span className="favrail-tip-name">{tip.label}</span>
+          {tip.hint && <span className="favrail-tip-hint">{tip.hint}</span>}
+        </div>
+      )}
     </nav>
   )
 }
@@ -72,7 +137,7 @@ interface RailItemProps {
   onHide: () => void
 }
 
-/** Un favori : le lancement s'y lit sans texte (anneau jaune immobile en attente, anneau cyan en jeu). */
+/** Un favori : le lancement s'y lit sans texte (anneau rose immobile en attente, anneau cyan en jeu). */
 function RailItem({ game: g, described, onLaunch, onOpen, onShow, onHide }: RailItemProps): React.JSX.Element {
   const art = useRef<HTMLSpanElement>(null)
   const p = usePlayState(g, onLaunch)

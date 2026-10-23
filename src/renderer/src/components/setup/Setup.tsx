@@ -156,8 +156,8 @@ export function Setup({ firstRun, games, report, scanning, demo, onRescan, onEna
 
       <header className="setup-top">
         <div className="setup-brand">
-          <BrandMark height={22} />
-          <BrandWordmark size={13} />
+          <BrandMark height={36} />
+          <BrandWordmark size={17} />
         </div>
         <Stepper current={current} canGo={canGo} onGo={(s) => setStep(s === 1 ? 1 : 2)} />
       </header>
