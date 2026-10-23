@@ -2,13 +2,11 @@ import type { SideFriendsProps } from '../../contracts'
 import { SideFriends } from './SideFriends'
 import './friends.css'
 
-/** Page Amis (design Braise) : la liste des amis Steam et PlayStation et des membres du serveur Discord, en grand. */
+/** Page Amis (design Braise) : les amis Steam et PlayStation par présence, et les membres du serveur Discord à droite. */
 export function FriendsPage(props: SideFriendsProps): React.JSX.Element {
   return (
     <div className="page friends-page">
-      <div className="fp-card">
-        <SideFriends {...props} />
-      </div>
+      <SideFriends {...props} />
     </div>
   )
 }

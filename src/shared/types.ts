@@ -124,6 +124,8 @@ export interface FriendsResult {
   queried?: FriendPlatform[]
   /** Membres du serveur Discord masqués (bots connus, « Masquer »). */
   hidden?: HiddenMember[]
+  /** Nom du serveur Discord, tel que le donne son widget. */
+  discordServer?: string
 }
 
 /** Membre d'un serveur Discord retiré des listes : bot connu, ou masqué avec « Masquer ». */

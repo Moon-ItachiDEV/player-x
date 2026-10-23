@@ -4,21 +4,36 @@ import type { Friend, FriendPlatform, FriendStatus, Game, HiddenMember } from '@
 import type { SideFriendsProps } from '../../contracts'
 import { Avatar } from '../ui/Avatar'
 import { Icon } from '../ui/Icon'
-import { StoreTag } from '../ui/StoreTag'
 import './friends.css'
 
 export type { SideFriendsProps }
 
-// Discord : membres en ligne d'un serveur, jamais des « amis ».
-const PLATFORM_NAME: Record<FriendPlatform, string> = { steam: 'Steam', psn: 'PlayStation', discord: 'Serveur Discord' }
-const STATUS_LABEL: Record<FriendStatus, string> = { 'in-game': 'En jeu', online: 'En ligne', away: 'Absent', offline: 'Hors ligne' }
-const STATUS_RANK: Record<FriendStatus, number> = { 'in-game': 0, online: 1, away: 2, offline: 3 }
-const ERROR_ORDER: FriendPlatform[] = ['steam', 'psn', 'discord']
+// Discord : membres d'un serveur, jamais des « amis ».
+const PLATFORM_NAME: Record<FriendPlatform, string> = {
+  steam: 'Steam',
+  psn: 'PlayStation',
+  discord: 'Serveur Discord'
+}
+const STATUS_LABEL: Record<FriendStatus, string> = {
+  'in-game': 'En jeu',
+  online: 'En ligne',
+  away: 'Absent',
+  offline: 'Hors ligne'
+}
+const STATUS_RANK: Record<FriendStatus, number> = {
+  'in-game': 0,
+  online: 1,
+  away: 2,
+  offline: 3
+}
+const ERROR_ORDER: FriendPlatform[] = ['steam', 'psn']
 
+type Pal = 'steam' | 'psn'
+type Filter = 'all' | Pal
+const PALS: Pal[] = ['steam', 'psn']
+
+// Même clé qu'avant la refonte : seul l'état « hors ligne déplié » sert encore.
 const GROUPS_KEY = 'pg.side.groups'
-type Group = 'offline' | 'discord'
-type Folded = Record<Group, boolean>
-const DEFAULT_FOLDED: Folded = { offline: true, discord: true }
 
 /** Ami (ou membre Discord) classé pour l'affichage. */
 interface Entry {
@@ -26,26 +41,25 @@ interface Entry {
   status: FriendStatus
   /** Jeu de la bibliothèque (ou nommé par Steam / PSN) quand il est en jeu. */
   game?: string
+  /** Le jeu, s'il est dans la bibliothèque : son image sert de fond à la carte « En jeu ». */
+  lib?: Game
   /** Activité Discord qui ne correspond à aucun jeu de la bibliothèque. */
   activity?: string
 }
 
-function readFolded(): Folded {
+function readShowOffline(): boolean {
   try {
     const v: unknown = JSON.parse(localStorage.getItem(GROUPS_KEY) ?? 'null')
-    if (v && typeof v === 'object') {
-      const o = v as Record<string, unknown>
-      return { offline: o.offline !== false, discord: o.discord !== false }
-    }
+    if (v && typeof v === 'object') return (v as Record<string, unknown>).offline === false
   } catch {
-    // stockage indisponible ou valeur illisible : valeurs par défaut
+    // stockage indisponible ou valeur illisible : replié
   }
-  return { ...DEFAULT_FOLDED }
+  return false
 }
 
-function writeFolded(f: Folded): void {
+function writeShowOffline(show: boolean): void {
   try {
-    localStorage.setItem(GROUPS_KEY, JSON.stringify(f))
+    localStorage.setItem(GROUPS_KEY, JSON.stringify({ offline: !show }))
   } catch {
     // sans importance : simple confort
   }
@@ -66,7 +80,12 @@ function classify(friend: Friend, library: Map<string, Game>): Entry {
   if (!friend.game) return { friend, status: 'online' }
   const lib = library.get(norm(friend.game))
   if (friend.platform === 'discord' && !lib) return { friend, status: 'online', activity: friend.game }
-  return { friend, status: 'in-game', game: cleanName(lib?.name ?? friend.game) || friend.game }
+  return {
+    friend,
+    status: 'in-game',
+    game: cleanName(lib?.name ?? friend.game) || friend.game,
+    lib
+  }
 }
 
 /** Amis (Steam, PlayStation) vraiment en jeu, selon la même règle que la page Amis : la pastille du rail dit le même chiffre. */
@@ -84,11 +103,27 @@ function byStatus(a: Entry, b: Entry): number {
   )
 }
 
-function subLine({ friend, status, game, activity }: Entry): string {
-  const parts = [status === 'in-game' && game ? game : STATUS_LABEL[status]]
-  if (activity) parts.push(activity)
+/** « Steam », « PlayStation · PS5 » : la plateforme, et la console quand l'ami est connecté. */
+function palMeta({ friend, status }: Entry): string {
+  const parts = [PLATFORM_NAME[friend.platform]]
   if (friend.device && (status === 'in-game' || status === 'online')) parts.push(friend.device)
   return parts.join(' · ')
+}
+
+/** « En jeu · Valorant », « En ligne · Spotify », « Absent ». */
+function memberMeta({ status, game, activity }: Entry): string {
+  const parts = [STATUS_LABEL[status]]
+  if (status === 'in-game' && game) parts.push(game)
+  if (activity) parts.push(activity)
+  return parts.join(' · ')
+}
+
+/** Recherche « Chercher un ami » : sans accents ni ponctuation, et telle quelle pour un pseudo fait de symboles. */
+function matcher(query: string): (e: Entry) => boolean {
+  const raw = query.trim().toLowerCase()
+  const q = norm(query)
+  if (!raw) return () => true
+  return (e) => e.friend.name.toLowerCase().includes(raw) || (!!q && norm(e.friend.name).includes(q))
 }
 
 /**
@@ -141,35 +176,54 @@ function maskedLabel(hidden: HiddenMember[]): string {
   return parts.length ? `${parts.join(' et ')} masqué${hidden.length > 1 ? 's' : ''}` : ''
 }
 
-/** Liste d'amis (page Amis) : en jeu, en ligne et absents visibles ; hors ligne et serveur Discord repliables. */
+/**
+ * Page Amis : amis Steam et PlayStation en sections (en jeu, en ligne, absents, hors ligne sur demande),
+ * et à droite les membres du serveur Discord.
+ */
 export function SideFriends(props: SideFriendsProps): React.JSX.Element {
   const { result, accounts, games, demo, discordConfigured, loading, onRefresh, onOpenAccounts, onHideMember, onManageHidden } = props
-  const [folded, setFolded] = useState<Folded>(readFolded)
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<Filter>('all')
+  const [showOffline, setShowOffline] = useState(readShowOffline)
 
   const library = useMemo(() => libraryIndex(games), [games])
   const entries = useMemo(() => result.friends.map((f) => classify(f, library)), [result.friends, library])
   const pulsing = useInGamePulse(entries)
 
-  const { pals, offline, members } = useMemo(() => {
-    const real = entries.filter((e) => e.friend.platform !== 'discord').sort(byStatus)
-    return {
-      pals: real.filter((e) => e.status !== 'offline'),
-      offline: real.filter((e) => e.status === 'offline'),
-      members: entries.filter((e) => e.friend.platform === 'discord').sort(byStatus)
-    }
-  }, [entries])
-  const inGame = pals.filter((e) => e.status === 'in-game').length
-  // Membres masqués présents sur le serveur (bots connus, « Masquer ») : une ligne discrète pour les retrouver.
+  const { pals, allMembers } = useMemo(
+    () => ({
+      pals: entries.filter((e) => e.friend.platform !== 'discord').sort(byStatus),
+      allMembers: entries.filter((e) => e.friend.platform === 'discord').sort(byStatus)
+    }),
+    [entries]
+  )
+  const match = useMemo(() => matcher(query), [query])
+  const found = pals.filter(match)
+  const members = allMembers.filter(match)
+
+  // Filtre de plateforme : seulement quand les deux ont des amis (sinon il ne filtrerait rien).
+  const platforms = PALS.filter((p) => pals.some((e) => e.friend.platform === p))
+  const active: Filter = filter !== 'all' && platforms.length > 1 && platforms.includes(filter) ? filter : 'all'
+  const shown = active === 'all' ? found : found.filter((e) => e.friend.platform === active)
+  const inGame = shown.filter((e) => e.status === 'in-game')
+  const online = shown.filter((e) => e.status === 'online')
+  const away = shown.filter((e) => e.status === 'away')
+  const offline = shown.filter((e) => e.status === 'offline')
+
+  // Membres masqués présents sur le serveur (bots connus, « Masquer ») : rappelés dans la note du panneau Discord.
   const masked = maskedLabel((result.hidden ?? []).filter((h) => h.online))
 
   // Après « Masquer », la ligne disparaît avec son bouton : le focus passe à l'œil du membre suivant (sinon du précédent,
-  // sinon à l'en-tête du groupe) une fois la liste relue. On attend que le membre masqué ait quitté la liste, et on
+  // sinon au lien « Membres masqués ») une fois la liste relue. On attend que le membre masqué ait quitté la liste, et on
   // oublie la demande si « Masquer » a échoué : sinon un rafraîchissement plus tard volerait le focus.
   const focusAfterHide = useRef<{ hidden: string; next: string } | null>(null)
   const hide = (e: Entry): void => {
     const i = members.findIndex((m) => m.friend.id === e.friend.id)
     const next = members[i + 1] ?? members[i - 1]
-    const pending = { hidden: e.friend.id, next: next ? next.friend.id : 'fold' }
+    const pending = {
+      hidden: e.friend.id,
+      next: next ? next.friend.id : 'note'
+    }
     focusAfterHide.current = pending
     void onHideMember(e.friend).then((ok) => {
       if (!ok && focusAfterHide.current === pending) focusAfterHide.current = null
@@ -177,209 +231,389 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
   }
   useEffect(() => {
     const pending = focusAfterHide.current
-    if (!pending || members.some((m) => m.friend.id === pending.hidden)) return
+    if (!pending || allMembers.some((m) => m.friend.id === pending.hidden)) return
     focusAfterHide.current = null
-    const active = document.activeElement
-    if (active && active !== document.body) return
+    const focused = document.activeElement
+    if (focused && focused !== document.body) return
     const id = pending.next
     const target =
-      id === 'fold'
-        ? document.querySelector<HTMLElement>('.sf-fold-head[aria-controls="sf-fold-discord"], .sf-masked-btn')
-        : document.querySelector<HTMLElement>(`[data-member="${CSS.escape(id)}"] .sf-hide`)
+      id === 'note' ? document.querySelector<HTMLElement>('.sf-masked-btn') : document.querySelector<HTMLElement>(`[data-member="${CSS.escape(id)}"] .sf-hide`)
     target?.focus({ preventScroll: true })
-  }, [members])
+  }, [allMembers])
 
   const hasData = result.friends.length > 0 || Object.values(result.errors).some(Boolean)
   const settled = useSettled(loading, hasData)
   const firstLoad = !hasData && !settled
   // Un compte Discord seul n'apporte personne (il faut un serveur) : on propose les sources d'amis.
   const noAccount = !firstLoad && !hasData && !accounts.some((a) => a.platform !== 'discord') && !demo && !discordConfigured
+  // Serveur Discord sans compte Steam ni PlayStation : le panneau Discord, et une invitation à relier un compte.
+  const noPalSource = !demo && pals.length === 0 && !accounts.some((a) => a.platform !== 'discord')
   const errors = ERROR_ORDER.filter((p) => result.errors[p])
+  const showPanel =
+    !firstLoad && !noAccount && (allMembers.length > 0 || !!result.errors.discord || !!masked || discordConfigured || !!result.queried?.includes('discord'))
 
-  const toggle = (g: Group): void => {
-    const next = { ...folded, [g]: !folded[g] }
-    setFolded(next)
-    writeFolded(next)
+  const toggleOffline = (): void => {
+    setShowOffline(!showOffline)
+    writeShowOffline(!showOffline)
   }
 
-  let body: React.ReactNode
+  let main: React.ReactNode
   if (firstLoad) {
-    body = <SkeletonRows />
+    main = <Skeleton />
   } else if (noAccount) {
-    body = <NoAccount onOpenAccounts={onOpenAccounts} />
+    main = (
+      <Empty text="Connecte Steam, PlayStation ou un serveur Discord pour voir qui est en ligne.">
+        <ConnectButton onClick={onOpenAccounts} />
+      </Empty>
+    )
   } else {
-    body = (
+    const nobody = inGame.length + online.length + away.length === 0
+    main = (
       <>
         {errors.map((p) => (
-          <div key={p} className="sf-error">
-            <Icon name="alert-triangle" size={14} className="sf-error-icon" />
-            <span className="sf-error-text">
-              <strong>{PLATFORM_NAME[p]}</strong> {result.errors[p]}
-            </span>
-            <button className="link-btn" aria-label={`Corriger : ${PLATFORM_NAME[p]}`} onClick={onOpenAccounts}>
-              Corriger
-            </button>
-          </div>
+          <ErrorNote key={p} platform={p} message={result.errors[p] ?? ''} onFix={onOpenAccounts} />
         ))}
-        {pals.length > 0 && (
-          <ul className="sf-rows">
-            {pals.map((e) => (
-              <Row key={e.friend.id} entry={e} pulse={pulsing.has(e.friend.id)} />
-            ))}
-          </ul>
+        {noPalSource ? (
+          errors.length === 0 && (
+            <Empty text="Connecte Steam ou PlayStation pour voir tes amis ici.">
+              <ConnectButton onClick={onOpenAccounts} />
+            </Empty>
+          )
+        ) : query.trim() && shown.length === 0 && pals.length > 0 ? (
+          <Empty text={`Aucun ami ${active === 'all' ? '' : `${PLATFORM_NAME[active]} `}ne correspond à « ${query.trim()} ».`}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setQuery('')}>
+              <Icon name="x" size={14} />
+              Effacer la recherche
+            </button>
+          </Empty>
+        ) : (
+          nobody &&
+          errors.length === 0 && (
+            <p className="fp-caption">
+              {offline.length ? 'Tous tes amis sont hors ligne.' : shown.length ? 'Aucun ami en ligne.' : "Personne à afficher pour l'instant."}
+            </p>
+          )
         )}
-        {pals.length === 0 && errors.length === 0 && (
-          <p className="sf-caption">{offline.length ? 'Tous tes amis sont hors ligne.' : members.length ? 'Aucun ami en ligne.' : "Personne à afficher pour l'instant."}</p>
+        {inGame.length > 0 && (
+          <Section kind="in-game" label="En jeu" count={inGame.length}>
+            <ul className="fp-grid fp-grid-play">
+              {inGame.map((e) => (
+                <PlayCard key={e.friend.id} entry={e} pulse={pulsing.has(e.friend.id)} />
+              ))}
+            </ul>
+          </Section>
+        )}
+        {online.length > 0 && (
+          <Section kind="online" label="En ligne" count={online.length}>
+            <PalGrid entries={online} />
+          </Section>
+        )}
+        {away.length > 0 && (
+          <Section kind="away" label="Absents" count={away.length}>
+            <PalGrid entries={away} />
+          </Section>
         )}
         {offline.length > 0 && (
-          <Fold id="offline" label="Hors ligne" count={offline.length} folded={folded.offline} onToggle={() => toggle('offline')}>
-            {offline.map((e) => (
-              <Row key={e.friend.id} entry={e} pulse={false} />
-            ))}
-          </Fold>
-        )}
-        {members.length > 0 && (
-          <Fold id="discord" label="Serveur Discord" count={members.length} folded={folded.discord} onToggle={() => toggle('discord')} discord>
-            {members.map((e) => (
-              <Row key={e.friend.id} entry={e} pulse={pulsing.has(e.friend.id)} onHide={() => hide(e)} />
-            ))}
-            {masked && (
-              <li className="sf-masked">
-                <MaskedButton text={masked} onClick={onManageHidden} />
-              </li>
-            )}
-          </Fold>
-        )}
-        {members.length === 0 && masked && (
-          <div className="sf-masked">
-            <MaskedButton text={masked} onClick={onManageHidden} />
-          </div>
+          <>
+            <button type="button" className="fp-offline-btn" aria-expanded={showOffline} aria-controls="fp-offline" onClick={toggleOffline}>
+              <span className="fp-offline-ring" aria-hidden="true" />
+              {showOffline
+                ? 'Masquer les amis hors ligne'
+                : offline.length === 1
+                  ? "Afficher l'ami hors ligne"
+                  : `Afficher les ${offline.length} amis hors ligne`}
+            </button>
+            <div id="fp-offline" hidden={!showOffline}>
+              <Section kind="offline" label="Hors ligne" count={offline.length}>
+                <PalGrid entries={offline} />
+              </Section>
+            </div>
+          </>
         )}
       </>
     )
   }
 
   return (
-    <section className="side-friends" aria-label="Amis">
-      <div className="sf-head">
-        <h2 className="side-label sf-title">Amis</h2>
-        {inGame > 0 ? (
-          <span className="sf-live num">{inGame} en jeu</span>
-        ) : (
-          pals.length > 0 && <span className="sf-online num">{pals.length} en ligne</span>
+    <div className="fp" aria-busy={loading}>
+      <div className="fp-bar">
+        {(query || pals.length + allMembers.length > 0) && (
+          <label className="fp-search">
+            <Icon name="search" size={17} className="fp-search-icon" />
+            <span className="sr-only">Chercher un ami</span>
+            <input
+              type="search"
+              className="fp-search-input"
+              placeholder="Chercher un ami"
+              value={query}
+              spellCheck={false}
+              autoComplete="off"
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && query) {
+                  e.preventDefault()
+                  setQuery('')
+                }
+              }}
+            />
+            {query && (
+              <button type="button" className="fp-search-clear" aria-label="Effacer la recherche" title="Effacer la recherche" onClick={() => setQuery('')}>
+                <Icon name="x" size={13} />
+              </button>
+            )}
+          </label>
         )}
-        <button
-          className="icon-btn icon-btn-sm sf-refresh"
-          aria-label="Actualiser les amis"
-          title="Actualiser les amis"
-          aria-busy={loading}
-          onClick={() => {
-            if (!loading) onRefresh()
-          }}
-        >
-          <Icon name="refresh" size={14} className={loading ? 'spin' : undefined} />
-        </button>
+        {platforms.length > 1 && (
+          <div className="fp-pills" role="group" aria-label="Plateforme">
+            {(['all', ...platforms] as Filter[]).map((p) => {
+              const n = p === 'all' ? found.length : found.filter((e) => e.friend.platform === p).length
+              return (
+                <button key={p} type="button" className="fp-pill" aria-pressed={active === p} onClick={() => setFilter(p)}>
+                  {p === 'all' ? 'Tous' : PLATFORM_NAME[p]} · <span className="num">{n}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {/* Sans aucune source d'amis, ni recherche ni rien à actualiser */}
+        {!noAccount && (
+          <button
+            type="button"
+            className="icon-btn fp-refresh"
+            aria-label="Actualiser les amis"
+            title="Actualiser les amis"
+            aria-busy={loading}
+            onClick={() => {
+              if (!loading) onRefresh()
+            }}
+          >
+            <Icon name="refresh" size={16} className={loading ? 'spin' : undefined} />
+          </button>
+        )}
       </div>
-      <div className="sf-body" aria-busy={loading}>
-        {body}
+
+      <div className="fp-layout">
+        <div className="fp-main">{main}</div>
+        {showPanel && (
+          <MembersPanel
+            server={result.discordServer}
+            total={allMembers.length}
+            members={members}
+            searching={!!query.trim()}
+            error={result.errors.discord}
+            masked={masked}
+            pulsing={pulsing}
+            onHide={hide}
+            onFix={onOpenAccounts}
+            onManageHidden={onManageHidden}
+          />
+        )}
       </div>
+    </div>
+  )
+}
+
+type SectionKind = 'in-game' | 'online' | 'away' | 'offline'
+
+function Section({ kind, label, count, children }: { kind: SectionKind; label: string; count: number; children: React.ReactNode }): React.JSX.Element {
+  const id = `fp-sec-${kind}`
+  return (
+    <section className="fp-section" aria-labelledby={id}>
+      <h2 id={id} className="fp-h2">
+        <span className={`fp-mark fp-mk-${kind}`} aria-hidden="true" />
+        {label} <span className="fp-h2-count num">{count}</span>
+      </h2>
+      {children}
     </section>
   )
 }
 
-interface FoldProps {
-  id: Group
-  label: string
-  count: number
-  folded: boolean
-  onToggle: () => void
-  discord?: boolean
-  children: React.ReactNode
-}
-
-function Fold({ id, label, count, folded, onToggle, discord, children }: FoldProps): React.JSX.Element {
-  const bodyId = `sf-fold-${id}`
+/** Carte « En jeu » : l'image du jeu s'il est dans la bibliothèque, sinon un fond neutre. */
+function PlayCard({ entry, pulse }: { entry: Entry; pulse: boolean }): React.JSX.Element {
+  const { friend, game, lib } = entry
+  const art = lib?.heroUrl || lib?.coverUrl
+  const [broken, setBroken] = useState<string | null>(null)
+  const meta = palMeta(entry)
   return (
-    <div className={`sf-fold ${folded ? 'is-folded' : ''}`}>
-      <button className="sf-fold-head" aria-expanded={!folded} aria-controls={bodyId} onClick={onToggle}>
-        {discord && <StoreTag kind="discord" size={18} />}
-        <span>
-          {label} · <span className="num">{count}</span>
+    <li className="fp-play">
+      <div className="fp-play-art">
+        {art && broken !== art && (
+          <img className={lib?.heroUrl ? '' : 'is-cover'} src={art} alt="" loading="lazy" draggable={false} onError={() => setBroken(art)} />
+        )}
+      </div>
+      <div className="fp-play-body">
+        <span className={`fp-av fx-loop ${pulse ? 'is-pulsing' : ''}`}>
+          <Avatar name={friend.name} url={friend.avatarUrl} size={52} status="in-game" />
         </span>
-        <Icon name="chevron-right" size={12} className="sf-fold-chev" />
-      </button>
-      <ul id={bodyId} className="sf-rows" hidden={folded}>
-        {children}
-      </ul>
-    </div>
-  )
-}
-
-/** `onHide` : membre du serveur Discord, qu'on peut masquer (jamais un ami Steam ou PlayStation). */
-function Row({ entry, pulse, onHide }: { entry: Entry; pulse: boolean; onHide?: () => void }): React.JSX.Element {
-  const { friend, status } = entry
-  const sub = subLine(entry)
-  return (
-    <li className={`sf-row st-${status}`} data-member={onHide ? friend.id : undefined}>
-      <span className={`sf-av ${status === 'in-game' ? 'fx-loop' : ''} ${pulse ? 'is-pulsing' : ''}`}>
-        <Avatar name={friend.name} url={friend.avatarUrl} size={30} status={status} />
-      </span>
-      <span className="sf-text">
-        <span className="sf-name" title={friend.name}>
-          {friend.name}
+        <span className="fp-text">
+          <span className="fp-name" title={friend.name}>
+            {friend.name}
+          </span>
+          <span className="fp-game" title={game}>
+            {game}
+          </span>
+          <span className="fp-meta" title={meta}>
+            {meta}
+          </span>
         </span>
-        <span className="sf-sub" title={sub}>
-          {sub}
-        </span>
-      </span>
-      {onHide && (
-        <button className="icon-btn icon-btn-sm sf-hide" aria-label={`Masquer ${friend.name}`} title="Masquer de la liste" onClick={onHide}>
-          <Icon name="eye-off" size={14} />
-        </button>
-      )}
-      {friend.platform !== 'discord' && <StoreTag kind={friend.platform} size={18} className="sf-tag" />}
+      </div>
     </li>
   )
 }
 
-/** « 4 bots masqués · Gérer » : vers Paramètres › Comptes › Membres masqués. */
-function MaskedButton({ text, onClick }: { text: string; onClick: () => void }): React.JSX.Element {
+function PalGrid({ entries }: { entries: Entry[] }): React.JSX.Element {
   return (
-    <button className="sf-masked-btn" onClick={onClick} aria-label={`${text}. Gérer les membres masqués dans Paramètres`}>
-      <Icon name="eye-off" size={13} />
-      <span className="sf-masked-text">{text}</span>
-      <span className="sf-masked-link">Gérer</span>
-    </button>
+    <ul className="fp-grid">
+      {entries.map((e) => {
+        const meta = palMeta(e)
+        return (
+          <li key={e.friend.id} className={`fp-pal st-${e.status}`}>
+            <Avatar name={e.friend.name} url={e.friend.avatarUrl} size={40} status={e.status} />
+            <span className="fp-text">
+              <span className="fp-name" title={e.friend.name}>
+                {e.friend.name}
+              </span>
+              <span className="fp-meta" title={meta}>
+                {meta}
+              </span>
+            </span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 
-function NoAccount({ onOpenAccounts }: { onOpenAccounts: () => void }): React.JSX.Element {
+interface PanelProps {
+  server?: string
+  /** Membres affichés sur le serveur, avant la recherche. */
+  total: number
+  members: Entry[]
+  searching: boolean
+  error?: string
+  masked: string
+  pulsing: ReadonlySet<string>
+  onHide: (e: Entry) => void
+  onFix: () => void
+  onManageHidden: () => void
+}
+
+/** Panneau Discord : les membres du serveur (widget public), qu'on peut masquer. */
+function MembersPanel({ server, total, members, searching, error, masked, pulsing, onHide, onFix, onManageHidden }: PanelProps): React.JSX.Element {
   return (
-    <div className="sf-empty">
-      <p>Connecte Steam, PlayStation ou un serveur Discord pour voir qui est en ligne.</p>
-      <button className="btn btn-secondary btn-sm" onClick={onOpenAccounts}>
-        <Icon name="link" size={14} />
-        Connecter un compte
+    <aside className="fp-discord" aria-labelledby="fp-discord-title">
+      <div className="fp-discord-head">
+        <span className="fp-server-icon" aria-hidden="true">
+          {server ? server.trim().charAt(0).toUpperCase() : <Icon name="users" size={20} />}
+        </span>
+        <span className="fp-text">
+          <span id="fp-discord-title" className="fp-server-name" title={server}>
+            {server || 'Serveur Discord'}
+          </span>
+          <span className="fp-meta">
+            Membres du serveur · Discord
+            {total > 0 && <span className="fp-nowrap"> · {total} en ligne</span>}
+          </span>
+        </span>
+      </div>
+      {error && <ErrorNote platform="discord" message={error} onFix={onFix} />}
+      {members.length > 0 ? (
+        <ul className="fp-members">
+          {members.map((e) => {
+            const meta = memberMeta(e)
+            return (
+              <li key={e.friend.id} className={`fp-member st-${e.status}`} data-member={e.friend.id}>
+                <span className={`fp-av ${e.status === 'in-game' ? 'fx-loop' : ''} ${pulsing.has(e.friend.id) ? 'is-pulsing' : ''}`}>
+                  <Avatar name={e.friend.name} url={e.friend.avatarUrl} size={36} status={e.status} />
+                </span>
+                <span className="fp-text">
+                  <span className="fp-name" title={e.friend.name}>
+                    {e.friend.name}
+                  </span>
+                  <span className="fp-meta" title={meta}>
+                    {meta}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="icon-btn icon-btn-sm sf-hide"
+                  aria-label={`Masquer ${e.friend.name}`}
+                  title="Masquer de la liste"
+                  onClick={() => onHide(e)}
+                >
+                  <Icon name="eye-off" size={14} />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        !error && (
+          <p className="fp-caption fp-members-empty">
+            {searching && total > 0 ? 'Aucun membre ne correspond.' : "Personne en ligne sur le serveur pour l'instant."}
+          </p>
+        )
+      )}
+      <p className="fp-discord-note">
+        {masked ? `${masked.charAt(0).toUpperCase()}${masked.slice(1)}.` : 'Les bots sont masqués.'} Un membre que tu masques se retrouve dans Paramètres ›
+        Comptes ›{' '}
+        <button type="button" className="sf-masked-btn" onClick={onManageHidden} aria-label="Membres masqués : ouvrir Paramètres › Comptes">
+          Membres masqués
+        </button>
+        .
+      </p>
+    </aside>
+  )
+}
+
+function ErrorNote({ platform, message, onFix }: { platform: FriendPlatform; message: string; onFix: () => void }): React.JSX.Element {
+  return (
+    <div className="fp-error" role="alert">
+      <Icon name="alert-triangle" size={15} className="fp-error-icon" />
+      <span className="fp-error-text">
+        <strong>{PLATFORM_NAME[platform]}</strong> {message}
+      </span>
+      <button type="button" className="link-btn" aria-label={`Corriger : ${PLATFORM_NAME[platform]}`} onClick={onFix}>
+        Corriger
       </button>
     </div>
   )
 }
 
-const SKELETON_WIDTHS = [62, 48, 70, 55, 66]
-
-function SkeletonRows(): React.JSX.Element {
+function Empty({ text, children }: { text: string; children: React.ReactNode }): React.JSX.Element {
   return (
-    <div className="sf-skeleton">
+    <div className="fp-empty">
+      <p>{text}</p>
+      {children}
+    </div>
+  )
+}
+
+function ConnectButton({ onClick }: { onClick: () => void }): React.JSX.Element {
+  return (
+    <button type="button" className="btn btn-secondary btn-sm" onClick={onClick}>
+      <Icon name="link" size={14} />
+      Connecter un compte
+    </button>
+  )
+}
+
+function Skeleton(): React.JSX.Element {
+  return (
+    <div className="fp-skeleton">
       <span className="sr-only">Chargement…</span>
-      {SKELETON_WIDTHS.map((w, i) => (
-        <div key={i} className="sf-skel-row" aria-hidden="true">
-          <span className="skel sf-skel-av" />
-          <span className="sf-skel-lines">
-            <span className="skel sf-skel-line" style={{ width: `${w}%` }} />
-            <span className="skel sf-skel-line short" style={{ width: `${w - 20}%` }} />
-          </span>
-        </div>
-      ))}
+      <span className="skel fp-skel-title" aria-hidden="true" />
+      <div className="fp-grid fp-grid-play" aria-hidden="true">
+        {[0, 1, 2].map((i) => (
+          <span key={i} className="skel fp-skel-play" />
+        ))}
+      </div>
+      <span className="skel fp-skel-title" aria-hidden="true" />
+      <div className="fp-grid" aria-hidden="true">
+        {[0, 1, 2, 3].map((i) => (
+          <span key={i} className="skel fp-skel-pal" />
+        ))}
+      </div>
     </div>
   )
 }
