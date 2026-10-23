@@ -7,6 +7,7 @@ package main
 
 import (
 	"errors"
+	"image"
 	"syscall"
 	"unsafe"
 
@@ -182,4 +183,75 @@ func pickFolder(owner uintptr, start, title string) (string, error) {
 	}
 	defer procCoTaskMemFree.Call(uintptr(unsafe.Pointer(name)))
 	return windows.UTF16PtrToString(name), nil
+}
+
+// ---------- capture de la fenêtre (vérification automatique de l'affichage) ----------
+
+var (
+	gdi32                      = windows.NewLazySystemDLL("gdi32.dll")
+	procGetDC                  = user32.NewProc("GetDC")
+	procReleaseDC              = user32.NewProc("ReleaseDC")
+	procPrintWindow            = user32.NewProc("PrintWindow")
+	procGetClientRect          = user32.NewProc("GetClientRect")
+	procCreateCompatibleDC     = gdi32.NewProc("CreateCompatibleDC")
+	procCreateCompatibleBitmap = gdi32.NewProc("CreateCompatibleBitmap")
+	procSelectObject           = gdi32.NewProc("SelectObject")
+	procDeleteObject           = gdi32.NewProc("DeleteObject")
+	procDeleteDC               = gdi32.NewProc("DeleteDC")
+	procGetDIBits              = gdi32.NewProc("GetDIBits")
+	procBitBlt                 = gdi32.NewProc("BitBlt")
+	procClientToScreen         = user32.NewProc("ClientToScreen")
+)
+
+type rect struct{ Left, Top, Right, Bottom int32 }
+
+type bitmapInfoHeader struct {
+	Size          uint32
+	Width         int32
+	Height        int32
+	Planes        uint16
+	BitCount      uint16
+	Compression   uint32
+	SizeImage     uint32
+	XPelsPerMeter int32
+	YPelsPerMeter int32
+	ClrUsed       uint32
+	ClrImportant  uint32
+}
+
+// captureWindow : image de la zone cliente, telle que dessinée (PrintWindow avec le contenu composé, sinon copie de l'écran).
+func captureWindow(hwnd uintptr, fromScreen bool) (*image.RGBA, error) {
+	var r rect
+	_, _, _ = procGetClientRect.Call(hwnd, uintptr(unsafe.Pointer(&r)))
+	w, h := int(r.Right-r.Left), int(r.Bottom-r.Top)
+	if w <= 0 || h <= 0 {
+		return nil, errors.New("fenêtre sans taille")
+	}
+	screen, _, _ := procGetDC.Call(0)
+	defer procReleaseDC.Call(0, screen)
+	mem, _, _ := procCreateCompatibleDC.Call(screen)
+	defer procDeleteDC.Call(mem)
+	bmp, _, _ := procCreateCompatibleBitmap.Call(screen, uintptr(w), uintptr(h))
+	defer procDeleteObject.Call(bmp)
+	old, _, _ := procSelectObject.Call(mem, bmp)
+	if fromScreen {
+		var pt struct{ X, Y int32 }
+		_, _, _ = procClientToScreen.Call(hwnd, uintptr(unsafe.Pointer(&pt)))
+		const srccopy = 0x00CC0020
+		_, _, _ = procBitBlt.Call(mem, 0, 0, uintptr(w), uintptr(h), screen, uintptr(pt.X), uintptr(pt.Y), srccopy)
+	} else {
+		const pwClientOnly, pwRenderFull = 1, 2
+		_, _, _ = procPrintWindow.Call(hwnd, mem, pwClientOnly|pwRenderFull)
+	}
+	_, _, _ = procSelectObject.Call(mem, old)
+	bi := bitmapInfoHeader{Size: 40, Width: int32(w), Height: -int32(h), Planes: 1, BitCount: 32}
+	buf := make([]byte, w*h*4)
+	if r, _, _ := procGetDIBits.Call(mem, bmp, 0, uintptr(h), uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&bi)), 0); r == 0 {
+		return nil, errors.New("lecture de l'image impossible")
+	}
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for i := 0; i < w*h; i++ {
+		img.Pix[i*4], img.Pix[i*4+1], img.Pix[i*4+2], img.Pix[i*4+3] = buf[i*4+2], buf[i*4+1], buf[i*4], 255
+	}
+	return img, nil
 }

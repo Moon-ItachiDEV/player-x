@@ -19,6 +19,7 @@ var (
 	shlwapiSHCreateMemStream = shlwapi.NewProc("SHCreateMemStream")
 
 	user32                   = windows.NewLazySystemDLL("user32")
+	gdi32                    = windows.NewLazySystemDLL("gdi32")
 	User32LoadImageW         = user32.NewProc("LoadImageW")
 	User32GetSystemMetrics   = user32.NewProc("GetSystemMetrics")
 	User32RegisterClassExW   = user32.NewProc("RegisterClassExW")
@@ -32,6 +33,8 @@ var (
 	User32DispatchMessageW   = user32.NewProc("DispatchMessageW")
 	User32DefWindowProcW     = user32.NewProc("DefWindowProcW")
 	User32GetClientRect      = user32.NewProc("GetClientRect")
+	User32LoadCursorW        = user32.NewProc("LoadCursorW")
+	Gdi32CreateSolidBrush    = gdi32.NewProc("CreateSolidBrush")
 	User32PostQuitMessage    = user32.NewProc("PostQuitMessage")
 	User32PostMessageW       = user32.NewProc("PostMessageW")
 	User32SetWindowTextW     = user32.NewProc("SetWindowTextW")

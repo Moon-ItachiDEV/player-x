@@ -4,7 +4,8 @@
 // et 11), qui installe l'installeur signé habituel en silencieux. Sans WebView2, l'installeur classique s'ouvre.
 //
 //	Player-X-Installer.exe                    installation normale
-//	Player-X-Installer.exe --selftest         ouvre la fenêtre, attend la page, puis se ferme (code 0 si tout va bien)
+//	Player-X-Installer.exe --selftest [image.png]   ouvre la fenêtre, attend la page, vérifie qu'elle est vraiment dessinée
+//	                                                (capture enregistrée dans image.png), puis se ferme (code 0 si tout va bien)
 //	Player-X-Installer.exe --selftest-install <dossier>   installe sans fenêtre dans <dossier> (vérification en CI)
 package main
 
@@ -13,6 +14,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image/png"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -50,7 +52,11 @@ func main() {
 	if len(args) == 2 && args[0] == "--selftest-install" {
 		os.Exit(selftestInstall(info, args[1]))
 	}
-	selftest := len(args) == 1 && args[0] == "--selftest"
+	selftest := len(args) >= 1 && args[0] == "--selftest"
+	shot := ""
+	if selftest && len(args) == 2 {
+		shot = args[1]
+	}
 
 	data := filepath.Join(os.TempDir(), "PlayerXInstaller")
 	defer os.RemoveAll(data)
@@ -66,6 +72,8 @@ func main() {
 			Center:    true,
 			Frameless: true,
 			Hidden:    true,
+			// Fond de l'appli (#0c0a11, en 0x00BBGGRR) : la fenêtre n'est jamais transparente, même avant la page.
+			Background: 0x00110A0C,
 		},
 	})
 	if w == nil {
@@ -103,8 +111,13 @@ func main() {
 		showNow()
 		if selftest {
 			go func() {
-				time.Sleep(1500 * time.Millisecond)
-				w.Dispatch(func() { closeWindow(hwnd) })
+				time.Sleep(2500 * time.Millisecond)
+				w.Dispatch(func() {
+					if !drawn(hwnd, shot, scale) {
+						code = 4
+					}
+					closeWindow(hwnd)
+				})
 			}()
 		}
 	})
@@ -217,4 +230,43 @@ func selftestInstall(info payloadInfo, dir string) int {
 		return 1
 	}
 	return 0
+}
+
+// drawn : la page est-elle vraiment à l'écran ? Le logo (rose) doit apparaître au centre du haut de la fenêtre.
+// Les captures sont enregistrées dans shot (et shot-ecran.png) quand un chemin est donné.
+func drawn(hwnd uintptr, shot string, scale float64) bool {
+	ok := false
+	for i, fromScreen := range []bool{false, true} {
+		img, err := captureWindow(hwnd, fromScreen)
+		if err != nil {
+			fmt.Println("capture :", err)
+			continue
+		}
+		if shot != "" {
+			name := shot
+			if i == 1 {
+				name = strings.TrimSuffix(shot, ".png") + "-ecran.png"
+			}
+			if f, err := os.Create(name); err == nil {
+				_ = png.Encode(f, img)
+				f.Close()
+			}
+		}
+		b := img.Bounds()
+		// Centre du logo : milieu de la largeur, 205 px CSS sous le haut (barre 44 + étapes 42 + marge 14 + demi-zone 105).
+		x, y := b.Dx()/2, int(205*scale)
+		pink := 0
+		for dx := -20; dx <= 20; dx += 4 {
+			c := img.RGBAAt(x+dx, y)
+			if c.R > 190 && c.G < 150 {
+				pink++
+			}
+		}
+		bg := img.RGBAAt(int(20*scale), b.Dy()-int(20*scale))
+		fmt.Printf("capture %d (%s) : %dx%d, rose au centre %d/11, fond %d,%d,%d\n", i, map[bool]string{false: "PrintWindow", true: "écran"}[fromScreen], b.Dx(), b.Dy(), pink, bg.R, bg.G, bg.B)
+		if pink >= 6 {
+			ok = true
+		}
+	}
+	return ok
 }
