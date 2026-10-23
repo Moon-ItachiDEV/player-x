@@ -37,6 +37,16 @@ var infoJSON []byte
 //go:embed payload/icon.png
 var iconPNG []byte
 
+// trace : journal de démarrage dans %TEMP%\\PlayerXInstaller.log, pour comprendre un affichage raté sur un PC.
+func trace(format string, a ...any) {
+	f, err := os.OpenFile(filepath.Join(os.TempDir(), "PlayerXInstaller.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "%s  %s\n", time.Now().Format("15:04:05.000"), fmt.Sprintf(format, a...))
+}
+
 func init() {
 	// WebView2 et les boîtes de dialogue veulent le fil principal, initialisé en STA.
 	runtime.LockOSThread()
@@ -61,6 +71,7 @@ func main() {
 	data := filepath.Join(os.TempDir(), "PlayerXInstaller")
 	defer os.RemoveAll(data)
 	scale := dpiScale()
+	trace("démarrage %s, échelle %.2f, fenêtre %dx%d", info.Version, scale, uint(880*scale), uint(690*scale))
 	w := webview2.NewWithOptions(webview2.WebViewOptions{
 		DataPath:  data,
 		AutoFocus: true,
@@ -78,6 +89,7 @@ func main() {
 		},
 	})
 	if w == nil {
+		trace("WebView2 indisponible : installeur classique")
 		// Pas de WebView2 : l'installeur classique, avec ses fenêtres Windows.
 		if selftest {
 			os.Exit(2)
@@ -106,6 +118,7 @@ func main() {
 		showNow = func() {
 			if !shown {
 				shown = true
+				trace("affichage de la fenêtre")
 				w.Show()
 				foreground(hwnd)
 			}
@@ -113,6 +126,7 @@ func main() {
 	)
 
 	_ = w.Bind("pxReady", func() {
+		trace("page prête")
 		showNow()
 		if selftest {
 			go func() {
@@ -258,18 +272,25 @@ func drawn(hwnd uintptr, shot string, scale float64) bool {
 			}
 		}
 		b := img.Bounds()
-		// Centre du logo : milieu de la largeur, 205 px CSS sous le haut (barre 44 + étapes 42 + marge 14 + demi-zone 105).
-		x, y := b.Dx()/2, int(205*scale)
-		pink := 0
-		for dx := -20; dx <= 20; dx += 4 {
-			c := img.RGBAAt(x+dx, y)
-			if c.R > 190 && c.G < 150 {
-				pink++
+		// Le logo (136 px CSS, centré, haut à 137 px) est rose autour de la manette blanche : part de pixels roses dans son carré.
+		cx, top, side := b.Dx()/2, int(137*scale), int(136*scale)
+		pink, all := 0, 0
+		for y := top; y < top+side && y < b.Dy(); y += 4 {
+			for x := cx - side/2; x < cx+side/2; x += 4 {
+				c := img.RGBAAt(x, y)
+				all++
+				if c.R > 190 && c.G < 150 {
+					pink++
+				}
 			}
 		}
-		bg := img.RGBAAt(int(20*scale), b.Dy()-int(20*scale))
-		fmt.Printf("capture %d (%s) : %dx%d, rose au centre %d/11, fond %d,%d,%d\n", i, map[bool]string{false: "PrintWindow", true: "écran"}[fromScreen], b.Dx(), b.Dy(), pink, bg.R, bg.G, bg.B)
-		if pink >= 6 {
+		share := 0
+		if all > 0 {
+			share = pink * 100 / all
+		}
+		bg := img.RGBAAt(int(20*scale), b.Dy()-int(40*scale))
+		fmt.Printf("capture %d (%s) : %dx%d, logo rose à %d %%, fond %d,%d,%d\n", i, map[bool]string{false: "PrintWindow", true: "écran"}[fromScreen], b.Dx(), b.Dy(), share, bg.R, bg.G, bg.B)
+		if share >= 30 {
 			ok = true
 		}
 	}
