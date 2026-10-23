@@ -216,7 +216,7 @@ Rendered inside `.shell` right after `<UpdateNotice/>`, so it sits in the natura
 
 | Surface | sending / checking | pending | running | demo-running |
 |---|---|---|---|---|
-| Hero `.btn-play` (xl, 196 px), « À reprendre » `.rc-play` (sm, 132 px), sheet `.sheet-play` (lg, 172 px) | `.is-sending`: solid `--accent-solid` / `--on-accent` at opacity 1, spinner, « LANCEMENT… » / « VÉRIFICATION… » | `.is-waiting`: `--accent-soft`, `--accent-text`, inset `--accent-line`, `clock` 16, « EN ATTENTE… » | `.is-live`: `--live-soft`, `--live-text`, inset `--live-line`, 8 px `--live` dot, « EN JEU »; focus ring stays `--focus` | `.is-live` look, « DÉMO · EN JEU » |
+| Hero `.btn-play` (xl, 196 px), sheet `.sheet-play` (lg, 172 px) | `.is-sending`: solid `--accent-solid` / `--on-accent` at opacity 1, spinner, « LANCEMENT… » / « VÉRIFICATION… » | `.is-waiting`: `--accent-soft`, `--accent-text`, inset `--accent-line`, `clock` 16, « EN ATTENTE… » | `.is-live`: `--live-soft`, `--live-text`, inset `--live-line`, 8 px `--live` dot, « EN JEU »; focus ring stays `--focus` | `.is-live` look, « DÉMO · EN JEU » |
 | Library card | pill forced visible, spinner « Lancement… »; meta « Lancement… » | pill `.is-waiting`, « En attente… »; meta « En attente · Steam »; `aria-busy` | as before (glow, badge); hover pill cyan « En jeu » | pill « Démo · en jeu », no glow or badge |
 | Rail `.favrail-item` | `.favrail-busy` overlay with `.launch-spin` | static 2 px `--accent-line` ring, `aria-busy` | cyan ring and dot | idle look (no visible text, so no cyan) |
 | Profile `.prof-gt-play` | spinner | `clock` | static `--live` dot | idle look |

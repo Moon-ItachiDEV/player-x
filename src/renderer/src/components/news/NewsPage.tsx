@@ -3,11 +3,12 @@ import { capitalize, cleanName, plural, timeAgo } from '@shared/text'
 import type { Game, NewsFeed, NewsFeedItem } from '@shared/types'
 import type { NewsPageProps } from '../../contracts'
 import { useNow } from '../settings/parts'
-import { TopTabs, TopTitle } from '../TopTabs'
+import { TopTitle } from '../TopTabs'
 import { Icon, type IconName } from '../ui/Icon'
 import { PickMenu } from '../ui/PickMenu'
-import { BUCKET_LABEL, feedGames, filterFeed, groupFeed } from './feedView'
+import { feedGames, filterFeed } from './feedView'
 import { NewsThumb } from './NewsThumb'
+import { NewsUne, UNE_MAX } from './NewsUne'
 import { useNewsFeed } from './useNewsFeed'
 import './news.css'
 import './feed.css'
@@ -19,6 +20,8 @@ type NewsTab = 'patches' | 'all'
 // Onglet et jeu choisis, propres à ce PC.
 const STORAGE_KEY = 'pg.news'
 const ALL = '*'
+/** Jeux proposés en puces (les autres passent par « Autres jeux »). */
+const CHIP_GAMES = 2
 
 interface NewsPrefs {
   tab: NewsTab
@@ -43,7 +46,7 @@ function savePrefs(p: NewsPrefs): void {
   }
 }
 
-/** Page Actus des jeux : les annonces officielles publiées sur Steam pour tes jeux, rangées par jour. */
+/** Page Actus des jeux : les annonces officielles publiées sur Steam pour tes jeux, les plus récentes d'abord. */
 export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsPageProps): React.JSX.Element {
   const { state, refreshing, refresh, markAllSeen } = useNewsFeed(enabled, demo)
   const [prefs, setPrefs] = useState<NewsPrefs>(loadPrefs)
@@ -71,10 +74,8 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
   // Un jeu choisi qui n'a plus d'annonce (désinstallé, mode démo basculé) : retour à « Tous ».
   const game = prefs.game !== ALL && gameList.some((g) => g.id === prefs.game) ? prefs.game : ALL
   const gameId = game === ALL ? null : game
-  const counts = useMemo(
-    () => ({ patches: filterFeed(items, { patchesOnly: true, gameId }).length, all: filterFeed(items, { patchesOnly: false, gameId }).length }),
-    [items, gameId]
-  )
+  // Patchs de la vue (jeu choisi ou tous), sur la puce « Patchs seulement ».
+  const patchCount = useMemo(() => filterFeed(items, { patchesOnly: true, gameId }).length, [items, gameId])
   const shown = useMemo(() => filterFeed(items, { patchesOnly: prefs.tab === 'patches', gameId }), [items, prefs.tab, gameId])
   const byId = useMemo(() => new Map(games.map((g) => [g.id, g])), [games])
   const anyNew = items.some((i) => i.isNew)
@@ -114,18 +115,10 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
   }
 
   const tab = prefs.tab
-  const tabs = (
-    <TopTabs<NewsTab>
-      label="Actus des jeux"
-      idBase="nf"
-      value={tab}
-      onChange={(next) => update({ tab: next })}
-      tabs={[
-        { id: 'patches', label: 'Patchs', icon: 'download', badge: feed ? counts.patches : undefined },
-        { id: 'all', label: 'Toutes les actus', short: 'Tout', icon: 'list', badge: feed ? counts.all : undefined }
-      ]}
-    />
-  )
+  // Puces des jeux : les derniers à avoir publié (ordre du relevé), plus celui qui est choisi ; les autres dans « Autres jeux ».
+  const chipIds = [...new Set(items.map((i) => i.gameId))].filter((id) => gameList.some((g) => g.id === id)).slice(0, CHIP_GAMES)
+  if (gameId && !chipIds.includes(gameId)) chipIds.push(gameId)
+  const chipGames = chipIds.map((id) => gameList.find((g) => g.id === id)!)
 
   const retry = (): void => void refresh().then((f) => announce(f ? afterRefresh(f) : 'Actus indisponibles pour le moment.'))
   const markAll = (e: React.MouseEvent<HTMLButtonElement>): void => {
@@ -172,23 +165,25 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
       />
     )
   } else {
+    const rest = shown.slice(UNE_MAX)
     body = (
       <>
         {feed.offline && <p className="caption nf-offline">Steam ne répond pas : voici les actus du dernier relevé.</p>}
-        {groupFeed(shown, now).map((group) => (
-          <section key={group.bucket} className="nf-group" aria-labelledby={`nf-g-${group.bucket}`}>
-            <h2 id={`nf-g-${group.bucket}`} className="overline nf-group-h">
-              {BUCKET_LABEL[group.bucket]}
+        <NewsUne items={shown.slice(0, UNE_MAX)} games={byId} now={now} onRead={onRead} />
+        {rest.length > 0 && (
+          <section className="nf-recent" aria-labelledby="nf-recent-h">
+            <h2 id="nf-recent-h" className="nf-h2">
+              Plus récentes
             </h2>
-            <ul className="nf-list">
-              {group.items.map((item) => (
+            <ul className="nf-grid">
+              {rest.map((item) => (
                 <li key={`${item.gameId}:${item.id}`}>
                   <FeedItem item={item} game={byId.get(item.gameId)} now={now} onRead={onRead} />
                 </li>
               ))}
             </ul>
           </section>
-        ))}
+        )}
       </>
     )
   }
@@ -196,22 +191,48 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
   return (
     <div className="page nf-page">
       <h1 className="sr-only">Actus des jeux</h1>
+      <TopTitle>Actus des jeux</TopTitle>
       <p className="sr-only" aria-live="polite">
         {status}
       </p>
-      {tabs}
       {feed && feed.tracked > 0 && (
-        <div className="nf-toolbar">
-          {gameList.length > 1 && (
-            <PickMenu<string>
-              label="Jeu"
-              value={game}
-              options={[{ value: ALL, label: 'Tous', hint: tabItems.length }, ...gameList.map((g) => ({ value: g.id, label: cleanName(g.name), hint: g.count }))]}
-              onPick={(v) => update({ game: v })}
-            />
-          )}
-          <p className="nf-summary">{summary(feed, now)}</p>
-          <div className="nf-actions">
+        <div className="nf-bar">
+          <div className="nf-filters" role="group" aria-label="Filtrer les actus">
+            {gameList.length > 1 && (
+              <>
+                <button className="nf-chip" aria-pressed={game === ALL} onClick={() => update({ game: ALL })}>
+                  Tous tes jeux
+                </button>
+                {chipGames.map((g) => (
+                  <button key={g.id} className="nf-chip" aria-pressed={game === g.id} onClick={() => update({ game: g.id })}>
+                    {cleanName(g.name)}
+                  </button>
+                ))}
+                {gameList.length > chipGames.length && (
+                  <PickMenu<string>
+                    label="Jeu"
+                    display="Autres jeux"
+                    className="nf-chip nf-more"
+                    value={game}
+                    options={[
+                      { value: ALL, label: 'Tous tes jeux', hint: tabItems.length },
+                      ...gameList.map((g) => ({ value: g.id, label: cleanName(g.name), hint: g.count }))
+                    ]}
+                    onPick={(v) => update({ game: v })}
+                  />
+                )}
+              </>
+            )}
+            {/* Sans aucune annonce, rien à filtrer : l'état vide dit pourquoi. */}
+            {items.length > 0 && (
+              <button className="nf-chip" aria-pressed={tab === 'patches'} onClick={() => update({ tab: tab === 'patches' ? 'all' : 'patches' })}>
+                Patchs seulement
+                <span className="nf-chip-count num">{patchCount}</span>
+              </button>
+            )}
+          </div>
+          <div className="nf-tools">
+            <p className="nf-summary">{summary(feed, now)}</p>
             {anyNew && (
               // aria-disabled plutôt que disabled : un bouton désactivé perd le focus.
               <button className="btn btn-ghost btn-sm" aria-disabled={marking || undefined} onClick={markAll}>
@@ -236,12 +257,10 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
           </div>
         </div>
       )}
+      <div className="nf-panel">{body}</div>
       {feed && feed.tracked > 0 && (
-        <p className="caption nf-hint">Les annonces officielles publiées sur Steam pour tes jeux installés, notes de patch comprises. Un clic ouvre l'annonce en entier.</p>
+        <p className="nf-hint">Les annonces officielles publiées sur Steam pour tes jeux installés, notes de patch comprises. Un clic ouvre l'annonce en entier.</p>
       )}
-      <div role="tabpanel" id="nf-panel" aria-labelledby={`nf-tab-${tab}`} className="nf-panel">
-        {body}
-      </div>
     </div>
   )
 }
@@ -275,19 +294,26 @@ function FeedItem({ item, game, now, onRead }: ItemProps): React.JSX.Element {
     <button
       className={`nf-item ${item.isNew ? 'is-new' : ''}`}
       aria-label={`${item.patch ? 'Patch' : 'Actu'} de ${name} : ${item.title}, ${when.toLowerCase()}${item.isNew ? ', nouveau' : ''}`}
+      title={item.title}
       onClick={() => onRead(item.gameId, item.id)}
     >
-      <NewsThumb game={game ?? { name: item.gameName }} patch={item.patch} className="nf-thumb" />
-      <span className="nf-item-text" aria-hidden="true">
-        <span className="news-meta">
-          <span className="nf-item-game">{name}</span>
-          {item.patch && <span className="news-tag">Patch</span>}
-          <span className="num">{when}</span>
-          {item.isNew && <span className="news-new">Nouveau</span>}
-        </span>
-        <span className="news-item-title">{item.title}</span>
+      <span className="nf-item-art" aria-hidden="true">
+        <NewsThumb game={game ?? { name: item.gameName }} patch={item.patch} className="nf-item-thumb" />
+        {item.isNew && (
+          <span className="news-badge nf-item-new">
+            <span className="news-badge-dot" />
+            Nouveau
+          </span>
+        )}
       </span>
-      <Icon name="chevron-right" size={16} className="nf-item-go" />
+      <span className="nf-item-text" aria-hidden="true">
+        <span className="nf-kicker">
+          {name}
+          {item.patch && ' · Patch'}
+        </span>
+        <span className="nf-item-title">{item.title}</span>
+        <span className="nf-item-when num">{when}</span>
+      </span>
     </button>
   )
 }
@@ -321,17 +347,18 @@ function Empty({ icon, title, text, action }: EmptyProps): React.JSX.Element {
 
 function FeedSkeleton(): React.JSX.Element {
   return (
-    <div className="nf-list" aria-busy="true">
+    <div className="nf-skel" aria-busy="true">
       <span className="sr-only">Player X demande les dernières annonces à Steam…</span>
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="nf-item nf-skel" aria-hidden="true">
-          <span className="skel nf-thumb" />
-          <span className="nf-item-text">
-            <span className="skel" style={{ width: '30%', height: 10 }} />
+      <span className="skel nf-skel-une" aria-hidden="true" />
+      <span className="nf-grid" aria-hidden="true">
+        {[0, 1, 2, 3].map((i) => (
+          <span key={i} className="nf-skel-card">
+            <span className="skel nf-skel-art" />
+            <span className="skel" style={{ width: '40%', height: 10 }} />
             <span className="skel" style={{ width: `${70 + (i % 3) * 8}%`, height: 14 }} />
           </span>
-        </div>
-      ))}
+        ))}
+      </span>
     </div>
   )
 }

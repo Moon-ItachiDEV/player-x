@@ -24,26 +24,9 @@
   border-radius: 50%;
   background: var(--info);
 }
-/* Bibliothèque : en haut à gauche de la jaquette ; s'efface au survol comme « En jeu » (place au bouton Jouer et à l'étoile). */
-.lib-card-news {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 2;
-  transition: opacity var(--d-out) var(--ease-glide);
-}
-.lib-card:is(:hover, :focus-visible) .lib-card-news {
-  opacity: 0;
-  transition-duration: var(--d-in);
-}
-/* Accueil : à côté des pastilles du jeu à la une, et en bas à gauche des cartes « À reprendre ». */
+/* Accueil : à côté des pastilles du jeu à la une. */
 .hh-news {
   height: 24px;
-}
-.rc-news {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
 }
 
 /* ---------- bandeau en haut de la fiche ---------- */
