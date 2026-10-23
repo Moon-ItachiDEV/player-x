@@ -1,120 +1,5 @@
-/* Relevé des actus : rangée « Mises à jour de tes jeux » de l'accueil (.nf-row, cartes .nf-card) et page Actus des jeux
-   (.nf-page : « À la une » .nf-une, cartes .nf-item). Couleurs par jetons seulement ; pas de flou sur les étiquettes posées sur
+/* Page Actus des jeux (.nf-page) : puces de filtre, « À la une » (.nf-une) et « Plus récentes » (cartes .nf-item). Couleurs par jetons seulement ; pas de flou sur les étiquettes posées sur
    des images fixes, seulement sur la carte et la colonne en verre de « À la une » (comme la maquette Braise). */
-
-/* ---------- rangée de l'accueil ---------- */
-
-/* Mêmes en-tête et piste que « À reprendre » (.hr-*) ; une carte de plus par ligne (cartes plus basses). */
-.hr-track.nf-track {
-  --cols: 5;
-}
-@container (max-width: 1200px) {
-  .hr-track.nf-track {
-    --cols: 4;
-  }
-}
-@container (max-width: 900px) {
-  .hr-track.nf-track {
-    --cols: 3;
-  }
-}
-@container (max-width: 640px) {
-  .hr-track.nf-track {
-    --cols: 2;
-  }
-}
-
-.nf-card {
-  scroll-snap-align: start;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-  border-radius: var(--r-lg);
-  background: var(--card-bg);
-  border: 1px solid var(--line-2);
-  box-shadow: var(--sh-card);
-  text-align: left;
-  transition:
-    translate 220ms var(--ease-glide),
-    border-color var(--d-2) var(--ease-out),
-    box-shadow var(--d-2) var(--ease-out);
-}
-.nf-card:hover,
-.nf-card:focus-visible {
-  translate: 0 -3px;
-  border-color: var(--line-3);
-  box-shadow: var(--sh-card-hover);
-}
-.nf-card:focus-visible {
-  box-shadow: var(--focus), var(--sh-card-hover);
-}
-.nf-art {
-  position: relative;
-  display: block;
-  height: 104px;
-  overflow: hidden;
-  border-bottom: 1px solid var(--line-1);
-}
-.nf-art .cover {
-  height: 100%;
-  aspect-ratio: auto;
-}
-.nf-art .cover-img {
-  transition:
-    opacity 240ms var(--ease-out),
-    scale 400ms var(--ease-glide);
-}
-.nf-card:hover .nf-art .cover-img {
-  scale: 1.05;
-}
-.news-tag.nf-tag {
-  position: absolute;
-  left: 10px;
-  top: 10px;
-  height: 20px;
-  padding: 0 7px;
-  background: var(--badge-bg);
-  border: 1px solid color-mix(in srgb, var(--info) 45%, transparent);
-}
-.news-badge.nf-new {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-}
-.nf-card .news-badge {
-  backdrop-filter: none;
-}
-.nf-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding: 11px 14px 13px;
-}
-.nf-game {
-  font: 700 11px/14px var(--font-ui);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.nf-title {
-  min-height: 36px;
-  font: 700 14px/18px var(--font-ui);
-  color: var(--text-1);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-.nf-when {
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-2);
-}
 
 /* ---------- page Actus des jeux ---------- */
 
@@ -363,6 +248,13 @@ span.nf-une-text {
 }
 .nf-une-go:focus-visible {
   box-shadow: var(--focus);
+}
+/* Transparence coupée (Paramètres) : sans flou, la carte et la colonne deviennent presque opaques pour rester lisibles. */
+.no-blur .nf-une-card {
+  background: color-mix(in srgb, var(--bg-2) 94%, transparent);
+}
+.no-blur .nf-side-row {
+  background: color-mix(in srgb, var(--bg-2) 90%, transparent);
 }
 .nf-side {
   flex: 1 1 320px;
