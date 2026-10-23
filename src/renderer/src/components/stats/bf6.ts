@@ -168,3 +168,25 @@ export function periodOf(points: Bf6Point[]): { kills: number; deaths: number; m
   }
 }
 
+// ---------- jeu affiché par la page Stats ----------
+
+/** Battlefield 6 ou Counter-Strike 2 : le choix est gardé sur ce PC. */
+export type StatsGame = 'bf6' | 'cs2'
+
+const GAME_KEY = 'pg.stats.game'
+
+export function loadStatsGame(): StatsGame {
+  try {
+    return localStorage.getItem(GAME_KEY) === 'cs2' ? 'cs2' : 'bf6'
+  } catch {
+    return 'bf6'
+  }
+}
+
+export function saveStatsGame(game: StatsGame): void {
+  try {
+    localStorage.setItem(GAME_KEY, game)
+  } catch {
+    /* stockage indisponible : le choix vaut pour la session */
+  }
+}

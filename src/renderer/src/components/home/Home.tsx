@@ -1,59 +1,67 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { hasPlayed, PLAYED_SOURCE, playedBadge, playedOn } from '@shared/played'
+import { hasPlayed, PLAYED_SOURCE } from '@shared/played'
 import { capitalize, cleanName, formatDate, formatPlaytime, plural, timeAgo } from '@shared/text'
-import type { Friend, Game } from '@shared/types'
+import type { AchievementGame, Friend, Game } from '@shared/types'
 import type { HomeProps, LaunchFn } from '../../contracts'
 import { PlayLabel } from '../../launch/PlayLabel'
 import { usePlayState } from '../../launch/usePlayState'
-import { follow, fxOn, setArtBase, setArtFocus, setMorphSource } from '../../motion'
+import { follow, fxOn, setArtBase, setMorphSource } from '../../motion'
+import { useAchievementsOverview } from '../achievements/useAchievements'
 import { FavStar, usePop } from '../library/GameCard'
 import { NoGames } from '../library/NoGames'
-import { Avatar } from '../ui/Avatar'
+import { NewsBadge } from '../news/NewsBadge'
 import { Cover, generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
 import { LiveBadge } from '../ui/LiveBadge'
 import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
-import { NewsBadge } from '../news/NewsBadge'
-import { NewsFeedRow } from '../news/NewsFeedRow'
-import { aroundLabel, playersLabel, playersOf, whoIsAround, type Around } from './around'
-import { useRowScroll } from './rowScroll'
+import { playersLabel, playersOf, whoIsAround } from './around'
+import { HomeAchievements, HomeNews, useHomeNews } from './HomeBottom'
+import { HomeShelf } from './HomeShelf'
+import { LastMatchCard, OnlinePanel } from './HomeSide'
+import { achievementRows, achievementsOf, pickHero, resumeList } from './pick'
+import { useLastMatch } from './useLastMatch'
 import './home.css'
 
 export type { HomeProps }
 
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
-const byName = (a: Game, b: Game): number => collator.compare(cleanName(a.name), cleanName(b.name))
-/** Jeux en cours d'abord, puis la dernière partie la plus récente. */
-const byRecent = (a: Game, b: Game): number => Number(!!b.running) - Number(!!a.running) || (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0)
-const hasArt = (g: Game): boolean => !!(g.heroUrl || g.coverUrl)
-
-/** Jeu à la une : celui qui tourne, sinon la dernière partie, sinon un favori (puis un jeu) avec une image. */
-function pickHero(games: Game[]): Game | null {
-  // Plusieurs jeux en cours : le dernier démarré.
-  let running: Game | null = null
-  for (const g of games) if (g.running && (!running || (g.runningSince ?? 0) > (running.runningSince ?? 0))) running = g
-  if (running) return running
-  let recent: Game | null = null
-  for (const g of games) if (g.lastPlayed && (!recent || g.lastPlayed > (recent.lastPlayed ?? 0))) recent = g
-  return recent ?? games.find((g) => g.favorite && hasArt(g)) ?? games.find(hasArt) ?? games[0] ?? null
-}
-
 export function Home(props: HomeProps): React.JSX.Element {
-  const { games, friends, scanning, report, demo, news, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, onShowLibrary, onReadNews, onShowNews } = props
-  const hero = useMemo(() => pickHero(games), [games])
+  const {
+    games,
+    friends,
+    scanning,
+    report,
+    demo,
+    news,
+    onLaunch,
+    onOpen,
+    onFavorite,
+    onRescan,
+    onEnableDemo,
+    onShowLibrary,
+    onReadNews,
+    onShowNews,
+    onShowFriends,
+    onShowTrophies
+  } = props
+  // Jeu mis à la une depuis « À reprendre » ; sinon le choix automatique (en cours, dernière partie…).
+  const [targetId, setTargetId] = useState<string | null>(null)
+  const auto = useMemo(() => pickHero(games), [games])
+  const hero = (targetId && games.find((g) => g.id === targetId)) || auto
   const heroId = hero?.id
 
-  // « À reprendre » : les dernières parties ; sans historique, les favoris puis les jeux qui ont une image.
-  const { cards, resumed } = useMemo(() => {
-    const rest = games.filter((g) => g.id !== heroId)
-    const played = rest.filter((g) => g.lastPlayed).sort(byRecent)
-    if (played.length) return { cards: played.slice(0, 12), resumed: true }
-    const favs = rest.filter((g) => g.favorite).sort(byName)
-    const others = rest.filter((g) => !g.favorite && hasArt(g)).sort(byName)
-    return { cards: [...favs, ...others].slice(0, 12), resumed: false }
-  }, [games, heroId])
-  // Bandeau : amis en ligne autour du jeu à la une.
+  // Un jeu qui démarre passe à la une, même après un choix à la main.
+  const runningId = auto?.running ? auto.id : null
+  useEffect(() => {
+    if (runningId) setTargetId(null)
+  }, [runningId])
+
+  const { list: resume, resumed } = useMemo(() => resumeList(games, hero), [games, hero])
   const around = useMemo(() => (hero ? whoIsAround(hero, friends) : null), [hero, friends])
+  const match = useLastMatch()
+  const { data: overview } = useAchievementsOverview()
+  const achRows = useMemo(() => achievementRows(overview), [overview])
+  const heroAch = useMemo(() => (heroId ? achievementsOf(overview, heroId) : null), [overview, heroId])
+  const newsItems = useHomeNews(games, news, demo)
 
   if (games.length === 0 && scanning) return <HomeSkeleton />
 
@@ -65,38 +73,53 @@ export function Home(props: HomeProps): React.JSX.Element {
     )
   }
 
+  const side = !!match || !!around
   return (
     <div className="page home">
-      <HomeHero
-        key={hero.id}
-        game={hero}
-        around={around}
-        news={news}
-        onReadNews={onReadNews}
-        onLaunch={onLaunch}
-        onOpen={onOpen}
-        onFavorite={onFavorite}
-      />
-      {cards.length > 0 && (
-        <ResumeRow
-          title={resumed ? 'À reprendre' : 'Dans ta bibliothèque'}
-          sub={resumed ? 'Tes dernières parties' : 'Lance un jeu : il apparaîtra ici'}
-          games={cards}
-          friends={friends}
+      <div className="hm-top">
+        <HomeHero
+          key={hero.id}
+          game={hero}
+          players={playersOf(hero, friends)}
+          achievements={heroAch}
+          resume={resume}
+          resumeTitle={resumed ? 'À reprendre' : 'Dans ta bibliothèque'}
+          onTarget={(g) => setTargetId(g.id)}
+          news={news}
+          onReadNews={onReadNews}
           onLaunch={onLaunch}
           onOpen={onOpen}
-          onShowLibrary={onShowLibrary}
+          onFavorite={onFavorite}
         />
+        {side && (
+          <div className="hm-side">
+            {match && <LastMatchCard match={match} />}
+            {around && <OnlinePanel around={around} tall={!match} onShowFriends={onShowFriends} />}
+          </div>
+        )}
+      </div>
+      <HomeShelf games={games} heroId={hero.id} onLaunch={onLaunch} onOpen={onOpen} onShowLibrary={onShowLibrary} />
+      {(newsItems.length > 0 || achRows.length > 0) && (
+        <div className="hm-bottom">
+          {newsItems.length > 0 && <HomeNews items={newsItems} games={games} onRead={onReadNews} onShowAll={onShowNews} />}
+          {achRows.length > 0 && <HomeAchievements rows={achRows} onShowTrophies={onShowTrophies} />}
+        </div>
       )}
-      <NewsFeedRow games={games} enabled={news} demo={demo} onRead={onReadNews} onShowAll={onShowNews} />
     </div>
   )
 }
 
 interface HeroProps {
   game: Game
-  around: Around | null
-  /** Actus des jeux activées : cellule « Dernier patch ». */
+  /** Amis et membres du serveur qui jouent à ce jeu. */
+  players: Friend[]
+  /** Succès Steam du jeu, s'ils sont relevés. */
+  achievements: AchievementGame | null
+  /** « À reprendre », le jeu à la une compris (ligne surlignée). */
+  resume: Game[]
+  resumeTitle: string
+  onTarget: (g: Game) => void
+  /** Actus des jeux activées : lien « Patch » de la ligne d'infos. */
   news: boolean
   onReadNews: (gameId: string, postId: string) => void
   onLaunch: LaunchFn
@@ -104,10 +127,22 @@ interface HeroProps {
   onFavorite: (g: Game) => void
 }
 
-/** Jeu à la une : visuel d'un bord à l'autre (il remonte sous la barre du haut), jaquette, titre, actions et bandeau de chiffres en verre. */
-function HomeHero({ game, around, news, onReadNews, onLaunch, onOpen, onFavorite }: HeroProps): React.JSX.Element {
+/** Jeu à la une : grand visuel, pastilles, titre, ligne d'infos, actions ; à droite, « À reprendre » sur du verre. */
+function HomeHero({
+  game,
+  players,
+  achievements,
+  resume,
+  resumeTitle,
+  onTarget,
+  news,
+  onReadNews,
+  onLaunch,
+  onOpen,
+  onFavorite
+}: HeroProps): React.JSX.Element {
   const root = useRef<HTMLElement>(null)
-  const poster = useRef<HTMLButtonElement>(null)
+  const art = useRef<HTMLDivElement>(null)
   const p = usePlayState(game, onLaunch)
   const [heroFailed, setHeroFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -150,7 +185,10 @@ function HomeHero({ game, around, news, onReadNews, onLaunch, onOpen, onFavorite
       if (e.pointerType !== 'mouse' || !fxOn()) return
       active = true
       rect = el.getBoundingClientRect()
-      window.addEventListener('scroll', stale, { capture: true, passive: true })
+      window.addEventListener('scroll', stale, {
+        capture: true,
+        passive: true
+      })
       move(e)
     }
     const leave = (): void => {
@@ -171,20 +209,19 @@ function HomeHero({ game, around, news, onReadNews, onLaunch, onOpen, onFavorite
     }
   }, [])
 
-  // Le visuel déborde sous la barre du haut : la jaquette sert de point de départ au morphing vers la fiche.
+  // Le visuel du jeu sert de point de départ au morphing vers la fiche.
   const open = (): void => {
-    setMorphSource(poster.current, game.id, 'cover')
+    setMorphSource(art.current, game.id, 'art')
     onOpen(game)
   }
 
-  const sub = game.running ? 'Partie en cours' : hasPlayed(game) ? "Reprends là où tu t'es arrêté" : 'Jamais lancé depuis Player X'
   const src = game.lastPlayedSource
-  const patch = game.lastPatch
+  const patch = news ? game.lastPatch : undefined
 
   return (
     <section ref={root} className={`hh ${game.running ? 'is-live' : ''}`} aria-label={`À la une : ${name}`}>
       <div className="hh-bleed" aria-hidden="true">
-        <div className="hh-art" style={{ background: generatedBackground(game.name) }}>
+        <div ref={art} className="hh-art" style={{ background: generatedBackground(game.name) }}>
           {backUrl && (
             <img
               key={backUrl}
@@ -202,25 +239,50 @@ function HomeHero({ game, around, news, onReadNews, onLaunch, onOpen, onFavorite
       </div>
 
       <div className="hh-in">
-        <button ref={poster} className="hh-poster" tabIndex={-1} aria-hidden="true" onClick={open}>
-          <Cover game={game} />
-        </button>
-        <div className="hh-text">
+        <div className="hh-main">
           <div className="hh-chips">
             <StoreTag kind={game.store} long className="hh-store" />
-            {fav && (
-              <span className="hh-chip">
-                <Icon name="star" size={12} filled />
-                Favori
+            {game.running && <LiveBadge />}
+            {players.length > 0 && (
+              <span className="hh-chip-live" title={players.map((f) => f.name).join(', ')}>
+                <Icon name="play" size={10} />
+                {playersLabel(players)}
               </span>
             )}
-            {game.running && <LiveBadge />}
             {game.newPatch && <NewsBadge patch={game.newPatch} className="hh-news" />}
           </div>
-          <h1 className="hh-title" title={name}>
+          <h2 className="hh-title" title={name}>
             {name}
-          </h1>
-          <p className="hh-sub">{sub}</p>
+          </h2>
+          <p className="hh-meta num">
+            {game.running ? (
+              <span className="hh-meta-live">Partie en cours</span>
+            ) : game.lastPlayed ? (
+              <span title={`${formatDate(game.lastPlayed)}${src ? `, ${PLAYED_SOURCE[src]}` : ''}`}>Dernière partie : {timeAgo(game.lastPlayed)}</span>
+            ) : (
+              !hasPlayed(game) && <span>Jamais lancé depuis Player X</span>
+            )}
+            {!!game.playtime && <span>{formatPlaytime(game.playtime)} de jeu</span>}
+            {(game.launches ?? 0) > 0 && <span title="Depuis Player X">{plural(game.launches ?? 0, 'lancement', 'lancements')}</span>}
+            {achievements && (
+              <span>
+                {achievements.unlocked} / {achievements.total} succès
+              </span>
+            )}
+            {patch && (
+              <span>
+                <button
+                  className="hh-patch"
+                  title={`${patch.title} · notes publiées sur Steam le ${formatDate(patch.at)}`}
+                  aria-label={`Lire les notes du dernier patch de ${name} : ${patch.title}, ${timeAgo(patch.at)}`}
+                  onClick={() => onReadNews(game.id, patch.id)}
+                >
+                  Patch {timeAgo(patch.at)}
+                  <Icon name="chevron-right" size={14} />
+                </button>
+              </span>
+            )}
+          </p>
           <div className="hh-actions">
             <button
               className={`btn btn-primary btn-play ${p.className}`}
@@ -229,15 +291,15 @@ function HomeHero({ game, around, news, onReadNews, onLaunch, onOpen, onFavorite
               aria-busy={p.busy || undefined}
               aria-label={p.ariaLabel}
               title={p.state === 'idle' ? undefined : p.title}
-              onClick={() => p.activate(poster.current)}
+              onClick={() => p.activate(art.current)}
             >
-              <PlayLabel p={p} size={18} />
+              <PlayLabel p={p} size={20} />
             </button>
-            <button className="btn btn-secondary btn-lg hh-sheet" onClick={open}>
-              Fiche
+            <button className="btn hh-glass hh-sheet" onClick={open}>
+              Détails du jeu
             </button>
             <button
-              className={`btn btn-secondary btn-lg hh-fav ${fav ? 'is-on' : ''}`}
+              className={`btn hh-glass hh-fav ${fav ? 'is-on' : ''}`}
               aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
               title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
               onClick={() => {
@@ -245,216 +307,56 @@ function HomeHero({ game, around, news, onReadNews, onLaunch, onOpen, onFavorite
                 onFavorite(game)
               }}
             >
-              <FavStar on={fav} pop={pop} size={18} />
+              <FavStar on={fav} pop={pop} size={20} />
             </button>
           </div>
         </div>
-      </div>
 
-      <dl className="hh-band">
-        <div className="hh-k">
-          <dt>Temps de jeu</dt>
-          <dd className="num">{game.playtime ? formatPlaytime(game.playtime) : '—'}</dd>
-        </div>
-        {(game.launches ?? 0) > 0 && (
-          <div className="hh-k">
-            <dt>
-              Lancements<span className="sr-only"> depuis Player X</span>
-            </dt>
-            <dd className="num">{game.launches}</dd>
+        {resume.length > 1 && (
+          <div className="hh-end">
+            <h3 className="hh-end-title">{resumeTitle}</h3>
+            <ul className="hh-resume">
+              {resume.map((g) => (
+                <ResumeRow key={g.id} game={g} active={g.id === game.id} onTarget={onTarget} />
+              ))}
+            </ul>
           </div>
         )}
-        <div className="hh-k">
-          <dt>Dernière partie</dt>
-          {game.running ? (
-            <dd>En cours</dd>
-          ) : game.lastPlayed ? (
-            <dd title={formatDate(game.lastPlayed)}>
-              {capitalize(timeAgo(game.lastPlayed))}
-              {src && <span className="sr-only">, {PLAYED_SOURCE[src]}</span>}
-            </dd>
-          ) : (
-            <dd>—</dd>
-          )}
-        </div>
-        {/* À droite : le dernier patch du jeu (ouvre ses notes), puis les amis en ligne. */}
-        {news && patch && (
-          <div className="hh-k hh-end hh-patch" title={`${patch.title} · notes publiées sur Steam le ${formatDate(patch.at)}`}>
-            <dt>Dernier patch</dt>
-            <dd>
-              <button
-                className="hh-patch-go"
-                aria-label={`Lire les notes du dernier patch de ${name} : ${patch.title}, ${timeAgo(patch.at)}`}
-                onClick={() => onReadNews(game.id, patch.id)}
-              >
-                {capitalize(timeAgo(patch.at))}
-                <Icon name="chevron-right" size={16} className="hh-patch-chev" />
-              </button>
-            </dd>
-          </div>
-        )}
-        {around && (
-          <div className="hh-k hh-end hh-friends" title={around.people.map((p) => p.name).join(', ')}>
-            <dt>
-              {around.kind === 'friends' ? 'Amis en ligne' : 'Membres en ligne'}
-              {around.here.size > 0 && (
-                <span className="hh-k-live" aria-hidden="true">
-                  {' '}
-                  · {around.here.size} {around.here.size > 1 ? 'y jouent' : 'y joue'}
-                </span>
-              )}
-            </dt>
-            <dd>
-              <span className="num" aria-hidden="true">
-                {around.people.length}
-              </span>
-              <span className="hh-stack" aria-hidden="true">
-                {around.people.slice(0, 4).map((p) => (
-                  <Avatar key={p.id} name={p.name} url={p.avatarUrl} size={28} className={around.here.has(p.id) ? 'is-here' : ''} />
-                ))}
-              </span>
-              <span className="sr-only">{aroundLabel(around)}</span>
-            </dd>
-          </div>
-        )}
-      </dl>
-    </section>
-  )
-}
-
-interface RowProps {
-  title: string
-  sub: string
-  games: Game[]
-  friends: Friend[]
-  onLaunch: LaunchFn
-  onOpen: (g: Game) => void
-  onShowLibrary: () => void
-}
-
-/** Rangée de cartes défilante, avec boutons précédent / suivant. */
-function ResumeRow({ title, sub, games, friends, onLaunch, onOpen, onShowLibrary }: RowProps): React.JSX.Element {
-  const { track, edges, scrollBy } = useRowScroll(games.length)
-
-  return (
-    <section className="hr" aria-labelledby="hr-title">
-      <header className="hr-head">
-        <div className="hr-titles">
-          <h2 id="hr-title" className="h-section">
-            {title}
-          </h2>
-          <p className="hr-sub">{sub}</p>
-        </div>
-        <button className="btn btn-ghost btn-sm" onClick={onShowLibrary}>
-          Toute la bibliothèque
-          <Icon name="chevron-right" size={14} />
-        </button>
-        <button className="btn btn-secondary btn-sm hr-nav" aria-label="Précédent" title="Précédent" disabled={!edges.start} onClick={() => scrollBy(-1)}>
-          <Icon name="chevron-left" size={16} />
-        </button>
-        <button className="btn btn-secondary btn-sm hr-nav" aria-label="Suivant" title="Suivant" disabled={!edges.end} onClick={() => scrollBy(1)}>
-          <Icon name="chevron-right" size={16} />
-        </button>
-      </header>
-      <div ref={track} className="hr-track">
-        {games.map((g) => (
-          <ResumeCard key={g.id} game={g} players={playersOf(g, friends)} onLaunch={onLaunch} onOpen={onOpen} />
-        ))}
       </div>
     </section>
   )
 }
 
-interface CardProps {
-  game: Game
-  players: Friend[]
-  onLaunch: LaunchFn
-  onOpen: (g: Game) => void
-}
-
-function ResumeCard({ game, players, onLaunch, onOpen }: CardProps): React.JSX.Element {
-  const art = useRef<HTMLButtonElement>(null)
-  const p = usePlayState(game, onLaunch)
-  const lit = useRef(false)
+/** Ligne de « À reprendre » : met le jeu à la une (le jeu à la une est surligné). */
+function ResumeRow({ game, active, onTarget }: { game: Game; active: boolean; onTarget: (g: Game) => void }): React.JSX.Element {
   const name = cleanName(game.name)
-  const image = game.heroUrl || game.coverUrl
-  const badge = playedBadge(game)
-  const meta = [game.launches ? plural(game.launches, 'lancement', 'lancements') : '', game.playtime ? formatPlaytime(game.playtime) : ''].filter(Boolean).join(' · ')
-
-  // Fond de la page aux couleurs du jeu survolé ; rendu par cette carte seulement.
-  const light = (on: boolean): void => {
-    if (on === lit.current) return
-    lit.current = on
-    setArtFocus(on ? image : null)
-  }
-  useEffect(
-    () => () => {
-      if (lit.current) setArtFocus(null)
-    },
-    []
-  )
-
-  const open = (): void => {
-    setMorphSource(art.current, game.id, 'art')
-    onOpen(game)
-  }
-
+  const store = KIND_LABEL[game.store]
+  const sub = game.running
+    ? `En cours · ${store}`
+    : active
+      ? `À la une · ${store}`
+      : game.lastPlayed
+        ? `Joué ${timeAgo(game.lastPlayed)} · ${store}`
+        : game.favorite
+          ? `Favori · ${store}`
+          : store
   return (
-    <article
-      className={`rc ${game.running ? 'is-live' : ''}`}
-      onPointerEnter={() => light(true)}
-      onPointerLeave={() => light(false)}
-      onFocus={() => light(true)}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) light(false)
-      }}
-    >
-      <button ref={art} className="rc-art" aria-label={`Fiche de ${name}`} title="Voir la fiche" onClick={open}>
-        <Cover game={game} variant="landscape" showTitle={!image} />
-        {badge && (
-          <span className={`rc-badge ${game.running ? 'is-live' : ''}`}>
-            {!game.running && <Icon name="clock" size={13} />}
-            {badge}
-          </span>
-        )}
-        <StoreTag kind={game.store} long className="rc-store" />
-        {game.running && <LiveBadge className="rc-live" />}
-        {game.newPatch && <NewsBadge patch={game.newPatch} className="rc-news" />}
+    <li>
+      <button
+        className={`hh-row ${active ? 'is-on' : ''} ${game.running ? 'is-live' : ''}`}
+        aria-pressed={active}
+        title={active ? undefined : `Mettre ${name} à la une`}
+        onClick={() => onTarget(game)}
+      >
+        <span className="hh-row-thumb" aria-hidden="true">
+          <Cover game={game} variant="letter" />
+        </span>
+        <span className="hh-row-text">
+          <span className="hh-row-name">{name}</span>
+          <span className="hh-row-sub">{capitalize(sub)}</span>
+        </span>
       </button>
-      <div className="rc-body">
-        <p className="rc-date">{game.lastPlayed ? playedOn(game.lastPlayed, game.lastPlayedSource) : KIND_LABEL[game.store]}</p>
-        <h3 className="rc-name" title={name}>
-          {name}
-        </h3>
-        <p className="rc-meta num">{meta || (game.favorite ? 'Favori' : 'Pas encore de temps de jeu')}</p>
-        <div className="rc-actions">
-          <button
-            className={`btn btn-primary btn-sm rc-play ${p.className}`}
-            aria-disabled={p.inert || undefined}
-            aria-busy={p.busy || undefined}
-            aria-label={p.ariaLabel}
-            title={p.state === 'idle' ? undefined : p.title}
-            onClick={() => p.activate(art.current)}
-          >
-            <PlayLabel p={p} size={13} />
-          </button>
-          <button className="btn btn-secondary btn-sm" onClick={open}>
-            Fiche
-          </button>
-        </div>
-      </div>
-      {/* Pied de carte seulement si quelqu'un y joue : pas de ligne de remplissage. */}
-      {players.length > 0 && (
-        <div className="rc-foot" title={players.map((p) => p.name).join(', ')}>
-          <span className="rc-stack" aria-hidden="true">
-            {players.slice(0, 3).map((p) => (
-              <Avatar key={p.id} name={p.name} url={p.avatarUrl} size={22} />
-            ))}
-          </span>
-          <span className="rc-foot-live">{playersLabel(players)}</span>
-        </div>
-      )}
-    </article>
+    </li>
   )
 }
 
@@ -462,18 +364,20 @@ function HomeSkeleton(): React.JSX.Element {
   return (
     <div className="page home" aria-busy="true">
       <span className="sr-only">Recherche des jeux installés…</span>
-      <div className="hh hh-skel skel" aria-hidden="true" />
-      <div className="hr-track" aria-hidden="true">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="rc rc-skel">
-            <div className="skel rc-skel-art" />
-            <div className="rc-body">
-              <span className="skel" style={{ width: '40%', height: 9 }} />
-              <span className="skel" style={{ width: '75%', height: 16 }} />
-              <span className="skel" style={{ width: '55%', height: 10 }} />
-            </div>
-          </div>
-        ))}
+      <div className="hm-top" aria-hidden="true">
+        <div className="hh hh-skel skel" />
+        <div className="hm-side">
+          <div className="hm-panel hm-skel-panel skel" />
+          <div className="hm-panel hm-skel-panel skel" />
+        </div>
+      </div>
+      <div className="hm-shelf" aria-hidden="true">
+        <span className="skel hm-skel-h" />
+        <div className="hm-track">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="hm-tile skel" />
+          ))}
+        </div>
       </div>
     </div>
   )

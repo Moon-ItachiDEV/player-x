@@ -8,9 +8,6 @@ import { completion, formatPercent, isUnlocked, rarityOf } from './format'
 import type { AchievementsLoad } from './useAchievements'
 import './achievements.css'
 
-/** Identifiant du lecteur de la fiche pour la liste complète (les annonces Steam ont des identifiants numériques). */
-export const ACH_VIEW = 'achievements'
-
 const RARE_MAX = 3
 
 const byRarity = (a: Achievement, b: Achievement): number => (a.percent ?? 101) - (b.percent ?? 101)
@@ -34,11 +31,12 @@ function blockedText(state: GameAchievements['state']): string | null {
 
 interface SectionProps {
   state: AchievementsLoad
+  /** « Voir les N succès » : l'onglet Succès de la fiche. */
   onOpenAll: (opener: HTMLElement) => void
   onRetry: () => void
 }
 
-/** Section « Succès » de la fiche d'un jeu Steam : progression, plus rares débloqués, dernier débloqué. */
+/** Carte « Succès » de l'aperçu d'un jeu Steam : progression, plus rares débloqués, dernier débloqué. */
 export function AchievementsSection({ state, onOpenAll, onRetry }: SectionProps): React.JSX.Element | null {
   const data = state.status === 'ready' ? state.data : null
   const picks = useMemo(() => {
@@ -57,15 +55,17 @@ export function AchievementsSection({ state, onOpenAll, onRetry }: SectionProps)
   const pct = data ? completion(data.unlocked, data.total) : 0
 
   return (
-    <section className="sheet-section ach" aria-labelledby="ach-h" aria-busy={state.status === 'loading'}>
-      <h3 id="ach-h" className="sheet-h">
-        Succès
+    <section className="sheet-card ach" aria-labelledby="ach-h" aria-busy={state.status === 'loading'}>
+      <div className="sheet-card-head">
+        <h3 id="ach-h" className="sheet-h">
+          Succès
+        </h3>
         {data?.state === 'ready' && (
-          <span className="sheet-h-count num">
+          <span className="ach-count num">
             {data.unlocked} / {data.total}
           </span>
         )}
-      </h3>
+      </div>
       {state.status === 'loading' && <SectionSkeleton />}
       {state.status === 'error' && (
         <div className="ach-error">
@@ -80,8 +80,8 @@ export function AchievementsSection({ state, onOpenAll, onRetry }: SectionProps)
       {data?.state === 'ready' && picks && (
         <>
           <div className="ach-progress">
-            <span className="ach-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Succès débloqués">
-              <span style={{ width: `${pct}%` }} className={pct === 100 ? 'is-perfect' : undefined} />
+            <span className="ach-bar is-big is-gold" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Succès débloqués">
+              <span style={{ transform: `scaleX(${pct / 100})` }} className={pct === 100 ? 'is-perfect' : undefined} />
             </span>
             <span className="ach-pct num">{pct === 100 ? '100 %' : `${pct} %`}</span>
           </div>
@@ -146,7 +146,7 @@ function AchRow({ ach, compact = false }: { ach: Achievement; compact?: boolean 
   const secret = ach.hidden && !done && !revealed
   const rarity = rarityOf(ach.percent)
   return (
-    <div className={`ach-row ${compact ? 'is-compact' : ''} ${done ? 'is-done' : ''}`}>
+    <div className={`ach-row ${compact ? 'is-compact' : ''} ${done ? 'is-done' : ''}`} title={compact && !secret ? ach.description || undefined : undefined}>
       <AchIcon ach={ach} size={compact ? 40 : 52} />
       <span className="ach-row-text">
         <span className="ach-name">
@@ -160,10 +160,10 @@ function AchRow({ ach, compact = false }: { ach: Achievement; compact?: boolean 
               Révéler
             </button>
           </span>
+        ) : compact ? (
+          <span className="ach-desc">{done && ach.unlockedAt ? `Débloqué ${timeAgo(ach.unlockedAt)}` : done ? 'Débloqué' : ach.description}</span>
         ) : (
-          (ach.description || !compact) && (
-            <span className="ach-desc">{ach.description || (ach.hidden ? 'Steam ne donne sa description qu’une fois débloqué.' : 'Pas de description sur Steam.')}</span>
-          )
+          <span className="ach-desc">{ach.description || (ach.hidden ? 'Steam ne donne sa description qu’une fois débloqué.' : 'Pas de description sur Steam.')}</span>
         )}
       </span>
       <span className="ach-row-side">
@@ -188,17 +188,13 @@ const SORTS: { value: Sort; label: string }[] = [
   { value: 'recent', label: 'Derniers débloqués' }
 ]
 
-interface ViewProps {
-  gameName: string
+interface TabProps {
   state: AchievementsLoad
-  backRef: React.RefObject<HTMLButtonElement | null>
-  onBack: () => void
-  onClose: () => void
   onRetry: () => void
 }
 
-/** Tous les succès du jeu, dans la fiche (comme le lecteur des actus). */
-export function AchievementsView({ gameName, state, backRef, onBack, onClose, onRetry }: ViewProps): React.JSX.Element {
+/** Onglet « Succès » de la fiche : tous les succès du jeu, à filtrer et trier. */
+export function AchievementsTab({ state, onRetry }: TabProps): React.JSX.Element {
   const [filter, setFilter] = useState<Filter>('all')
   const [sort, setSort] = useState<Sort>('game')
   const data = state.status === 'ready' && state.data.state === 'ready' ? state.data : null
@@ -212,6 +208,7 @@ export function AchievementsView({ gameName, state, backRef, onBack, onClose, on
     return list
   }, [data, filter, sort])
 
+  const blocked = state.status === 'ready' ? blockedText(state.data.state) : null
   const pct = data ? completion(data.unlocked, data.total) : 0
   const filters: { id: Filter; label: string; count: number }[] = data
     ? [
@@ -222,68 +219,55 @@ export function AchievementsView({ gameName, state, backRef, onBack, onClose, on
     : []
 
   return (
-    <div className="ach-view">
-      <div className="news-bar">
-        <button ref={backRef} className="btn btn-ghost btn-sm news-back" onClick={onBack} title="Retour à la fiche (Échap)">
-          <Icon name="chevron-left" size={16} />
-          Retour
-        </button>
-        <span className="news-bar-game">{gameName}</span>
-        <button className="icon-btn" onClick={onClose} aria-label="Fermer la fiche" title="Fermer la fiche">
-          <Icon name="x" size={18} />
-        </button>
-      </div>
-
-      <div className="ach-view-body">
-        <h2 className="ach-view-title">Succès</h2>
-        {state.status === 'loading' && <p className="caption">Chargement…</p>}
-        {state.status === 'error' && (
-          <div className="ach-error">
-            <p className="caption">{state.message}</p>
-            <button className="btn btn-secondary btn-sm" onClick={onRetry}>
-              <Icon name="refresh" size={14} />
-              Réessayer
-            </button>
+    <div className="ach-view-body">
+      {state.status === 'loading' && <p className="caption">Chargement…</p>}
+      {state.status === 'error' && (
+        <div className="ach-error">
+          <p className="caption">{state.message}</p>
+          <button className="btn btn-secondary btn-sm" onClick={onRetry}>
+            <Icon name="refresh" size={14} />
+            Réessayer
+          </button>
+        </div>
+      )}
+      {blocked && <p className="caption">{blocked}</p>}
+      {data && (
+        <>
+          <div className="ach-view-head">
+            <span className="ach-view-count num">
+              {data.unlocked}
+              <small> / {data.total}</small>
+            </span>
+            <span className="ach-bar is-big is-gold" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Succès débloqués">
+              <span style={{ transform: `scaleX(${pct / 100})` }} className={pct === 100 ? 'is-perfect' : undefined} />
+            </span>
+            <span className="ach-pct num">{pct}&#8239;%</span>
           </div>
-        )}
-        {data && (
-          <>
-            <div className="ach-view-head">
-              <span className="ach-view-count num">
-                {data.unlocked}
-                <small> / {data.total}</small>
-              </span>
-              <span className="ach-bar is-big" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Succès débloqués">
-                <span style={{ width: `${pct}%` }} className={pct === 100 ? 'is-perfect' : undefined} />
-              </span>
-              <span className="ach-pct num">{pct}&#8239;%</span>
+          <div className="ach-tools">
+            <div className="ach-chips" role="group" aria-label="Afficher">
+              {filters.map((f) => (
+                <button key={f.id} className="ach-chip" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
+                  {f.label}
+                  <span className="num">{f.count}</span>
+                </button>
+              ))}
             </div>
-            <div className="ach-tools">
-              <div className="ach-chips" role="group" aria-label="Afficher">
-                {filters.map((f) => (
-                  <button key={f.id} className="ach-chip" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
-                    {f.label}
-                    <span className="num">{f.count}</span>
-                  </button>
-                ))}
-              </div>
-              <PickMenu label="Trier" value={sort} options={SORTS} onPick={setSort} />
-            </div>
-            {shown.length ? (
-              <ul className="ach-list">
-                {shown.map((a) => (
-                  <li key={a.id}>
-                    <AchRow ach={a} />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="caption ach-empty">{filter === 'done' ? 'Aucun succès débloqué pour l’instant.' : 'Tout est débloqué. Bravo !'}</p>
-            )}
-            <p className="caption ach-source">Rareté : part des joueurs Steam du jeu qui ont débloqué le succès.</p>
-          </>
-        )}
-      </div>
+            <PickMenu label="Trier" value={sort} options={SORTS} onPick={setSort} />
+          </div>
+          {shown.length ? (
+            <ul className="ach-list">
+              {shown.map((a) => (
+                <li key={a.id}>
+                  <AchRow ach={a} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="caption ach-empty">{filter === 'done' ? 'Aucun succès débloqué pour l’instant.' : 'Tout est débloqué. Bravo !'}</p>
+          )}
+          <p className="caption ach-source">Rareté : part des joueurs Steam du jeu qui ont débloqué le succès.</p>
+        </>
+      )}
     </div>
   )
 }

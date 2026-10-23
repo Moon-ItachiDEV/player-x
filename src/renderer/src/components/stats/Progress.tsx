@@ -11,7 +11,7 @@ import './progress.css'
 const api = window.launcher
 
 type Metric = 'kd' | 'kpm' | 'win'
-type Range = '7' | '30' | 'all'
+export type Range = '7' | '30' | 'all'
 
 const dayFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' })
 const longDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -41,10 +41,10 @@ const METRICS: Record<Metric, { label: string; short: string; value: (p: Bf6Poin
     }
   }
 
-const RANGE_DAYS: Record<Range, number> = { '7': 7, '30': 30, all: Infinity }
+export const RANGE_DAYS: Record<Range, number> = { '7': 7, '30': 30, all: Infinity }
 
-/** Graduations « rondes » couvrant [min, max]. */
-function niceTicks(min: number, max: number, count = 4): number[] {
+/** Graduations « rondes » couvrant [min, max], jamais plus fines que `minStep` (sinon deux graduations s'écrivent pareil). */
+function niceTicks(min: number, max: number, minStep: number, count = 4): number[] {
   if (max - min < 1e-9) {
     const pad = Math.max(Math.abs(max) * 0.05, 0.05)
     min -= pad
@@ -52,7 +52,7 @@ function niceTicks(min: number, max: number, count = 4): number[] {
   }
   const raw = (max - min) / count
   const mag = Math.pow(10, Math.floor(Math.log10(raw)))
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? raw
+  const step = Math.max(minStep, [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? raw)
   const start = Math.floor(min / step) * step
   // La dernière graduation est toujours au-dessus du maximum : la courbe ne sort jamais du cadre.
   const end = Math.ceil(max / step) * step
@@ -101,7 +101,7 @@ export function Progress({ account, fetchedAt }: { account: Bf6Account; fetchedA
   const change = enough ? m.value(last) - m.value(first) : 0
 
   return (
-    <section className="card-surface bf-card pg" aria-labelledby="pg-title">
+    <section className="bf-card pg" aria-labelledby="pg-title">
       <header className="bf-card-head">
         <div className="pg-head-text">
           <h2 id="pg-title" className="bf-card-title">
@@ -112,12 +112,14 @@ export function Progress({ account, fetchedAt }: { account: Bf6Account; fetchedA
         {history.length >= 2 && (
           <div className="pg-controls">
             <Segmented
+              className="bf-seg"
               label="Indicateur"
               value={metric}
               options={(Object.keys(METRICS) as Metric[]).map((k) => ({ value: k, label: METRICS[k].short }))}
               onChange={setMetric}
             />
             <Segmented
+              className="bf-seg"
               label="Période"
               value={range}
               options={[
@@ -186,12 +188,14 @@ function Tile({ label, value, sub }: { label: string; value: string; sub?: strin
 
 /* ---------- courbe ---------- */
 
-const H = 220
+const CHART_H = 220
 const PAD = { top: 16, right: 16, bottom: 28, left: 44 }
 
-function Chart({ points, metric }: { points: Bf6Point[]; metric: Metric }): React.JSX.Element {
+/** Courbe d'un indicateur. `fill` : prend toute la hauteur de son cadre (vue d'ensemble), sinon 220 px. */
+export function Chart({ points, metric, fill }: { points: Bf6Point[]; metric: Metric; fill?: boolean }): React.JSX.Element {
   const box = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(640)
+  const [H, setH] = useState(CHART_H)
   const [active, setActive] = useState<number | null>(null)
   const gradId = `pg-grad${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const m = METRICS[metric]
@@ -199,16 +203,22 @@ function Chart({ points, metric }: { points: Bf6Point[]; metric: Metric }): Reac
   useLayoutEffect(() => {
     const el = box.current
     if (!el) return
-    const fit = (width: number): void => setW(Math.max(280, Math.round(width)))
-    // Largeur réelle dès le premier rendu : la courbe ne se dessine pas d'abord à 640 px.
-    fit(el.getBoundingClientRect().width)
-    const ro = new ResizeObserver(([e]) => fit(e.contentRect.width))
+    const fit = (width: number, height: number): void => {
+      setW(Math.max(280, Math.round(width)))
+      // En mode `fill`, le dessin est posé en absolu : la hauteur vient du cadre, jamais de la courbe elle-même.
+      if (fill) setH(Math.max(160, Math.round(height)))
+    }
+    // Taille réelle dès le premier rendu : la courbe ne se dessine pas d'abord à 640 px.
+    const r = el.getBoundingClientRect()
+    fit(r.width, r.height)
+    const ro = new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height))
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [fill])
 
   const values = points.map(m.value)
-  const ticks = niceTicks(Math.min(...values), Math.max(...values))
+  // Graduations lisibles avec les décimales affichées : 0,01 pour un ratio, 0,1 point pour un pourcentage.
+  const ticks = niceTicks(Math.min(...values), Math.max(...values), metric === 'win' ? 0.1 : 0.01)
   const yMin = ticks[0]
   const yMax = ticks.at(-1)!
   const t0 = points[0].at
@@ -259,7 +269,7 @@ function Chart({ points, metric }: { points: Bf6Point[]; metric: Metric }): Reac
   return (
     <div
       ref={box}
-      className="pg-chart"
+      className={`pg-chart ${fill ? 'is-fill' : ''}`}
       tabIndex={0}
       role="img"
       aria-label={`${m.label} : de ${m.format(values[0])} le ${dayLabel(t0)} à ${m.format(values.at(-1)!)} le ${dayLabel(t1)}. Flèches gauche et droite pour parcourir les jours.`}

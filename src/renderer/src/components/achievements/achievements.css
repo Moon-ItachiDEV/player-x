@@ -1,4 +1,4 @@
-/* Succès Steam : section de la fiche (ach-), liste complète dans la fiche (ach-view), page Trophées (tro-). */
+/* Succès Steam : carte et onglet de la fiche (ach-, ach-view), page Trophées (tro-). */
 
 /* ---------- icône ---------- */
 
@@ -44,12 +44,15 @@
   border-radius: 3px;
   background: var(--surface-2);
 }
+/* Remplissage : pleine largeur réduite par scaleX (style en ligne), depuis la gauche. */
 .ach-bar > span {
   display: block;
+  width: 100%;
   height: 100%;
   border-radius: inherit;
   background: var(--meter-2);
-  transition: width var(--d-4) var(--ease-out);
+  transform-origin: left center;
+  transition: transform var(--d-4) var(--ease-out);
 }
 .ach-bar > span.is-perfect {
   background: var(--accent);
@@ -58,14 +61,25 @@
   height: 8px;
   border-radius: 4px;
 }
+/* Fiche d'un jeu : la progression en or des succès. */
+.ach-bar.is-gold {
+  background: var(--surface-3);
+}
+.ach-bar.is-gold > span {
+  background: var(--trophy);
+}
 
-/* ---------- section de la fiche ---------- */
+/* ---------- carte de l'aperçu, dans la fiche ---------- */
+
+.ach-count {
+  font: 600 13px/18px var(--font-ui);
+  color: var(--trophy);
+}
 
 .ach-progress {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 14px;
 }
 .ach-pct {
   flex-shrink: 0;
@@ -75,7 +89,7 @@
   text-align: right;
 }
 .ach-sub {
-  margin-bottom: 4px;
+  margin: 4px 0 -8px;
 }
 .ach-list {
   list-style: none;
@@ -83,7 +97,6 @@
   padding: 0;
 }
 .ach-last {
-  margin-top: 8px;
   color: var(--text-3);
 }
 .ach-last b {
@@ -91,7 +104,7 @@
   color: var(--text-2);
 }
 .ach-all {
-  margin-top: 12px;
+  align-self: flex-start;
 }
 .ach-error {
   display: flex;
@@ -190,30 +203,13 @@
   color: var(--text-3);
 }
 
-/* ---------- liste complète, dans la fiche ---------- */
+/* ---------- onglet « Succès » de la fiche ---------- */
 
-/* Comme le lecteur des actus : la liste prend la place du contenu de la fiche, qui reste monté pour le retour. */
-.sheet-panel.is-ach > :not(.ach-view) {
-  display: none;
-}
-.ach-view {
-  min-height: 100%;
-  animation: ach-in var(--d-3) var(--ease-out);
-}
-@keyframes ach-in {
-  from {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-}
 .ach-view-body {
-  padding: 20px 24px 32px;
-}
-.ach-view-title {
-  margin-bottom: 14px;
-  font: 700 24px/1.05 var(--font-display);
-  letter-spacing: -0.01em;
-  color: #fff;
+  padding: 24px;
+  border-radius: var(--r-xl);
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
 }
 .ach-view-head {
   display: flex;
@@ -291,91 +287,436 @@
 
 /* ---------- page Trophées ---------- */
 
+/* Or des succès, en voiles (fonds, filets). */
 .tro {
+  --tro-gold-soft: color-mix(in srgb, var(--trophy) 16%, transparent);
+  --tro-gold-line: color-mix(in srgb, var(--trophy) 28%, transparent);
   display: flex;
   flex-direction: column;
   gap: 28px;
   container-type: inline-size;
 }
 
-.tro-figures {
+/* Carte de la page : fond des cartes Braise, filet intérieur. */
+.tro-tile,
+.tro-open,
+.tro-games,
+.tro-blocked,
+.tro-scan {
+  background: var(--card-bg);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+
+/* Barre de progression dorée */
+.tro-bar {
+  display: block;
+  flex: 1 1 200px;
+  min-width: 0;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+}
+.tro-bar > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--trophy);
+  transform-origin: left center;
+  transition: transform var(--d-4) var(--ease-out);
+}
+.tro-bar.is-big {
+  flex: none;
+  height: 8px;
+}
+
+/* Bouton segmenté (filtres) */
+.tro-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-pill);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.tro-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  font: 600 13px/18px var(--font-ui);
+  color: var(--text-3);
+  cursor: pointer;
+  transition:
+    background var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    scale var(--d-1) var(--ease-out);
+}
+/* Retour au clic : la surface s'enfonce un peu (audit animations). */
+.tro-seg-btn:active:not(:disabled):not([aria-disabled='true']) {
+  scale: 0.97;
+}
+.tro-seg-btn:hover:not(:disabled) {
+  color: var(--text-1);
+}
+.tro-seg-btn[aria-pressed='true'] {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+.tro-seg-btn:disabled {
+  cursor: default;
+}
+.tro-seg-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.tro-seg-count {
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+/* Vignette carrée d'un jeu */
+.tro-thumb {
+  flex: 0 0 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.tro-thumb.is-lg {
+  flex-basis: 64px;
+  height: 64px;
+  border-radius: 16px;
+}
+.tro-thumb .cover {
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+/* Résumé */
+.tro-tiles {
   display: grid;
-  grid-template-columns: 1.3fr repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
 }
 @container (max-width: 900px) {
-  .tro-figures {
+  .tro-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-.tro-figure {
+.tro-tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px;
+  border-radius: 22px;
+  text-align: left;
+  color: var(--text-1);
+}
+.tro-tile.is-gold {
+  background:
+    linear-gradient(135deg, var(--tro-gold-soft), transparent 70%),
+    var(--card-bg);
+  box-shadow: inset 0 0 0 1px var(--tro-gold-line);
+}
+.tro-tile-num {
+  font: 600 36px/40px var(--font-display);
+  letter-spacing: -0.01em;
+}
+.tro-tile.is-gold .tro-tile-num {
+  color: var(--trophy);
+}
+.tro-tile-label {
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-2);
+}
+.tro-tile-sub {
+  margin-top: 2px;
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.tro-tile-name {
+  padding-top: 8px;
+  margin-bottom: 6px;
+  font: 600 18px/24px var(--font-display);
+  color: var(--text-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tro-tile-when {
+  white-space: nowrap;
+}
+.tro-tile-name.is-none {
+  color: var(--text-2);
+}
+button.tro-tile {
+  cursor: pointer;
+  transition: background var(--d-in) var(--ease-glide);
+}
+button.tro-tile:hover {
+  background: var(--surface-2);
+}
+button.tro-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* Jeu ouvert */
+.tro-open {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  border-radius: 24px;
+  scroll-margin-top: 16px;
+}
+.tro-open-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.tro-open-main {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1 1 260px;
   min-width: 0;
-  min-height: 132px;
-  padding: 18px 20px;
 }
-.tro-figure.is-main {
-  background:
-    radial-gradient(90% 120% at 100% 0%, rgba(242, 198, 109, 0.12), transparent 60%),
-    var(--surface-1);
+.tro-open-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
-.tro-figure .caption {
-  margin-top: auto;
+.tro-open-title {
+  min-width: 0;
+  font: 600 20px/26px var(--font-display);
+  letter-spacing: -0.01em;
+  color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tro-figure .ach-bar {
-  flex: none;
+/* Le titre reçoit le focus quand on choisit un jeu dans la liste : annoncé, sans anneau. */
+.tro-open-title:focus-visible {
+  box-shadow: none;
 }
-.tro-figure .ach-bar + .caption {
-  margin-top: 0;
+.tro-open-count {
+  flex-shrink: 0;
+  font: 600 14px/20px var(--font-ui);
+  color: var(--trophy);
 }
-.tro-figure.is-main .ach-bar > span {
-  background: var(--accent);
+.tro-open-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
 }
-.tro-big {
-  font: 700 29px/33px var(--font-display);
-  color: var(--text-1);
+
+/* Grille des succès (jeu ouvert, derniers et plus rares) */
+.tro-achs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
-.tro-fig-row {
+@container (max-width: 1000px) {
+  .tro-achs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@container (max-width: 720px) {
+  .tro-achs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.tro-ach {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 38px;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  text-align: left;
+  color: inherit;
 }
-.tro-fig-row .caption {
-  margin-top: 0;
+.tro-ach.is-done {
+  box-shadow: inset 0 0 0 1px var(--tro-gold-line);
 }
-.tro-fig-empty {
-  margin-top: 0 !important;
-  padding-top: 8px;
-}
-.tro-minis {
-  display: flex;
-}
-.tro-mini {
-  width: 26px;
-  aspect-ratio: 2 / 3;
-  overflow: hidden;
-  border-radius: var(--r-xs);
-  box-shadow: 0 0 0 2px var(--surface-1);
-}
-.tro-mini + .tro-mini {
-  margin-left: -6px;
-}
-/* Niveau Steam : pastille ronde, comme sur le profil Steam. */
-.tro-level {
+.tro-ach-icon {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 2px solid var(--meter-2);
-  border-radius: 50%;
-  font: 700 17px/1 var(--font-ui);
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--surface-1);
+  color: var(--text-4);
+}
+.tro-ach.is-done .tro-ach-icon {
+  background: var(--tro-gold-soft);
+  color: var(--trophy);
+}
+.tro-ach-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tro-ach-name {
+  font: 600 14px/18px var(--font-ui);
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tro-ach.is-done .tro-ach-name {
   color: var(--text-1);
+}
+.tro-ach-sub {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tro-ach-sub.is-rare {
+  color: var(--info);
+}
+.tro-ach-sub.is-ultra {
+  color: var(--accent-text);
+}
+.tro-ach.is-pick {
+  cursor: pointer;
+  transition: background var(--d-in) var(--ease-glide);
+}
+.tro-ach.is-pick:hover {
+  background: var(--surface-1);
+}
+.tro-ach.is-pick:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.tro-ach-skel {
+  display: block;
+  height: 68px;
+  border-radius: 18px;
+}
+.tro-achs-more {
+  align-self: center;
+}
+.tro-more-chevron {
+  transition: rotate var(--d-2) var(--ease-out);
+}
+.tro-more-chevron.is-open {
+  rotate: 180deg;
+}
+
+/* Les autres jeux */
+.tro-others,
+.tro-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tro-others-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+.tro-h {
+  font: 600 18px/24px var(--font-display);
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+}
+/* « Trier : progression », en pastille comme sur la maquette */
+.picker.tro-sort {
+  height: 42px;
+  margin-left: auto;
+  padding: 0 14px 0 16px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--card-bg);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--text-2);
+  font-weight: 600;
+}
+.picker.tro-sort:hover,
+.picker.tro-sort[aria-expanded='true'] {
+  box-shadow: inset 0 0 0 1px var(--line-3);
+}
+.picker.tro-sort:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.tro-games {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  border-radius: 24px;
+}
+.tro-game {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  color: var(--text-1);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--d-in) var(--ease-glide), scale var(--d-1) var(--ease-out);
+}
+/* Retour au clic : la surface s'enfonce un peu (audit animations). */
+.tro-game:active:not(:disabled):not([aria-disabled='true']) {
+  scale: 0.97;
+}
+.tro-game:hover {
+  background: var(--surface-2);
+}
+.tro-game:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.tro-game-name {
+  flex: 0 1 220px;
+  min-width: 0;
+  font: 600 15px/20px var(--font-ui);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tro-game-count {
+  flex: 0 0 120px;
+  font: 600 13px/18px var(--font-ui);
+  color: var(--text-2);
+  text-align: right;
+}
+.tro-game-chevron {
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+@container (max-width: 760px) {
+  .tro-game-count {
+    flex-basis: 64px;
+  }
+}
+.tro-others-empty {
+  padding: 8px 0;
 }
 
 /* États */
@@ -387,6 +728,7 @@
   max-width: 520px;
   margin: 48px auto 0;
   padding: 32px 28px;
+  border-radius: 24px;
   text-align: center;
 }
 .tro-blocked.is-inline {
@@ -394,6 +736,7 @@
   max-width: none;
   margin: 0;
   padding: 14px 18px;
+  border-radius: 22px;
   text-align: left;
 }
 .tro-blocked-icon {
@@ -429,9 +772,10 @@
   align-items: center;
   gap: 14px;
   padding: 14px 18px;
+  border-radius: 22px;
 }
 .tro-scan .spinner {
-  color: var(--accent);
+  color: var(--trophy);
 }
 .tro-scan-text {
   flex: 1;
@@ -445,194 +789,63 @@
   flex: 0 0 180px;
 }
 
-/* Sections */
-.tro-section-title {
-  margin-bottom: 12px;
-  font: 700 17px/22px var(--font-display);
-  letter-spacing: -0.01em;
-  color: var(--text-1);
+/* Chargement */
+.tro-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
 }
-.tro-picks {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 10px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.tro-tile-skel {
+  height: 114px;
+  border-radius: 22px;
 }
-.tro-pick {
+.tro-open-skel {
+  height: 320px;
+  border-radius: 24px;
+}
+
+/* Pied : niveau Steam, relevé */
+.tro-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tro-level-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
-  height: 100%;
-  padding: 12px;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-  transition:
-    background var(--d-in) var(--ease-glide),
-    border-color var(--d-in) var(--ease-glide),
-    transform var(--d-in) var(--ease-glide);
 }
-.tro-pick:hover {
-  background: var(--surface-2);
-  border-color: var(--line-2);
+/* Niveau Steam : pastille ronde, comme sur le profil Steam. */
+.tro-level {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--meter-2);
+  border-radius: 50%;
+  font: 700 15px/1 var(--font-ui);
+  color: var(--text-1);
 }
-:root[data-fx='on'] .tro-pick:hover {
-  transform: translateY(-2px);
-}
-.tro-pick:focus-visible {
-  outline: none;
-  box-shadow: var(--focus);
-}
-.tro-pick-text {
+.tro-level-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   min-width: 0;
 }
-.tro-pick-name {
-  font: 600 14px/18px var(--font-ui);
-  color: var(--text-1);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.tro-pick-game {
-  font: 400 12px/16px var(--font-ui);
-  color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tro-pick-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font: 600 12px/16px var(--font-ui);
+.tro-level-title {
+  font: 600 13px/18px var(--font-ui);
   color: var(--text-2);
 }
-.tro-pick-meta.ach-rarity {
-  flex-direction: row;
+.tro-level-bar {
+  flex: 0 0 140px;
 }
-
-/* Par jeu */
-.tro-list-head {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  margin-bottom: 12px;
+.tro-level-bar > span {
+  background: var(--meter-2);
 }
-.tro-list-head .tro-section-title {
-  margin-bottom: 0;
-}
-.tro-sort {
-  margin-left: auto;
-}
-.tro-games {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-  gap: 8px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-@container (max-width: 900px) {
-  .tro-games {
-    grid-template-columns: 1fr;
-  }
-}
-.tro-game {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  padding: 8px 14px 8px 8px;
-  border: 1px solid var(--line-1);
-  border-radius: var(--r-lg);
-  background: var(--surface-1);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background var(--d-in) var(--ease-glide),
-    border-color var(--d-in) var(--ease-glide);
-}
-.tro-game:hover {
-  background: var(--surface-2);
-  border-color: var(--line-2);
-}
-.tro-game:focus-visible {
-  outline: none;
-  box-shadow: var(--focus);
-}
-.tro-game-cover {
-  width: 40px;
-  aspect-ratio: 2 / 3;
-  flex-shrink: 0;
-  overflow: hidden;
-  border-radius: var(--r-sm);
-}
-.tro-game-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-.tro-game-name {
-  font: 600 14px/18px var(--font-ui);
-  color: var(--text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tro-game-text .caption {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tro-game-progress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 0 0 210px;
-}
-.tro-game-count {
-  flex-shrink: 0;
-  min-width: 52px;
-  font: 500 12.5px/16px var(--font-ui);
-  color: var(--text-3);
-  text-align: right;
-}
-.tro-game-pct {
-  display: inline-flex;
-  justify-content: flex-end;
-  flex-shrink: 0;
-  width: 38px;
-  font: 700 13px/16px var(--font-ui);
-  color: var(--text-1);
-}
-.tro-game-pct.is-perfect {
-  color: var(--accent);
-}
-
-.tro-foot {
+.tro-foot-note {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 10px;
   color: var(--text-3);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ach-view {
-    animation: none;
-  }
-}
-:root.reduce-motion .ach-view {
-  animation: none;
 }

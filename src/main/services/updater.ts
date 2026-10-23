@@ -5,12 +5,13 @@ import { stat } from 'node:fs/promises'
 import { app, net, screen } from 'electron'
 // Import par défaut : marche que le main soit bundlé en CJS (le cas ici, dépendance externe → require) ou en ESM.
 import updaterPkg, { type AppUpdater, type Logger, type UpdateDownloadedEvent } from 'electron-updater'
-import type { InstallResult, LastUpdate, UpdateErrorCode, UpdateState } from '@shared/types'
+import type { InstallResult, LastUpdate, UpdateErrorCode, UpdateMeta, UpdateState } from '@shared/types'
 import * as db from '../db'
 import { handle } from '../ipc'
 import { appWindows, mainWindow } from '../windows'
 import { clampDelay, isLast, isPending, lastFromPending, visibleBounds, type PendingUpdate, type WindowBounds } from './updateHandoff'
 import { getSettings } from './settings'
+import { summarizeReleaseNotes } from './updateNotes'
 import { isVersion, sha512File, verifyUpdateSignature } from './updateSignature'
 import type { SimHooks } from './updateSim'
 
@@ -56,8 +57,17 @@ let lastUpdate: LastUpdate | null = null
 let relaunchBounds: unknown = null
 /** Simulateur de développement : toujours null dans la version installée (voir initUpdater). */
 let sim: SimHooks | null = null
+/** Taille et résumé annoncés pour la version en cours (update-available), repris sur chacun de ses états. */
+let meta: (UpdateMeta & { version: string }) | null = null
 
-function setState(next: UpdateState): void {
+/** Les infos annoncées, ajoutées à un état de la même version (sans écraser une taille déjà mesurée). */
+function withMeta(next: UpdateState): UpdateState {
+  if (!meta || !('version' in next) || next.version !== meta.version) return next
+  return { ...next, size: next.size ?? meta.size, summary: next.summary ?? meta.summary }
+}
+
+function setState(raw: UpdateState): void {
+  const next = withMeta(raw)
   state = next
   if (next.state === 'ready') readyState = next
   // Barre des tâches : progression du téléchargement, indéterminée pendant la vérification, rien sinon.
@@ -379,6 +389,15 @@ function wire(u: AppUpdater): void {
   u.on('checking-for-update', () => setState({ state: 'checking' }))
   u.on('update-not-available', () => setState({ state: 'none', checkedAt: Date.now() }))
   u.on('update-available', (info) => {
+    // Taille de l'installeur (latest.yml) et noms des nouveautés de la release : seulement s'ils sont lisibles.
+    const exe = info.files?.find((f) => typeof f.url === 'string' && f.url.toLowerCase().endsWith('.exe'))
+    let summary: string | undefined
+    try {
+      summary = summarizeReleaseNotes(info.releaseNotes, info.version)
+    } catch (e) {
+      logger.warn(e)
+    }
+    meta = { version: info.version, size: bytes(exe?.size) || undefined, summary }
     gotProgress = false
     downloadStartedAt = Date.now()
     lastSentAt = 0

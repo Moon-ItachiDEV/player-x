@@ -1,5 +1,5 @@
-/* Carte du lancement (LaunchDock.tsx), spec launch-sequence.md §3.2. Même place que la carte de mise à jour, juste
-   au-dessus quand elle est là. Taille fixe dans toutes les phases ; opaque, ombre statique. Aucune animation infinie :
+/* Carte du lancement (LaunchDock.tsx), spec launch-sequence.md §3.2. En bas à gauche ; la carte de mise à jour est en
+   bas à droite. Taille fixe dans toutes les phases ; opaque, ombre statique. Aucune animation infinie :
    ce qui bouge (entrée, onde de détection, reflet) est un passage WAAPI unique. Les couleurs changent d'un coup.
    Jaune : ton geste (envoi, attente) ; cyan : seulement une fois le jeu détecté. Typographie des lignes : update.css. */
 
@@ -22,13 +22,6 @@
 :root[data-window='idle'] .launch-dock * {
   transition: none;
 }
-/* Au-dessus de la carte de mise à jour (76 px + 10), ou de sa pastille pendant une partie. */
-.shell:has(.upd-dock[data-mode='card']) .launch-dock {
-  bottom: calc(20px + var(--upd-h) + 10px);
-}
-.shell:has(.upd-dock[data-mode='mini']) .launch-dock {
-  bottom: 70px;
-}
 .launch-dock > .launch-card {
   pointer-events: auto;
 }
@@ -40,25 +33,25 @@
   pointer-events: none;
 }
 
-/* Place réservée en bas des pages (avec la carte de mise à jour : les deux, ou la pastille). */
+/* Place réservée en bas des pages. La carte de mise à jour est à droite (update.css) : la plus haute des deux décide. */
 .shell:has(.launch-dock[data-open]) > .content {
   padding-bottom: 104px;
 }
 .shell:has(.launch-dock[data-open]):has(.upd-dock[data-mode='card']) > .content {
-  padding-bottom: 190px;
+  padding-bottom: 196px;
 }
-.shell:has(.launch-dock[data-open]):has(.upd-dock[data-mode='mini']) > .content {
-  padding-bottom: 154px;
+.shell:has(.launch-dock[data-open]):has(.upd-dock[data-mode='card'][data-notes]) > .content {
+  padding-bottom: 276px;
 }
 @media (max-width: 1279px) {
   #root:has(.launch-dock[data-open]) .toasts {
     bottom: 108px;
   }
   #root:has(.launch-dock[data-open]):has(.upd-dock[data-mode='card']) .toasts {
-    bottom: 194px;
+    bottom: 196px;
   }
-  #root:has(.launch-dock[data-open]):has(.upd-dock[data-mode='mini']) .toasts {
-    bottom: 158px;
+  #root:has(.launch-dock[data-open]):has(.upd-dock[data-mode='card'][data-notes]) .toasts {
+    bottom: 276px;
   }
 }
 

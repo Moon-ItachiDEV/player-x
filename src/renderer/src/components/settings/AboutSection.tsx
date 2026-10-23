@@ -11,7 +11,7 @@ import { busyTitle, gameRunning, isRealUpdateBusy, lastUpdate, useStore } from '
 import { requestRestart, warpActive } from '../../update/stage'
 import { preview, startPreview } from '../../update/preview'
 import { fpGroups, mo, pair, pct } from '../../update/format'
-import { SectionHead, SettingRow, useNow } from './parts'
+import { SectionHead, SettingRow, SettingsCard, useNow } from './parts'
 
 const RELEASES_URL = 'https://github.com/Moon-ItachiDEV/player-x/releases'
 
@@ -71,37 +71,67 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
     <>
       <SectionHead title="À propos">La version installée de Player X et ses mises à jour.</SectionHead>
 
-      <div className="set-ab-card">
-        <BrandMark height={56} className="set-ab-mark" />
-        <div className="set-ab-id">
-          <div className="set-ab-name">Player X</div>
-          <div className="caption">
-            Version <span className="num">{window.launcher.version}</span>
-            {IS_PRERELEASE && ' · version de test'}
+      <section className="set-card set-ab-hero" aria-labelledby="set-ab-name">
+        <div className="set-ab-top">
+          <BrandMark height={64} className="set-ab-mark" />
+          <div className="set-ab-id">
+            <h3 id="set-ab-name" className="set-ab-name">
+              <span>
+                Player X <span className="num">{window.launcher.version}</span>
+              </span>
+              {IS_PRERELEASE && <span className="set-beta">Version de test</span>}
+            </h3>
+            <UpdateStatus update={update} now={now} />
+          </div>
+          <div className="set-ab-channel">
+            <span className="overline" aria-hidden="true">
+              Canal de mises à jour
+            </span>
+            <Segmented
+              className="set-seg"
+              label="Canal des mises à jour"
+              value={settings.updateChannel}
+              options={[
+                { value: 'stable', label: 'Stable' },
+                { value: 'beta', label: 'Bêta' }
+              ]}
+              onChange={(updateChannel) => onSaveSettings({ updateChannel }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+            />
+          </div>
+          <div className="set-ab-actions">
+            {update?.state === 'ready' || update?.state === 'installing' ? (
+              <button className="btn btn-primary" onClick={restart} disabled={update.state === 'installing'}>
+                {update.state === 'installing' ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
+                {update.state === 'installing' ? 'Redémarrage…' : 'Redémarrer pour mettre à jour'}
+              </button>
+            ) : (
+              <button className="btn btn-secondary set-ab-check" onClick={check} disabled={!canCheck} aria-busy={checking}>
+                {checking ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
+                {checking ? 'Recherche…' : 'Rechercher une mise à jour'}
+              </button>
+            )}
+            <button
+              className="link-btn set-link set-ab-news"
+              onClick={() => window.launcher.openExternal(RELEASES_URL)}
+              aria-label="Quoi de neuf : notes de version sur GitHub"
+              title="Les nouveautés de chaque version, sur GitHub"
+            >
+              Quoi de neuf
+              <Icon name="external-link" size={13} />
+            </button>
           </div>
         </div>
-        <p className="set-ab-tagline">Lance tes jeux Steam, Epic et EA et vois tes amis en ligne.</p>
-      </div>
-      <p className="caption set-ab-privacy">
-        Player X n'a pas de serveur : tes données restent sur ce PC et ne sont échangées qu'avec Steam, Discord et PlayStation. Les mises à jour viennent de
-        GitHub.
-      </p>
+        <p className="set-ab-foot">
+          {settings.updateChannel === 'beta'
+            ? 'Canal Bêta · tu reçois aussi les versions de test, avant tout le monde. Elles peuvent avoir des bugs.'
+            : IS_PRERELEASE
+              ? 'Canal Stable · tu restes sur cette version de test jusqu’à la prochaine version stable, qui arrivera toute seule.'
+              : 'Canal Stable · seulement les versions publiées pour tout le monde.'}{' '}
+          Player X vérifie au démarrage puis toutes les 6 heures, télécharge en arrière-plan et installe la nouvelle version au prochain redémarrage.
+        </p>
+      </section>
 
-      <h3 className="set-block-title">Mises à jour</h3>
-      <div className="set-rows">
-        <SettingRow label="Mises à jour automatiques" value={<UpdateStatus update={update} now={now} />}>
-          {update?.state === 'ready' || update?.state === 'installing' ? (
-            <button className="btn btn-primary" onClick={restart} disabled={update.state === 'installing'}>
-              {update.state === 'installing' ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
-              {update.state === 'installing' ? 'Redémarrage…' : 'Redémarrer pour mettre à jour'}
-            </button>
-          ) : (
-            <button className="btn btn-secondary" onClick={check} disabled={!canCheck} aria-busy={checking}>
-              {checking ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
-              {checking ? 'Recherche…' : 'Rechercher une mise à jour'}
-            </button>
-          )}
-        </SettingRow>
+      <SettingsCard title="Mises à jour">
         {fp && (
           <SettingRow
             label={`Empreinte de la ${fp.version}`}
@@ -132,27 +162,7 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
             {null}
           </SettingRow>
         )}
-        <SettingRow
-          label="Canal"
-          value={
-            settings.updateChannel === 'beta'
-              ? 'Bêta · tu reçois aussi les versions de test, avant tout le monde. Elles peuvent avoir des bugs.'
-              : IS_PRERELEASE
-                ? 'Stable · tu restes sur cette version de test jusqu’à la prochaine version stable, qui arrivera toute seule.'
-                : 'Stable · seulement les versions publiées pour tout le monde.'
-          }
-        >
-          <Segmented
-            label="Canal des mises à jour"
-            value={settings.updateChannel}
-            options={[
-              { value: 'stable', label: 'Stable' },
-              { value: 'beta', label: 'Bêta' }
-            ]}
-            onChange={(updateChannel) => onSaveSettings({ updateChannel }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-          />
-        </SettingRow>
-        <SettingRow label="Animation de mise à jour" value="Rejoue la séquence sans rien télécharger ni installer">
+        <SettingRow label="Animation de mise à jour" value="Rejoue la séquence sans rien télécharger ni installer, jusqu’à la fenêtre Quoi de neuf">
           <button
             className="btn btn-secondary"
             onClick={(e) => void startPreview({ from: 'about', trigger: e.currentTarget })}
@@ -162,15 +172,11 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
             Voir l'aperçu
           </button>
         </SettingRow>
-        <SettingRow label="Notes de version" value="Les nouveautés de chaque version, sur GitHub">
-          <button className="btn btn-ghost" onClick={() => window.launcher.openExternal(RELEASES_URL)}>
-            Notes de version
-            <Icon name="external-link" size={14} />
-          </button>
-        </SettingRow>
-      </div>
-      <p className="set-help set-ab-help">
-        Player X vérifie au démarrage puis toutes les 6 heures, télécharge en arrière-plan et installe la nouvelle version au prochain redémarrage.
+      </SettingsCard>
+
+      <p className="set-help set-ab-privacy">
+        Lance tes jeux Steam, Epic et EA et vois tes amis en ligne. Player X n'a pas de serveur : tes données restent sur ce PC et ne sont échangées
+        qu'avec Steam, Discord et PlayStation. Les mises à jour viennent de GitHub.
       </p>
     </>
   )

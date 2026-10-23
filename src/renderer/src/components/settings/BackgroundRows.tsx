@@ -53,6 +53,7 @@ export function BackgroundRows({ settings, onSaveSettings }: Props): React.JSX.E
         }
       >
         <Segmented
+          className="set-seg"
           label="Fermer la fenêtre"
           value={settings.closeToTray ? 'tray' : 'quit'}
           options={[

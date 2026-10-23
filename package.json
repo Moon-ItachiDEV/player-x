@@ -1,6 +1,6 @@
 {
   "name": "plateforme-gaming",
-  "version": "0.9.0-beta.3",
+  "version": "0.9.0",
   "description": "Player X : lance tes jeux Steam, Epic et EA et vois tes amis en ligne.",
   "main": "out/main/index.js",
   "private": true,
@@ -9,7 +9,7 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:update": "node --experimental-strip-types --test src/main/services/updateHandoff.test.ts",
+    "test:update": "node --experimental-strip-types --test src/main/services/updateHandoff.test.ts src/main/services/updateNotes.test.ts",
     "test:launch": "node --experimental-strip-types --test src/main/services/tracking.test.ts src/main/services/launchWatchParse.test.ts src/main/services/launches.test.ts && node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/main/services/launchWatch.test.ts src/renderer/src/launch/*.test.ts",
     "test:news": "node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/main/services/newsFormat.test.ts src/main/services/newsFeed.test.ts src/renderer/src/components/news/feedView.test.ts",
     "test:bf6": "node --experimental-strip-types --test src/main/services/bf6Diff.test.ts",
@@ -18,8 +18,9 @@
     "test:played": "node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/shared/played.test.ts src/main/services/demo.test.ts",
     "test:friends": "node --experimental-strip-types --test src/main/services/discordMembers.test.ts",
     "test:home": "node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/renderer/src/components/home/*.test.ts",
+    "test:search": "node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/renderer/src/components/search/*.test.ts",
     "test:ui": "node --experimental-strip-types --test src/renderer/src/styles/*.test.ts",
-    "test": "npm run test:update && npm run test:launch && npm run test:news && npm run test:bf6 && npm run test:cs2 && npm run test:achievements && npm run test:played && npm run test:friends && npm run test:home && npm run test:ui",
+    "test": "npm run test:update && npm run test:launch && npm run test:news && npm run test:bf6 && npm run test:cs2 && npm run test:achievements && npm run test:played && npm run test:friends && npm run test:home && npm run test:search && npm run test:ui",
     "dist": "electron-vite build && electron-builder --win --x64 --publish never",
     "release": "electron-vite build && electron-builder --win --x64 --publish always",
     "postinstall": "node node_modules/electron/install.js"

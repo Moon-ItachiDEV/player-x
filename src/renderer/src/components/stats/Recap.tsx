@@ -1,15 +1,17 @@
 // Bilan de session Battlefield 6 : la carte de fin de session (RecapDialog), l'encart « Dernière session » de la page
 // Stats (LastSession) et l'hôte monté par App (RecapHost), qui la propose quand le processus principal l'a préparée.
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { capitalize, plural } from '@shared/text'
 import type { Bf6Art, Bf6Recap, Bf6RecapState, Game } from '@shared/types'
 import { createStore, useStore } from '../../update/session'
 import { Icon } from '../ui/Icon'
 import { useEscape } from '../ui/Overlay'
 import { useToast } from '../ui/Toasts'
-import { dec, int, isBf6Game, percent, PLATFORM_LABEL, playedFor } from './bf6'
+import { dec, int, isBf6Game, percent, PLATFORM_LABEL, playedFor, saveStatsGame } from './bf6'
 import { ClassIcon, classKind } from './ClassIcon'
 import './recap.css'
+import { useLeave } from '../../motion'
+import { CountUp } from '../ui/CountUp'
 
 const api = window.launcher
 
@@ -82,8 +84,15 @@ export function sampleRecap(): Bf6Recap {
 
 // ---------- dates ----------
 
-const dayFmt = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-const timeFmt = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' })
+const dayFmt = new Intl.DateTimeFormat('fr-FR', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long'
+})
+const timeFmt = new Intl.DateTimeFormat('fr-FR', {
+  hour: '2-digit',
+  minute: '2-digit'
+})
 
 /** « Aujourd'hui », « Hier », « Samedi 17 octobre » */
 function dayOf(ts: number): string {
@@ -141,13 +150,16 @@ interface DialogProps {
 }
 
 export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps): React.JSX.Element {
-  useEscape(true, onClose)
+  // Fermeture : sortie animée (motion.ts useLeave), puis onClose.
+  const scrim = useRef<HTMLDivElement>(null)
+  const close = useLeave(scrim, onClose)
+  useEscape(true, close)
   const winRate = r.matches ? (r.wins / r.matches) * 100 : null
   const maps = r.maps.slice(0, MAX_MAPS)
   const sessionSeconds = Math.max(0, (r.endedAt - r.startedAt) / 1000)
 
   return (
-    <div className="dialog-scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div ref={scrim} className="dialog-scrim" onMouseDown={(e) => e.target === e.currentTarget && close()}>
       <div className="dialog recap" role="dialog" aria-modal="true" aria-labelledby="recap-title">
         <header className="recap-head">
           <div className="recap-art" aria-hidden="true">
@@ -179,18 +191,24 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
           <section className="recap-main" aria-label="La session en chiffres">
             <div className="recap-kd">
               <span className="overline">K/D de la session</span>
-              <b className="recap-kd-value num">{dec.format(r.killDeath)}</b>
+              <b className="recap-kd-value num">
+                <CountUp value={r.killDeath} format={dec.format} />
+              </b>
               <Delta value={r.killDeath} average={r.average.killDeath} fmt={dec.format} />
             </div>
             <dl className="recap-big">
               <div>
                 <dt>Éliminations</dt>
-                <dd className="num">{int.format(r.kills)}</dd>
+                <dd className="num">
+                  <CountUp value={r.kills} format={(n) => int.format(Math.round(n))} />
+                </dd>
                 {r.vehicleKills > 0 && <span className="caption num">dont {int.format(r.vehicleKills)} en véhicule</span>}
               </div>
               <div>
                 <dt>Morts</dt>
-                <dd className="num">{int.format(r.deaths)}</dd>
+                <dd className="num">
+                  <CountUp value={r.deaths} format={(n) => int.format(Math.round(n))} />
+                </dd>
               </div>
               <div>
                 <dt>Victoires</dt>
@@ -219,11 +237,15 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
             </div>
             <div className="recap-tile">
               <dt>Assistances</dt>
-              <dd className="num">{int.format(r.assists)}</dd>
+              <dd className="num">
+                <CountUp value={r.assists} format={(n) => int.format(Math.round(n))} />
+              </dd>
             </div>
             <div className="recap-tile">
               <dt>Réanimations</dt>
-              <dd className="num">{int.format(r.revives)}</dd>
+              <dd className="num">
+                <CountUp value={r.revives} format={(n) => int.format(Math.round(n))} />
+              </dd>
             </div>
             <div className="recap-tile">
               <dt>En partie</dt>
@@ -307,7 +329,7 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
               Voir mes stats
             </button>
           )}
-          <button className="btn btn-primary" onClick={onClose} autoFocus>
+          <button className="btn btn-primary" onClick={close} autoFocus>
             Fermer
           </button>
         </div>
@@ -341,7 +363,11 @@ export function RecapHost({ games, onOpenStats }: { games: Game[]; onOpenStats: 
     (r: Bf6Recap) => {
       if (offered.has(offerKey(r)) || shown.get()?.id === r.id) return
       offered.add(offerKey(r))
-      notify('Ton bilan Battlefield 6 est prêt', { id: 'bf6-recap', duration: TOAST_MS, action: { label: 'Voir le bilan', onClick: () => openLatest(r) } })
+      notify('Ton bilan Battlefield 6 est prêt', {
+        id: 'bf6-recap',
+        duration: TOAST_MS,
+        action: { label: 'Voir le bilan', onClick: () => openLatest(r) }
+      })
     },
     [notify]
   )
@@ -385,6 +411,8 @@ export function RecapHost({ games, onOpenStats }: { games: Game[]; onOpenStats: 
           ? undefined
           : () => {
               shown.set(null)
+              // La page Stats s'ouvre sur Battlefield 6, même si Counter-Strike 2 y était affiché.
+              saveStatsGame('bf6')
               onOpenStats()
             }
       }
@@ -419,115 +447,130 @@ function useRecapState(): Bf6RecapState | null {
   return state
 }
 
-/** Chiffres d'un bilan sur une ligne : « K/D 1,53 · 23 élim. · 2/3 victoires ». */
+/** Chiffres d'un bilan en trois cases : K/D (avec ta moyenne d'avant), éliminations, victoires. */
 function Numbers({ r }: { r: Bf6Recap }): React.JSX.Element {
   return (
     <dl className="recap-nums">
       <div>
-        <dt>K/D</dt>
         <dd className="num">{dec.format(r.killDeath)}</dd>
+        <dt>
+          K/D · moy. <span className="num">{dec.format(r.average.killDeath)}</span>
+        </dt>
       </div>
       <div>
-        <dt>Élim.</dt>
         <dd className="num">{int.format(r.kills)}</dd>
+        <dt>Éliminations</dt>
       </div>
       <div>
-        <dt>Victoires</dt>
         <dd className="num">{r.matches ? `${int.format(r.wins)}/${int.format(r.matches)}` : '–'}</dd>
-      </div>
-      <div>
-        <dt>En partie</dt>
-        <dd className="num">{r.secondsPlayed >= 60 ? playedFor(r.secondsPlayed) : '–'}</dd>
+        <dt>Victoires</dt>
       </div>
     </dl>
   )
 }
 
-/** « Dernière session » en tête de la vue d'ensemble : session en cours, bilan en préparation, dernier bilan et les précédents. */
-export function LastSession(): React.JSX.Element | null {
+/**
+ * « Dernière session » de la vue d'ensemble, à côté de la courbe du K/D : session en cours, bilan en préparation,
+ * dernier bilan (visuel de la carte la plus jouée) et les précédents. `art` : visuel du jeu quand la carte n'en a pas.
+ */
+export function LastSession({ art }: { art?: string }): React.JSX.Element | null {
   const state = useRecapState()
   if (!state?.enabled) return null
   const { pending, recaps } = state
   const [last, ...older] = recaps
+  const place = last?.maps[0]
+  const visual = last?.maps.find((m) => m.image)?.image ?? art
+  const extra = last
+    ? [last.secondsPlayed >= 60 && `${playedFor(last.secondsPlayed)} en partie`, last.weapon && `Arme : ${last.weapon.name}`, last.role && `Classe : ${last.role.name}`].filter(Boolean)
+    : []
 
   return (
-    <section className="recap-last" aria-labelledby="recap-last-title">
-      <div className="bf-row-head">
-        <h2 id="recap-last-title" className="h-section">
-          Dernière session
-        </h2>
-        <span className="caption">· ton bilan quand tu quittes le jeu</span>
+    <section className={`recap-last ${last && !last.seen ? 'is-new' : ''}`} aria-labelledby="recap-last-title">
+      <div className="recap-last-art">
+        {visual && <img key={visual} src={visual} alt="" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}
+        <span className="recap-last-shade" aria-hidden="true" />
+        {place && <span className="recap-last-place">{place.name}</span>}
+        {last && !last.seen && <span className="recap-new">Nouveau</span>}
       </div>
 
-      {pending && (
-        <p className={`recap-status ${pending.endedAt ? 'is-wait' : 'is-live'}`} role="status">
-          {pending.endedAt ? <span className="spinner" aria-hidden="true" /> : <span className="recap-live-dot" aria-hidden="true" />}
-          {pending.endedAt ? (
-            <span>
-              <b>Bilan en préparation</b> · gametools.network met parfois quelques minutes à compter tes dernières parties
-            </span>
-          ) : (
-            <span>
-              <b>En jeu depuis {timeFmt.format(pending.startedAt)}</b> · ton bilan arrive quelques minutes après la fermeture du jeu
+      <div className="recap-last-body">
+        <header className="recap-last-head">
+          <h2 id="recap-last-title" className="recap-last-title">
+            Dernière session
+          </h2>
+          {last && (
+            <span className="recap-last-when num" title={hours(last)}>
+              {dayOf(last.endedAt)} · {timeFmt.format(last.endedAt)}
             </span>
           )}
-        </p>
-      )}
+        </header>
 
-      {last ? (
-        <article className={`card-surface recap-last-card ${last.seen ? '' : 'is-new'}`}>
-          <div className="recap-last-when">
-            <span className="bf-overline">
-              {dayOf(last.endedAt)}
-              {!last.seen && <span className="recap-new">Nouveau</span>}
-            </span>
-            <span className="recap-last-hours num">{hours(last)}</span>
-          </div>
-          <Numbers r={last} />
-          <button className="btn btn-secondary btn-sm recap-last-open" onClick={() => openRecap(last)}>
-            Voir le bilan
-            <Icon name="chevron-right" size={14} />
-          </button>
-        </article>
-      ) : (
-        !pending && (
-          <article className="card-surface recap-last-card is-empty">
-            <span className="recap-last-icon" aria-hidden="true">
-              <Icon name="chart" size={20} />
-            </span>
-            <p className="bf-text">
-              Quand tu quittes Battlefield 6, Player X compare tes stats d’avant et d’après la partie : tes éliminations, ton K/D et tes victoires de la
-              session.
-            </p>
-            <button className="btn btn-ghost btn-sm" onClick={() => openRecap(sampleRecap())}>
-              Voir un exemple
+        {pending && (
+          <p className={`recap-status ${pending.endedAt ? 'is-wait' : 'is-live'}`} role="status">
+            {pending.endedAt ? <span className="spinner" aria-hidden="true" /> : <span className="recap-live-dot" aria-hidden="true" />}
+            {pending.endedAt ? (
+              <span>
+                <b>Bilan en préparation</b> · gametools.network met parfois quelques minutes à compter tes dernières parties
+              </span>
+            ) : (
+              <span>
+                <b>En jeu depuis {timeFmt.format(pending.startedAt)}</b> · ton bilan arrive quelques minutes après la fermeture du jeu
+              </span>
+            )}
+          </p>
+        )}
+
+        {last ? (
+          <>
+            <Numbers r={last} />
+            {extra.length > 0 && <p className="recap-last-meta num">{extra.join(' · ')}</p>}
+            <button className="btn btn-secondary btn-sm recap-last-open" onClick={() => openRecap(last)}>
+              Voir le bilan
+              <Icon name="chevron-right" size={14} />
             </button>
-          </article>
-        )
-      )}
-
-      {older.length > 0 && (
-        <ol className="recap-history" aria-label="Sessions précédentes">
-          {older.slice(0, MAX_HISTORY).map((r) => (
-            <li key={r.id}>
-              <button className="recap-history-row" onClick={() => openRecap(r)}>
-                <span className="recap-history-day">{dayOf(r.endedAt)}</span>
-                <span className="caption num">{hours(r)}</span>
-                <span className="recap-history-nums num">
-                  K/D <b>{dec.format(r.killDeath)}</b> · <b>{int.format(r.kills)}</b> élim.
-                  {r.matches > 0 && (
-                    <>
-                      {' '}
-                      · <b>{int.format(r.wins)}</b>/{int.format(r.matches)} vict.
-                    </>
-                  )}
-                </span>
-                <Icon name="chevron-right" size={14} />
+          </>
+        ) : (
+          !pending && (
+            <div className="recap-last-empty">
+              <p className="bf-text">
+                Quand tu quittes Battlefield 6, Player X compare tes stats d’avant et d’après la partie : tes éliminations, ton K/D et tes victoires de la
+                session.
+              </p>
+              <button className="btn btn-ghost btn-sm" onClick={() => openRecap(sampleRecap())}>
+                Voir un exemple
               </button>
-            </li>
-          ))}
-        </ol>
-      )}
+            </div>
+          )
+        )}
+
+        {older.length > 0 && (
+          <div className="recap-older">
+            <h3 className="bf-overline">Sessions précédentes</h3>
+            <ol className="recap-history" aria-label="Sessions précédentes">
+              {older.slice(0, MAX_HISTORY).map((r) => (
+                <li key={r.id}>
+                  <button className="recap-history-row" onClick={() => openRecap(r)}>
+                    <span className="recap-history-when">
+                      <span className="recap-history-day">{dayOf(r.endedAt)}</span>
+                      <span className="caption num">{hours(r)}</span>
+                    </span>
+                    <span className="recap-history-nums num">
+                      K/D <b>{dec.format(r.killDeath)}</b> · <b>{int.format(r.kills)}</b> élim.
+                      {r.matches > 0 && (
+                        <>
+                          {' '}
+                          · <b>{int.format(r.wins)}</b>/{int.format(r.matches)} vict.
+                        </>
+                      )}
+                    </span>
+                    <Icon name="chevron-right" size={14} />
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+      </div>
     </section>
   )
 }

@@ -1,7 +1,7 @@
 // Bilan d'un match de Counter-Strike 2 : la carte de fin de match (Cs2RecapDialog) et l'hôte monté par App
 // (Cs2RecapHost), qui la propose quand le processus principal l'a préparée. Même charpente que le bilan Battlefield 6
 // (classes .recap-* de stats/recap.css) ; ce qui est propre à CS2 (frise des rounds, résultat) est en .cs2-.
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { CS2_GAME_ID, formatKd, killDeath, longestStreak, mapLabel, modeLabel, RESULT_LABEL } from '@shared/cs2'
 import { plural } from '@shared/text'
 import type { Cs2Recap, Cs2Round, Cs2RoundEnd, Game } from '@shared/types'
@@ -12,6 +12,8 @@ import { useToast } from '../ui/Toasts'
 import { dayOf, minutes, openCs2Recap, shownCs2, timeFmt } from './useCs2'
 import '../stats/recap.css'
 import './cs2.css'
+import { useLeave } from '../../motion'
+import { CountUp } from '../ui/CountUp'
 
 const api = window.launcher
 
@@ -61,7 +63,8 @@ function Strip({ rounds }: { rounds: Cs2Round[] }): React.JSX.Element {
     <section className="cs2-strip-wrap" aria-labelledby="cs2-strip-title">
       <div className="cs2-strip-head">
         <h3 id="cs2-strip-title" className="overline">
-          Rounds{sides.length > 0 && <span className="cs2-strip-sides"> · tu commences {sides[0]}</span>}
+          Rounds
+          {sides.length > 0 && <span className="cs2-strip-sides"> · tu commences {sides[0]}</span>}
         </h3>
         {streak >= 2 && <span className="caption num">Plus longue série : {streak} rounds gagnés</span>}
       </div>
@@ -113,7 +116,10 @@ interface DialogProps {
 }
 
 export function Cs2RecapDialog({ recap: r, art, onClose }: DialogProps): React.JSX.Element {
-  useEscape(true, onClose)
+  // Fermeture : sortie animée (motion.ts useLeave), puis onClose.
+  const scrim = useRef<HTMLDivElement>(null)
+  const close = useLeave(scrim, onClose)
+  useEscape(true, close)
   const kd = killDeath(r)
   const hsPct = r.trackedKills > 0 ? (r.headshots / r.trackedKills) * 100 : null
   const adr = r.hasRounds && r.roundsTracked > 0 ? r.damage / r.roundsTracked : null
@@ -121,7 +127,7 @@ export function Cs2RecapDialog({ recap: r, art, onClose }: DialogProps): React.J
   const played = r.score ? r.score.us + r.score.them : r.rounds.length
 
   return (
-    <div className="dialog-scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div ref={scrim} className="dialog-scrim" onMouseDown={(e) => e.target === e.currentTarget && close()}>
       <div className="dialog recap cs2-recap" role="dialog" aria-modal="true" aria-labelledby="cs2-recap-title">
         <header className="recap-head">
           <div className="recap-art" aria-hidden="true">
@@ -161,7 +167,9 @@ export function Cs2RecapDialog({ recap: r, art, onClose }: DialogProps): React.J
           <section className="recap-main" aria-label="Le match en chiffres">
             <div className="recap-kd">
               <span className="overline">K/D du match</span>
-              <b className="recap-kd-value num">{formatKd(kd)}</b>
+              <b className="recap-kd-value num">
+                <CountUp value={kd} format={formatKd} />
+              </b>
               <span className="recap-delta num">
                 {plural(r.kills, 'élimination', 'éliminations')} pour {plural(r.deaths, 'mort', 'morts')}
               </span>
@@ -169,15 +177,21 @@ export function Cs2RecapDialog({ recap: r, art, onClose }: DialogProps): React.J
             <dl className="recap-big">
               <div>
                 <dt>Éliminations</dt>
-                <dd className="num">{int.format(r.kills)}</dd>
+                <dd className="num">
+                  <CountUp value={r.kills} format={(n) => int.format(Math.round(n))} />
+                </dd>
               </div>
               <div>
                 <dt>Morts</dt>
-                <dd className="num">{int.format(r.deaths)}</dd>
+                <dd className="num">
+                  <CountUp value={r.deaths} format={(n) => int.format(Math.round(n))} />
+                </dd>
               </div>
               <div>
                 <dt>Assistances</dt>
-                <dd className="num">{int.format(r.assists)}</dd>
+                <dd className="num">
+                  <CountUp value={r.assists} format={(n) => int.format(Math.round(n))} />
+                </dd>
               </div>
             </dl>
           </section>
@@ -185,7 +199,7 @@ export function Cs2RecapDialog({ recap: r, art, onClose }: DialogProps): React.J
           <dl className="recap-tiles">
             <div className="recap-tile">
               <dt>Headshots</dt>
-              <dd className="num">{hsPct === null ? '–' : `${pct.format(hsPct)} %`}</dd>
+              <dd className="num">{hsPct === null ? '–' : <CountUp value={hsPct} format={(n) => `${pct.format(n)} %`} />}</dd>
               {hsPct !== null && (
                 <span className="caption num">
                   {int.format(r.headshots)} sur {int.format(r.trackedKills)}
@@ -195,17 +209,21 @@ export function Cs2RecapDialog({ recap: r, art, onClose }: DialogProps): React.J
             {r.hasRounds && (
               <div className="recap-tile">
                 <dt>ADR</dt>
-                <dd className="num">{adr === null ? '–' : int.format(adr)}</dd>
+                <dd className="num">{adr === null ? '–' : <CountUp value={adr} format={(n) => int.format(Math.round(n))} />}</dd>
                 <span className="caption">dégâts par round</span>
               </div>
             )}
             <div className="recap-tile">
               <dt>MVP</dt>
-              <dd className="num">{int.format(r.mvps)}</dd>
+              <dd className="num">
+                <CountUp value={r.mvps} format={(n) => int.format(Math.round(n))} />
+              </dd>
             </div>
             <div className="recap-tile">
               <dt>Points</dt>
-              <dd className="num">{int.format(r.points)}</dd>
+              <dd className="num">
+                <CountUp value={r.points} format={(n) => int.format(Math.round(n))} />
+              </dd>
             </div>
           </dl>
 
@@ -254,7 +272,7 @@ export function Cs2RecapDialog({ recap: r, art, onClose }: DialogProps): React.J
           <span className="caption recap-source">
             {r.sample ? 'Ton vrai bilan arrive à la fin de ton prochain match.' : 'Envoyé par CS2 pendant le match (Game State Integration de Valve).'}
           </span>
-          <button className="btn btn-primary" onClick={onClose} autoFocus>
+          <button className="btn btn-primary" onClick={close} autoFocus>
             Fermer
           </button>
         </div>
@@ -317,5 +335,6 @@ export function Cs2RecapHost({ games }: { games: Game[] }): React.JSX.Element | 
   }, [offer])
 
   if (!recap) return null
-  return <Cs2RecapDialog recap={recap} art={cs2Art(games)} onClose={() => shownCs2.set(null)} />
+  // Une clé par bilan : un nouveau bilan arrivé pendant la fermeture du précédent repart d'une fenêtre neuve.
+  return <Cs2RecapDialog key={recap.id} recap={recap} art={cs2Art(games)} onClose={() => shownCs2.set(null)} />
 }

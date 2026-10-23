@@ -1,9 +1,10 @@
 import { net } from 'electron'
 import { cleanName } from '@shared/text'
-import type { AchievementsOverview, AchievementsOverviewState, Game, GameAchievements } from '@shared/types'
+import type { Achievement, AchievementsOverview, AchievementsOverviewState, Game, GameAchievements, RareUnlock } from '@shared/types'
 import { getKv, listGames, setKv } from '../db'
 import {
   buildOverview,
+  freshRare,
   isUnlocked,
   mergeAchievements,
   parseBadges,
@@ -67,6 +68,17 @@ const metaCache = new Map<string, { at: number; schema: SchemaAch[]; global: Rec
 let scan: { done: number; total: number } | null = null
 let lastTry = { at: 0, who: '' }
 let lastError: AchievementsOverviewState | null = null
+
+// Succès rares débloqués depuis le relevé précédent d'un jeu (jamais au premier relevé : tout serait « nouveau »).
+let rareListener: ((list: RareUnlock[]) => void) | null = null
+export function onRareUnlocks(cb: (list: RareUnlock[]) => void): void {
+  rareListener = cb
+}
+function reportRare(appId: string, gameName: string, list: Achievement[], prev: GameSummary | undefined): void {
+  if (!prev || !rareListener) return
+  const fresh = freshRare(list, prev.at)
+  if (fresh.length) rareListener(fresh.map((a) => ({ gameId: `steam:${appId}`, gameName, id: a.id, name: a.name, percent: a.percent! })))
+}
 
 function steamId(): string | undefined {
   return getAccounts().find((a) => a.platform === 'steam')?.id
@@ -166,6 +178,7 @@ export async function getGameAchievements(game: Game, refresh = false): Promise<
   const index = loadIndex(id)
   const minutes = ownedSteamList()?.find((g) => g.appId === appId)?.minutes ?? game.playtime ?? 0
   if (index.games[appId] || data.unlocked > 0) {
+    reportRare(appId, cleanName(game.name), list, index.games[appId])
     saveIndex({ ...index, games: { ...index.games, [appId]: summarize(list, cleanName(game.name), minutes, Date.now()) } })
   }
   return data
@@ -232,7 +245,9 @@ async function runScan(key: string, id: string): Promise<void> {
           }
           // Rien de débloqué : pas besoin des icônes ni de la rareté pour la page.
           const meta = player.list.some((a) => a.achieved) ? await fetchMeta(g.appId, key) : { schema: [], global: {} }
-          games[g.appId] = summarize(mergeAchievements(player.list, meta.schema, meta.global), g.name, g.minutes, Date.now())
+          const merged = mergeAchievements(player.list, meta.schema, meta.global)
+          reportRare(g.appId, g.name, merged, loadIndex(id).games[g.appId] ?? start.games[g.appId])
+          games[g.appId] = summarize(merged, g.name, g.minutes, Date.now())
         } catch {
           failed++
         } finally {

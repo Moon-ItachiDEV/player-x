@@ -16,6 +16,8 @@ interface Art {
   appId: string | null
   cover?: string
   hero?: string
+  /** Logo du jeu (catalogue Steam). null : demandé, Steam n'en a pas. Absent : pas encore demandé. */
+  logo?: string | null
   /** Les chemins d'images ont été demandés à Steam (même si aucune image n'existe). */
   assetsFetched?: boolean
   at: number
@@ -95,7 +97,8 @@ export async function updateArtwork(games: Game[]): Promise<boolean> {
   const toFetch = new Map<string, string[]>() // appid -> ids de jeux
   for (const g of games) {
     const appId = g.store === 'steam' ? g.storeId : cache[g.id]?.appId
-    if (!appId || fresh(g)?.assetsFetched) continue
+    // Un cache d'avant les logos (logo absent) est redemandé une fois.
+    if (!appId || (fresh(g)?.assetsFetched && fresh(g)?.logo !== undefined)) continue
     toFetch.set(appId, [...(toFetch.get(appId) ?? []), g.id])
   }
   if (toFetch.size) {
@@ -103,7 +106,7 @@ export async function updateArtwork(games: Game[]): Promise<boolean> {
       const assets = await fetchAssets([...toFetch.keys()])
       for (const [appId, ids] of toFetch) {
         const a = assets.get(appId)
-        for (const id of ids) cache[id] = found[id] = { appId, cover: a?.cover, hero: a?.hero, assetsFetched: true, at: now }
+        for (const id of ids) cache[id] = found[id] = { appId, cover: a?.cover, hero: a?.hero, logo: a?.logo ?? null, assetsFetched: true, at: now }
       }
       changed = true
     } catch (e) {
@@ -126,6 +129,24 @@ export function steamAppIds(games: Game[]): Map<string, string> {
   return out
 }
 
+/**
+ * Logo du jeu : celui du catalogue Steam ; pour un jeu Steam seulement, l'ancien `logo.png` du CDN en secours (la fiche
+ * revient au titre si l'image ne charge pas). Jamais d'adresse devinée pour un jeu EA ou Epic.
+ */
+function logoOf(g: Game, a: Art | undefined): string | undefined {
+  if (a?.logo) return a.logo
+  return g.store === 'steam' && /^\d{1,10}$/.test(g.storeId) ? `${LEGACY_CDN}${g.storeId}/logo.png` : undefined
+}
+
+/** Ajoute le logo connu (cache local) à chaque jeu, sans réseau : il n'est pas gardé dans la table des jeux. */
+export function withLogos(games: Game[]): Game[] {
+  const cache = getKv<ArtCache>('artwork', {})
+  return games.map((g) => {
+    const logoUrl = logoOf(g, cache[g.id])
+    return logoUrl ? { ...g, logoUrl } : g
+  })
+}
+
 /** Applique les images connues (cache local), sans réseau. */
 export function applyArtwork(games: Game[]): Game[] {
   const cache = getKv<ArtCache>('artwork', {})
@@ -133,11 +154,13 @@ export function applyArtwork(games: Game[]): Game[] {
     const a = cache[g.id]
     const appId = g.store === 'steam' ? g.storeId : a?.appId
     if (!appId) return g
+    const logoUrl = logoOf(g, a)
     return {
       ...g,
       // Ancienne URL en secours : marche encore pour la plupart des jeux sortis avant 2024.
       coverUrl: a?.cover ?? `${LEGACY_CDN}${appId}/library_600x900.jpg`,
-      heroUrl: a?.hero ?? `${LEGACY_CDN}${appId}/library_hero.jpg`
+      heroUrl: a?.hero ?? `${LEGACY_CDN}${appId}/library_hero.jpg`,
+      ...(logoUrl ? { logoUrl } : {})
     }
   })
 }

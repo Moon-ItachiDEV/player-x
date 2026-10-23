@@ -1,14 +1,14 @@
-// Section « Comptes » : une carte de connexion par plateforme.
+// Section « Comptes » : une carte par source (comptes Steam, PlayStation, Discord ; stores Epic et EA lus sur ce PC).
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { plural } from '@shared/text'
-import type { Account, FriendPlatform, FriendsResult, HiddenMember, Settings } from '@shared/types'
+import type { Account, FriendPlatform, FriendsResult, HiddenMember, ScanReport, Settings, Store } from '@shared/types'
 import type { LoginPlatform } from '../../contracts'
 import { Avatar } from '../ui/Avatar'
 import { Icon } from '../ui/Icon'
 import { Dialog } from '../ui/Overlay'
-import { StoreTag } from '../ui/StoreTag'
+import { STORE_LONG, StoreTag } from '../ui/StoreTag'
 import { errorMessage, useToast } from '../ui/Toasts'
-import { prefersReducedMotion, SectionHead, SettingRow } from './parts'
+import { prefersReducedMotion, SectionHead } from './parts'
 
 export const PLATFORMS: FriendPlatform[] = ['steam', 'discord', 'psn']
 
@@ -106,6 +106,10 @@ interface Props {
   /** « Gérer » de la liste d'amis : bloc « Membres masqués » à montrer et à focaliser. */
   focus: 'hidden-members' | null
   onFocused: () => void
+  /** Epic et EA : pas de compte, seulement le scan de ce PC. */
+  report: ScanReport[]
+  scanning: boolean
+  onRescan: () => void
 }
 
 export function AccountsSection(props: Props): React.JSX.Element {
@@ -134,33 +138,42 @@ export function AccountsSection(props: Props): React.JSX.Element {
     }
   }
 
+  const card = (p: FriendPlatform): React.JSX.Element => {
+    const account = accounts.find((a) => a.platform === p)
+    return (
+      <ConnectionCard
+        key={p}
+        platform={p}
+        account={account}
+        state={connState(p, account, settings, friends.errors)}
+        count={friends.friends.filter((f) => f.platform === p).length}
+        masked={p === 'discord' ? (friends.hidden ?? []).filter((h) => h.online).length : 0}
+        settings={settings}
+        loginPending={loginPending}
+        onConnect={() => onLogin(p)}
+        onDisconnect={(el) => {
+          trigger.current = el
+          setConfirm(p)
+        }}
+        onConfigure={() => onConfigure(p)}
+      />
+    )
+  }
+  const store = (s: Exclude<Store, 'steam'>): React.JSX.Element => (
+    <StoreCard key={s} store={s} report={props.report.find((r) => r.store === s)} scanning={props.scanning} onRescan={props.onRescan} />
+  )
+
   return (
     <>
-      <SectionHead title="Comptes connectés">
-        Connecte tes comptes pour voir tes amis et ce à quoi ils jouent. Ta bibliothèque fonctionne sans compte.
+      <SectionHead title="Comptes">
+        Connecte tes comptes pour voir tes amis et ce à quoi ils jouent. Ta bibliothèque fonctionne sans compte : Epic et EA sont lus directement sur ce PC.
       </SectionHead>
-      <div className="set-conn-grid">
-        {PLATFORMS.map((p) => {
-          const account = accounts.find((a) => a.platform === p)
-          return (
-            <ConnectionCard
-              key={p}
-              platform={p}
-              account={account}
-              state={connState(p, account, settings, friends.errors)}
-              count={friends.friends.filter((f) => f.platform === p).length}
-              masked={p === 'discord' ? (friends.hidden ?? []).filter((h) => h.online).length : 0}
-              settings={settings}
-              loginPending={loginPending}
-              onConnect={() => onLogin(p)}
-              onDisconnect={(el) => {
-                trigger.current = el
-                setConfirm(p)
-              }}
-              onConfigure={() => onConfigure(p)}
-            />
-          )
-        })}
+      <div className="set-acc-grid">
+        {card('steam')}
+        {store('epic')}
+        {store('ea')}
+        {card('psn')}
+        {card('discord')}
       </div>
       {(settings.discordGuildId || settings.demoMode || (friends.hidden?.length ?? 0) > 0) && (
         <HiddenMembers hidden={friends.hidden ?? []} onShow={onShowMember} focus={focus} onFocused={onFocused} />
@@ -207,6 +220,10 @@ function ConnectionCard({ platform, account, state, count, masked, settings, log
   // Steam et Discord passent par le navigateur (même port de retour) : une connexion à la fois.
   const blocked = !!loginPending && !pending
 
+  // Pas encore relié, une seule chose à faire dans Avancé : le bouton prend la place de « Connecter » et le message
+  // devient la légende, pour garder des cartes de même hauteur (maquette). Les erreurs gardent leur encadré.
+  const inlineFix = !account && !pending && state.tone !== 'danger' && state.fixes?.length === 1 && state.fixes[0].to === 'advanced' ? state.fixes[0] : null
+
   const caption = pending
     ? platform === 'psn'
       ? 'Connexion à PlayStation…'
@@ -219,37 +236,77 @@ function ConnectionCard({ platform, account, state, count, masked, settings, log
             : 'Aucun serveur choisi'
           : plural(count, 'ami', 'amis')
         : 'Amis indisponibles pour le moment'
-      : platform === 'psn'
-        ? 'API non officielle'
-        : platform === 'discord' && !(settings.discordClientId && settings.discordClientSecret)
-          ? 'Application développeur requise'
-          : 'Connexion dans ton navigateur'
+      : inlineFix || (state.canConnect && !state.fixes)
+        ? state.message
+        : platform === 'psn'
+          ? 'API non officielle'
+          : platform === 'discord' && !(settings.discordClientId && settings.discordClientSecret)
+            ? 'Application développeur requise'
+            : 'Connexion dans ton navigateur'
+  // Légende longue (message) : sur trois lignes au plus, au lieu d’une ligne coupée.
+  const longCap = !pending && !account && (inlineFix || (state.canConnect && !state.fixes))
 
   return (
-    <article className="set-conn" aria-labelledby={`set-conn-${platform}`}>
-      <header className="set-conn-head">
-        <StoreTag kind={platform} size={40} />
-        <div className="set-conn-name">
-          <h3 id={`set-conn-${platform}`}>{name}</h3>
-          {platform === 'psn' && <span className="pill pill-outline-warning no-dot">Expérimental</span>}
+    <article className={`set-acc ${state.tone}`} aria-labelledby={`set-conn-${platform}`}>
+      <div className="set-acc-main">
+        <StoreTag kind={platform} size={48} />
+        <div className="set-acc-text">
+          <h3 id={`set-conn-${platform}`} className="set-acc-name">
+            {name}
+            {platform === 'psn' && <span className="pill pill-outline-warning no-dot">Expérimental</span>}
+          </h3>
+          <p className={`set-acc-state ${state.tone}`}>
+            <ToneIcon tone={state.tone} />
+            <span className="set-acc-state-text">
+              {state.label}
+              {account && (
+                <>
+                  {' · '}
+                  <Avatar name={account.name} url={account.avatarUrl} size={18} />
+                  <span className="set-acc-pseudo">{account.name}</span>
+                </>
+              )}
+            </span>
+          </p>
+          <p className={`set-acc-cap ${longCap ? 'set-acc-cap-long' : ''}`}>
+            {caption}
+            {account?.id && account.id !== 'me' && <span className="num"> · ID {account.id}</span>}
+          </p>
         </div>
-        <span className={`pill pill-${state.tone}`}>{state.label}</span>
-      </header>
-
-      {account && (
-        <div className="set-conn-id">
-          <Avatar name={account.name} url={account.avatarUrl} size={32} />
-          <div className="set-conn-id-text">
-            <div className="set-conn-acc">{account.name}</div>
-            {account.id && account.id !== 'me' && <div className="caption num">ID {account.id}</div>}
-          </div>
+        <div className="set-acc-actions">
+          {pending && platform !== 'psn' && (
+            <button className="btn btn-ghost btn-sm" onClick={() => window.launcher.cancelLogin()}>
+              Annuler
+            </button>
+          )}
+          {account ? (
+            <button className="btn btn-secondary btn-sm set-ghost-danger" onClick={(e) => onDisconnect(e.currentTarget)}>
+              Déconnecter
+            </button>
+          ) : inlineFix ? (
+            <button className="btn btn-secondary btn-sm" onClick={onConfigure}>
+              {inlineFix.label}
+            </button>
+          ) : (
+            state.canConnect && (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={onConnect}
+                disabled={pending || blocked}
+                title={platform === 'psn' ? undefined : 'Connexion dans ton navigateur'}
+              >
+                {pending && <span className="spinner" />}
+                {pending ? 'Connexion…' : CONNECT_LABEL[platform]}
+              </button>
+            )
+          )}
         </div>
-      )}
+      </div>
 
       {state.label === 'Connecté' ? (
-        <div className="set-conn-uses">
-          <span className="overline">Utilisé pour</span>
-          <div className="set-conn-chips">
+        <>
+          <div className="set-acc-uses">
+            <span className="set-acc-uses-label">Utilisé pour</span>
             {(platform === 'discord' && !settings.discordGuildId ? DISCORD_PROFILE_ONLY : USES[platform]).map((u) => (
               <span key={u} className="set-use">
                 {u}
@@ -265,8 +322,8 @@ function ConnectionCard({ platform, account, state, count, masked, settings, log
               </button>
             </div>
           )}
-        </div>
-      ) : state.fixes ? (
+        </>
+      ) : state.fixes && !inlineFix ? (
         <div className={`set-alert ${state.tone}`}>
           <Icon name={state.tone === 'danger' ? 'alert-circle' : 'alert-triangle'} size={16} />
           <div>
@@ -288,36 +345,68 @@ function ConnectionCard({ platform, account, state, count, masked, settings, log
           </div>
         </div>
       ) : (
-        <p className="set-conn-benefit">{state.message}</p>
+        !inlineFix && !longCap && !pending && state.message && <p className="set-acc-note">{state.message}</p>
       )}
+    </article>
+  )
+}
 
-      <footer className="set-conn-foot">
-        <span className="caption">{caption}</span>
-        <div className="set-conn-actions">
-          {pending && platform !== 'psn' && (
-            <button className="btn btn-ghost btn-sm" onClick={() => window.launcher.cancelLogin()}>
-              Annuler
-            </button>
-          )}
-          {account ? (
-            <button className="btn btn-ghost btn-sm set-ghost-danger" onClick={(e) => onDisconnect(e.currentTarget)}>
-              Déconnecter
-            </button>
-          ) : (
-            state.canConnect && (
-              <button className="btn btn-primary btn-sm" onClick={onConnect} disabled={pending || blocked}>
-                {pending && <span className="spinner" />}
-                {pending ? 'Connexion…' : CONNECT_LABEL[platform]}
-              </button>
-            )
-          )}
+/** Icône de l'état, à côté du libellé (la couleur ne porte jamais seule l'information). */
+function ToneIcon({ tone }: { tone: Tone }): React.JSX.Element {
+  if (tone === 'success') return <Icon name="check-circle" size={14} />
+  if (tone === 'warning') return <Icon name="alert-triangle" size={14} />
+  if (tone === 'danger') return <Icon name="alert-circle" size={14} />
+  return <span className="set-acc-dot" aria-hidden="true" />
+}
+
+interface StoreCardProps {
+  store: Exclude<Store, 'steam'>
+  report?: ScanReport
+  scanning: boolean
+  onRescan: () => void
+}
+
+/** Epic et EA : pas de compte à relier, Player X lit les jeux installés sur ce PC. « Actualiser » relance le scan de tous les stores. */
+function StoreCard({ store, report: r, scanning, onRescan }: StoreCardProps): React.JSX.Element {
+  const name = STORE_LONG[store]
+  const [label, tone]: [string, Tone] =
+    scanning && !r
+      ? ['Scan en cours…', 'muted']
+      : !r
+        ? ['Aucun scan pour le moment', 'muted']
+        : r.error
+          ? [`Erreur : ${r.error}`, 'danger']
+          : r.found > 0
+            ? [plural(r.found, 'jeu installé détecté', 'jeux installés détectés'), 'success']
+            : ['Non trouvé sur ce PC', 'muted']
+  return (
+    <article className={`set-acc ${tone}`} aria-labelledby={`set-store-${store}`}>
+      <div className="set-acc-main">
+        <StoreTag kind={store} size={48} />
+        <div className="set-acc-text">
+          <h3 id={`set-store-${store}`} className="set-acc-name">
+            {name}
+          </h3>
+          <p className={`set-acc-state ${tone}`}>
+            <ToneIcon tone={tone} />
+            <span className="set-acc-state-text">{label}</span>
+          </p>
+          <p className="set-acc-cap">Lu sur ce PC · sans compte</p>
         </div>
-      </footer>
+        <div className="set-acc-actions">
+          <button className="btn btn-secondary btn-sm" onClick={onRescan} disabled={scanning} title="Relance le scan de tous les stores" aria-label={`Actualiser ${name} : relancer le scan`}>
+            {scanning && <span className="spinner" />}
+            Actualiser
+          </button>
+        </div>
+      </div>
     </article>
   )
 }
 
 const HIDDEN_VALUE: Record<HiddenMember['reason'], string> = { bot: 'Bot reconnu par Player X', user: 'Masqué à ta demande' }
+/** Version courte, dans la pastille (la longue reste en infobulle). */
+const HIDDEN_SHORT: Record<HiddenMember['reason'], string> = { bot: 'bot reconnu', user: 'masqué par toi' }
 
 interface HiddenProps {
   hidden: HiddenMember[]
@@ -362,30 +451,40 @@ function HiddenMembers({ hidden, onShow, focus, onFocused }: HiddenProps): React
   }
 
   return (
-    <section aria-labelledby="set-hidden-title">
-      <h3 id="set-hidden-title" ref={title} className="set-block-title" tabIndex={-1}>
-        Membres masqués
-      </h3>
-      <div className="set-help-block">
-        <p className="set-help">
-          Le widget Discord ne dit pas qui est un bot : Player X masque d'office les bots connus (MEE6, MonitoRSS, PatchBot, Soundboards.gg…). Pour masquer
-          quelqu'un d'autre, survole-le dans la liste d'amis et clique sur l'œil barré. Discord ne donne que le pseudo : un membre qui en change réapparaît.
-        </p>
-        {hidden.length ? (
-          <div>
-            {hidden.map((m) => (
-              <SettingRow key={m.name} label={m.name} value={m.reason === 'user' && !m.online ? `${HIDDEN_VALUE.user} · hors ligne` : HIDDEN_VALUE[m.reason]}>
-                <button className="btn btn-secondary btn-sm" aria-label={`Afficher ${m.name}`} disabled={busy === m.name} onClick={() => void show(m.name)}>
-                  <Icon name="eye" size={15} />
-                  Afficher
+    <section className="set-card set-hidden" aria-labelledby="set-hidden-title">
+      <header className="set-card-head">
+        <h3 id="set-hidden-title" ref={title} tabIndex={-1}>
+          Membres masqués
+        </h3>
+        <span className="set-card-meta">Discord · {plural(hidden.length, 'masqué', 'masqués')}</span>
+      </header>
+      <p className="set-help">
+        Le widget Discord ne dit pas qui est un bot : Player X masque d'office les bots connus (MEE6, MonitoRSS, PatchBot, Soundboards.gg…). Pour masquer
+        quelqu'un d'autre, survole-le dans la liste d'amis et clique sur l'œil barré. Discord ne donne que le pseudo : un membre qui en change réapparaît.
+      </p>
+      {hidden.length ? (
+        <ul className="set-hidden-list" aria-label="Membres du serveur masqués">
+          {hidden.map((m) => {
+            const off = m.reason === 'user' && !m.online ? ' · hors ligne' : ''
+            return (
+              <li key={m.name} className="set-hidden-chip">
+                <span className="set-hidden-text" title={HIDDEN_VALUE[m.reason] + off}>
+                  <span className="set-hidden-name">{m.name}</span>
+                  <span className="set-hidden-why">
+                    {HIDDEN_SHORT[m.reason]}
+                    {off}
+                  </span>
+                </span>
+                <button className="set-hidden-btn" aria-label={`Réafficher ${m.name}`} disabled={busy === m.name} onClick={() => void show(m.name)}>
+                  Réafficher
                 </button>
-              </SettingRow>
-            ))}
-          </div>
-        ) : (
-          <p className="set-help">Aucun membre masqué pour le moment.</p>
-        )}
-      </div>
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <p className="set-help">Aucun membre masqué pour le moment.</p>
+      )}
     </section>
   )
 }

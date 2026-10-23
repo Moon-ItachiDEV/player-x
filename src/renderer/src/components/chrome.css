@@ -475,6 +475,8 @@
 }
 
 .tb-search {
+  /* Repère de la liste des résultats (search/search.css) */
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;

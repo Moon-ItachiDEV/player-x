@@ -31,7 +31,7 @@
   gap: 4px;
 }
 .pg-now-value {
-  font: 700 34px/38px var(--font-display);
+  font: 600 36px/40px var(--font-display);
   letter-spacing: -0.02em;
   color: var(--text-1);
 }
@@ -60,10 +60,9 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
-  border: 1px solid var(--line-1);
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--bg-1);
 }
 .pg-tile dd {
   margin: 0;
@@ -91,6 +90,15 @@
 .pg-chart svg {
   display: block;
   overflow: visible;
+}
+/* Vue d'ensemble : la courbe prend la hauteur de son cadre (dessin posé en absolu, mesuré par Chart). */
+.pg-chart.is-fill {
+  flex: 1;
+  min-height: 200px;
+}
+.pg-chart.is-fill svg {
+  position: absolute;
+  inset: 0;
 }
 .pg-grid line {
   stroke: var(--line-1);

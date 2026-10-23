@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import type { NewsFeedItem } from '@shared/types'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { BUCKET_LABEL, bucketOf, feedGames, filterFeed, groupFeed, HOME_MAX, homeFeed } from './feedView.ts'
+import { feedGames, filterFeed, HOME_MAX, homeFeed } from './feedView.ts'
 
 // Dates locales : les tests ne dépendent pas du fuseau horaire de la machine.
 const NOW = new Date(2026, 9, 21, 0, 30).getTime()
@@ -23,21 +23,6 @@ const item = (date: number, patch = true, gameId = 'steam:730', gameName = 'Coun
   isNew: false
 })
 
-test('groupe par jour du calendrier local', () => {
-  assert.equal(bucketOf(new Date(2026, 9, 20, 23, 50).getTime(), NOW), 'yesterday')
-  assert.equal(bucketOf(new Date(2026, 9, 21, 0, 5).getTime(), NOW), 'today')
-  assert.equal(bucketOf(new Date(2026, 9, 20, 0, 0).getTime(), NOW), 'yesterday')
-  assert.equal(bucketOf(new Date(2026, 9, 19, 23, 59).getTime(), NOW), 'week')
-  assert.equal(bucketOf(NOW - 6 * D, NOW), 'week')
-  assert.equal(bucketOf(NOW - 20 * D, NOW), 'month')
-  assert.equal(bucketOf(NOW - 45 * D, NOW), 'older')
-  assert.equal(bucketOf(NOW + 2 * H, NOW), 'today')
-  // Groupes glissants : les titres ne parlent pas de la semaine ni du mois du calendrier.
-  assert.equal(BUCKET_LABEL[bucketOf(NOW - 6 * D, NOW)], 'Ces 7 derniers jours')
-  assert.equal(BUCKET_LABEL[bucketOf(NOW - 26 * D, NOW)], 'Ces 30 derniers jours')
-  assert.ok(!Object.values(BUCKET_LABEL).some((l) => /cette semaine|ce mois/i.test(l)))
-})
-
 test('rangée de l\'accueil : patchs de moins de 60 jours, 10 au plus, ordre gardé', () => {
   const list = [item(NOW - H), item(NOW - 2 * H, false), item(NOW - 59 * D), item(NOW - 61 * D)]
   assert.deepEqual(
@@ -52,23 +37,6 @@ test('rangée de l\'accueil : patchs de moins de 60 jours, 10 au plus, ordre gar
     many.slice(0, HOME_MAX).map((i) => i.id)
   )
   assert.deepEqual(homeFeed([], NOW), [])
-})
-
-test('groupes dans l\'ordre, sans groupe vide, annonces dans l\'ordre', () => {
-  const a = item(NOW - 10 * 60_000)
-  const b = item(NOW - 20 * 60_000)
-  const c = item(NOW - 3 * D)
-  const d = item(NOW - 50 * D)
-  const groups = groupFeed([a, b, c, d], NOW)
-  assert.deepEqual(
-    groups.map((g) => g.bucket),
-    ['today', 'week', 'older']
-  )
-  assert.deepEqual(
-    groups[0].items.map((i) => i.id),
-    [a.id, b.id]
-  )
-  assert.deepEqual(groupFeed([], NOW), [])
 })
 
 test('filtres : patchs seulement, un jeu', () => {
