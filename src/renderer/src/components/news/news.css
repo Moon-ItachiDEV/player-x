@@ -1,5 +1,5 @@
 /* Actus des jeux : badge « Nouveau patch », bandeau et section de la fiche, lecteur d'annonce.
-   Couleur d'information (--info) : ce n'est ni une action (jaune) ni quelque chose en direct (cyan). */
+   Couleur d'information (--info) : ce n'est ni une action (rose) ni quelque chose en direct (cyan). */
 
 /* ---------- badge sur les cartes ---------- */
 
@@ -193,13 +193,13 @@ button.news-item:hover .news-thumb img {
   border-radius: var(--r-xs);
   background: color-mix(in srgb, var(--info) 16%, transparent);
   color: var(--info);
-  font: 800 9.5px/1 var(--font-ui);
+  font: 700 9.5px/1 var(--font-ui);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .news-new {
   color: var(--info);
-  font-weight: 800;
+  font-weight: 700;
 }
 .news-new::before {
   content: '·';
@@ -279,8 +279,7 @@ button.news-item:hover .news-thumb img {
   min-width: 0;
   padding-left: 6px;
   font: 700 13px/16px var(--font-display);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
   color: var(--text-3);
   white-space: nowrap;
   overflow: hidden;
@@ -291,9 +290,8 @@ button.news-item:hover .news-thumb img {
 }
 .news-article-title {
   margin: 8px 0 18px;
-  font: 800 28px/1.05 var(--font-display);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font: 700 24px/1.05 var(--font-display);
+  letter-spacing: -0.01em;
   color: #fff;
   text-wrap: balance;
   overflow-wrap: anywhere;
@@ -331,18 +329,18 @@ button.news-item:hover .news-thumb img {
 }
 .news-h1 {
   margin: 26px 0 10px;
-  font: 800 22px/26px var(--font-display);
-  letter-spacing: 0.02em;
+  font: 700 22px/26px var(--font-display);
+  letter-spacing: -0.01em;
 }
 .news-h2 {
   margin: 22px 0 8px;
   font: 700 18px/22px var(--font-display);
-  letter-spacing: 0.03em;
+  letter-spacing: -0.01em;
 }
 .news-h3 {
   margin: 18px 0 6px;
   font: 700 15px/20px var(--font-display);
-  letter-spacing: 0.04em;
+  letter-spacing: -0.01em;
 }
 .news-body > .news-h:first-child {
   margin-top: 0;

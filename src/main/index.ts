@@ -66,7 +66,7 @@ function createWindow(): void {
     show: !b?.maximized && !startHidden,
     minWidth: 1024,
     minHeight: 640,
-    backgroundColor: '#0a182b',
+    backgroundColor: '#0c0a11',
     title: 'Player X',
     icon: join(app.getAppPath(), 'resources', 'icon.png'),
     autoHideMenuBar: true,
@@ -74,7 +74,7 @@ function createWindow(): void {
     // sur un fond transparent : la barre du haut, en verre, passe dessous (repli possible : couleur pleine '#142743').
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' as const }
-      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#00000000', symbolColor: '#d6e3f3', height: 48 } }),
+      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#00000000', symbolColor: '#cdbfca', height: 56 } }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,

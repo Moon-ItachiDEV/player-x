@@ -87,6 +87,16 @@ test('contrastes : textes 1 à 3 ≥ 4,5 sur tous les fonds, pastilles de store 
       if (r < 4.5) failures.push(`pastille --${tint} sur ${name} : ${r.toFixed(2)}`)
     }
   }
+  // Boutons pleins : texte sombre sur le rose, blanc sur le rouge des actions destructives.
+  const fills: [string, Rgba, string][] = [
+    ['accent-solid', parse(token('on-accent')), 'on-accent'],
+    ['accent-solid-hover', parse(token('on-accent')), 'on-accent'],
+    ['danger-solid-hover', white, 'blanc']
+  ]
+  for (const [fill, fg, fgName] of fills) {
+    const r = ratio(fg, parse(token(fill)))
+    if (r < 4.5) failures.push(`${fgName} sur --${fill} : ${r.toFixed(2)}`)
+  }
   assert.deepEqual(failures, [])
 })
 

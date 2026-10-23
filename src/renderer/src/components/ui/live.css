@@ -8,7 +8,7 @@
   border-radius: 999px;
   background: var(--live);
   color: var(--on-live);
-  font: 800 11px/1 var(--font-ui);
+  font: 700 11px/1 var(--font-ui);
   letter-spacing: 0.02em;
   white-space: nowrap;
   box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--live) 70%, transparent);

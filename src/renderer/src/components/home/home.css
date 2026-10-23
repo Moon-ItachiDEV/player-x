@@ -14,14 +14,26 @@
 
 /* ---------- jeu à la une ---------- */
 
-/* Pas de carte : le visuel remonte sous la barre du haut et va d'un bord à l'autre du contenu (.hh-bleed). */
+/* Design Braise : une grande carte arrondie (28 px) qui porte le visuel du jeu ; le contenu se pose au pied, en verre. */
 .hh {
-  --hh-top: calc(var(--topbar-h) + var(--page-top)); /* du haut de la fenêtre au haut du héros */
-  --hh-tail: 120px; /* le visuel déborde sous la rangée suivante, en fondu */
+  --hh-top: 0px; /* le visuel commence au haut de la carte */
+  --hh-tail: 0px;
   position: relative;
   flex: none;
-  height: 340px;
+  height: 440px;
   isolation: isolate;
+  border-radius: var(--r-xl);
+  box-shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.9);
+}
+/* Le filet de la carte se pose par-dessus le visuel (un ombrage intérieur serait caché par .hh-bleed). */
+.hh::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  pointer-events: none;
 }
 @keyframes hh-in {
   from {
@@ -37,13 +49,13 @@
 
 .hh-bleed {
   position: absolute;
-  top: calc(var(--hh-top) * -1);
-  left: calc(var(--page-x) * -1);
-  right: calc(var(--page-x) * -1);
-  height: calc(var(--hh-top) + 100% + var(--hh-tail));
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
   contain: strict;
   pointer-events: none;
-  mask-image: linear-gradient(180deg, #000 calc(var(--hh-top) + 300px), transparent);
+  background: var(--surface-1);
   animation: hh-fade 600ms var(--ease-out) both;
 }
 .hh-art {
@@ -59,7 +71,7 @@
 }
 @keyframes hh-scroll {
   to {
-    translate: 0 110px;
+    translate: 0 60px;
   }
 }
 .hh-img {
@@ -89,19 +101,18 @@
   position: absolute;
   inset: 0;
   background:
-    repeating-linear-gradient(0deg, rgba(150, 195, 255, 0.035) 0 1px, rgba(150, 195, 255, 0) 1px 4px),
-    linear-gradient(180deg, color-mix(in srgb, var(--ink) 60%, transparent) 0, transparent calc(var(--hh-top) + 60px)),
-    linear-gradient(90deg, color-mix(in srgb, var(--ink) 94%, transparent) 0%, color-mix(in srgb, var(--ink) 65%, transparent) 40%, transparent 74%),
-    linear-gradient(0deg, color-mix(in srgb, var(--ink) 65%, transparent) var(--hh-tail), transparent calc(var(--hh-tail) + 180px));
+    repeating-linear-gradient(0deg, rgba(255, 200, 220, 0.035) 0 1px, rgba(255, 200, 220, 0) 1px 4px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 90%, transparent) 0%, color-mix(in srgb, var(--ink) 55%, transparent) 42%, transparent 72%),
+    linear-gradient(0deg, color-mix(in srgb, var(--ink) 75%, transparent) 0, transparent 220px);
 }
 
 .hh-in {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 36px;
+  right: 36px;
   /* Calé au-dessus du bandeau (70 px, plus 19 px d'air) : un nom de jeu sur deux lignes monte au lieu de passer sous le
      bandeau. Sur une ligne, l'affiche (225 px) le place à 26 px du haut. */
-  bottom: 89px;
+  bottom: 112px;
   display: flex;
   align-items: flex-start;
   gap: 24px;
@@ -139,7 +150,7 @@
 .store-tag.long.hh-store {
   height: 24px;
   padding: 0 9px;
-  border-radius: 7px;
+  border-radius: var(--r-pill);
   background: var(--badge-bg);
   border: 1px solid var(--line-2);
   color: var(--text-1);
@@ -153,14 +164,13 @@
   padding: 0 10px;
   border-radius: var(--r-pill);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
   font: 700 11px/1 var(--font-ui);
 }
 .hh-title {
   max-width: 100%;
-  font: 800 64px/0.92 var(--font-display);
-  letter-spacing: 0.005em;
-  text-transform: uppercase;
+  font: 700 50px/1 var(--font-display);
+  letter-spacing: -0.025em;
   color: #fff;
   text-wrap: balance;
   display: -webkit-box;
@@ -182,10 +192,10 @@
   margin-top: 8px;
 }
 .hh-actions .btn-lg {
-  height: 48px;
+  height: 52px;
 }
 .hh-fav {
-  width: 48px;
+  width: 52px;
   padding: 0;
 }
 .hh-fav.is-on {
@@ -196,9 +206,9 @@
 .hh-band {
   --hh-cut: color-mix(in srgb, var(--ink) 85%, transparent);
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
   display: flex;
   align-items: center;
   height: 70px;
@@ -214,7 +224,7 @@
   backdrop-filter: none;
   background: color-mix(in srgb, var(--bg-2) 96%, transparent);
 }
-/* En jeu : le bandeau garde un rappel cyan (le héros n'a plus de cadre) */
+/* En jeu : le bandeau garde aussi un rappel cyan */
 .hh.is-live .hh-band {
   border-color: color-mix(in srgb, var(--live) 60%, transparent);
 }
@@ -233,8 +243,8 @@
 }
 .hh-k dd {
   margin: 0;
-  font: 800 22px/26px var(--font-display);
-  letter-spacing: 0.01em;
+  font: 700 22px/26px var(--font-display);
+  letter-spacing: -0.01em;
   color: #fff;
   white-space: nowrap;
 }
@@ -465,7 +475,7 @@
   gap: 5px;
   height: 24px;
   padding: 0 9px;
-  border-radius: 7px;
+  border-radius: var(--r-pill);
   background: var(--badge-bg);
   color: var(--text-1);
   font: 700 11px/1 var(--font-ui);
@@ -480,7 +490,7 @@
   bottom: 10px;
   height: 22px;
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: var(--r-pill);
   background: var(--badge-bg);
   border: 1px solid var(--line-2);
   color: var(--text-1);
@@ -510,8 +520,7 @@
 }
 .rc-name {
   font: 700 19px/22px var(--font-display);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
@@ -531,9 +540,27 @@
 }
 .rc-play {
   flex: 1;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 800;
+  font-weight: 700;
+}
+/* Une seule action rose par écran : sur les cartes, Jouer reste en verre et ne passe au rose qu'au survol. */
+.btn.btn-primary.rc-play:not(.is-sending, .is-waiting, .is-live) {
+  background: var(--btn2-bg);
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 1px var(--btn2-line);
+}
+.btn.btn-primary.rc-play:not(.is-sending, .is-waiting, .is-live) svg {
+  color: var(--accent);
+}
+.btn.btn-primary.rc-play:not(.is-sending, .is-waiting, .is-live):hover:not(:disabled) {
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  box-shadow: var(--glow-accent);
+}
+.btn.btn-primary.rc-play:not(.is-sending, .is-waiting, .is-live):hover:not(:disabled) svg {
+  color: inherit;
+}
+.btn.btn-primary.rc-play:not(.is-sending, .is-waiting, .is-live):focus-visible {
+  box-shadow: var(--focus);
 }
 
 .rc-foot {
@@ -580,4 +607,9 @@
 .rc-skel .rc-body {
   gap: 10px;
   padding-bottom: 20px;
+}
+
+/* En jeu : la carte du héros prend un filet cyan (« en direct ») */
+.hh.is-live::after {
+  box-shadow: inset 0 0 0 1px var(--live-line);
 }

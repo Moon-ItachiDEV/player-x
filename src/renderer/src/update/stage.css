@@ -51,7 +51,7 @@
   margin: -210px 0 0 -210px;
   border-radius: 50%;
   opacity: 0;
-  background: radial-gradient(closest-side, rgb(233 227 255 / 0.9), rgb(155 108 255 / 0.5) 40%, rgb(124 58 237 / 0));
+  background: radial-gradient(closest-side, rgb(255 227 234 / 0.9), rgb(251 79 122 / 0.5) 40%, rgb(224 32 126 / 0));
 }
 /* M : centre de la marque à (50 %, 50 % − 40 px), le même au saut et au retour (raccord). */
 .stage-mark,
@@ -63,7 +63,7 @@
   translate: -50% -50%;
 }
 .stage-mark {
-  height: 40px;
+  height: 84px;
   width: auto;
 }
 .stage-ring {
@@ -113,7 +113,7 @@
   font-variant-numeric: tabular-nums;
 }
 .stage-from {
-  font-weight: 500;
+  font-weight: 600; /* Sora n'est chargée qu'en 600 et 700 */
   font-size: 20px;
   color: var(--text-3);
 }

@@ -72,7 +72,7 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
       <SectionHead title="À propos">La version installée de Player X et ses mises à jour.</SectionHead>
 
       <div className="set-ab-card">
-        <BrandMark height={30} className="set-ab-mark" />
+        <BrandMark height={56} className="set-ab-mark" />
         <div className="set-ab-id">
           <div className="set-ab-name">Player X</div>
           <div className="caption">

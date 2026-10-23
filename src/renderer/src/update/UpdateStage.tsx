@@ -2,7 +2,7 @@
 // Elle n'a pas de logique : stage.ts pose son état et joue ses chronologies. Dans ToastProvider pour le toast d'abandon.
 import { useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
-import mark from '../assets/px-mark.png'
+import mark from '../assets/px-icon.png'
 import { Icon } from '../components/ui/Icon'
 import { useToast } from '../components/ui/Toasts'
 import { useStore } from './session'

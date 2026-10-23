@@ -1,4 +1,4 @@
-/* Progression Battlefield 6 : une seule courbe jaune (pas de légende : le titre la nomme). */
+/* Progression Battlefield 6 : une seule courbe rose (pas de légende : le titre la nomme). */
 .pg-skel {
   height: 320px;
   border-radius: var(--r-lg, 14px);
@@ -31,7 +31,7 @@
   gap: 4px;
 }
 .pg-now-value {
-  font: 700 40px/44px var(--font-display);
+  font: 700 34px/38px var(--font-display);
   letter-spacing: -0.02em;
   color: var(--text-1);
 }
