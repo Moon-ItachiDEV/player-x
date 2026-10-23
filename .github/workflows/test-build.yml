@@ -1,6 +1,8 @@
 # Installeur de TEST pour essayer une branche sur Windows, sans rien publier.
 # - Ni tag, ni release, ni signature : les installeurs sont seulement attachés à l'exécution (onglet Actions › Artifacts) :
 #   l'installeur sur mesure (Player-X-Installer, installer/) et l'installeur classique (Player-X-Setup).
+# - Les .exe sont aussi déposés tels quels (sans zip) dans une release BROUILLON « Installeur de test » (tag test-build) :
+#   un brouillon n'est visible que des propriétaires du dépôt et n'est jamais lu par les mises à jour (pas de latest.yml).
 # - Numéro de version de test « <version>.<n° d'exécution> » (ex. 0.9.0-beta.3.12) : plus récent que la version de la
 #   branche, mais plus ancien que la bêta suivante (0.9.0-beta.4), qui arrivera donc normalement par la mise à jour.
 name: Installeur de test
@@ -13,7 +15,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # brouillon « Installeur de test » (jamais publié, invisible pour les mises à jour)
 
 concurrency:
   group: test-build-${{ github.ref }}
@@ -89,3 +91,18 @@ jobs:
           path: dist/Player-X-Setup-${{ env.VERSION }}.exe
           retention-days: 14
           if-no-files-found: error
+
+      # Téléchargement direct des .exe (les zip d'Actions sont parfois refusés par Windows) : brouillon, jamais publié.
+      - name: Déposer les installeurs dans le brouillon « Installeur de test »
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          notes="Installeurs de TEST de la branche ${GITHUB_REF_NAME} (${VERSION}). Brouillon jamais publié : aucune mise à jour automatique ne le lit."
+          if gh release view test-build > /dev/null 2>&1; then
+            gh release edit test-build --draft --title "Installeur de test ${VERSION}" --notes "${notes}"
+          else
+            gh release create test-build --draft --prerelease --title "Installeur de test ${VERSION}" --notes "${notes}" --target "${GITHUB_SHA}"
+          fi
+          for a in $(gh release view test-build --json assets --jq '.assets[].name'); do gh release delete-asset test-build "$a" --yes; done
+          gh release upload test-build "dist/Player-X-Installer-${VERSION}.exe" "dist/Player-X-Setup-${VERSION}.exe" --clobber
