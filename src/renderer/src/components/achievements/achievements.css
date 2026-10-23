@@ -355,7 +355,12 @@
   cursor: pointer;
   transition:
     background var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out);
+    color var(--d-1) var(--ease-out),
+    scale var(--d-1) var(--ease-out);
+}
+/* Retour au clic : la surface s'enfonce un peu (audit animations). */
+.tro-seg-btn:active:not(:disabled):not([aria-disabled='true']) {
+  scale: 0.97;
 }
 .tro-seg-btn:hover:not(:disabled) {
   color: var(--text-1);
@@ -676,7 +681,11 @@ button.tro-tile:focus-visible {
   color: var(--text-1);
   text-align: left;
   cursor: pointer;
-  transition: background var(--d-in) var(--ease-glide);
+  transition: background var(--d-in) var(--ease-glide), scale var(--d-1) var(--ease-out);
+}
+/* Retour au clic : la surface s'enfonce un peu (audit animations). */
+.tro-game:active:not(:disabled):not([aria-disabled='true']) {
+  scale: 0.97;
 }
 .tro-game:hover {
   background: var(--surface-2);

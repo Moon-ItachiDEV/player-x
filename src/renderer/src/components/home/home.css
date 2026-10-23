@@ -48,7 +48,12 @@
   color: var(--text-2);
   transition:
     background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out);
+    color var(--d-1) var(--ease-out),
+    scale var(--d-1) var(--ease-out);
+}
+/* Retour au clic : la surface s'enfonce un peu (audit animations). */
+.hm-round:active:not(:disabled):not([aria-disabled='true']) {
+  scale: 0.97;
 }
 .hm-round:hover:not(:disabled) {
   background: var(--surface-3);
@@ -399,7 +404,12 @@
   text-align: left;
   transition:
     background-color var(--d-2) var(--ease-out),
-    box-shadow var(--d-2) var(--ease-out);
+    box-shadow var(--d-2) var(--ease-out),
+    scale var(--d-1) var(--ease-out);
+}
+/* Retour au clic : la surface s'enfonce un peu (audit animations). */
+.hh-row:active:not(:disabled):not([aria-disabled='true']) {
+  scale: 0.97;
 }
 .hh-row:hover {
   background: var(--glass);
@@ -643,7 +653,12 @@
   font: 600 13px/18px var(--font-ui);
   transition:
     background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out);
+    color var(--d-1) var(--ease-out),
+    scale var(--d-1) var(--ease-out);
+}
+/* Retour au clic : la surface s'enfonce un peu (audit animations). */
+.hm-seg-btn:active:not(:disabled):not([aria-disabled='true']) {
+  scale: 0.97;
 }
 .hm-seg-btn:hover {
   color: var(--text-1);
@@ -699,6 +714,10 @@
     translate var(--d-in) var(--ease-glide),
     scale var(--d-in) var(--ease-glide),
     box-shadow var(--d-2) var(--ease-out);
+}
+/* Retour au clic : la surface s'enfonce un peu (audit animations). */
+.hm-tile:active:not(:disabled):not([aria-disabled='true']) {
+  scale: 0.97;
 }
 .hm-tile:hover,
 .hm-tile:focus-within {
@@ -875,7 +894,12 @@
   text-align: left;
   transition:
     translate var(--d-in) var(--ease-glide),
-    box-shadow var(--d-2) var(--ease-out);
+    box-shadow var(--d-2) var(--ease-out),
+    scale var(--d-1) var(--ease-out);
+}
+/* Retour au clic : la surface s'enfonce un peu (audit animations). */
+.hm-news-card:active:not(:disabled):not([aria-disabled='true']) {
+  scale: 0.97;
 }
 .hm-news-card:hover {
   translate: 0 -3px;

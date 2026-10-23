@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { LEAVE_MS, motionReduced } from '../../motion'
 import { Icon } from './Icon'
 
 export type ToastKind = 'success' | 'error' | 'info' | 'loading'
@@ -16,6 +17,8 @@ export interface ToastOptions {
 
 interface Toast extends ToastOptions {
   key: number
+  /** Sortie en cours (animation is-leaving), retiré après LEAVE_MS. */
+  leaving?: boolean
   id: string
   message: string
   kind: ToastKind
@@ -30,7 +33,12 @@ export function useToast(): Notify {
   return useContext(ToastContext)
 }
 
-const DURATION: Record<ToastKind, number> = { success: 3500, info: 3500, error: 6000, loading: 0 }
+const DURATION: Record<ToastKind, number> = {
+  success: 3500,
+  info: 3500,
+  error: 6000,
+  loading: 0
+}
 
 let counter = 0
 
@@ -54,7 +62,12 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }): R
   }, [start, toast.key])
 
   return (
-    <div className={`toast ${toast.kind}`} role="status" onMouseEnter={() => clearTimeout(timer.current)} onMouseLeave={start}>
+    <div
+      className={`toast ${toast.kind} ${toast.leaving ? 'is-leaving' : ''}`}
+      role="status"
+      onMouseEnter={() => clearTimeout(timer.current)}
+      onMouseLeave={start}
+    >
       <span className="toast-icon">
         {toast.avatarUrl ? (
           <img src={toast.avatarUrl} alt="" />
@@ -90,11 +103,26 @@ export function ToastProvider({ children }: { children: React.ReactNode }): Reac
 
   const notify = useCallback<Notify>((message, options = {}) => {
     const key = ++counter
-    const toast: Toast = { ...options, key, id: options.id ?? `t${key}`, message, kind: options.kind ?? 'info' }
+    const toast: Toast = {
+      ...options,
+      key,
+      id: options.id ?? `t${key}`,
+      message,
+      kind: options.kind ?? 'info'
+    }
     setToasts((list) => [...list.filter((t) => t.id !== toast.id), toast].slice(-3))
   }, [])
 
-  const close = useCallback((id: string) => setToasts((list) => list.filter((t) => t.id !== id)), [])
+  const close = useCallback((id: string) => {
+    const remove = (): void => setToasts((list) => list.filter((t) => t.id !== id || !t.leaving))
+    if (motionReduced()) {
+      setToasts((list) => list.filter((t) => t.id !== id))
+      return
+    }
+    // Sortie animée, puis retrait ; un toast qui revient entre-temps avec le même id (nouvelle clé) est gardé.
+    setToasts((list) => list.map((t) => (t.id === id ? { ...t, leaving: true } : t)))
+    setTimeout(remove, LEAVE_MS)
+  }, [])
 
   return (
     <ToastContext.Provider value={notify}>

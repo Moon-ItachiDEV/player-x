@@ -106,7 +106,12 @@
   white-space: nowrap;
   transition:
     background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out);
+    color var(--d-1) var(--ease-out),
+    scale var(--d-1) var(--ease-out);
+}
+/* Retour au clic : la surface s'enfonce un peu (audit animations). */
+.fp-pill:active:not(:disabled):not([aria-disabled='true']) {
+  scale: 0.97;
 }
 .fp-pill:hover {
   color: var(--text-1);

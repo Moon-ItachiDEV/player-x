@@ -13,6 +13,7 @@ import { duration } from '../update/format'
 import { KF } from '../update/keyframes'
 import { VersionRoll } from '../update/VersionRoll'
 import './whatsnew.css'
+import { useLeave } from '../motion'
 
 const NOTES = import.meta.glob('../../../../docs/release-notes/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
 const SEEN_KEY = 'pg.lastVersion'
@@ -132,10 +133,12 @@ export function WhatsNew(): React.JSX.Element | null {
   const inPreview = pv.active && pv.part === 'whatsnew'
   const shown = inPreview || (open && revealed && last.loaded)
 
-  const close = (): void => {
+  // Fermeture : sortie animée (motion.ts useLeave), puis la fenêtre disparaît.
+  const scrim = useRef<HTMLDivElement>(null)
+  const close = useLeave(scrim, () => {
     setOpen(false)
     if (inPreview) stopPreview()
-  }
+  })
   useEscape(shown, close)
 
   const headRef = useRef<HTMLElement>(null)
@@ -156,7 +159,7 @@ export function WhatsNew(): React.JSX.Element | null {
   const chips = inPreview ? chipsFor(stored?.from ?? null, stored) : chipsFor(boot?.from ?? PREVIOUS_VERSION, boot)
 
   return (
-    <div className="dialog-scrim" onMouseDown={(e) => e.target === e.currentTarget && close()}>
+    <div ref={scrim} className="dialog-scrim" onMouseDown={(e) => e.target === e.currentTarget && close()}>
       <div className="dialog wn" role="dialog" aria-modal="true" aria-labelledby="wn-title">
         <header className="wn-head" ref={headRef}>
           <div className="wn-glow" aria-hidden="true" />
