@@ -28,7 +28,7 @@ function sampleLive(phase: 'buy' | 'pill' | 'half'): Cs2Live {
   const rounds = r.rounds.slice(0, done)
   const us = rounds.filter((x) => x.side === x.winner).length
   return {
-    map: 'de_mirage',
+    map: 'de_dust2',
     mode: 'competitive',
     phase: phase === 'half' ? 'intermission' : 'live',
     roundPhase: phase === 'buy' ? 'freezetime' : phase === 'half' ? 'over' : 'live',

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { CS2_GAME_ID } from '@shared/cs2'
 import { norm } from '@shared/text'
 import type { Game, Settings } from '@shared/types'
+import cs2Dust2 from '../../assets/cs2-dust2.webp'
 import { OverlayStill } from '../../overlay/OverlayApp'
 import { Icon } from '../ui/Icon'
 import { Dialog, Segmented, Switch } from '../ui/Overlay'
@@ -52,7 +53,7 @@ export function OverlaySection({ settings, onSaveSettings, games }: Props): Reac
       </SectionHead>
 
       <SettingsCard title="Counter-Strike 2" meta={<span className="set-plan is-free">Gratuit</span>}>
-        <Scene game={cs2} label="Exemple de l'overlay CS2 sur le jeu">
+        <Scene game={cs2} art={cs2Dust2} label="Exemple de l'overlay CS2 sur une partie (Dust2)">
           <StillFrame style={style} />
           <span className="ovs-sample">Chiffres d'exemple · style {OVERLAY_LABEL[style]}</span>
         </Scene>
@@ -166,10 +167,13 @@ export function OverlaySection({ settings, onSaveSettings, games }: Props): Reac
   )
 }
 
-/** Image du jeu (bannière de la bibliothèque si elle existe, sinon un fond sombre), en 16:9. */
-function Scene({ game, label, children }: { game?: Game; label: string; children: React.ReactNode }): React.JSX.Element {
+/**
+ * Image du jeu en 16:9 : une vraie capture en jeu si on en a une (`art`, livrée avec l'appli), sinon la bannière de la
+ * bibliothèque, sinon un fond sombre.
+ */
+function Scene({ game, art, label, children }: { game?: Game; art?: string; label: string; children: React.ReactNode }): React.JSX.Element {
   const [failed, setFailed] = useState(false)
-  const url = game?.heroUrl ?? game?.coverUrl
+  const url = art ?? game?.heroUrl ?? game?.coverUrl
   return (
     <div className="ovs-scene" role={label ? 'img' : undefined} aria-label={label || undefined}>
       {url && !failed && <img className="ovs-scene-art" src={url} alt="" onError={() => setFailed(true)} />}
