@@ -1,6 +1,6 @@
 {
   "name": "plateforme-gaming",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "Player X : lance tes jeux Steam, Epic et EA et vois tes amis en ligne.",
   "main": "out/main/index.js",
   "private": true,
