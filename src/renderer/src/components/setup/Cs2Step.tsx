@@ -1,5 +1,5 @@
 // Étape Counter-Strike 2 (seulement si CS2 est dans les jeux trouvés) : le match en direct et le bilan,
-// et l'overlay bêta. Mêmes réglages, mêmes conditions et mêmes aperçus que dans Paramètres › Interface.
+// et l'overlay bêta. Mêmes réglages et mêmes aperçus que dans Paramètres › Interface (match, bilan) et Paramètres › Overlay.
 import type { RefObject } from 'react'
 import type { Game, Settings } from '@shared/types'
 import { openCs2Recap, sampleCs2Recap } from '../cs2/useCs2'
@@ -78,7 +78,7 @@ export function Cs2Step({ game, settings, onSaveSettings, headingRef, onBack, on
           )}
         </ul>
 
-        <p className="cs2s-note">Tu retrouves ces réglages dans Paramètres › Interface.</p>
+        <p className="cs2s-note">Tu retrouves ces réglages dans Paramètres › Interface (match et bilan) et Paramètres › Overlay.</p>
 
         <div className="cs2s-actions">
           <button type="button" className="btn btn-ghost" onClick={onBack}>

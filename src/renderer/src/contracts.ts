@@ -5,7 +5,7 @@ import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, 
 import type { SearchItem } from './components/search/SearchResults'
 
 export type View = 'home' | 'library' | 'friends' | 'profile' | 'stats' | 'trophies' | 'settings' | 'news'
-export type SettingsSection = 'accounts' | 'library' | 'interface' | 'advanced' | 'about'
+export type SettingsSection = 'accounts' | 'library' | 'interface' | 'overlay' | 'advanced' | 'about'
 export type LoginPlatform = 'steam' | 'discord' | 'psn'
 
 /** Préférences d'interface, propres à ce PC (localStorage `pg.ui`). */
@@ -196,6 +196,8 @@ export interface TrophiesProps {
 /** components/settings/SettingsView.tsx → `export function SettingsView` */
 export interface SettingsProps {
   section: SettingsSection
+  /** Jeux de la bibliothèque (images des jeux dans Paramètres › Overlay). */
+  games: Game[]
   onSection: (s: SettingsSection) => void
   settings: Settings
   accounts: Account[]

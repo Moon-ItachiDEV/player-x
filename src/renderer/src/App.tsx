@@ -535,7 +535,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       page('profile', 'Profil', 'user'),
       page('settings:accounts', 'Paramètres › Comptes', 'settings', ['steam', 'discord', 'playstation', 'psn', 'connexion', 'membres masqués']),
       page('settings:library', 'Paramètres › Bibliothèque', 'settings', ['scan', 'favoris', 'actus']),
-      page('settings:interface', 'Paramètres › Interface', 'settings', ['jaquettes', 'animations', 'overlay', 'cs2']),
+      page('settings:interface', 'Paramètres › Interface', 'settings', ['jaquettes', 'animations', 'notifications', 'bilans']),
+      page('settings:overlay', 'Paramètres › Overlay', 'settings', ['cs2', 'counter-strike', 'premium']),
       page('settings:advanced', 'Paramètres › Avancé', 'settings', ['démo', 'démarrer avec windows']),
       page('settings:about', 'Paramètres › À propos', 'settings', ['version', 'mise à jour', 'nouveautés', 'bêta']),
       page('action:rescan', 'Relancer le scan', 'refresh', ['rechercher les jeux', 'scanner']),
@@ -716,6 +717,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
           {view === 'settings' && (
             <SettingsView
               section={section}
+              games={games}
               onSection={setSection}
               settings={settings}
               accounts={accounts}

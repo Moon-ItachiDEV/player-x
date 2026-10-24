@@ -125,6 +125,28 @@
   color: var(--text-3);
   white-space: nowrap;
 }
+/* Overlay : formule d'un jeu. Gratuit = disponible ; Premium = or ; en préparation = pointillés (annoncé, pas cliquable). */
+.set-plan {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  font: 600 12px/16px var(--font-ui);
+}
+.set-plan.is-free {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.set-plan.is-premium {
+  background: color-mix(in srgb, var(--trophy) 16%, transparent);
+  color: var(--trophy);
+}
+.set-plan.is-soon {
+  border: 1px dashed var(--line-3);
+  color: var(--text-3);
+  cursor: default;
+}
 /* Pastille « Bêta » (sous-menu de la maquette) : cyan doux, en capitales */
 .set-beta {
   display: inline-flex;

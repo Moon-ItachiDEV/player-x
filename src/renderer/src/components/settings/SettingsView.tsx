@@ -16,16 +16,15 @@ import { AdvancedSection } from './AdvancedSection'
 import { openRecap, sampleRecap } from '../stats/Recap'
 import { openCs2Recap, sampleCs2Recap } from '../cs2/useCs2'
 import { BackgroundRows } from './BackgroundRows'
+import { OverlaySection } from './OverlaySection'
 import { Collapse, SectionHead, SettingRow, SettingsCard, storeCaption, useNow } from './parts'
 import './settings.css'
-
-/** Overlay CS2 : Verre (B) par défaut, les deux autres gardés pour comparer. */
-const OVERLAY_LABEL = { a: 'Façon Apple', b: 'Verre', c: 'Finition Player X' } as const
 
 const SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: 'accounts', label: 'Comptes' },
   { id: 'library', label: 'Bibliothèque' },
   { id: 'interface', label: 'Interface' },
+  { id: 'overlay', label: 'Overlay' },
   { id: 'advanced', label: 'Avancé' },
   { id: 'about', label: 'À propos' }
 ]
@@ -103,6 +102,7 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
           {section === 'interface' && (
             <InterfaceSection ui={props.ui} onUiChange={props.onUiChange} settings={settings} onSaveSettings={props.onSaveSettings} />
           )}
+          {section === 'overlay' && <OverlaySection settings={settings} onSaveSettings={props.onSaveSettings} games={props.games} />}
           {section === 'advanced' && (
             <AdvancedSection settings={settings} report={props.report} onSaveSettings={props.onSaveSettings} focusCard={focusCard} onFocused={clearFocus} />
           )}
@@ -538,51 +538,6 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
               checked={settings.cs2RecapOpen}
               onChange={(cs2RecapOpen) => onSaveSettings({ cs2RecapOpen }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
               label="Ouvrir le bilan à la fermeture de CS2"
-            />
-          </SettingRow>
-        )}
-      </SettingsCard>
-      {/* Overlay CS2 : proposé à tous depuis la 0.9.1, désactivé par défaut. */}
-      <SettingsCard title="Overlay CS2" beta>
-        <SettingRow
-          label="Overlay CS2 (bêta)"
-          value={
-            settings.cs2Overlay === 'off'
-              ? 'Désactivé · rien par-dessus le jeu'
-              : 'Activé · tes chiffres par-dessus CS2 en plein écran fenêtré, pendant les matchs. Alt+X le masque'
-          }
-        >
-          <div className="set-inline">
-            <Switch
-              checked={settings.cs2Overlay !== 'off'}
-              // Activé : le style Verre (B), celui gardé par défaut.
-              onChange={(on) => onSaveSettings({ cs2Overlay: on ? 'b' : 'off' }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-              label="Overlay CS2"
-            />
-            <button
-              className="btn btn-secondary btn-sm"
-              disabled={settings.cs2Overlay === 'off'}
-              onClick={() => window.launcher.cs2OverlayPreview().catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-            >
-              Aperçu à l’écran
-            </button>
-          </div>
-        </SettingRow>
-        {settings.cs2Overlay !== 'off' && (
-          <SettingRow
-            label="Style de l’overlay"
-            value={settings.cs2Overlay === 'b' ? 'Verre, le style par défaut · les deux autres restent là pour comparer' : `${OVERLAY_LABEL[settings.cs2Overlay]}, à l’essai · Verre est le style par défaut`}
-          >
-            <Segmented
-              className="set-seg"
-              label="Style de l’overlay"
-              value={settings.cs2Overlay}
-              options={[
-                { value: 'b', label: 'Verre' },
-                { value: 'a', label: 'Apple' },
-                { value: 'c', label: 'Player X' }
-              ]}
-              onChange={(cs2Overlay) => onSaveSettings({ cs2Overlay }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
             />
           </SettingRow>
         )}

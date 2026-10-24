@@ -1,6 +1,6 @@
 // Overlay CS2 (bêta) : la page de la fenêtre transparente posée par-dessus le jeu (main/services/cs2Overlay.ts).
 // Elle suit le match tout seul : temps d'achat, pastille pendant le round, mi-temps, fin du match. Trois styles à essayer
-// en jeu (Paramètres › Interface) : A façon Apple, B verre, C finition du style Player X. Rien ne se clique : la souris
+// en jeu (Paramètres › Overlay) : A façon Apple, B verre, C finition du style Player X. Rien ne se clique : la souris
 // et le clavier restent au jeu ; Alt+X masque l'overlay.
 import { useEffect, useState } from 'react'
 import { formatKd, killDeath, mapLabel, modeLabel, RESULT_LABEL } from '@shared/cs2'
@@ -130,6 +130,20 @@ export default function OverlayApp(): React.JSX.Element | null {
       {view.kind === 'half' && <Half key="half" live={view.live} style={style} />}
       {view.kind === 'end' && <End key={`end-${view.recap.id}`} recap={view.recap} style={style} left={Math.min(20, endLeft)} />}
       {cfg.previewAt !== undefined && <span className="ov-sample">Aperçu · chiffres d’exemple · Alt+X pour masquer</span>}
+    </div>
+  )
+}
+
+/**
+ * Image fixe de l'overlay pour Paramètres › Overlay : temps d'achat et bilan de fin, chiffres d'exemple, dans un cadre
+ * 16:9 mis à l'échelle (le parent pose `zoom`). Les vraies pièces de l'overlay, rien de dessiné à part.
+ */
+export function OverlayStill({ style }: { style: Cs2OverlayStyle }): React.JSX.Element {
+  const recap = sampleCs2Recap()
+  return (
+    <div className={`ov-root ov-${style} ov-still`} aria-hidden="true">
+      <Buy live={sampleLive('buy')} style={style} />
+      <End recap={recap} style={style} left={20} />
     </div>
   )
 }
