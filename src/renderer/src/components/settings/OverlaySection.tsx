@@ -28,7 +28,7 @@ const CS2_FEATURES = [
 const FORTNITE_FEATURES = [
   { title: 'Ta saison', text: 'K/D, victoires, kills et tops 10 de la saison en cours.' },
   { title: 'Ta session', text: 'Parties, kills et victoires depuis que tu as lancé le jeu.' },
-  { title: 'Au bon moment', text: 'Au lobby et en fin de partie, jamais en plein combat.' }
+  { title: 'Quand tu veux', text: 'Au lancement du jeu, puis avec Alt+X.' }
 ]
 
 interface Props {
