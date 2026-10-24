@@ -58,7 +58,7 @@ export function useCs2(active = true): { state: Cs2State | null; live: Cs2Live |
   return { state, live }
 }
 
-/** Exemple : chiffres fictifs, toujours présentés comme tels. Un match compétitif 13–9 sur Mirage. */
+/** Exemple : chiffres fictifs, toujours présentés comme tels. Un match compétitif 13–9 sur Dust II (la carte de la capture de Paramètres › Overlay). */
 export function sampleCs2Recap(): Cs2Recap {
   const endedAt = Date.now() - 2 * 60_000
   const script: [string, number][] = [
@@ -89,7 +89,7 @@ export function sampleCs2Recap(): Cs2Recap {
     id: 'cs2-sample',
     sample: true,
     steamId: '0',
-    map: 'de_mirage',
+    map: 'de_dust2',
     mode: 'competitive',
     startedAt: endedAt - 48 * 60_000,
     endedAt,
