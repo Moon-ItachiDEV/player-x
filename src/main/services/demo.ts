@@ -100,19 +100,26 @@ export function demoNotInstalled(now = Date.now()): Game[] {
 
 const avatar = (seed: string): string => `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(seed)}`
 
+/** Nom du serveur Discord de démo (son widget donnerait le sien). */
+export const DEMO_SERVER = 'Les Braises'
+
+// Mode démo seulement : « Ami depuis » (Steam, `friend_since`) et « Vu pour la dernière fois » (Steam, `lastlogoff`).
+const since = (y: number, m: number, d: number): { since: number } => ({ since: new Date(y, m - 1, d).getTime() })
+const seen = (hoursAgo: number): { lastSeen: number } => ({ lastSeen: Date.now() - hoursAgo * 3600_000 })
+
 export const DEMO_FRIENDS: Friend[] = [
-  { id: 'steam:1', platform: 'steam', name: 'NeoKai', avatarUrl: avatar('NeoKai'), status: 'in-game', game: 'ELDEN RING' },
-  { id: 'steam:9', platform: 'steam', name: 'Valkyr', avatarUrl: avatar('Valkyr'), status: 'in-game', game: 'ELDEN RING' },
+  { id: 'steam:1', platform: 'steam', name: 'NeoKai', avatarUrl: avatar('NeoKai'), status: 'in-game', game: 'ELDEN RING', ...since(2025, 9, 14) },
+  { id: 'steam:9', platform: 'steam', name: 'Valkyr', avatarUrl: avatar('Valkyr'), status: 'in-game', game: 'ELDEN RING', ...since(2022, 3, 2) },
   { id: 'psn:3', platform: 'psn', name: 'ShadowFox_93', avatarUrl: avatar('ShadowFox'), status: 'in-game', game: 'EA SPORTS FC 27', device: 'PS5' },
   { id: 'discord:2', platform: 'discord', name: 'Lunaa', avatarUrl: avatar('Lunaa'), status: 'in-game', game: 'Valorant' },
-  { id: 'steam:4', platform: 'steam', name: 'Pixel', avatarUrl: avatar('Pixel'), status: 'online' },
+  { id: 'steam:4', platform: 'steam', name: 'Pixel', avatarUrl: avatar('Pixel'), status: 'online', ...since(2019, 11, 23) },
   { id: 'discord:5', platform: 'discord', name: 'Mira', avatarUrl: avatar('Mira'), status: 'online' },
   { id: 'psn:10', platform: 'psn', name: 'Okami_X', avatarUrl: avatar('Okami'), status: 'online', device: 'PS5' },
-  { id: 'steam:6', platform: 'steam', name: 'Draxx', avatarUrl: avatar('Draxx'), status: 'away' },
+  { id: 'steam:6', platform: 'steam', name: 'Draxx', avatarUrl: avatar('Draxx'), status: 'away', ...since(2024, 6, 8) },
   { id: 'psn:7', platform: 'psn', name: 'KenjiPlays', avatarUrl: avatar('Kenji'), status: 'offline' },
-  { id: 'steam:8', platform: 'steam', name: 'Orbit', avatarUrl: avatar('Orbit'), status: 'offline' },
-  { id: 'steam:11', platform: 'steam', name: 'Nova', avatarUrl: avatar('Nova'), status: 'offline' },
-  { id: 'steam:12', platform: 'steam', name: 'Rook', avatarUrl: avatar('Rook'), status: 'in-game', game: 'Counter-Strike 2' },
+  { id: 'steam:8', platform: 'steam', name: 'Orbit', avatarUrl: avatar('Orbit'), status: 'offline', ...since(2021, 1, 17), ...seen(3) },
+  { id: 'steam:11', platform: 'steam', name: 'Nova', avatarUrl: avatar('Nova'), status: 'offline', ...since(2023, 10, 5), ...seen(24 * 9) },
+  { id: 'steam:12', platform: 'steam', name: 'Rook', avatarUrl: avatar('Rook'), status: 'in-game', game: 'Counter-Strike 2', ...since(2020, 4, 30) },
   // Bots d'un serveur Discord : masqués d'office (discordMembers.ts), listés dans Paramètres › Comptes.
   { id: 'discord:12', platform: 'discord', name: 'MonitoRSS', avatarUrl: avatar('MonitoRSS'), status: 'online' },
   { id: 'discord:13', platform: 'discord', name: 'PatchBot', avatarUrl: avatar('PatchBot'), status: 'online' },

@@ -18,7 +18,7 @@ import { bf6RecapState, markBf6RecapSeen, setBf6Running, startBf6Recaps, syncBf6
 import { getCs2Lifetime, startCs2LifetimeRecorder } from './services/cs2Lifetime'
 import { cs2DemoChanged, cs2State, markCs2RecapSeen, setCs2Running, startCs2Live, syncCs2 } from './services/cs2Live'
 import { closeCs2Overlay, startCs2Overlay, syncCs2Overlay } from './services/cs2Overlay'
-import { DEMO_FRIENDS, DEMO_GAMES, demoGames, demoNotInstalled } from './services/demo'
+import { DEMO_FRIENDS, DEMO_GAMES, DEMO_SERVER, demoGames, demoNotInstalled } from './services/demo'
 import { hideMembers, withMemberHidden } from './services/discordMembers'
 import { connectPsn, getAllFriends, resetPsn } from './services/friends'
 import { getScanReport, handoff, launchTarget, scanAllGames } from './services/games'
@@ -252,7 +252,7 @@ function registerIpc(): void {
   handle('friends:list', async () => {
     if (getSettings().demoMode) {
       demoFriendAlert(DEMO_FRIENDS)
-      return hideMembers({ friends: DEMO_FRIENDS, errors: {} }, getMemberPrefs(true))
+      return hideMembers({ friends: DEMO_FRIENDS, errors: {}, discordServer: DEMO_SERVER }, getMemberPrefs(true))
     }
     const raw = await getAllFriends()
     lastRaw = raw
@@ -267,7 +267,7 @@ function registerIpc(): void {
     if (!clean || clean.length > 128 || typeof hidden !== 'boolean') throw new Error('Membre inconnu.')
     const demo = getSettings().demoMode
     saveMemberPrefs(demo, withMemberHidden(getMemberPrefs(demo), clean, hidden))
-    return hideMembers(demo ? { friends: DEMO_FRIENDS, errors: {} } : lastRaw, getMemberPrefs(demo))
+    return hideMembers(demo ? { friends: DEMO_FRIENDS, errors: {}, discordServer: DEMO_SERVER } : lastRaw, getMemberPrefs(demo))
   })
   handle('friends:test-alert', () => testFriendAlert(getSettings().demoMode ? DEMO_FRIENDS : lastFriends))
   // Actus des jeux : l'appid Steam est retrouvé ici, à partir de la bibliothèque, jamais reçu de l'interface.

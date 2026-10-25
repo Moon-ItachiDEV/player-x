@@ -16,7 +16,7 @@
     "test:cs2": "node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/main/services/cs2Match.test.ts src/main/services/cs2Gsi.test.ts",
     "test:achievements": "node --experimental-strip-types --test src/main/services/achievementsFormat.test.ts",
     "test:played": "node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/shared/played.test.ts src/main/services/demo.test.ts",
-    "test:friends": "node --experimental-strip-types --test src/main/services/discordMembers.test.ts",
+    "test:friends": "node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/main/services/discordMembers.test.ts src/renderer/src/components/friends/*.test.ts",
     "test:home": "node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/renderer/src/components/home/*.test.ts",
     "test:search": "node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/renderer/src/components/search/*.test.ts",
     "test:ui": "node --experimental-strip-types --test src/renderer/src/styles/*.test.ts",
