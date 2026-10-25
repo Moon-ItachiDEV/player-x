@@ -41,3 +41,18 @@ for (const tile of document.querySelectorAll('.tile')) {
     tile.style.setProperty('--ry', '0deg');
   });
 }
+
+// Bouton « Chargement » : le pourcentage monte pendant que le bouton se remplit (survol).
+for (const b of document.querySelectorAll('.btn-charge')) {
+  const pct = b.querySelector('.pct');
+  let raf = 0;
+  let t0 = 0;
+  const run = (now) => {
+    const p = Math.min(1, (now - t0) / 900);
+    const e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+    pct.textContent = `${Math.round(e * 100)} %`;
+    if (p < 1) raf = requestAnimationFrame(run);
+  };
+  b.addEventListener('pointerenter', () => { cancelAnimationFrame(raf); t0 = performance.now(); raf = requestAnimationFrame(run); });
+  b.addEventListener('pointerleave', () => { cancelAnimationFrame(raf); pct.textContent = '0 %'; });
+}

@@ -256,7 +256,7 @@ button { font: inherit; color: inherit; }
 
 /* Grain : texture discrète sur toute la page (bruit SVG en data URI) */
 body::after {
-  content: ''; position: fixed; inset: 0; z-index: 250; pointer-events: none; opacity: 0.06; mix-blend-mode: overlay;
+  content: ''; position: fixed; inset: 0; z-index: 250; pointer-events: none; opacity: 0.035;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
@@ -529,9 +529,9 @@ kbd {
   margin: 0; padding: 0 var(--gut) 0 0; list-style: none; perspective: 1100px;
 }
 .tile {
-  --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 50%;
-  position: relative; border-radius: 16px; overflow: hidden; aspect-ratio: 183 / 277;
-  transform: rotateX(var(--rx)) rotateY(var(--ry)) translateZ(0);
+  --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 50%; --ly: 0px; --lz: 0px; --lrx: 0deg; --lry: 0deg; --lo: 1;
+  position: relative; border-radius: 16px; overflow: hidden; aspect-ratio: 183 / 277; opacity: var(--lo);
+  transform: translate3d(0, var(--ly), var(--lz)) rotateX(calc(var(--rx) + var(--lrx))) rotateY(calc(var(--ry) + var(--lry)));
   box-shadow: 0 0 0 1px rgba(255, 200, 220, 0.12), 0 24px 40px -24px rgba(0, 0, 0, 0.9);
   transition: transform 450ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms ease, filter 300ms ease, scale 450ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
@@ -564,3 +564,97 @@ kbd {
   .wall-row img { transition: filter 260ms ease, scale 380ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 260ms ease; }
   .wall-row img:hover { scale: 1.1; filter: brightness(1.12) saturate(1.2); box-shadow: 0 0 0 2px var(--accent), 0 0 60px -6px var(--glow), 0 30px 60px -20px rgba(0, 0, 0, 0.9); position: relative; z-index: 1; }
 }
+
+/* ───────── Bouton « Chargement » (A) : se remplit comme un téléchargement, la flèche tombe dans le bac ───────── */
+.btn-charge { position: relative; isolation: isolate; overflow: hidden; padding: 0 30px 0 26px; }
+.btn-charge::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: linear-gradient(90deg, #ffd0dc, var(--brand-1) 70%, #ffb3a8);
+  transform: scaleX(0); transform-origin: left; transition: transform 900ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+.btn-charge::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; z-index: -1;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent); transform: skewX(-20deg);
+}
+.btn-charge .tray { position: relative; width: 22px; height: 22px; overflow: hidden; flex: none; }
+.btn-charge .tray .ic { position: absolute; inset: 0; width: 22px; height: 22px; }
+.btn-charge .pct { text-align: right; white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums; opacity: 0; width: 0; transition: opacity 200ms, width 300ms; }
+.btn-charge:hover::before, .btn-charge.is-full::before { transform: scaleX(1); }
+.btn-charge:hover .pct { opacity: 1; width: 4.6ch; }
+@media (prefers-reduced-motion: no-preference) {
+  .btn-charge::after { animation: shine 3.6s ease-in-out infinite; }
+  @keyframes shine { 0%, 60% { left: -60%; } 100% { left: 130%; } }
+  .btn-charge:hover .arrow { animation: drop 900ms cubic-bezier(0.5, 0, 0.5, 1) infinite; }
+  @keyframes drop { 0% { transform: translateY(-120%); } 55% { transform: translateY(0); } 70% { transform: translateY(-8%); } 100% { transform: translateY(0); } }
+}
+
+/* ───────── Overlay : la vraie capture ; en mode ciné, la scène s'assombrit et les panneaux s'allument ───────── */
+.ovs { position: relative; padding-block: clamp(64px, 7vw, 120px); overflow: hidden; isolation: isolate; }
+.ovs-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 24px 48px; margin-bottom: clamp(28px, 4vw, 56px); }
+.ovs-keys { display: flex; align-items: center; gap: 0.25em; font-size: clamp(40px, 5vw, 84px); color: var(--text-1); margin: 0; }
+.ovs-keys kbd { padding: 0.06em 0.32em 0.12em; border-radius: 0.16em; box-shadow: inset 0 -0.08em 0 rgba(0, 0, 0, 0.6), 0 0.1em 0 #4a1630, 0 0 0 0.03em rgba(255, 200, 220, 0.3), 0 0.4em 0.8em -0.3em rgba(255, 92, 134, 0.5); }
+.ovs-keys span { color: var(--accent); }
+.ovs-stage { padding-inline: var(--gut); }
+.ovs-frame { position: relative; max-width: 1300px; margin-inline: auto; border-radius: 22px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255, 200, 220, 0.14), 0 60px 120px -40px rgba(0, 0, 0, 0.95), 0 0 160px -30px rgba(240, 181, 74, 0.35); }
+.ovs-base img { width: 100%; height: auto; }
+.ovs-p {
+  position: absolute; opacity: 0; border-radius: 6px;
+  background-image: url(../img/shots/overlay2-876.webp); background-repeat: no-repeat;
+  box-shadow: 0 0 0 1px rgba(255, 157, 181, 0.65), 0 0 40px rgba(255, 92, 134, 0.45);
+}
+.p1 { left: 1.37%; top: 33.4%; width: 16.44%; height: 24.5%; background-size: 608.3% 408.2%; background-position: 1.64% 44.2%; }
+.p2 { left: 75.8%; top: 24.5%; width: 22.95%; height: 26.06%; background-size: 435.7% 383.7%; background-position: 98.2% 33.1%; }
+.ovs-scan { position: absolute; left: 0; right: 0; top: -20%; height: 18%; opacity: 0; pointer-events: none; background: linear-gradient(180deg, transparent, rgba(255, 157, 181, 0.35), transparent); }
+
+/* ───────── Galerie (Analyse, Débloque, À jour) : empilée par défaut, horizontale en mode ciné ───────── */
+.hgal { position: relative; }
+
+/* ───────── Charge finale ───────── */
+.how li { position: relative; border-top: 0; }
+.how li::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: rgba(255, 200, 220, 0.14); }
+.how li::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--accent); transform-origin: left; transform: scaleX(var(--fill, 1)); box-shadow: 0 0 12px var(--glow); }
+.final-icon .ring { position: absolute; inset: -14%; width: 128%; height: 128%; rotate: -90deg; overflow: visible; }
+.ring circle { fill: none; stroke-width: 1.4; }
+.ring-bg { stroke: rgba(255, 200, 220, 0.12); }
+.ring-fg { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 1 1; stroke-dashoffset: 0; filter: drop-shadow(0 0 4px rgba(255, 92, 134, 0.8)); }
+.flash { position: absolute; inset: 0; z-index: -1; opacity: 0; pointer-events: none; background: radial-gradient(40% 45% at 50% 42%, rgba(255, 210, 222, 0.85), rgba(255, 92, 134, 0.35) 40%, transparent 70%); }
+
+/* ───────── Mode ciné (GSAP, ordinateur, mouvement non réduit) : html.cine posé par boot.js ───────── */
+html.cine .reveal .screen, html.cine .feat-shot .screen, html.cine .feat-txt, html.cine .final h2, html.cine .spot { animation: none !important; }
+html.cine .hero { height: 100vh; min-height: 0; }
+html.cine .hero .reveal { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; justify-content: center; padding: calc(var(--hdr) + 12px) 0 28px; pointer-events: none; }
+html.cine .hero .reveal .wrap { display: flex; flex-direction: column; height: 100%; }
+html.cine .hero .reveal-head { margin-bottom: 18px; }
+html.cine .hero .reveal-head h2 { font-size: clamp(44px, 6vw, 104px); }
+html.cine .hero .stage { flex: 1; min-height: 0; display: grid; place-items: center; }
+html.cine .hero .stage .screen { height: 100%; aspect-ratio: 1600 / 939; width: auto; max-width: 100%; }
+html.cine .hero .stage .screen img { height: 100%; width: 100%; object-fit: cover; }
+html.cine .hero .stage .spots { inset: auto; width: var(--sw, 100%); height: var(--sh, 100%); }
+html.cine .stage .tourveil { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: rgba(7, 6, 10, 0.72);
+  -webkit-mask-image: radial-gradient(circle at var(--fx, 50%) var(--fy, 50%), transparent 0, transparent var(--fr, 14%), #000 calc(var(--fr, 14%) + 10%));
+  mask-image: radial-gradient(circle at var(--fx, 50%) var(--fy, 50%), transparent 0, transparent var(--fr, 14%), #000 calc(var(--fr, 14%) + 10%)); }
+html.cine .tourcap { position: absolute; left: var(--gut); bottom: 6vh; z-index: 5; margin: 0; font-size: clamp(40px, 5.6vw, 96px); pointer-events: none; text-shadow: 0 10px 40px rgba(0, 0, 0, 0.8); }
+html.cine .tourcap span { position: absolute; left: 0; bottom: 0; white-space: nowrap; opacity: 0; }
+html.cine .hgal { height: 100vh; overflow: hidden; }
+html.cine .hgal-track { display: flex; width: 300vw; height: 100%; }
+html.cine .hgal .feat { width: 100vw; flex: none; height: 100%; display: grid; align-items: center; padding-block: 0; }
+html.cine .ovs-base img { filter: brightness(0.38) saturate(0.55); }
+html.cine .ovs-p { opacity: 0; }
+
+html.cine .wall { transform: none; }
+html.cine .wall-row { translate: 0 var(--ry, 0%); }
+html.cine .band-track { animation: none; }
+html.cine .spots { display: none; }
+html.cine .dive-dark { position: absolute; inset: 0; z-index: 2; background: var(--bg-0); opacity: 0; pointer-events: none; }
+/* SplitText : dégradé par mot, masques qui ne coupent ni les accents ni l'italique */
+.grad.gsplit { background: none; }
+.grad.gsplit > .gw, .grad.gsplit-ch .ch {
+  background: linear-gradient(100deg, #ffd0dc 0%, var(--brand-1) 30%, var(--brand-2) 62%, var(--brand-3) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; padding: 0.2em 0.08em 0.06em 0; margin: -0.2em -0.08em -0.06em 0;
+}
+.grad.gsplit-ch { background: none; }
+.ch-mask { padding: 0.22em 0.08em 0.04em 0; margin: -0.22em -0.08em -0.04em 0; }
+.ovs h2.mega { font-size: clamp(56px, 7vw, 120px); }
+html.cine .hgal h2.mega { font-size: clamp(48px, 4.6vw, 88px); white-space: nowrap; }
+html.cine .hgal .feat-in { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.75fr); }
+html.cine .hgal .feat.flip .feat-in { grid-template-columns: minmax(0, 1.75fr) minmax(0, 0.8fr); }
