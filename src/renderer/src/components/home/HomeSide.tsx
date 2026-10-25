@@ -1,7 +1,7 @@
 // Colonne de droite de l'accueil : « Dernier match » (vrai bilan CS2 ou Battlefield 6 seulement) et les amis en ligne.
 import { useState } from 'react'
-import { formatKd, killDeath, mapLabel, RESULT_LABEL } from '@shared/cs2'
-import type { Friend, FriendStatus } from '@shared/types'
+import { formatKd, killDeath, mapLabel, modeLabel, RESULT_LABEL } from '@shared/cs2'
+import type { Cs2Result, Cs2Round, Friend, FriendStatus } from '@shared/types'
 import { dayOf, openCs2Recap } from '../cs2/useCs2'
 import { dec, int } from '../stats/bf6'
 import { openRecap } from '../stats/Recap'
@@ -18,7 +18,16 @@ interface Stat {
   title?: string
 }
 
-/** « Dernier match » : trois chiffres du bilan le plus récent, et le bilan complet au clic. */
+/** CS2 : le résultat en grand (couleur du résultat), la carte et le mode, la frise des rounds. */
+interface Hero {
+  result: Cs2Result
+  label: string
+  score: string | null
+  where: string
+  rounds: Cs2Round[]
+}
+
+/** « Dernier match » : le résultat et la frise (CS2), quatre chiffres du bilan le plus récent, le bilan complet au clic. */
 export function LastMatchCard({ match }: { match: LastMatch }): React.JSX.Element {
   // Bilans ouverts d'ici : « Nouveau » s'efface tout de suite (le bilan Battlefield 6 ne prévient pas quand il est vu).
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set())
@@ -26,25 +35,26 @@ export function LastMatchCard({ match }: { match: LastMatch }): React.JSX.Elemen
   const fresh = !r.seen && !opened.has(r.id)
   let game: string
   let title: string
+  let hero: Hero | null = null
   let stats: Stat[]
   if (match.kind === 'cs2') {
     const c = match.recap
-    const score = c.score && c.result !== 'left' ? `${c.score.us}–${c.score.them}` : null
     game = 'CS2'
     title = 'Dernier match'
+    hero = {
+      result: c.result,
+      label: RESULT_LABEL[c.result],
+      score: c.score && c.result !== 'left' ? `${c.score.us}–${c.score.them}` : null,
+      where: [mapLabel(c.map), modeLabel(c.mode)].filter(Boolean).join(' · '),
+      rounds: c.hasRounds ? c.rounds : []
+    }
+    const adr = c.hasRounds && c.roundsTracked > 0 ? Math.round(c.damage / c.roundsTracked) : null
     stats = [
-      score
-        ? {
-            value: score,
-            label: RESULT_LABEL[c.result],
-            title: `${RESULT_LABEL[c.result]} sur ${mapLabel(c.map)}`
-          }
-        : { value: RESULT_LABEL[c.result], label: mapLabel(c.map) },
-      {
-        value: formatKd(killDeath(c)),
-        label: 'K/D',
-        title: `${c.kills} éliminations, ${c.deaths} morts`
-      },
+      { value: `${c.kills}/${c.deaths}/${c.assists}`, label: 'K/D/A', title: `${c.kills} éliminations, ${c.deaths} morts, ${c.assists} assistances` },
+      { value: formatKd(killDeath(c)), label: 'K/D' },
+      adr !== null
+        ? { value: int.format(adr), label: 'ADR', title: 'Dégâts moyens par round' }
+        : { value: c.trackedKills ? `${Math.round((c.headshots / c.trackedKills) * 100)} %` : '–', label: 'Headshots' },
       { value: int.format(c.mvps), label: 'MVP' }
     ]
   } else {
@@ -54,12 +64,8 @@ export function LastMatchCard({ match }: { match: LastMatch }): React.JSX.Elemen
     stats = [
       { value: dec.format(b.killDeath), label: 'K/D' },
       { value: int.format(b.kills), label: 'Éliminations' },
-      b.matches
-        ? {
-            value: `${int.format(b.wins)}/${int.format(b.matches)}`,
-            label: 'Victoires'
-          }
-        : { value: int.format(b.assists), label: 'Assistances' }
+      { value: int.format(b.assists), label: 'Assistances' },
+      ...(b.matches ? [{ value: `${int.format(b.wins)}/${int.format(b.matches)}`, label: 'Victoires' }] : [])
     ]
   }
   const open = (): void => {
@@ -69,7 +75,7 @@ export function LastMatchCard({ match }: { match: LastMatch }): React.JSX.Elemen
   }
 
   return (
-    <section className="hm-panel hm-match" aria-labelledby="hm-match-title">
+    <section className="hm-panel hm-match" data-result={hero?.result} aria-labelledby="hm-match-title">
       <header className="hm-panel-head">
         <h3 id="hm-match-title" className="hm-panel-title">
           {title}
@@ -78,6 +84,7 @@ export function LastMatchCard({ match }: { match: LastMatch }): React.JSX.Elemen
           {game} · {dayOf(r.endedAt)}
         </span>
       </header>
+      {hero && <MatchHero hero={hero} />}
       <dl className="hm-match-stats">
         {stats.map((s) => (
           <div key={s.label} className="hm-stat" title={s.title}>
@@ -94,6 +101,27 @@ export function LastMatchCard({ match }: { match: LastMatch }): React.JSX.Elemen
         {fresh && <span className="hm-new">Nouveau</span>}
       </footer>
     </section>
+  )
+}
+
+function MatchHero({ hero }: { hero: Hero }): React.JSX.Element {
+  const won = hero.rounds.filter((x) => x.side && x.winner === x.side).length
+  const lost = hero.rounds.filter((x) => x.side && x.winner !== x.side).length
+  return (
+    <div className="hm-match-hero">
+      <div className="hm-match-line">
+        <span className="hm-result">{hero.label}</span>
+        {hero.score && <span className="hm-score num">{hero.score}</span>}
+      </div>
+      <span className="hm-match-map">{hero.where}</span>
+      {hero.rounds.length > 0 && (
+        <div className="hm-strip" role="img" aria-label={`Rounds : ${won} gagnés, ${lost} perdus`}>
+          {hero.rounds.map((x) => (
+            <i key={x.n} data-r={!x.side ? 'unknown' : x.winner === x.side ? 'won' : 'lost'} />
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

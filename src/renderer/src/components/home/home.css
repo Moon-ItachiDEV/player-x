@@ -516,23 +516,85 @@
   color: var(--text-3);
   white-space: nowrap;
 }
+/* CS2 : le résultat en couleur, le score en grand, la carte, la frise des rounds. */
+.hm-match {
+  --hm-result: var(--text-2);
+}
+.hm-match[data-result='win'] {
+  --hm-result: var(--success);
+}
+.hm-match[data-result='loss'] {
+  --hm-result: var(--danger);
+}
+.hm-match-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px 16px;
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--hm-result) 14%, transparent), transparent 60%),
+    var(--surface-1);
+}
+.hm-match-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.hm-result {
+  font: 700 20px/26px var(--font-display);
+  color: var(--hm-result);
+}
+.hm-score {
+  font: 700 28px/32px var(--font-display);
+  color: var(--text-1);
+  white-space: nowrap;
+}
+.hm-match-map {
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hm-strip {
+  display: flex;
+  gap: 2px;
+  margin-top: 10px;
+}
+.hm-strip i {
+  flex: 1 1 0;
+  max-width: 10px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--surface-3);
+}
+.hm-strip i[data-r='won'] {
+  background: var(--success);
+}
+.hm-strip i[data-r='lost'] {
+  background: color-mix(in srgb, var(--danger) 70%, transparent);
+}
+
 .hm-match-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
 }
 .hm-stat {
   display: flex;
   flex-direction: column-reverse;
+  gap: 2px;
   min-width: 0;
-  padding: 12px;
-  border-radius: 16px;
+  padding: 10px 12px;
+  border-radius: 14px;
   background: var(--surface-1);
 }
 .hm-stat dd {
   margin: 0;
-  font: 600 24px/28px var(--font-display);
+  font: 600 20px/24px var(--font-display);
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;

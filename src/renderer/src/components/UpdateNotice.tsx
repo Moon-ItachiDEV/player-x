@@ -35,7 +35,7 @@ const HOLD_SUB = {
   hover: 'redémarrage en pause',
   game: 'en pause pendant ta partie',
   launch: 'en pause pendant le lancement',
-  blocked: 'redémarre quand tu veux'
+  blocked: 'installe-la maintenant ou plus tard'
 } as const
 
 /** Taille et résumé annoncés par le processus principal, seulement pour la version affichée (jamais pour l'aperçu). */
@@ -118,11 +118,11 @@ function Card({ m, meta, api, cardRef, onOpenAbout }: CardProps): React.JSX.Elem
           className="btn btn-primary btn-lg upd-go"
           onClick={api.restart}
           disabled={busy}
-          title={preview ? undefined : `Installer la ${v} maintenant`}
+          title={preview ? undefined : `Player X redémarre et installe la ${v}`}
         >
           {/* Remplissage du compte à rebours : position statique ici, animée par useCardPhase quand c'est permis. */}
           <span className="upd-charge" aria-hidden="true" style={{ transform: `translateX(${(-(m.left / m.countdown) * 100).toFixed(2)}%)` }} />
-          Redémarrer maintenant
+          Installer maintenant
         </button>
         <button
           className="btn btn-lg upd-later"
@@ -130,7 +130,7 @@ function Card({ m, meta, api, cardRef, onOpenAbout }: CardProps): React.JSX.Elem
           disabled={busy}
           title={preview ? 'Arrêter l’aperçu' : 'Elle s’installera quand tu fermeras Player X'}
         >
-          {preview ? 'Plus tard' : 'À la fermeture'}
+          Plus tard
         </button>
       </div>
     )
@@ -219,7 +219,7 @@ function rowsFor(m: CardModel, meta: UpdateMeta): Rows {
     let status: string
     if (m.hold) status = preview ? 'aperçu en pause' : HOLD_SUB[m.hold]
     else status = `${preview ? 'redémarrage simulé dans' : 'redémarrage dans'} ${m.left}${NB}s`
-    return { title: 'Prête à installer', sub: `${preview ? 'Exemple' : v} · ${status}` }
+    return { title: preview ? 'Prête à installer' : 'Nouvelle mise à jour', sub: `${preview ? 'Exemple' : v} · ${status}` }
   }
 
   if (phase === 'refused') return { title: 'Mise à jour refusée', sub: product }
@@ -358,11 +358,11 @@ function useAnnouncement(m: CardModel): string {
         : group === 'verify'
           ? `Vérification de la mise à jour ${v}.`
           : group === 'ready-game'
-            ? `Player X ${v} est prête et signée. Le redémarrage attendra la fin de ta partie, ou choisis À la fermeture.`
+            ? `Player X ${v} est prête et signée. Installe-la maintenant ou plus tard.`
             : group === 'ready-launch'
-              ? `Player X ${v} est prête et signée. Le redémarrage attendra la fin du lancement, ou choisis À la fermeture.`
+              ? `Player X ${v} est prête et signée. Installe-la maintenant ou plus tard.`
             : group === 'ready'
-              ? `Player X ${v} est prête et signée. Redémarrage automatique dans 10 secondes, ou choisis À la fermeture.`
+              ? `Player X ${v} est prête et signée. Installe-la maintenant ou plus tard.`
               : group === 'refused'
                 ? `Mise à jour ${v} refusée : elle n’est pas signée par Player X. Rien n’est installé.`
                 : `Mise à jour ${v} interrompue. Nouvel essai dans 30 minutes.`
