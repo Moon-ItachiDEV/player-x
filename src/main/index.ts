@@ -15,6 +15,7 @@ import { checkFriends, deliverRare, demoFriendAlert, resetFriendAlerts, testFrie
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork, withLogos } from './services/artwork'
 import { bf6RecapState, markBf6RecapSeen, setBf6Running, startBf6Recaps, syncBf6Recaps } from './services/bf6Recap'
+import { getCs2Lifetime, startCs2LifetimeRecorder } from './services/cs2Lifetime'
 import { cs2DemoChanged, cs2State, markCs2RecapSeen, setCs2Running, startCs2Live, syncCs2 } from './services/cs2Live'
 import { closeCs2Overlay, startCs2Overlay, syncCs2Overlay } from './services/cs2Overlay'
 import { DEMO_FRIENDS, DEMO_GAMES, demoGames, demoNotInstalled } from './services/demo'
@@ -376,6 +377,8 @@ function registerIpc(): void {
   // Counter-Strike 2 : ton vrai match et tes vrais bilans seulement (rien en mode démo, sauf le simulateur de développement).
   handle('cs2:state', () => cs2State())
   handle('cs2:recap-seen', (_e, id: unknown) => markCs2RecapSeen(id))
+  // Stats à vie de Valve (clé Steam Web API et compte Steam relié) : rien en mode démo, jamais de chiffres inventés.
+  handle('cs2:lifetime', (_e, force: unknown) => getCs2Lifetime(force === true))
   handle('app:startup', () => startupState())
   handle('shell:open', (_e, url: unknown) => {
     if (typeof url === 'string' && url.startsWith('https://')) return shell.openExternal(url)
@@ -550,6 +553,7 @@ app.whenReady().then(async () => {
   startCs2Overlay()
   startPlaytimeTracker(notifyGamesChanged)
   startBf6Recorder()
+  startCs2LifetimeRecorder()
   startNewsWatcher(knownGames, notifyGamesChanged)
   // Développement seulement : PX_NEWS_SIM simule les annonces Steam (newsSim.ts, jamais dans l'installeur).
   if (!app.isPackaged && process.env.PX_NEWS_SIM) {

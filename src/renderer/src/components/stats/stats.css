@@ -1,6 +1,6 @@
 /* Page Stats de jeu : titre et choix du jeu dans la barre du haut, onglets soulignés dans la page. Battlefield 6 : chiffres
    phares, courbe du K/D et dernière session, favoris, chiffres clés ; puis Progression, Arsenal, Cartes et modes,
-   Classement. Counter-Strike 2 (bf-cs-) : chiffres phares et derniers matchs. */
+   Classement. Counter-Strike 2 (bf-cs-) : stats à vie (Steam), armes, cartes, chiffres phares et derniers matchs. */
 
 .bf {
   display: flex;
@@ -1529,9 +1529,10 @@
   color: var(--text-1);
 }
 
-/* Aucun match encore */
+/* Aucun match encore, ou stats à vie indisponibles (avec quoi faire) */
 .bf-cs-empty {
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   gap: 18px;
 }
@@ -1547,8 +1548,150 @@
 }
 .bf-cs-empty-text {
   display: flex;
-  flex: 1;
+  flex: 1 1 280px;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+}
+.bf-cs-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---------- Counter-Strike 2 : stats à vie (Steam) ---------- */
+
+/* Titre et sous-titre d'une carte ; une étiquette « Exemple » peut suivre le titre. */
+.bf-cs-life-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.bf-cs-life-head .bf-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bf-cs-life-head .caption {
+  color: var(--text-3);
+}
+.bf-cs-source .icon-btn {
+  margin: -6px 0;
+}
+.bf-cs-source .bf-plat {
+  margin-right: 2px;
+}
+/* Titre d'un bloc hors carte (tes matchs suivis, sous les stats à vie). */
+.bf-cs-block-head {
+  margin: 8px 0 -8px;
+}
+
+/* Chiffres à vie : 4 par ligne, puis 2. Le premier de chaque ligne n'a pas de filet. */
+.bf-tiles.bf-cs-tiles {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  row-gap: 20px;
+}
+.bf-cs-tiles .bf-tile:nth-child(4n + 1) {
+  padding-left: 0;
+  box-shadow: none;
+}
+@container (max-width: 640px) {
+  .bf-tiles.bf-cs-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .bf-cs-tiles .bf-tile:nth-child(4n + 1) {
+    padding-left: 16px;
+    box-shadow: inset 1px 0 0 var(--line-1);
+  }
+  .bf-cs-tiles .bf-tile:nth-child(2n + 1) {
+    padding-left: 0;
+    box-shadow: none;
+  }
+}
+.bf-cs-tiles .bf-meter {
+  margin: 4px 0 2px;
+  max-width: 160px;
+}
+
+/* Écarts entre deux relevés quotidiens */
+.bf-cs-week {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-1);
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-2);
+}
+.bf-cs-week b {
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+/* En-tête de colonne qui trie */
+.bf-table th:has(.bf-sort) {
+  padding-top: 0;
+  padding-bottom: 4px;
+}
+.bf-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 -6px;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out);
+}
+.bf-sort:hover,
+.bf-sort.is-on {
+  color: var(--text-1);
+}
+.bf-sort:hover {
+  background: var(--surface-2);
+}
+.bf-sort svg {
+  opacity: 0;
+  transition:
+    opacity var(--d-1) var(--ease-out),
+    rotate var(--d-2) var(--ease-out);
+}
+.bf-sort:hover svg {
+  opacity: 0.5;
+}
+.bf-sort.is-on svg {
+  opacity: 1;
+}
+.bf-sort svg.is-up {
+  rotate: 180deg;
+}
+/* Part ou taux : une petite jauge devant le chiffre. */
+.bf-cs-share {
+  display: inline-grid;
+  grid-template-columns: 72px minmax(4.5em, auto);
+  align-items: center;
+  justify-items: end;
+  gap: 10px;
+}
+.bf-cs-share .bf-meter {
+  width: 72px;
+}
+.bf-cs-col-kind {
+  color: var(--text-3);
+}
+@container (max-width: 640px) {
+  .bf-cs-col-kind,
+  .bf-cs-share .bf-meter {
+    display: none;
+  }
+  .bf-cs-share {
+    grid-template-columns: auto;
+  }
 }

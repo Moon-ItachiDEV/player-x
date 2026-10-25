@@ -522,6 +522,70 @@ export interface Cs2RecapEvent {
   reason: 'ready' | 'open' | 'updated'
 }
 
+/**
+ * Totaux à vie de Valve (Steam Web API, GetUserStatsForGame, appid 730) : CS:GO et CS2 confondus, tous modes.
+ * Un champ absent de la réponse de Steam reste absent : rien n'est deviné.
+ */
+export interface Cs2LifetimeTotals {
+  kills?: number
+  deaths?: number
+  /** Éliminations d'un tir à la tête. */
+  headshots?: number
+  /** En secondes. */
+  timePlayed?: number
+  plantedBombs?: number
+  defusedBombs?: number
+  /** Rounds gagnés (total_wins). */
+  roundsWon?: number
+  roundsPlayed?: number
+  matchesWon?: number
+  matchesPlayed?: number
+  damage?: number
+  moneyEarned?: number
+  mvps?: number
+}
+
+/** Une arme : `id` est le nom technique de Valve (ak47, m4a1…), libellé dans @shared/cs2Lifetime. */
+export interface Cs2WeaponStat {
+  id: string
+  kills: number
+}
+
+/** Une carte : `id` est son nom technique (de_dust2). Ce sont des rounds, pas des matchs. */
+export interface Cs2MapStat {
+  id: string
+  roundsWon?: number
+  rounds?: number
+}
+
+export interface Cs2Lifetime {
+  totals: Cs2LifetimeTotals
+  /** Armes avec au moins une élimination, de la plus utilisée à la moins utilisée. */
+  weapons: Cs2WeaponStat[]
+  /** Cartes avec au moins un round, de la plus jouée à la moins jouée. */
+  maps: Cs2MapStat[]
+}
+
+/** Relevé quotidien des totaux (gardé sur ce PC), pour les écarts sur 7 et 30 jours et une future courbe. */
+export type Cs2LifetimePoint = Cs2LifetimeTotals & { at: number }
+
+/** Pourquoi les stats à vie ne s'affichent pas. */
+export type Cs2LifetimeReason = 'demo' | 'no-account' | 'no-key' | 'key-refused' | 'private' | 'none' | 'network' | 'error'
+
+export type Cs2LifetimeResult =
+  | {
+      ok: true
+      stats: Cs2Lifetime
+      fetchedAt: number
+      /** Relevés quotidiens, du plus ancien au plus récent. */
+      history: Cs2LifetimePoint[]
+      /** Steam n'a pas répondu : dernière lecture gardée, avec la raison. */
+      stale?: string
+      /** Chiffres fictifs (simulateur de développement) : toujours présentés comme un exemple. */
+      sample?: boolean
+    }
+  | { ok: false; reason: Cs2LifetimeReason; message: string }
+
 // ---------- Actus des jeux (annonces officielles publiées sur Steam) ----------
 
 /** Morceau de texte d'une actu, avec sa mise en forme. */
@@ -759,6 +823,8 @@ export interface LauncherApi {
   onCs2State(cb: () => void): () => void
   /** Bilan CS2 prêt, ou à ouvrir (clic sur la notification Windows). Renvoie la fonction de désabonnement. */
   onCs2Recap(cb: (e: Cs2RecapEvent) => void): () => void
+  /** Stats à vie de Valve (Steam Web API, avec ta clé) : gardées 1 h, sauf `force`. */
+  cs2Lifetime(force?: boolean): Promise<Cs2LifetimeResult>
   /** Overlay CS2 (bêta) : réglages de la fenêtre de l'overlay. */
   cs2OverlayConfig(): Promise<Cs2OverlayConfig>
   /** Paramètres : montre l'overlay quelques secondes avec des chiffres d'exemple, même sans CS2. */

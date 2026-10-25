@@ -62,6 +62,7 @@ const api: LauncherApi = {
   },
   cs2State: () => ipcRenderer.invoke('cs2:state'),
   cs2RecapSeen: (id) => ipcRenderer.invoke('cs2:recap-seen', id),
+  cs2Lifetime: (force) => ipcRenderer.invoke('cs2:lifetime', force === true),
   onCs2Live: (cb) => {
     const listener = (_e: unknown, live: Cs2Live | null): void => cb(live)
     ipcRenderer.on('cs2:live', listener)

@@ -20,7 +20,8 @@ import { showMainWindow } from './tray'
 const GSI_KEY = 'cs2Gsi'
 const MATCH_KEY = 'cs2Match'
 const RECAPS_KEY = 'cs2Recaps'
-const MAX_RECAPS = 20
+/** Bilans gardés : assez pour que tes chiffres et ta vue par carte aient du sens (environ 2 Ko chacun). */
+const MAX_RECAPS = 500
 /** Plus aucun envoi (CS2 en envoie un toutes les 10 s) : le match est coupé (jeu fermé, planté). */
 const SILENCE_MS = 35_000
 /** Player X relancé pendant un match : il continue si le dernier envoi date de moins de 10 min. */

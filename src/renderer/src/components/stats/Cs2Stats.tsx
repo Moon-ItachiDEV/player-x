@@ -1,23 +1,29 @@
-// Counter-Strike 2 sur la page Stats : tes chiffres sur les matchs gardés sur ce PC, le match en cours et la liste des
-// derniers matchs (chacun ouvre son bilan). Tout vient de CS2 lui-même (Game State Integration) : rien n'est inventé,
-// et en mode démo seuls des exemples présentés comme tels s'affichent.
+// Counter-Strike 2 sur la page Stats : tes stats à vie de Valve (Steam Web API, Cs2Lifetime.tsx), tes chiffres sur les
+// matchs gardés sur ce PC, le match en cours et la liste des derniers matchs (chacun ouvre son bilan). Les matchs viennent
+// de CS2 lui-même (Game State Integration) : rien n'est inventé, et en mode démo seuls des exemples présentés comme tels
+// s'affichent.
 import { useState } from 'react'
 import { formatKd, killDeath, mapLabel, modeLabel, RESULT_LABEL } from '@shared/cs2'
 import type { Cs2Config, Cs2Live, Cs2Recap, Cs2Round, Cs2State } from '@shared/types'
 import { dayOf, openCs2Recap, sampleCs2Recap, timeFmt } from '../cs2/useCs2'
 import { Icon } from '../ui/Icon'
 import { int, pct } from './bf6'
+import { LifetimeCard, LifetimeSide, MapsTab, useCs2Lifetime, WeaponsTab, type OpenSettings } from './Cs2Lifetime'
 import { StatsTabs } from './StatsTabs'
 
-type Cs2Tab = 'overview' | 'matches'
+type Cs2Tab = 'overview' | 'weapons' | 'maps' | 'matches'
 
 const TAB_KEY = 'pg.stats.cs2tab'
+const TAB_IDS: Cs2Tab[] = ['overview', 'weapons', 'maps', 'matches']
 /** Derniers matchs montrés dans la vue d'ensemble. */
 const OVERVIEW_ROWS = 5
+/** Onglet Matchs : jusqu'à 500 bilans gardés, montrés 50 par 50. */
+const PAGE_ROWS = 50
 
 function loadTab(): Cs2Tab {
   try {
-    return localStorage.getItem(TAB_KEY) === 'matches' ? 'matches' : 'overview'
+    const t = localStorage.getItem(TAB_KEY) as Cs2Tab | null
+    return t && TAB_IDS.includes(t) ? t : 'overview'
   } catch {
     return 'overview'
   }
@@ -80,9 +86,11 @@ function summaryOf(list: Cs2Recap[]): Summary {
   }
 }
 
-export function Cs2Stats({ state, live }: { state: Cs2State; live: Cs2Live | null }): React.JSX.Element {
+export function Cs2Stats({ state, live, onOpenSettings }: { state: Cs2State; live: Cs2Live | null; onOpenSettings: OpenSettings }): React.JSX.Element {
   const [tab, setTab] = useState<Cs2Tab>(loadTab)
+  const lifetime = useCs2Lifetime(state.demo)
   const recaps = state.recaps
+  const steamTab = tab === 'weapons' || tab === 'maps'
 
   const pick = (next: Cs2Tab): void => {
     if (next === tab) return
@@ -106,17 +114,23 @@ export function Cs2Stats({ state, live }: { state: Cs2State; live: Cs2Live | nul
         onChange={pick}
         tabs={[
           { id: 'overview', label: 'Vue d’ensemble' },
+          { id: 'weapons', label: 'Armes' },
+          { id: 'maps', label: 'Cartes' },
           { id: 'matches', label: 'Matchs', badge: recaps.length ? int.format(recaps.length) : undefined }
         ]}
       >
-        <span className={`bf-cs-source ${state.connected ? 'is-on' : ''}`}>
-          {state.connected && <span className="bf-cs-source-dot" aria-hidden="true" />}
-          {state.connected ? 'Liaison active · ' : ''}Envoyé par CS2, tes chiffres seulement
-        </span>
+        {steamTab ? (
+          <LifetimeSide state={lifetime} />
+        ) : (
+          <span className={`bf-cs-source ${state.connected ? 'is-on' : ''}`}>
+            {state.connected && <span className="bf-cs-source-dot" aria-hidden="true" />}
+            {state.connected ? 'Liaison active · ' : ''}Envoyé par CS2, tes chiffres seulement
+          </span>
+        )}
       </StatsTabs>
 
       <div id="cs-panel" className="bf-panel" role="tabpanel" aria-labelledby={`cs-tab-${tab}`}>
-        {state.demo && (
+        {state.demo && !steamTab && (
           <p className="bf-banner-msg bf-note">
             <Icon name="info" size={16} />
             <span>
@@ -124,7 +138,7 @@ export function Cs2Stats({ state, live }: { state: Cs2State; live: Cs2Live | nul
             </span>
           </p>
         )}
-        {issue && (
+        {issue && !steamTab && (
           <p className="bf-banner-msg bf-warn" role="status">
             <Icon name="alert-triangle" size={16} />
             <span>
@@ -132,23 +146,33 @@ export function Cs2Stats({ state, live }: { state: Cs2State; live: Cs2Live | nul
             </span>
           </p>
         )}
-        {live && <LiveCard live={live} />}
+        {live && !steamTab && <LiveCard live={live} />}
 
-        {recaps.length === 0 ? (
-          !live && <Empty />
-        ) : tab === 'overview' ? (
+        {tab === 'overview' && (
           <>
-            <Kpis list={recaps} />
-            <Matches list={recaps.slice(0, OVERVIEW_ROWS)} title="Derniers matchs" total={recaps.length} onAll={() => pick('matches')} />
+            <LifetimeCard state={lifetime} onOpenSettings={onOpenSettings} />
+            {recaps.length === 0 ? (
+              !live && <Empty />
+            ) : (
+              <>
+                <header className="bf-card-head bf-cs-block-head">
+                  <h2 className="bf-card-title">Tes matchs suivis par Player X</h2>
+                  <span className="caption">{recaps.length > 1 ? `Tes ${int.format(recaps.length)} derniers matchs, gardés sur ce PC` : 'Ton dernier match, gardé sur ce PC'}</span>
+                </header>
+                <Kpis list={recaps} />
+                <Matches list={recaps.slice(0, OVERVIEW_ROWS)} title="Derniers matchs" total={recaps.length} onAll={() => pick('matches')} />
+              </>
+            )}
           </>
-        ) : (
-          <Matches list={recaps} title="Tous tes matchs" full />
         )}
+        {tab === 'weapons' && <WeaponsTab state={lifetime} onOpenSettings={onOpenSettings} />}
+        {tab === 'maps' && <MapsTab state={lifetime} recaps={recaps} onOpenSettings={onOpenSettings} />}
+        {tab === 'matches' && (recaps.length === 0 ? !live && <Empty /> : <Matches list={recaps} title="Tous tes matchs" full />)}
       </div>
 
       <p className="caption bf-source">
-        Données envoyées par Counter-Strike 2 lui-même (Game State Integration de Valve), seulement pour ton compte et gardées sur ce PC. Player X n’est pas
-        affilié à Valve.
+        Stats à vie lues sur la Steam Web API de Valve avec ta clé (totaux CS:GO et CS2 confondus). Matchs suivis : données envoyées par Counter-Strike 2 lui-même
+        (Game State Integration de Valve), seulement pour ton compte et gardées sur ce PC. Player X n’est pas affilié à Valve.
       </p>
     </>
   )
@@ -275,6 +299,8 @@ function Strip({ rounds }: { rounds: Cs2Round[] }): React.JSX.Element {
 }
 
 function Matches({ list, title, full, total, onAll }: { list: Cs2Recap[]; title: string; full?: boolean; total?: number; onAll?: () => void }): React.JSX.Element {
+  const [count, setCount] = useState(PAGE_ROWS)
+  const rows = full ? list.slice(0, count) : list
   return (
     <section className="bf-card bf-cs-matches" aria-labelledby={`bf-cs-${full ? 'all' : 'last'}-title`}>
       <header className="bf-card-head">
@@ -284,10 +310,15 @@ function Matches({ list, title, full, total, onAll }: { list: Cs2Recap[]; title:
         <span className="caption">{full ? `${int.format(list.length)} gardés sur ce PC · les plus récents d’abord` : 'Suivis par Player X pendant que tu joues'}</span>
       </header>
       <ul className={`bf-cs-rows ${full ? 'is-full' : ''}`}>
-        {list.map((r) => (
+        {rows.map((r) => (
           <MatchRow key={r.id} r={r} full={full} />
         ))}
       </ul>
+      {full && list.length > rows.length && (
+        <button className="link-btn bf-more" onClick={() => setCount((n) => n + PAGE_ROWS)}>
+          Afficher {int.format(Math.min(PAGE_ROWS, list.length - rows.length))} matchs de plus ({int.format(rows.length)} sur {int.format(list.length)})
+        </button>
+      )}
       {onAll && total !== undefined && total > list.length && (
         <button className="link-btn bf-more" onClick={onAll}>
           Voir tous tes matchs ({int.format(total)})
