@@ -110,7 +110,7 @@ body::after {
     radial-gradient(50% 60% at 80% 100%, rgba(251, 79, 122, 0.32), transparent 70%),
     linear-gradient(180deg, rgba(7, 6, 10, 0.75) 0%, rgba(7, 6, 10, 0.1) 30%, rgba(7, 6, 10, 0.2) 70%, var(--bg-0) 100%);
 }
-.hero-in { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.62fr); align-items: center; gap: 40px; }
+.hero-in { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 40px; }
 .hero h1 { font-size: clamp(52px, 7.6vw, 150px); }
 .hero h1 span { display: block; }
 .hero .lead { margin-top: 30px; max-width: 30ch; font: 500 clamp(19px, 1.6vw, 24px)/1.45 var(--font-ui); color: var(--text-1); text-wrap: balance; }
@@ -167,7 +167,7 @@ body::after {
 .feat.flip .feat-txt { order: 2; }
 .feat h2 { font-size: clamp(52px, 6.2vw, 116px); }
 .feat-txt p { margin-top: 26px; max-width: 26ch; font: 500 clamp(19px, 1.6vw, 24px)/1.45 var(--font-ui); color: var(--text-1); text-wrap: balance; }
-.feat-txt .soon { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; max-width: none; font: 600 15px/1 var(--font-ui); color: var(--text-1); }
+.feat-txt .soon { margin-top: 22px; max-width: 32ch; font: 600 16px/1.5 var(--font-ui); color: var(--text-1); }
 .feat-txt .soon b { color: var(--accent-text); font-weight: 700; margin-right: 4px; }
 .feat-shot { position: relative; perspective: 1600px; }
 .feat-shot .screen { border-radius: 22px 0 0 22px; }
