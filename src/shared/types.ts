@@ -52,6 +52,10 @@ export interface Friend {
   device?: string
   /** Présence illisible cette fois-ci (PSN) : le statut affiché n'est pas fiable. */
   presenceUnknown?: boolean
+  /** Ami depuis (ms) : Steam seulement (`friend_since` de GetFriendList). */
+  since?: number
+  /** Dernière déconnexion (ms) : Steam seulement (`lastlogoff`), quand le profil la montre. */
+  lastSeen?: number
 }
 
 export interface Account {

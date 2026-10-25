@@ -1,30 +1,116 @@
-/* Page Amis (FriendsPage.tsx, SideFriends.tsx) : recherche et filtre, sections par présence, panneau Discord à droite. */
+/* Page Amis (FriendsPage.tsx, SideFriends.tsx) : deux volets, la liste à gauche et la fiche de la personne choisie à droite.
+   Fenêtre étroite (.is-single) : un seul volet, la fiche remplace la liste. */
 
 .fp {
+  display: grid;
+  grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+  align-items: start;
+  gap: 32px;
+}
+.fp.is-single {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+
+/* Couleur de présence : anneaux, lueur de la fiche, surtitre. Toujours doublée d'une forme ou d'un texte. */
+.fp-ring,
+.fp-detail {
+  --tone: var(--st-offline);
+  --tone-text: var(--text-3);
+}
+:is(.fp-ring, .fp-detail).st-in-game {
+  --tone: var(--st-ingame);
+  --tone-text: var(--live-text);
+}
+:is(.fp-ring, .fp-detail).st-online {
+  --tone: var(--st-online);
+  --tone-text: var(--st-online);
+}
+:is(.fp-ring, .fp-detail).st-away {
+  --tone: var(--st-away);
+  --tone-text: var(--st-away);
+}
+
+/* ---------- volet liste : titre, comptes, recherche ---------- */
+
+.fp-pane-list {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
 }
 
-/* ---------- barre : recherche, plateformes, actualiser ---------- */
-
-.fp-bar {
+.fp-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.fp-head-text {
+  min-width: 0;
+}
+.fp-title {
+  margin: 0;
+  font: 700 52px/1 var(--font-display);
+  letter-spacing: -0.04em;
+  color: var(--text-1);
+}
+.fp-counts {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  margin: 14px 0 0;
+  font: 600 15px/20px var(--font-ui);
+  color: var(--text-2);
+}
+.fp-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.fp-count.is-online {
+  color: var(--text-1);
+}
+.fp-count.is-live {
+  color: var(--live-text);
+}
+.fp-count .num {
+  font-family: var(--font-display);
+}
+.fp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--st-online);
+}
+.fp-sep {
+  color: var(--text-4);
+}
+
+.fp-refresh {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  color: var(--text-2);
+}
+
+.fp-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .fp-search {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1 1 280px;
-  max-width: 420px;
-  height: 44px;
-  padding: 0 8px 0 16px;
+  height: 40px;
+  padding: 0 6px 0 14px;
   border-radius: var(--r-pill);
-  background: var(--bg-2);
-  box-shadow: inset 0 0 0 1px var(--line-2);
+  background: var(--field-bg);
+  box-shadow: inset 0 0 0 1px var(--line-1);
   color: var(--text-3);
   cursor: text;
   transition:
@@ -32,7 +118,7 @@
     color var(--d-1) var(--ease-out);
 }
 .fp-search:hover {
-  box-shadow: inset 0 0 0 1px var(--line-3);
+  box-shadow: inset 0 0 0 1px var(--line-2);
   color: var(--text-2);
 }
 .fp-search:focus-within {
@@ -90,16 +176,17 @@
 }
 
 .fp-pills {
-  display: inline-flex;
+  display: flex;
   gap: 4px;
-  padding: 4px;
+  padding: 3px;
   border-radius: var(--r-pill);
-  background: var(--bg-2);
+  background: var(--field-bg);
   box-shadow: inset 0 0 0 1px var(--line-1);
 }
 .fp-pill {
-  height: 34px;
-  padding: 0 16px;
+  flex: 1;
+  height: 30px;
+  padding: 0 12px;
   border-radius: var(--r-pill);
   color: var(--text-3);
   font: 600 13px/18px var(--font-ui);
@@ -109,8 +196,7 @@
     color var(--d-1) var(--ease-out),
     scale var(--d-1) var(--ease-out);
 }
-/* Retour au clic : la surface s'enfonce un peu (audit animations). */
-.fp-pill:active:not(:disabled):not([aria-disabled='true']) {
+.fp-pill:active {
   scale: 0.97;
 }
 .fp-pill:hover {
@@ -120,215 +206,189 @@
   background: var(--surface-3);
   color: var(--text-1);
 }
-
-.fp-refresh {
-  width: 44px;
-  height: 44px;
-  margin-left: auto;
-  border-radius: 50%;
-  background: var(--bg-2);
-  box-shadow: inset 0 0 0 1px var(--line-1);
+.fp-pill-n {
+  margin-left: 4px;
   color: var(--text-3);
 }
 
-/* ---------- mise en page : sections à gauche, Discord à droite ---------- */
+/* ---------- groupes et rangées ---------- */
 
-.fp-layout {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 24px;
-}
-.fp-main {
+.fp-groups {
   display: flex;
   flex-direction: column;
-  gap: 36px;
-  flex: 999 1 560px;
+  gap: 18px;
+}
+.fp-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   min-width: 0;
 }
-/* Messages et alertes collés à la section qui suit */
-.fp-main > :is(.fp-error, .fp-caption) + * {
-  margin-top: -24px;
-}
-
-.fp-section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.fp-h2 {
+.fp-group-h {
   display: flex;
   align-items: center;
-  gap: 10px;
+  min-width: 0;
   margin: 0;
-  font: 600 22px/28px var(--font-display);
-  letter-spacing: -0.01em;
-  color: var(--text-1);
-}
-.fp-h2-count {
-  font: 500 15px/20px var(--font-ui);
+  padding: 0 12px;
+  font: 700 11.5px/18px var(--font-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--text-3);
 }
-/* Repères de présence : triangle Play (en jeu), point (en ligne), demi-lune (absent), anneau (hors ligne) */
-.fp-mark {
-  flex-shrink: 0;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.fp-group-sep {
+  margin: 0 7px;
 }
-.fp-mark.fp-mk-in-game {
-  height: 11px;
-  border-radius: 0;
-  background: var(--live);
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
+.fp-server {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 13px/18px var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-2);
 }
-.fp-mark.fp-mk-online {
-  background: var(--st-online);
+.fp-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin: -4px -8px;
+  padding: 4px 8px;
+  border-radius: var(--r-xs);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  transition: color var(--d-1) var(--ease-out);
 }
-.fp-mark.fp-mk-away {
-  background: radial-gradient(circle at 75% 30%, var(--bg-1) 45%, transparent 46%), var(--st-away);
+.fp-group-toggle:hover {
+  color: var(--text-1);
 }
-.fp-mark.fp-mk-offline {
-  box-shadow: inset 0 0 0 2px var(--st-offline);
+.fp-chevron {
+  margin-left: 6px;
+  transition: rotate var(--d-2) var(--ease-out);
+}
+.fp-group-toggle[aria-expanded='false'] .fp-chevron {
+  rotate: -90deg;
 }
 
-.fp-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
-  gap: 12px;
+.fp-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.fp-grid.fp-grid-play {
-  grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
-  gap: 16px;
+.fp-row {
+  --cut: var(--bg-1);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 16px 8px 8px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background-color var(--d-1) var(--ease-out);
+}
+.fp-row:hover {
+  --cut: var(--surface-1);
+  background: var(--surface-1);
+}
+.fp-row[aria-selected='true'] {
+  --cut: var(--surface-2);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.fp-row[aria-selected='true']:focus-visible {
+  box-shadow: var(--focus);
 }
 
 .fp-text {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  gap: 1px;
   min-width: 0;
 }
-.fp-name,
-.fp-game,
-.fp-meta,
-.fp-server-name {
-  white-space: nowrap;
+.fp-name {
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.fp-name {
-  font: 600 14px/18px var(--font-ui);
+  white-space: nowrap;
+  font: 600 16px/21px var(--font-display);
+  letter-spacing: -0.015em;
   color: var(--text-1);
 }
-.fp-game {
-  font: 500 12px/16px var(--font-ui);
-  color: var(--live-text);
+.fp-row.st-offline .fp-name {
+  color: var(--text-2);
 }
-.fp-meta {
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-3);
-}
-
-/* Avatars de la page : pastille de présence seule, sans l'anneau cyan des listes compactes */
-.fp .avatar {
-  --cut: var(--bg-2);
-  background: linear-gradient(135deg, var(--surface-3), var(--surface-2));
-}
-.fp .avatar.st-in-game {
-  box-shadow: none;
-}
-
-/* ---------- carte « En jeu » ---------- */
-
-.fp-play {
-  overflow: hidden;
-  border-radius: var(--r-xl);
-  /* Bordure réelle (pas une ombre intérieure) : l'image du jeu la recouvrirait */
-  border: 1px solid color-mix(in srgb, var(--live) 28%, transparent);
-  background: var(--bg-2);
-}
-/* Image du jeu (bibliothèque) ; sans image, un fond neutre */
-.fp-play-art {
-  position: relative;
-  height: 120px;
-  background: var(--surface-1);
-}
-.fp-play-art::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 45%, var(--bg-2) 100%);
-  pointer-events: none;
-}
-.fp-play-art img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.fp-play-art img.is-cover {
-  object-position: center 30%;
-}
-.fp-play-body {
-  position: relative;
+.fp-sub {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: -24px;
-  padding: 0 16px 16px;
+  gap: 6px;
+  min-width: 0;
+  font: 500 13.5px/18px var(--font-ui);
+  color: var(--text-3);
 }
-.fp-play .fp-text {
-  padding-top: 22px;
+.fp-sub-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.fp-play .fp-name {
-  font-size: 15px;
-  line-height: 20px;
+.fp-sub-play {
+  flex-shrink: 0;
 }
-.fp-play .avatar {
-  box-shadow: 0 0 0 4px var(--bg-2);
-  font-family: var(--font-display);
+.fp-row.st-in-game .fp-sub {
+  color: var(--live-text);
 }
-.fp-play .avatar-badge {
-  width: 12px !important;
-  height: 12px !important;
-  border-width: 3px;
+.fp-row.st-online .fp-sub {
+  color: var(--st-online);
+}
+.fp-row.st-away .fp-sub {
+  color: var(--st-away);
+}
+.fp-row-pf {
+  font: 500 12.5px/16px var(--font-ui);
+  color: var(--text-3);
+  white-space: nowrap;
 }
 
-.fp-av {
+/* Avatar dans son anneau de présence ; en jeu, un petit ▶ cyan découpé dans le fond de la rangée */
+.fp-ring {
   position: relative;
   display: inline-grid;
   flex-shrink: 0;
+  padding: 2px;
+  border: 2px solid var(--tone);
   border-radius: 50%;
-  transition: scale 200ms var(--ease-glide);
 }
-.fp-play:hover .fp-av,
-.fp-member:hover .fp-av {
-  scale: 1.04;
+.fp-ring .avatar,
+.fp-hero .avatar {
+  background: linear-gradient(135deg, var(--surface-3), var(--surface-2));
+  font-family: var(--font-display);
 }
-/* En jeu, au survol : un anneau cyan qui respire (effets visuels, s'arrête avec le survol) */
-:root[data-fx='on'] :is(.fp-play, .fp-member.st-in-game):hover .fp-av::before {
-  content: '';
+.fp-ring.st-offline {
+  border-color: color-mix(in srgb, var(--st-offline) 55%, transparent);
+}
+.fp-ring.st-offline img {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.fp-ring-play {
   position: absolute;
-  inset: -5px;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  border: 1.5px solid var(--st-ingame);
-  pointer-events: none;
-  animation: fp-breathe 1.8s var(--ease-drift) infinite alternate;
+  background: var(--live);
+  color: var(--on-live);
+  box-shadow: 0 0 0 2.5px var(--cut, var(--bg-1));
 }
-@keyframes fp-breathe {
-  from {
-    opacity: 0.25;
-    scale: 0.96;
-  }
-  to {
-    opacity: 0.8;
-    scale: 1.04;
-  }
+.fp-ring-play svg {
+  translate: 1px 0;
 }
 /* Passage « en jeu » : deux impulsions d'anneau, une seule fois */
-.fp-av.is-pulsing::after {
+.fp-ring.is-pulsing::after {
   content: '';
   position: absolute;
   inset: -4px;
@@ -338,10 +398,6 @@
   opacity: 0;
   animation: fp-pulse 1200ms var(--ease-out);
   animation-iteration-count: 2;
-}
-/* Animation finie : .fx-loop (posé pour l'anneau de survol) ne doit pas la figer quand la fenêtre est inactive */
-:root[data-window='idle'] .fp-av.is-pulsing::after {
-  animation-play-state: running !important;
 }
 @keyframes fp-pulse {
   from {
@@ -354,149 +410,21 @@
   }
 }
 
-/* ---------- petites cartes : en ligne, absents, hors ligne ---------- */
+/* ---------- membres du serveur Discord (jamais des « amis ») ---------- */
 
-.fp-pal {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 12px;
-  border-radius: 18px;
-  background: var(--bg-2);
-  box-shadow: inset 0 0 0 1px var(--line-1);
-}
-.fp-pal .avatar {
-  font-family: var(--font-display);
-}
-.fp-pal.st-offline .fp-name {
-  font-weight: 500;
-  color: var(--text-2);
-}
-
-.fp-offline-btn {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  height: 44px;
-  padding: 0 18px;
-  border-radius: var(--r-pill);
-  background: var(--bg-2);
-  box-shadow: inset 0 0 0 1px var(--line-2);
-  color: var(--text-2);
-  font: 600 14px/20px var(--font-ui);
-  transition:
-    background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out);
-}
-.fp-offline-btn:hover {
-  background: var(--surface-1);
-  color: var(--text-1);
-}
-.fp-offline-ring {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 2px var(--st-offline);
-}
-
-/* ---------- panneau Discord : membres du serveur ---------- */
-
-.fp-discord {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1 1 344px;
-  min-width: 0;
-  padding: 20px 8px 12px;
-  border-radius: var(--r-xl);
-  background: var(--bg-2);
-  box-shadow: inset 0 0 0 1px var(--line-1);
-}
-.fp-discord-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 12px 14px;
-}
-.fp-server-icon {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--r-md);
-  background: var(--surface-2);
-  color: var(--text-1);
-  font: 700 16px/1 var(--font-display);
-}
-.fp-server-name {
-  font: 600 16px/22px var(--font-display);
-  color: var(--text-1);
-}
-.fp-discord-head .fp-meta {
-  white-space: normal;
-}
-.fp-nowrap {
-  white-space: nowrap;
-}
 .fp-members {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.fp-member {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 8px 8px 12px;
-  border-radius: var(--r-md);
-  transition: background-color var(--d-1) var(--ease-out);
-}
-.fp-member .avatar {
-  font-family: var(--font-display);
-}
-.fp-member:hover {
-  background: var(--surface-1);
-}
-.fp-member:hover .avatar {
-  --cut: var(--surface-1);
-}
-.fp-member.st-in-game .fp-meta {
-  color: var(--live-text);
+  padding-top: 18px;
+  border-top: 1px solid var(--line-1);
 }
 .fp-members-empty {
   padding: 4px 12px 8px;
 }
-
-/* « Masquer » un membre du serveur Discord : l'œil n'apparaît qu'au survol ou au clavier (il reste dans l'ordre de tabulation) */
-.sf-hide {
-  width: 30px;
-  height: 30px;
-  color: var(--text-3);
-  opacity: 0;
-  transition:
-    opacity var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out),
-    background-color var(--d-1) var(--ease-out);
-}
-.fp-member:is(:hover, :focus-within) .sf-hide {
-  opacity: 1;
-}
-.sf-hide:hover {
-  color: var(--text-1);
-}
-
-/* Note de bas de panneau : bots masqués, et le lien vers Paramètres › Comptes › Membres masqués */
+/* Note sous la liste : bots masqués, et le lien vers Paramètres › Comptes › Membres masqués */
 .fp-discord-note {
-  margin: 10px 4px 0;
+  margin: 6px 0 0;
   padding: 12px 14px;
   border-radius: 16px;
-  background: var(--bg-1);
+  background: var(--field-bg);
   font: 500 12px/17px var(--font-ui);
   color: var(--text-3);
 }
@@ -515,10 +443,226 @@
   box-shadow: 0 0 0 2px var(--accent-text);
 }
 
+/* ---------- volet fiche ---------- */
+
+/* Reste en place pendant que la liste défile (le décalage se compte sous la barre du haut : .content a déjà son padding) */
+.fp-pane-detail {
+  position: sticky;
+  top: var(--page-top, 28px);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: calc(100vh - var(--topbar-h) - var(--page-top, 28px) - 32px);
+  min-height: 560px;
+  overflow-y: auto;
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(760px 460px at 88% -6%, color-mix(in srgb, var(--tone) 13%, transparent), transparent 70%),
+    var(--card-bg);
+  box-shadow:
+    var(--sh-card),
+    inset 0 0 0 1px var(--line-1);
+  transition: background-color var(--d-3) var(--ease-out);
+}
+.fp.is-single .fp-pane-detail {
+  position: static;
+  height: auto;
+  min-height: 0;
+}
+.fp-detail-none {
+  align-items: center;
+  justify-content: center;
+}
+.fp-back {
+  align-self: flex-start;
+  margin: 16px 0 0 16px;
+}
+.fp-detail-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 640px;
+  margin: auto;
+  padding: 48px 32px;
+  text-align: center;
+}
+
+.fp-hero {
+  position: relative;
+  display: inline-grid;
+  margin-bottom: 22px;
+  padding: 6px;
+  border: 3px solid var(--tone);
+  border-radius: 50%;
+  box-shadow: 0 0 64px -12px color-mix(in srgb, var(--tone) 60%, transparent);
+}
+.fp-detail.st-offline .fp-hero {
+  border-color: color-mix(in srgb, var(--st-offline) 55%, transparent);
+  box-shadow: none;
+}
+.fp-detail.st-offline .fp-hero img {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.fp-hero-play {
+  position: absolute;
+  right: -2px;
+  bottom: 2px;
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--live);
+  color: var(--on-live);
+  box-shadow:
+    0 0 0 5px var(--surface-1),
+    0 10px 24px -8px var(--live);
+}
+.fp-hero-play svg {
+  translate: 2px 0;
+}
+
+.fp-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font: 700 12px/16px var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tone-text);
+}
+/* Repères de présence : ▶ (en jeu), point (en ligne), demi-lune (absent), anneau (hors ligne) */
+.fp-mark {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+svg.fp-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 0;
+}
+.fp-mark.fp-mk-online {
+  background: var(--st-online);
+}
+.fp-mark.fp-mk-away {
+  background: radial-gradient(circle at 75% 30%, var(--surface-1) 45%, transparent 46%), var(--st-away);
+}
+.fp-mark.fp-mk-offline {
+  box-shadow: inset 0 0 0 2px var(--st-offline);
+}
+
+.fp-detail-name {
+  display: -webkit-box;
+  max-width: 100%;
+  margin: 10px 0 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  font: 700 clamp(40px, 4.4vw, 64px) / 1.04 var(--font-display);
+  letter-spacing: -0.04em;
+  color: var(--text-1);
+}
+.fp-detail-line {
+  margin: 12px 0 0;
+  font: 500 17px/24px var(--font-ui);
+  color: var(--text-2);
+}
+.fp-detail-meta {
+  max-width: 46ch;
+  margin: 8px 0 0;
+  font: 500 14px/20px var(--font-ui);
+  color: var(--text-3);
+}
+
+/* Carte « Joue à » : l'image du jeu à droite, fondue vers le texte */
+.fp-now {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 560px;
+  min-height: 116px;
+  margin-top: 32px;
+  padding: 20px 22px;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-1);
+  background: var(--field-bg);
+  text-align: left;
+}
+.fp-now.has-art {
+  border-color: color-mix(in srgb, var(--live) 28%, transparent);
+}
+.fp-now-art {
+  position: absolute;
+  inset: 0 0 0 30%;
+  width: 70%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.7;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 70%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 70%);
+  pointer-events: none;
+}
+.fp-now-art.is-cover {
+  object-position: center 30%;
+}
+.fp-now-text {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.fp-now .fp-kicker {
+  color: var(--live-text);
+}
+.fp-now-game {
+  margin: 6px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 26px/32px var(--font-display);
+  letter-spacing: -0.03em;
+  color: var(--text-1);
+}
+.fp-now-note {
+  margin: 4px 0 0;
+  font: 500 13.5px/18px var(--font-ui);
+  color: var(--text-2);
+}
+.fp-now-open {
+  position: relative;
+  flex-shrink: 0;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+}
+
+.fp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 28px;
+}
+.fp-action-ext {
+  color: var(--text-3);
+}
+/* « Masquer de la liste » (membre du serveur) : l'œil barré reste discret */
+.sf-hide svg {
+  color: var(--text-3);
+}
+
 /* ---------- états : alertes, messages, chargement ---------- */
 
 .fp-caption {
   margin: 0;
+  padding: 0 12px;
   font: 500 13px/18px var(--font-ui);
   color: var(--text-3);
 }
@@ -533,11 +677,6 @@
   background: var(--warning-soft);
   font: 500 13px/18px var(--font-ui);
   color: var(--text-2);
-}
-.fp-discord .fp-error {
-  margin: 0 4px 8px;
-  font-size: 12px;
-  line-height: 17px;
 }
 .fp-error-icon {
   margin-top: 2px;
@@ -566,24 +705,52 @@
   margin: 0;
 }
 
+/* Aucun compte relié : une seule invitation, centrée */
+.fp-empty-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 560px;
+  margin: 24px auto 0;
+  padding: 44px 32px;
+  border-radius: var(--r-xl);
+  background: var(--card-bg);
+  box-shadow:
+    var(--sh-card),
+    inset 0 0 0 1px var(--line-1);
+  text-align: center;
+}
+.fp-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.fp-empty-title {
+  margin: 0;
+  font: 700 22px/28px var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+.fp-empty-text {
+  max-width: 44ch;
+  margin: 0 0 8px;
+  font: 500 14.5px/21px var(--font-ui);
+  color: var(--text-2);
+}
+
 .fp-skeleton {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
-.fp-skel-title {
-  width: 140px;
-  height: 22px;
-  border-radius: var(--r-xs);
-}
-.fp-skeleton .fp-skel-title:not(:first-of-type) {
-  margin-top: 20px;
-}
-.fp-skel-play {
-  height: 196px;
-  border-radius: var(--r-xl);
-}
-.fp-skel-pal {
+.fp-skel-row {
   height: 64px;
-  border-radius: 18px;
+  border-radius: 20px;
 }

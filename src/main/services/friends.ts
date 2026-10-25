@@ -44,6 +44,9 @@ function frenchError(e: unknown, fallback: string): string {
 
 const TIMEOUT = 15_000
 const text = (v: unknown, max = 128): string | undefined => (typeof v === 'string' && v ? v.slice(0, max) : undefined)
+/** Date en secondes Unix plausible (après 2003, pas dans le futur), sinon rien. */
+const unixSeconds = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isFinite(v) && v > 1_041_379_200 && v * 1000 <= Date.now() + 86_400_000 ? Math.floor(v) : undefined
 const httpsUrl = (v: unknown): string | undefined => (typeof v === 'string' && v.startsWith('https://') && v.length <= 2048 ? v : undefined)
 
 // ---------- Steam Web API ----------
@@ -54,6 +57,8 @@ interface SteamPlayer {
   avatarfull: string
   personastate: number // 0 hors ligne, 1 en ligne, 2 occupé, 3 absent, 4 sieste, 5-6 en ligne
   gameextrainfo?: string
+  /** Dernière déconnexion, en secondes Unix (absente si le profil la cache). */
+  lastlogoff?: number
 }
 
 export async function getSteamProfiles(key: string, ids: string[]): Promise<SteamPlayer[]> {
@@ -72,7 +77,8 @@ export async function getSteamProfiles(key: string, ids: string[]): Promise<Stea
         personaname,
         avatarfull: httpsUrl(p.avatarfull) ?? '',
         personastate: typeof p.personastate === 'number' ? p.personastate : 0,
-        gameextrainfo: text(p.gameextrainfo)
+        gameextrainfo: text(p.gameextrainfo),
+        lastlogoff: unixSeconds(p.lastlogoff)
       })
     }
   }
@@ -99,6 +105,12 @@ async function steamFriends(account: Account, key: string): Promise<Friend[]> {
   }
   if (!res.ok) throw new Error(`Steam API ${res.status}`)
   const list = ((await res.json()) as { friendslist?: { friends?: unknown } }).friendslist?.friends
+  // Ami depuis : `friend_since` (secondes Unix) de chaque ami.
+  const since = new Map<string, number>()
+  for (const f of Array.isArray(list) ? (list as { steamid?: unknown; friend_since?: unknown }[]) : []) {
+    const at = unixSeconds(f?.friend_since)
+    if (typeof f?.steamid === 'string' && at) since.set(f.steamid, at * 1000)
+  }
   const ids = (Array.isArray(list) ? list : []).map((f) => (f as { steamid?: unknown })?.steamid).filter((id): id is string => typeof id === 'string' && /^\d{17}$/.test(id))
   // Son propre profil dans la même requête.
   const players = await getSteamProfiles(key, [account.id, ...ids])
@@ -108,7 +120,7 @@ async function steamFriends(account: Account, key: string): Promise<Friend[]> {
   )
   return players
     .filter((p) => p.steamid !== account.id)
-    .map((p) => {
+    .map((p): Friend => {
       const status: FriendStatus = p.gameextrainfo
         ? 'in-game'
         : p.personastate === 0
@@ -116,7 +128,18 @@ async function steamFriends(account: Account, key: string): Promise<Friend[]> {
           : p.personastate === 3 || p.personastate === 4
             ? 'away'
             : 'online'
-      return { id: `steam:${p.steamid}`, platform: 'steam', name: p.personaname, avatarUrl: p.avatarfull || undefined, status, game: p.gameextrainfo }
+      const friendSince = since.get(p.steamid)
+      return {
+        id: `steam:${p.steamid}`,
+        platform: 'steam',
+        name: p.personaname,
+        avatarUrl: p.avatarfull || undefined,
+        status,
+        game: p.gameextrainfo,
+        ...(friendSince ? { since: friendSince } : {}),
+        // Vu pour la dernière fois : seulement hors ligne (connecté, la date ne dit rien d'utile).
+        ...(status === 'offline' && p.lastlogoff ? { lastSeen: p.lastlogoff * 1000 } : {})
+      }
     })
 }
 

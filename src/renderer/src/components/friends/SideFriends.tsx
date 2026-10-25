@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { cleanName, norm, plural } from '@shared/text'
-import type { Friend, FriendPlatform, FriendStatus, Game, HiddenMember } from '@shared/types'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { norm, plural } from '@shared/text'
+import type { FriendPlatform, FriendStatus, HiddenMember } from '@shared/types'
 import type { SideFriendsProps } from '../../contracts'
 import { Avatar } from '../ui/Avatar'
 import { Icon } from '../ui/Icon'
+import { byStatus, classify, friendSinceLabel, lastSeenLabel, libraryIndex, pickDefault, steamProfileUrl, type Entry } from './friendView'
 import './friends.css'
 
 export type { SideFriendsProps }
@@ -20,12 +21,6 @@ const STATUS_LABEL: Record<FriendStatus, string> = {
   away: 'Absent',
   offline: 'Hors ligne'
 }
-const STATUS_RANK: Record<FriendStatus, number> = {
-  'in-game': 0,
-  online: 1,
-  away: 2,
-  offline: 3
-}
 const ERROR_ORDER: FriendPlatform[] = ['steam', 'psn']
 
 type Pal = 'steam' | 'psn'
@@ -34,18 +29,8 @@ const PALS: Pal[] = ['steam', 'psn']
 
 // Même clé qu'avant la refonte : seul l'état « hors ligne déplié » sert encore.
 const GROUPS_KEY = 'pg.side.groups'
-
-/** Ami (ou membre Discord) classé pour l'affichage. */
-interface Entry {
-  friend: Friend
-  status: FriendStatus
-  /** Jeu de la bibliothèque (ou nommé par Steam / PSN) quand il est en jeu. */
-  game?: string
-  /** Le jeu, s'il est dans la bibliothèque : son image sert de fond à la carte « En jeu ». */
-  lib?: Game
-  /** Activité Discord qui ne correspond à aucun jeu de la bibliothèque. */
-  activity?: string
-}
+/** En dessous de cette largeur de page, un seul volet : la fiche remplace la liste. */
+const NARROW = 900
 
 function readShowOffline(): boolean {
   try {
@@ -63,59 +48,6 @@ function writeShowOffline(show: boolean): void {
   } catch {
     // sans importance : simple confort
   }
-}
-
-function libraryIndex(games: Game[]): Map<string, Game> {
-  const map = new Map<string, Game>()
-  for (const g of games) {
-    const k = norm(g.name)
-    if (k && !map.has(k)) map.set(k, g)
-  }
-  return map
-}
-
-/** Un membre Discord n'est « en jeu » que si son activité est un jeu de la bibliothèque (sinon Spotify, statut perso…). */
-function classify(friend: Friend, library: Map<string, Game>): Entry {
-  if (friend.status !== 'in-game') return { friend, status: friend.status }
-  if (!friend.game) return { friend, status: 'online' }
-  const lib = library.get(norm(friend.game))
-  if (friend.platform === 'discord' && !lib) return { friend, status: 'online', activity: friend.game }
-  return {
-    friend,
-    status: 'in-game',
-    game: cleanName(lib?.name ?? friend.game) || friend.game,
-    lib
-  }
-}
-
-/** Amis (Steam, PlayStation) vraiment en jeu, selon la même règle que la page Amis : la pastille du rail dit le même chiffre. */
-export function countInGame(friends: Friend[], games: Game[]): number {
-  const library = libraryIndex(games)
-  return friends.filter((f) => f.platform !== 'discord' && classify(f, library).status === 'in-game').length
-}
-
-/** En jeu d'abord (regroupés par jeu), puis en ligne, absents, hors ligne ; par nom ensuite. */
-function byStatus(a: Entry, b: Entry): number {
-  return (
-    STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
-    (a.game ?? '').localeCompare(b.game ?? '', 'fr', { sensitivity: 'base' }) ||
-    a.friend.name.localeCompare(b.friend.name, 'fr', { sensitivity: 'base' })
-  )
-}
-
-/** « Steam », « PlayStation · PS5 » : la plateforme, et la console quand l'ami est connecté. */
-function palMeta({ friend, status }: Entry): string {
-  const parts = [PLATFORM_NAME[friend.platform]]
-  if (friend.device && (status === 'in-game' || status === 'online')) parts.push(friend.device)
-  return parts.join(' · ')
-}
-
-/** « En jeu · Valorant », « En ligne · Spotify », « Absent ». */
-function memberMeta({ status, game, activity }: Entry): string {
-  const parts = [STATUS_LABEL[status]]
-  if (status === 'in-game' && game) parts.push(game)
-  if (activity) parts.push(activity)
-  return parts.join(' · ')
 }
 
 /** Recherche « Chercher un ami » : sans accents ni ponctuation, et telle quelle pour un pseudo fait de symboles. */
@@ -168,6 +100,21 @@ function useInGamePulse(entries: Entry[]): ReadonlySet<string> {
   return pulsing
 }
 
+/** Largeur de la page sous le seuil des deux volets (suivie au redimensionnement). */
+function useNarrow(ref: React.RefObject<HTMLElement | null>): boolean {
+  const [narrow, setNarrow] = useState(false)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const check = (): void => setNarrow(el.clientWidth < NARROW)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref])
+  return narrow
+}
+
 /** « 4 bots masqués », « 1 membre masqué », « 4 bots et 1 membre masqués » ; vide si personne. */
 function maskedLabel(hidden: HiddenMember[]): string {
   const bots = hidden.filter((h) => h.reason === 'bot').length
@@ -176,16 +123,46 @@ function maskedLabel(hidden: HiddenMember[]): string {
   return parts.length ? `${parts.join(' et ')} masqué${hidden.length > 1 ? 's' : ''}` : ''
 }
 
+/** Sous-ligne d'une rangée : « ▶ Valorant », « En ligne · PS5 », « En ligne · Spotify », « Hors ligne ». */
+function rowSub({ friend, status, game, activity }: Entry): string {
+  if (status === 'in-game') return game ?? ''
+  const parts = [STATUS_LABEL[status]]
+  if (friend.device && status !== 'offline') parts.push(friend.device)
+  if (activity) parts.push(activity)
+  return parts.join(' · ')
+}
+
+const optionSelector = (id: string): string => `[role='option'][data-id="${CSS.escape(id)}"]`
+
 /**
- * Page Amis : amis Steam et PlayStation en sections (en jeu, en ligne, absents, hors ligne sur demande),
- * et à droite les membres du serveur Discord.
+ * Page Amis en deux volets : à gauche la liste (amis Steam et PlayStation par présence, puis les membres du serveur
+ * Discord à part), à droite la fiche de la personne choisie. Fenêtre étroite : la fiche remplace la liste.
  */
 export function SideFriends(props: SideFriendsProps): React.JSX.Element {
-  const { result, accounts, games, demo, discordConfigured, loading, onRefresh, onOpenAccounts, onHideMember, onManageHidden, initialQuery } = props
+  const {
+    result,
+    accounts,
+    games,
+    demo,
+    discordConfigured,
+    loading,
+    onRefresh,
+    onOpenAccounts,
+    onHideMember,
+    onManageHidden,
+    onOpenGame,
+    initialQuery,
+    initialFriendId
+  } = props
   const [query, setQuery] = useState(initialQuery ?? '')
   const [filter, setFilter] = useState<Filter>('all')
   // Ami choisi dans la recherche globale : la section hors ligne s'ouvre, il peut y être.
-  const [showOffline, setShowOffline] = useState(() => !!initialQuery || readShowOffline())
+  const [showOffline, setShowOffline] = useState(() => !!initialQuery || !!initialFriendId || readShowOffline())
+  const [selectedId, setSelectedId] = useState<string | null>(initialFriendId ?? null)
+  // Fenêtre étroite : la fiche est ouverte à la place de la liste.
+  const [detailOpen, setDetailOpen] = useState(!!initialFriendId)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const narrow = useNarrow(rootRef)
 
   const library = useMemo(() => libraryIndex(games), [games])
   const entries = useMemo(() => result.friends.map((f) => classify(f, library)), [result.friends, library])
@@ -211,66 +188,222 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
   const away = shown.filter((e) => e.status === 'away')
   const offline = shown.filter((e) => e.status === 'offline')
 
-  // Membres masqués présents sur le serveur (bots connus, « Masquer ») : rappelés dans la note du panneau Discord.
-  const masked = maskedLabel((result.hidden ?? []).filter((h) => h.online))
+  // Comptes de l'en-tête : sur tous les amis (pas les membres du serveur), sans la recherche.
+  const countOnline = pals.filter((e) => e.status !== 'offline').length
+  const countInGame = pals.filter((e) => e.status === 'in-game').length
 
-  // Après « Masquer », la ligne disparaît avec son bouton : le focus passe à l'œil du membre suivant (sinon du précédent,
-  // sinon au lien « Membres masqués ») une fois la liste relue. On attend que le membre masqué ait quitté la liste, et on
-  // oublie la demande si « Masquer » a échoué : sinon un rafraîchissement plus tard volerait le focus.
-  const focusAfterHide = useRef<{ hidden: string; next: string } | null>(null)
-  const hide = (e: Entry): void => {
-    const i = members.findIndex((m) => m.friend.id === e.friend.id)
-    const next = members[i + 1] ?? members[i - 1]
-    const pending = {
-      hidden: e.friend.id,
-      next: next ? next.friend.id : 'note'
-    }
-    focusAfterHide.current = pending
-    void onHideMember(e.friend).then((ok) => {
-      if (!ok && focusAfterHide.current === pending) focusAfterHide.current = null
-    })
-  }
-  useEffect(() => {
-    const pending = focusAfterHide.current
-    if (!pending || allMembers.some((m) => m.friend.id === pending.hidden)) return
-    focusAfterHide.current = null
-    const focused = document.activeElement
-    if (focused && focused !== document.body) return
-    const id = pending.next
-    const target =
-      id === 'note' ? document.querySelector<HTMLElement>('.sf-masked-btn') : document.querySelector<HTMLElement>(`[data-member="${CSS.escape(id)}"] .sf-hide`)
-    target?.focus({ preventScroll: true })
-  }, [allMembers])
+  // Membres masqués présents sur le serveur (bots connus, « Masquer ») : rappelés sous la liste du serveur.
+  const masked = maskedLabel((result.hidden ?? []).filter((h) => h.online))
 
   const hasData = result.friends.length > 0 || Object.values(result.errors).some(Boolean)
   const settled = useSettled(loading, hasData)
   const firstLoad = !hasData && !settled
   // Un compte Discord seul n'apporte personne (il faut un serveur) : on propose les sources d'amis.
   const noAccount = !firstLoad && !hasData && !accounts.some((a) => a.platform !== 'discord') && !demo && !discordConfigured
-  // Serveur Discord sans compte Steam ni PlayStation : le panneau Discord, et une invitation à relier un compte.
+  // Serveur Discord sans compte Steam ni PlayStation : les membres, et une invitation à relier un compte.
   const noPalSource = !demo && pals.length === 0 && !accounts.some((a) => a.platform !== 'discord')
   const errors = ERROR_ORDER.filter((p) => result.errors[p])
-  const showPanel =
+  const showMembers =
     !firstLoad && !noAccount && (allMembers.length > 0 || !!result.errors.discord || !!masked || discordConfigured || !!result.queried?.includes('discord'))
+
+  // Rangées visibles, dans l'ordre de la liste : c'est aussi l'ordre des flèches haut / bas.
+  const visiblePals = [...inGame, ...online, ...away, ...(showOffline ? offline : [])]
+  const visibleMembers = showMembers ? members : []
+  const visible = [...visiblePals, ...visibleMembers]
+  const selected = visible.find((e) => e.friend.id === selectedId) ?? pickDefault(visiblePals) ?? pickDefault(visibleMembers)
+  const showDetail = narrow && detailOpen && !!selected
+
+  // Ami venu de la recherche globale : la liste défile jusqu'à lui (une fois, dès qu'il est affiché).
+  const revealed = useRef(!initialFriendId)
+  useEffect(() => {
+    if (revealed.current || !selected || selected.friend.id !== initialFriendId) return
+    revealed.current = true
+    rootRef.current?.querySelector<HTMLElement>(optionSelector(selected.friend.id))?.scrollIntoView({ block: 'center' })
+  })
+
+  // Fenêtre étroite seulement : choisir quelqu'un ouvre sa fiche à la place de la liste.
+  const choose = (e: Entry, open: boolean): void => {
+    setSelectedId(e.friend.id)
+    if (open && narrow) setDetailOpen(true)
+  }
+
+  // Retour à la liste (fenêtre étroite) : le focus revient sur la rangée choisie.
+  const focusRow = useRef(false)
+  useEffect(() => {
+    if (!focusRow.current || showDetail || !selected) return
+    focusRow.current = false
+    rootRef.current?.querySelector<HTMLElement>(optionSelector(selected.friend.id))?.focus({ preventScroll: false })
+  })
+  const back = (): void => {
+    focusRow.current = true
+    setDetailOpen(false)
+  }
+
+  // Liste au clavier : flèches haut / bas, Début / Fin ; Entrée ou Espace ouvre la fiche en fenêtre étroite.
+  const onListKey = (ev: React.KeyboardEvent<HTMLDivElement>): void => {
+    const target = ev.target as HTMLElement
+    if (target.getAttribute('role') !== 'option') return
+    const i = visible.findIndex((e) => e.friend.id === target.dataset.id)
+    if (i < 0) return
+    let next = -1
+    if (ev.key === 'ArrowDown') next = Math.min(visible.length - 1, i + 1)
+    else if (ev.key === 'ArrowUp') next = Math.max(0, i - 1)
+    else if (ev.key === 'Home') next = 0
+    else if (ev.key === 'End') next = visible.length - 1
+    else if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault()
+      choose(visible[i], true)
+      return
+    } else return
+    ev.preventDefault()
+    const e = visible[next]
+    setSelectedId(e.friend.id)
+    rootRef.current?.querySelector<HTMLElement>(optionSelector(e.friend.id))?.focus()
+  }
+
+  // « Masquer » : la fiche passe au membre suivant (sinon au précédent) ; plus personne, le focus va à « Membres masqués ».
+  const hide = (e: Entry): void => {
+    const i = members.findIndex((m) => m.friend.id === e.friend.id)
+    const next = members[i + 1] ?? members[i - 1]
+    setSelectedId(next ? next.friend.id : null)
+    void onHideMember(e.friend).then((ok) => {
+      if (!ok) {
+        setSelectedId(e.friend.id)
+        return
+      }
+      if (!next) {
+        setDetailOpen(false)
+        requestAnimationFrame(() => rootRef.current?.querySelector<HTMLElement>('.sf-masked-btn')?.focus())
+      }
+    })
+  }
 
   const toggleOffline = (): void => {
     setShowOffline(!showOffline)
     writeShowOffline(!showOffline)
   }
 
-  let main: React.ReactNode
+  const refresh = !noAccount && (
+    <button
+      type="button"
+      className="icon-btn fp-refresh"
+      aria-label="Actualiser les amis"
+      title="Actualiser les amis"
+      aria-busy={loading}
+      onClick={() => {
+        if (!loading) onRefresh()
+      }}
+    >
+      <Icon name="refresh" size={17} className={loading ? 'spin' : undefined} />
+    </button>
+  )
+
+  const head = (
+    <header className="fp-head">
+      <div className="fp-head-text">
+        <h1 className="fp-title">Tes amis</h1>
+        {pals.length > 0 && (
+          <p className="fp-counts">
+            {countOnline > 0 ? (
+              <span className="fp-count is-online">
+                <span className="fp-dot" aria-hidden="true" />
+                <span className="num">{countOnline}</span> en ligne
+              </span>
+            ) : (
+              <span className="fp-count">Personne en ligne</span>
+            )}
+            {countInGame > 0 && (
+              <>
+                <span className="fp-sep" aria-hidden="true">
+                  ·
+                </span>
+                <span className="fp-count is-live">
+                  <Icon name="play" size={11} />
+                  <span className="num">{countInGame}</span> en jeu
+                </span>
+              </>
+            )}
+          </p>
+        )}
+      </div>
+      {refresh}
+    </header>
+  )
+
   if (firstLoad) {
-    main = <Skeleton />
-  } else if (noAccount) {
-    main = (
-      <Empty text="Connecte Steam, PlayStation ou un serveur Discord pour voir qui est en ligne.">
-        <ConnectButton onClick={onOpenAccounts} />
-      </Empty>
+    return (
+      <div className="fp" ref={rootRef} aria-busy="true">
+        <div className="fp-pane-list">
+          {head}
+          <Skeleton />
+        </div>
+        {!narrow && <div className="fp-pane-detail fp-detail" aria-hidden="true" />}
+      </div>
     )
-  } else {
-    const nobody = inGame.length + online.length + away.length === 0
-    main = (
-      <>
+  }
+
+  if (noAccount) {
+    return (
+      <div className="fp is-single" ref={rootRef}>
+        {head}
+        <div className="fp-empty-hero">
+          <span className="fp-empty-icon" aria-hidden="true">
+            <Icon name="users" size={26} />
+          </span>
+          <h2 className="fp-empty-title">Relie un compte pour voir tes amis</h2>
+          <p className="fp-empty-text">Connecte Steam ou PlayStation pour voir qui est en ligne et à quoi tes amis jouent. Un serveur Discord ajoute ses membres.</p>
+          <ConnectButton onClick={onOpenAccounts} primary />
+        </div>
+      </div>
+    )
+  }
+
+  const nobody = inGame.length + online.length + away.length === 0
+  const list = (
+    <div className="fp-pane-list">
+      {head}
+      {(query || pals.length + allMembers.length > 0 || platforms.length > 1) && (
+        <div className="fp-tools">
+          <label className="fp-search">
+            <Icon name="search" size={16} className="fp-search-icon" />
+            <span className="sr-only">Chercher un ami</span>
+            <input
+              type="search"
+              className="fp-search-input"
+              placeholder="Chercher un ami"
+              value={query}
+              spellCheck={false}
+              autoComplete="off"
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && query) {
+                  e.preventDefault()
+                  setQuery('')
+                }
+              }}
+            />
+            {query && (
+              <button type="button" className="fp-search-clear" aria-label="Effacer la recherche" title="Effacer la recherche" onClick={() => setQuery('')}>
+                <Icon name="x" size={13} />
+              </button>
+            )}
+          </label>
+          {platforms.length > 1 && (
+            <div className="fp-pills" role="group" aria-label="Plateforme">
+              {(['all', ...platforms] as Filter[]).map((p) => {
+                const n = p === 'all' ? found.length : found.filter((e) => e.friend.platform === p).length
+                return (
+                  <button key={p} type="button" className="fp-pill" aria-pressed={active === p} onClick={() => setFilter(p)}>
+                    {p === 'all' ? 'Tous' : PLATFORM_NAME[p]} <span className="num fp-pill-n">{n}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="fp-groups" onKeyDown={onListKey}>
         {errors.map((p) => (
           <ErrorNote key={p} platform={p} message={result.errors[p] ?? ''} onFix={onOpenAccounts} />
         ))}
@@ -295,189 +428,177 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
             </p>
           )
         )}
+
         {inGame.length > 0 && (
-          <Section kind="in-game" label="En jeu" count={inGame.length}>
-            <ul className="fp-grid fp-grid-play">
-              {inGame.map((e) => (
-                <PlayCard key={e.friend.id} entry={e} pulse={pulsing.has(e.friend.id)} />
-              ))}
-            </ul>
-          </Section>
+          <Group id="fp-g-in-game" label="En jeu" count={inGame.length}>
+            <Rows id="fp-g-in-game" entries={inGame} selected={selected} pulsing={pulsing} onChoose={choose} />
+          </Group>
         )}
         {online.length > 0 && (
-          <Section kind="online" label="En ligne" count={online.length}>
-            <PalGrid entries={online} />
-          </Section>
+          <Group id="fp-g-online" label="En ligne" count={online.length}>
+            <Rows id="fp-g-online" entries={online} selected={selected} pulsing={pulsing} onChoose={choose} />
+          </Group>
         )}
         {away.length > 0 && (
-          <Section kind="away" label="Absents" count={away.length}>
-            <PalGrid entries={away} />
-          </Section>
+          <Group id="fp-g-away" label="Absents" count={away.length}>
+            <Rows id="fp-g-away" entries={away} selected={selected} pulsing={pulsing} onChoose={choose} />
+          </Group>
         )}
         {offline.length > 0 && (
-          <>
-            <button type="button" className="fp-offline-btn" aria-expanded={showOffline} aria-controls="fp-offline" onClick={toggleOffline}>
-              <span className="fp-offline-ring" aria-hidden="true" />
-              {showOffline
-                ? 'Masquer les amis hors ligne'
-                : offline.length === 1
-                  ? "Afficher l'ami hors ligne"
-                  : `Afficher les ${offline.length} amis hors ligne`}
-            </button>
-            <div id="fp-offline" hidden={!showOffline}>
-              <Section kind="offline" label="Hors ligne" count={offline.length}>
-                <PalGrid entries={offline} />
-              </Section>
-            </div>
-          </>
-        )}
-      </>
-    )
-  }
-
-  return (
-    <div className="fp" aria-busy={loading}>
-      <div className="fp-bar">
-        {(query || pals.length + allMembers.length > 0) && (
-          <label className="fp-search">
-            <Icon name="search" size={17} className="fp-search-icon" />
-            <span className="sr-only">Chercher un ami</span>
-            <input
-              type="search"
-              className="fp-search-input"
-              placeholder="Chercher un ami"
-              value={query}
-              spellCheck={false}
-              autoComplete="off"
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape' && query) {
-                  e.preventDefault()
-                  setQuery('')
-                }
-              }}
-            />
-            {query && (
-              <button type="button" className="fp-search-clear" aria-label="Effacer la recherche" title="Effacer la recherche" onClick={() => setQuery('')}>
-                <Icon name="x" size={13} />
-              </button>
-            )}
-          </label>
-        )}
-        {platforms.length > 1 && (
-          <div className="fp-pills" role="group" aria-label="Plateforme">
-            {(['all', ...platforms] as Filter[]).map((p) => {
-              const n = p === 'all' ? found.length : found.filter((e) => e.friend.platform === p).length
-              return (
-                <button key={p} type="button" className="fp-pill" aria-pressed={active === p} onClick={() => setFilter(p)}>
-                  {p === 'all' ? 'Tous' : PLATFORM_NAME[p]} · <span className="num">{n}</span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-        {/* Sans aucune source d'amis, ni recherche ni rien à actualiser */}
-        {!noAccount && (
-          <button
-            type="button"
-            className="icon-btn fp-refresh"
-            aria-label="Actualiser les amis"
-            title="Actualiser les amis"
-            aria-busy={loading}
-            onClick={() => {
-              if (!loading) onRefresh()
-            }}
+          <Group
+            id="fp-g-offline"
+            label="Hors ligne"
+            count={offline.length}
+            toggle={{ open: showOffline, onToggle: toggleOffline, controls: 'fp-g-offline-list' }}
           >
-            <Icon name="refresh" size={16} className={loading ? 'spin' : undefined} />
-          </button>
+            {showOffline && <Rows id="fp-g-offline" listId="fp-g-offline-list" entries={offline} selected={selected} pulsing={pulsing} onChoose={choose} />}
+          </Group>
         )}
-      </div>
 
-      <div className="fp-layout">
-        <div className="fp-main">{main}</div>
-        {showPanel && (
-          <MembersPanel
-            server={result.discordServer}
-            total={allMembers.length}
-            members={members}
-            searching={!!query.trim()}
-            error={result.errors.discord}
-            masked={masked}
-            pulsing={pulsing}
-            onHide={hide}
-            onFix={onOpenAccounts}
-            onManageHidden={onManageHidden}
-          />
+        {showMembers && (
+          <section className="fp-group fp-members" aria-labelledby="fp-g-members">
+            <h2 id="fp-g-members" className="fp-group-h">
+              <span>Membres du serveur</span>
+              <span className="fp-group-sep" aria-hidden="true">
+                ·
+              </span>
+              <span className="fp-server" title={result.discordServer}>
+                {result.discordServer || 'Discord'}
+              </span>
+            </h2>
+            {result.errors.discord && <ErrorNote platform="discord" message={result.errors.discord} onFix={onOpenAccounts} />}
+            {members.length > 0 ? (
+              <Rows id="fp-g-members" entries={members} selected={selected} pulsing={pulsing} onChoose={choose} />
+            ) : (
+              !result.errors.discord && (
+                <p className="fp-caption fp-members-empty">
+                  {query.trim() && allMembers.length > 0 ? 'Aucun membre ne correspond.' : "Personne en ligne sur le serveur pour l'instant."}
+                </p>
+              )
+            )}
+            <p className="fp-discord-note">
+              {masked ? `${masked.charAt(0).toUpperCase()}${masked.slice(1)}.` : 'Les bots sont masqués.'} Un membre que tu masques se retrouve dans
+              Paramètres › Comptes ›{' '}
+              <button type="button" className="sf-masked-btn" onClick={onManageHidden} aria-label="Membres masqués : ouvrir Paramètres › Comptes">
+                Membres masqués
+              </button>
+              .
+            </p>
+          </section>
         )}
       </div>
     </div>
   )
+
+  const detail = selected ? (
+    <FriendDetail
+      entry={selected}
+      server={result.discordServer}
+      onOpenGame={onOpenGame}
+      onHide={hide}
+      onBack={narrow ? back : undefined}
+    />
+  ) : (
+    <div className="fp-pane-detail fp-detail fp-detail-none">
+      <p className="fp-caption">{visible.length === 0 && pals.length + allMembers.length > 0 ? 'Personne à montrer avec ce filtre.' : 'Personne à afficher pour l’instant.'}</p>
+    </div>
+  )
+
+  return (
+    <div className={`fp ${narrow ? 'is-single' : ''}`} ref={rootRef} aria-busy={loading}>
+      {narrow ? (showDetail ? detail : list) : (
+        <>
+          {list}
+          {detail}
+        </>
+      )}
+    </div>
+  )
 }
 
-type SectionKind = 'in-game' | 'online' | 'away' | 'offline'
-
-function Section({ kind, label, count, children }: { kind: SectionKind; label: string; count: number; children: React.ReactNode }): React.JSX.Element {
-  const id = `fp-sec-${kind}`
+function Group({
+  id,
+  label,
+  count,
+  toggle,
+  children
+}: {
+  id: string
+  label: string
+  count: number
+  toggle?: { open: boolean; onToggle: () => void; controls: string }
+  children: React.ReactNode
+}): React.JSX.Element {
   return (
-    <section className="fp-section" aria-labelledby={id}>
-      <h2 id={id} className="fp-h2">
-        <span className={`fp-mark fp-mk-${kind}`} aria-hidden="true" />
-        {label} <span className="fp-h2-count num">{count}</span>
+    <section className="fp-group" aria-labelledby={id}>
+      <h2 className="fp-group-h">
+        {toggle ? (
+          <button type="button" id={id} className="fp-group-toggle" aria-expanded={toggle.open} aria-controls={toggle.controls} onClick={toggle.onToggle}>
+            {label}
+            <span className="fp-group-sep" aria-hidden="true">
+              ·
+            </span>
+            <span className="num">{count}</span>
+            <Icon name="chevron-down" size={14} className="fp-chevron" />
+          </button>
+        ) : (
+          <span id={id}>
+            {label}
+            <span className="fp-group-sep" aria-hidden="true">
+              ·
+            </span>
+            <span className="num">{count}</span>
+          </span>
+        )}
       </h2>
       {children}
     </section>
   )
 }
 
-/** Carte « En jeu » : l'image du jeu s'il est dans la bibliothèque, sinon un fond neutre. */
-function PlayCard({ entry, pulse }: { entry: Entry; pulse: boolean }): React.JSX.Element {
-  const { friend, game, lib } = entry
-  const art = lib?.heroUrl || lib?.coverUrl
-  const [broken, setBroken] = useState<string | null>(null)
-  const meta = palMeta(entry)
+/** Rangées d'un groupe : une liste de choix (listbox), une seule rangée dans l'ordre de tabulation (la choisie). */
+function Rows({
+  id,
+  listId,
+  entries,
+  selected,
+  pulsing,
+  onChoose
+}: {
+  id: string
+  listId?: string
+  entries: Entry[]
+  selected: Entry | undefined
+  pulsing: ReadonlySet<string>
+  onChoose: (e: Entry, open: boolean) => void
+}): React.JSX.Element {
   return (
-    <li className="fp-play">
-      <div className="fp-play-art">
-        {art && broken !== art && (
-          <img className={lib?.heroUrl ? '' : 'is-cover'} src={art} alt="" loading="lazy" draggable={false} onError={() => setBroken(art)} />
-        )}
-      </div>
-      <div className="fp-play-body">
-        <span className={`fp-av fx-loop ${pulse ? 'is-pulsing' : ''}`}>
-          <Avatar name={friend.name} url={friend.avatarUrl} size={52} status="in-game" />
-        </span>
-        <span className="fp-text">
-          <span className="fp-name" title={friend.name}>
-            {friend.name}
-          </span>
-          <span className="fp-game" title={game}>
-            {game}
-          </span>
-          <span className="fp-meta" title={meta}>
-            {meta}
-          </span>
-        </span>
-      </div>
-    </li>
-  )
-}
-
-function PalGrid({ entries }: { entries: Entry[] }): React.JSX.Element {
-  return (
-    <ul className="fp-grid">
+    <ul id={listId} className="fp-rows" role="listbox" aria-labelledby={id}>
       {entries.map((e) => {
-        const meta = palMeta(e)
+        const on = selected?.friend.id === e.friend.id
+        const sub = rowSub(e)
+        const pf = e.friend.platform === 'discord' ? '' : PLATFORM_NAME[e.friend.platform]
         return (
-          <li key={e.friend.id} className={`fp-pal st-${e.status}`}>
-            <Avatar name={e.friend.name} url={e.friend.avatarUrl} size={40} status={e.status} />
+          <li
+            key={e.friend.id}
+            role="option"
+            aria-selected={on}
+            tabIndex={on ? 0 : -1}
+            data-id={e.friend.id}
+            className={`fp-row st-${e.status}`}
+            onClick={() => onChoose(e, true)}
+          >
+            <Ring entry={e} size={44} pulse={pulsing.has(e.friend.id)} />
             <span className="fp-text">
               <span className="fp-name" title={e.friend.name}>
                 {e.friend.name}
               </span>
-              <span className="fp-meta" title={meta}>
-                {meta}
+              <span className="fp-sub" title={sub}>
+                {e.status === 'in-game' && <Icon name="play" size={9} className="fp-sub-play" />}
+                <span className="fp-sub-text">{sub}</span>
               </span>
             </span>
+            {pf && <span className="fp-row-pf">{pf}</span>}
           </li>
         )
       })}
@@ -485,85 +606,140 @@ function PalGrid({ entries }: { entries: Entry[] }): React.JSX.Element {
   )
 }
 
-interface PanelProps {
-  server?: string
-  /** Membres affichés sur le serveur, avant la recherche. */
-  total: number
-  members: Entry[]
-  searching: boolean
-  error?: string
-  masked: string
-  pulsing: ReadonlySet<string>
-  onHide: (e: Entry) => void
-  onFix: () => void
-  onManageHidden: () => void
+/** Avatar dans un anneau de la couleur de sa présence ; en jeu, un petit ▶ cyan. */
+function Ring({ entry, size, pulse }: { entry: Entry; size: number; pulse?: boolean }): React.JSX.Element {
+  return (
+    <span className={`fp-ring st-${entry.status} ${pulse ? 'is-pulsing' : ''}`}>
+      <Avatar key={entry.friend.id} name={entry.friend.name} url={entry.friend.avatarUrl} size={size} />
+      {entry.status === 'in-game' && (
+        <span className="fp-ring-play" aria-hidden="true">
+          <Icon name="play" size={Math.round(size / 5)} />
+        </span>
+      )}
+    </span>
+  )
 }
 
-/** Panneau Discord : les membres du serveur (widget public), qu'on peut masquer. */
-function MembersPanel({ server, total, members, searching, error, masked, pulsing, onHide, onFix, onManageHidden }: PanelProps): React.JSX.Element {
+/** Fiche de la personne choisie : présence, jeu en cours, et seulement des actions qui font vraiment quelque chose. */
+function FriendDetail({
+  entry,
+  server,
+  onOpenGame,
+  onHide,
+  onBack
+}: {
+  entry: Entry
+  server?: string
+  onOpenGame: SideFriendsProps['onOpenGame']
+  onHide: (e: Entry) => void
+  onBack?: () => void
+}): React.JSX.Element {
+  const { friend, status, game, lib, activity } = entry
+  const member = friend.platform === 'discord'
+  const profile = steamProfileUrl(friend)
+  const backRef = useRef<HTMLButtonElement>(null)
+  const single = !!onBack
+  // Fiche ouverte à la place de la liste : le focus part sur « Retour ».
+  useEffect(() => {
+    if (single) backRef.current?.focus()
+  }, [single])
+
+  const kicker = `${STATUS_LABEL[status]} · ${member ? 'Discord' : PLATFORM_NAME[friend.platform]}`
+  // Ligne sous le pseudo : ce qu'il fait, quand ça ajoute quelque chose au statut.
+  const line =
+    status === 'in-game'
+      ? `Joue à ${game}${friend.device ? ` sur ${friend.device}` : ''}`
+      : activity
+        ? `Activité : ${activity}`
+        : status !== 'offline' && friend.device
+          ? `Sur ${friend.device}`
+          : status === 'offline'
+            ? lastSeenLabel(friend.lastSeen)
+            : ''
+  const meta = member ? `Membre du serveur ${server || 'Discord'}` : friendSinceLabel(friend.since)
+
   return (
-    <aside className="fp-discord" aria-labelledby="fp-discord-title">
-      <div className="fp-discord-head">
-        <span className="fp-server-icon" aria-hidden="true">
-          {server ? server.trim().charAt(0).toUpperCase() : <Icon name="users" size={20} />}
-        </span>
-        <span className="fp-text">
-          <span id="fp-discord-title" className="fp-server-name" title={server}>
-            {server || 'Serveur Discord'}
-          </span>
-          <span className="fp-meta">
-            Membres du serveur · Discord
-            {total > 0 && <span className="fp-nowrap"> · {total} en ligne</span>}
-          </span>
-        </span>
-      </div>
-      {error && <ErrorNote platform="discord" message={error} onFix={onFix} />}
-      {members.length > 0 ? (
-        <ul className="fp-members">
-          {members.map((e) => {
-            const meta = memberMeta(e)
-            return (
-              <li key={e.friend.id} className={`fp-member st-${e.status}`} data-member={e.friend.id}>
-                <span className={`fp-av ${e.status === 'in-game' ? 'fx-loop' : ''} ${pulsing.has(e.friend.id) ? 'is-pulsing' : ''}`}>
-                  <Avatar name={e.friend.name} url={e.friend.avatarUrl} size={36} status={e.status} />
-                </span>
-                <span className="fp-text">
-                  <span className="fp-name" title={e.friend.name}>
-                    {e.friend.name}
-                  </span>
-                  <span className="fp-meta" title={meta}>
-                    {meta}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className="icon-btn icon-btn-sm sf-hide"
-                  aria-label={`Masquer ${e.friend.name}`}
-                  title="Masquer de la liste"
-                  onClick={() => onHide(e)}
-                >
-                  <Icon name="eye-off" size={14} />
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      ) : (
-        !error && (
-          <p className="fp-caption fp-members-empty">
-            {searching && total > 0 ? 'Aucun membre ne correspond.' : "Personne en ligne sur le serveur pour l'instant."}
-          </p>
-        )
-      )}
-      <p className="fp-discord-note">
-        {masked ? `${masked.charAt(0).toUpperCase()}${masked.slice(1)}.` : 'Les bots sont masqués.'} Un membre que tu masques se retrouve dans Paramètres ›
-        Comptes ›{' '}
-        <button type="button" className="sf-masked-btn" onClick={onManageHidden} aria-label="Membres masqués : ouvrir Paramètres › Comptes">
-          Membres masqués
+    <section className={`fp-pane-detail fp-detail st-${status}`} aria-labelledby="fp-detail-name">
+      {onBack && (
+        <button ref={backRef} type="button" className="btn btn-ghost btn-sm fp-back" onClick={onBack}>
+          <Icon name="chevron-left" size={16} />
+          Retour
         </button>
-        .
-      </p>
-    </aside>
+      )}
+      <div className="fp-detail-body">
+        <span className="fp-hero">
+          <Avatar key={friend.id} name={friend.name} url={friend.avatarUrl} size={140} />
+          {status === 'in-game' && (
+            <span className="fp-hero-play" aria-hidden="true">
+              <Icon name="play" size={22} />
+            </span>
+          )}
+        </span>
+        <p className="fp-kicker">
+          <StatusMark status={status} />
+          {kicker}
+        </p>
+        <h2 id="fp-detail-name" className="fp-detail-name" title={friend.name}>
+          {friend.name}
+        </h2>
+        {line && <p className="fp-detail-line">{line}</p>}
+        {meta && <p className="fp-detail-meta">{meta}</p>}
+        {friend.presenceUnknown && <p className="fp-detail-meta">PlayStation n’a pas donné sa présence cette fois-ci : le statut peut être en retard.</p>}
+
+        {status === 'in-game' && game && <NowPlaying game={game} lib={lib} onOpenGame={onOpenGame} />}
+
+        {(profile || member) && (
+          <div className="fp-actions">
+            {profile && (
+              <button type="button" className="btn btn-secondary btn-lg fp-action" onClick={() => void window.launcher.openExternal(profile)}>
+                <Icon name="user" size={17} />
+                Voir le profil Steam
+                <Icon name="external-link" size={15} className="fp-action-ext" />
+              </button>
+            )}
+            {member && (
+              <button type="button" className="btn btn-secondary btn-lg fp-action sf-hide" onClick={() => onHide(entry)}>
+                <Icon name="eye-off" size={17} />
+                Masquer de la liste
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function StatusMark({ status }: { status: FriendStatus }): React.JSX.Element {
+  return status === 'in-game' ? <Icon name="play" size={10} className="fp-mark" /> : <span className={`fp-mark fp-mk-${status}`} aria-hidden="true" />
+}
+
+/** Carte « Joue à » : l'image du jeu et sa fiche s'il est dans la bibliothèque. */
+function NowPlaying({ game, lib, onOpenGame }: { game: string; lib?: Entry['lib']; onOpenGame: SideFriendsProps['onOpenGame'] }): React.JSX.Element {
+  const art = lib?.heroUrl || lib?.coverUrl
+  const [broken, setBroken] = useState<string | null>(null)
+  const hasArt = !!art && broken !== art
+  return (
+    <div className={`fp-now ${hasArt ? 'has-art' : ''}`}>
+      {hasArt && (
+        <img className={`fp-now-art ${lib?.heroUrl ? '' : 'is-cover'}`} src={art} alt="" loading="lazy" draggable={false} onError={() => setBroken(art)} />
+      )}
+      <div className="fp-now-text">
+        <p className="fp-kicker">
+          <Icon name="play" size={10} className="fp-mark" />
+          Joue à
+        </p>
+        <p className="fp-now-game" title={game}>
+          {game}
+        </p>
+        <p className="fp-now-note">{lib ? 'Installé sur ce PC' : 'Pas trouvé parmi tes jeux installés'}</p>
+      </div>
+      {lib && (
+        <button type="button" className="btn btn-secondary btn-sm fp-now-open" onClick={() => onOpenGame(lib)}>
+          Voir la fiche
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -590,9 +766,9 @@ function Empty({ text, children }: { text: string; children: React.ReactNode }):
   )
 }
 
-function ConnectButton({ onClick }: { onClick: () => void }): React.JSX.Element {
+function ConnectButton({ onClick, primary }: { onClick: () => void; primary?: boolean }): React.JSX.Element {
   return (
-    <button type="button" className="btn btn-secondary btn-sm" onClick={onClick}>
+    <button type="button" className={`btn ${primary ? 'btn-primary' : 'btn-secondary btn-sm'}`} onClick={onClick}>
       <Icon name="link" size={14} />
       Connecter un compte
     </button>
@@ -603,18 +779,9 @@ function Skeleton(): React.JSX.Element {
   return (
     <div className="fp-skeleton">
       <span className="sr-only">Chargement…</span>
-      <span className="skel fp-skel-title" aria-hidden="true" />
-      <div className="fp-grid fp-grid-play" aria-hidden="true">
-        {[0, 1, 2].map((i) => (
-          <span key={i} className="skel fp-skel-play" />
-        ))}
-      </div>
-      <span className="skel fp-skel-title" aria-hidden="true" />
-      <div className="fp-grid" aria-hidden="true">
-        {[0, 1, 2, 3].map((i) => (
-          <span key={i} className="skel fp-skel-pal" />
-        ))}
-      </div>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span key={i} className="skel fp-skel-row" aria-hidden="true" />
+      ))}
     </div>
   )
 }

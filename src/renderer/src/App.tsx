@@ -6,7 +6,7 @@ import { Trophies } from './components/achievements/Trophies'
 import { Ambient } from './components/Ambient'
 import { FavRail } from './components/FavRail'
 import { FriendsPage } from './components/friends/FriendsPage'
-import { countInGame } from './components/friends/SideFriends'
+import { countInGame } from './components/friends/friendView'
 import { FriendAlerts } from './components/FriendAlerts'
 import { GameSheet } from './components/GameSheet'
 import { Home } from './components/home/Home'
@@ -133,7 +133,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   const [friendsLoading, setFriendsLoading] = useState(false)
   const [query, setQuery] = useState('')
   // Ami choisi dans la recherche globale : la page Amis s'ouvre filtrée sur lui (n force un nouvel affichage).
-  const [friendsQuery, setFriendsQuery] = useState<{ text: string; n: number }>({ text: '', n: 0 })
+  const [friendsQuery, setFriendsQuery] = useState<{ text: string; n: number; id?: string }>({ text: '', n: 0 })
   const [openGameId, setOpenGameId] = useState<string | null>(null)
   // Annonce à ouvrir dans le lecteur de la fiche (accueil, page Actus des jeux).
   const [openPostId, setOpenPostId] = useState<string | null>(null)
@@ -601,7 +601,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       if (g) launch ? startLaunch(g) : openSheet(g)
       else if (missing) openSheet(missing)
     } else if (kind === 'friend') {
-      setFriendsQuery((q) => ({ text: item.label, n: q.n + 1 }))
+      setFriendsQuery((q) => ({ text: item.label, n: q.n + 1, id: key }))
       go('friends')
     } else if (key.startsWith('settings:')) goSettings(key.slice('settings:'.length) as SettingsSection)
     else if (key === 'action:rescan') loadGames(true)
@@ -624,7 +624,9 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       setSettingsFocus('hidden-members')
       goSettings('accounts')
     },
-    initialQuery: friendsQuery.text
+    initialQuery: friendsQuery.text,
+    initialFriendId: friendsQuery.id,
+    onOpenGame: openSheet
   }
   const friendsInGame = countInGame(friends.friends, games)
 

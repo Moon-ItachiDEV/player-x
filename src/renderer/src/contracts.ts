@@ -62,6 +62,10 @@ export interface SideFriendsProps {
   onManageHidden: () => void
   /** Texte de recherche au départ (ami choisi dans la recherche globale). */
   initialQuery?: string
+  /** Ami choisi dans la recherche globale (`steam:…`) : sélectionné et montré à l'arrivée. */
+  initialFriendId?: string
+  /** Ouvre la fiche d'un jeu de la bibliothèque (carte « Joue à »). */
+  onOpenGame: (g: Game) => void
 }
 
 /** components/TopBar.tsx → `export function TopBar` */
