@@ -368,3 +368,7 @@ kbd {
   .btn-metal:not(.gl) { animation: spin 6s linear infinite; }
   @keyframes spin { to { --spin: 360deg; } }
 }
+/* Avec le shader, le chrome et la laque sont dessinés par WebGL : plus de calque CSS par-dessus */
+.btn-metal.gl { background: #2a1a24; }
+.btn-metal.gl::before { display: none; }
+.btn-metal.gl { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25); }
