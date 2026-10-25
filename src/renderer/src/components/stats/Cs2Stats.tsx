@@ -169,11 +169,6 @@ export function Cs2Stats({ state, live, onOpenSettings }: { state: Cs2State; liv
         {tab === 'maps' && <MapsTab state={lifetime} recaps={recaps} onOpenSettings={onOpenSettings} />}
         {tab === 'matches' && (recaps.length === 0 ? !live && <Empty /> : <Matches list={recaps} title="Tous tes matchs" full />)}
       </div>
-
-      <p className="caption bf-source">
-        Stats à vie lues sur la Steam Web API de Valve avec ta clé (totaux CS:GO et CS2 confondus). Matchs suivis : données envoyées par Counter-Strike 2 lui-même
-        (Game State Integration de Valve), seulement pour ton compte et gardées sur ce PC. Player X n’est pas affilié à Valve.
-      </p>
     </>
   )
 }
