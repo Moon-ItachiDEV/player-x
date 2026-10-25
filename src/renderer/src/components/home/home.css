@@ -7,6 +7,13 @@
   flex-direction: column;
   gap: 40px;
   container-type: inline-size;
+  /* L'accueil tient dans la fenêtre sans barre de défilement (taille par défaut 1600 × 940, demande de Breezydev) :
+     moins de marge en bas, et le jeu à la une prend la hauteur qui reste au-dessus de « Ta bibliothèque ».
+     468 px = barre du haut 56 + marge du haut 28 + écart 40 + rangée 320 + marge du bas 24. */
+  --hm-fit: clamp(400px, calc(100vh - 468px), 660px);
+}
+.page.home {
+  padding-bottom: 24px;
 }
 
 /* ---------- pièces communes ---------- */
@@ -133,7 +140,8 @@
   position: relative;
   flex: 999 1 640px;
   min-width: 0;
-  min-height: 460px;
+  min-height: min(460px, var(--hm-fit));
+  height: var(--hm-fit);
   display: flex;
   isolation: isolate;
   border-radius: var(--r-xl);
