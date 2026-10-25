@@ -2,143 +2,140 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Player X · tes jeux PC dans une seule app</title>
-<meta name="description" content="Player X est une application gratuite pour Windows : tes jeux Steam, Epic et EA, tes stats CS2 et Battlefield 6, tes succès Steam, les actus de tes jeux et un overlay pour Counter-Strike 2.">
-<meta name="theme-color" content="#0c0a11">
-<meta property="og:title" content="Player X">
-<meta property="og:description" content="Tes jeux Steam, Epic et EA. Une seule app. Gratuit, pour Windows.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Player X · tous tes jeux, une seule app</title>
+<meta name="description" content="Player X, l'app gratuite pour Windows qui réunit tes jeux Steam, Epic et EA, tes stats Battlefield 6 et CS2, tes succès Steam, les patchs de tes jeux et un overlay pour Counter-Strike 2.">
+<meta name="theme-color" content="#07060a">
+<meta property="og:title" content="Player X · tous tes jeux, une seule app">
+<meta property="og:description" content="Steam, Epic et EA réunis. Gratuit, pour Windows.">
 <meta property="og:type" content="website">
-<meta property="og:image" content="/assets/v1/img/og.jpg">
-<link rel="icon" href="/assets/v1/img/px-icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/assets/v1/img/apple-touch-icon.png">
-<link rel="preload" href="/assets/v1/fonts/inter-tight-latin-900-italic.woff2" as="font" type="font/woff2" crossorigin>
-<script>(function(){var d=document.documentElement,q=matchMedia('(min-width: 1024px) and (min-height: 700px) and (prefers-reduced-motion: no-preference)');d.classList.add('js',window.CSS&&CSS.supports('(animation-timeline: view()) and (animation-range: entry)')?'sda':'nosda');if(q.matches)d.classList.add('pin');})();</script>
-<link rel="stylesheet" href="/assets/v1/css/site.css">
-<script type="module" src="/assets/v1/js/site.js"></script>
+<meta property="og:image" content="/assets/v2/img/og.jpg">
+<link rel="icon" href="/assets/v2/img/px-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/v2/img/apple-touch-icon.png">
+<link rel="preload" href="/assets/v2/fonts/inter-tight-latin-900-italic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/v2/css/site.css">
+<script type="module" src="/assets/v2/js/site.js"></script>
 </head>
 <body>
 <a class="skip" href="#contenu">Aller au contenu</a>
-
-<svg class="sr" aria-hidden="true" focusable="false">
+<svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
   <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8M5 12.5V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6.5"/></symbol>
+  <symbol id="i-gh" viewBox="0 0 24 24"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></symbol>
 </svg>
 
 <header class="bar">
-  <a class="brand" href="#contenu"><img src="/assets/v1/img/px-icon.svg" width="34" height="34" alt="">Player X</a>
-  <nav aria-label="Liens principaux">
-    <a href="https://github.com/Moon-ItachiDEV/player-x/releases">Notes de version</a>
-    <a class="btn btn--main btn--small" href="/telecharger">Télécharger</a>
+  <a class="brand" href="#contenu"><img src="/assets/v2/img/px-icon.svg" width="36" height="36" alt="">Player X</a>
+  <nav aria-label="Sections">
+    <a href="#jeux">Jeux</a><a href="#stats">Stats</a><a href="#trophees">Trophées</a><a href="#actus">Actus</a><a href="#overlay">Overlay</a>
   </nav>
+  <a class="btn btn-sm" href="/telecharger"><svg class="ic" aria-hidden="true"><use href="#i-dl"/></svg>Télécharger</a>
 </header>
 
 <main id="contenu">
-
-<!-- ═════════════════ Cran par cran : captures réelles de l’app ═════════════════ -->
-<section class="wrap scene" aria-label="Player X, cran par cran" data-step="0">
-
-  <div class="step st-0" id="accueil">
-    <div class="hero-copy">
-      <h1 class="t-xl"><span>Tes jeux Steam,</span> <span>Epic et EA.</span> <span>Une seule app.</span></h1>
-      <div class="hero-cta">
-        <a class="btn btn--main dl-desk" href="/telecharger"><svg class="ic" aria-hidden="true"><use href="#i-dl"/></svg>Télécharger</a>
-        <button class="btn btn--main share" type="button" data-share><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg><span>Envoie le lien sur ton PC</span></button>
-        <p class="hero-meta">Gratuit · Windows · <span data-v>0.9.4</span></p>
+  <section class="hero" aria-labelledby="t-hero">
+    <div class="wall" aria-hidden="true">
+      <div class="wall-row"><img src="/assets/v2/img/covers/j04.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j11.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j13.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j08.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j10.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j05.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j12.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j11.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j10.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="277" alt="" decoding="async" loading="lazy"></div>
+      <div class="wall-row"><img src="/assets/v2/img/covers/j10.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j06.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j03.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j09.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j08.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j05.webp" width="183" height="277" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j01.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j11.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j10.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j11.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="277" alt="" decoding="async" loading="lazy"></div>
+      <div class="wall-row"><img src="/assets/v2/img/covers/j06.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j11.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j10.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j11.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j10.webp" width="183" height="277" alt="" decoding="async" loading="lazy"></div>
+      <div class="wall-row"><img src="/assets/v2/img/covers/j11.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j10.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j11.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="277" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j10.webp" width="183" height="277" alt="" decoding="async" loading="lazy"></div>
+    </div>
+    <div class="wrap hero-in">
+      <div>
+        <h1 class="mega" id="t-hero"><span>Tous tes jeux.</span> <span class="grad">Une seule app.</span></h1>
+        <p class="lead">Steam, Epic et EA réunis, avec tes stats, tes succès et les patchs de tes jeux.</p>
+        <div class="cta-row">
+          <a class="btn on-pc" href="/telecharger"><svg class="ic" aria-hidden="true"><use href="#i-dl"/></svg>Télécharger gratuitement</a>
+          <button class="btn on-mobile" type="button" data-share><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg><span>Envoie le lien sur ton PC</span></button>
+          <p class="meta">Gratuit · Windows · <b data-v>0.9.4</b></p>
+        </div>
+      </div>
+      <div class="hero-icon" aria-hidden="true">
+        <picture><source type="image/avif" srcset="/assets/v2/img/px-icon-512.avif"><img src="/assets/v2/img/px-icon-512.webp" width="512" height="512" alt=""></picture>
       </div>
     </div>
-  </div>
-  <div class="step st-1" id="bibliotheque">
-    <h2 class="t-l">Un clic, et tu joues.</h2>
-    <p class="lede">Tes jeux trouvés sur ton PC, avec ton temps de jeu.</p>
-  </div>
-  <div class="step st-2" id="stats">
-    <h2 class="t-l">Tes stats CS2 et Battlefield&nbsp;6.</h2>
-  </div>
-  <div class="step st-3" id="trophees">
-    <h2 class="t-l">Tes succès Steam, au même endroit.</h2>
-  </div>
-  <div class="step st-4" id="actus">
-    <h2 class="t-l">Les patchs de tes jeux.</h2>
-  </div>
-  <div class="step st-5" id="mises-a-jour">
-    <h2 class="t-l">Mise à jour&#8239;? Quand tu veux.</h2>
-  </div>
-  <div class="tail" aria-hidden="true"></div>
+  </section>
 
-  <div class="stage">
-    <div class="stage-stick">
-      <nav class="toc" aria-label="Étapes">
-        <a class="toc-0" href="#accueil" aria-current="step"><span>Accueil</span></a>
-        <a class="toc-1" href="#bibliotheque"><span>Bibliothèque</span></a>
-        <a class="toc-2" href="#stats"><span>Stats</span></a>
-        <a class="toc-3" href="#trophees"><span>Trophées</span></a>
-        <a class="toc-4" href="#actus"><span>Actus</span></a>
-        <a class="toc-5" href="#mises-a-jour"><span>Mises à jour</span></a>
-      </nav>
-      <div class="frame">
-        <figure class="vw vw-0"><picture><source type="image/avif" srcset="/assets/v1/img/shots/accueil-800.avif 800w, /assets/v1/img/shots/accueil-1200.avif 1200w, /assets/v1/img/shots/accueil-1600.avif 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><source type="image/webp" srcset="/assets/v1/img/shots/accueil-800.webp 800w, /assets/v1/img/shots/accueil-1200.webp 1200w, /assets/v1/img/shots/accueil-1600.webp 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><img src="/assets/v1/img/shots/accueil-1200.webp" width="1600" height="939" alt="Accueil de Player X : Battlefield 6 à la une, les dernières mises à jour de tes jeux, ta dernière session et ta bibliothèque." fetchpriority="high"></picture><figcaption class="cap">Capture de Player X</figcaption></figure>
-        <figure class="vw vw-1"><picture><source type="image/avif" srcset="/assets/v1/img/shots/bibliotheque-800.avif 800w, /assets/v1/img/shots/bibliotheque-1200.avif 1200w, /assets/v1/img/shots/bibliotheque-1600.avif 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><source type="image/webp" srcset="/assets/v1/img/shots/bibliotheque-800.webp 800w, /assets/v1/img/shots/bibliotheque-1200.webp 1200w, /assets/v1/img/shots/bibliotheque-1600.webp 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><img src="/assets/v1/img/shots/bibliotheque-1200.webp" width="1600" height="939" alt="Bibliothèque de Player X : tes jeux Steam et EA en jaquettes, triés par dernière partie, installés ou non." loading="lazy" decoding="async"></picture><figcaption class="cap">Capture de Player X</figcaption></figure>
-        <figure class="vw vw-2"><picture><source type="image/avif" srcset="/assets/v1/img/shots/stats-800.avif 800w, /assets/v1/img/shots/stats-1200.avif 1200w, /assets/v1/img/shots/stats-1600.avif 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><source type="image/webp" srcset="/assets/v1/img/shots/stats-800.webp 800w, /assets/v1/img/shots/stats-1200.webp 1200w, /assets/v1/img/shots/stats-1600.webp 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><img src="/assets/v1/img/shots/stats-1200.webp" width="1600" height="939" alt="Stats de Battlefield 6 dans Player X : tes cartes, avec le nombre de matchs, le taux de victoire et le temps de jeu." loading="lazy" decoding="async"></picture><figcaption class="cap">Capture de Player X</figcaption></figure>
-        <figure class="vw vw-3"><picture><source type="image/avif" srcset="/assets/v1/img/shots/trophees-800.avif 800w, /assets/v1/img/shots/trophees-1200.avif 1200w, /assets/v1/img/shots/trophees-1600.avif 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><source type="image/webp" srcset="/assets/v1/img/shots/trophees-800.webp 800w, /assets/v1/img/shots/trophees-1200.webp 1200w, /assets/v1/img/shots/trophees-1600.webp 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><img src="/assets/v1/img/shots/trophees-1200.webp" width="1600" height="939" alt="Trophées dans Player X : tes succès Steam débloqués, la progression d’ARC Raiders et de tes autres jeux." loading="lazy" decoding="async"></picture><figcaption class="cap">Capture de Player X</figcaption></figure>
-        <figure class="vw vw-4"><picture><source type="image/avif" srcset="/assets/v1/img/shots/actus-800.avif 800w, /assets/v1/img/shots/actus-1200.avif 1200w, /assets/v1/img/shots/actus-1600.avif 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><source type="image/webp" srcset="/assets/v1/img/shots/actus-800.webp 800w, /assets/v1/img/shots/actus-1200.webp 1200w, /assets/v1/img/shots/actus-1600.webp 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><img src="/assets/v1/img/shots/actus-1200.webp" width="1600" height="939" alt="Actus de Player X : l’actu à la une sur une carte en verre et les plus récentes de tes jeux." loading="lazy" decoding="async"></picture><figcaption class="cap">Capture de Player X</figcaption></figure>
-        <figure class="vw vw-5"><picture><source type="image/avif" srcset="/assets/v1/img/shots/apropos-800.avif 800w, /assets/v1/img/shots/apropos-1200.avif 1200w, /assets/v1/img/shots/apropos-1600.avif 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><source type="image/webp" srcset="/assets/v1/img/shots/apropos-800.webp 800w, /assets/v1/img/shots/apropos-1200.webp 1200w, /assets/v1/img/shots/apropos-1600.webp 1600w" sizes="(min-width: 1024px) 58vw, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><img src="/assets/v1/img/shots/apropos-1200.webp" width="1600" height="939" alt="Paramètres de Player X, À propos : la version installée, le canal Stable ou Bêta, la vérification des mises à jour et Tes données." loading="lazy" decoding="async"></picture><figcaption class="cap">Capture de Player X</figcaption></figure>
+  <section class="reveal" aria-labelledby="t-qg">
+    <div class="wrap">
+      <div class="reveal-head">
+        <h2 class="mega" id="t-qg">Ton <span class="grad">QG.</span></h2>
+        <p>Le jeu à la une, ta dernière session et les patchs de tes jeux, dès l’ouverture.</p>
       </div>
+      <div class="stage"><div class="screen"><picture><source type="image/avif" srcset="/assets/v2/img/shots/accueil-800.avif 800w, /assets/v2/img/shots/accueil-1200.avif 1200w, /assets/v2/img/shots/accueil-1600.avif 1600w" sizes="(max-width: 1600px) 94vw, 1600px"><source type="image/webp" srcset="/assets/v2/img/shots/accueil-800.webp 800w, /assets/v2/img/shots/accueil-1200.webp 1200w, /assets/v2/img/shots/accueil-1600.webp 1600w" sizes="(max-width: 1600px) 94vw, 1600px"><img src="/assets/v2/img/shots/accueil-1200.webp" width="1600" height="939" alt="Accueil de Player X" loading="lazy" decoding="async"></picture></div></div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ═════════════════ Overlay ═════════════════ -->
-<section class="ov" id="overlay" aria-labelledby="ov-t">
-  <div class="wrap">
-    <div class="ov-head">
-      <h2 class="t-l" id="ov-t">Alt + X.</h2>
-      <p class="lede">Temps d’achat, mi-temps, bilan de fin de match, par-dessus CS2. Seulement les données officielles du jeu, via la Game State Integration de Valve.</p>
+  <div class="band" aria-hidden="true"><div class="band-track"><p class="mega"><span>Steam</span><span class="dot">•</span><span class="o">Epic</span><span class="dot">•</span><span>EA</span><span class="dot">•</span><span class="o">Stats</span><span class="dot">•</span><span>Trophées</span><span class="dot">•</span><span class="o">Actus</span><span class="dot">•</span><span>Overlay CS2</span><span class="dot">•</span></p><p class="mega"><span>Steam</span><span class="dot">•</span><span class="o">Epic</span><span class="dot">•</span><span>EA</span><span class="dot">•</span><span class="o">Stats</span><span class="dot">•</span><span>Trophées</span><span class="dot">•</span><span class="o">Actus</span><span class="dot">•</span><span>Overlay CS2</span><span class="dot">•</span></p></div></div>
+
+  <section class="feat " id="jeux" aria-labelledby="t-jeux">
+    <p class="feat-word mega" aria-hidden="true">Bibliothèque</p>
+    <div class="wrap feat-in">
+      <div class="feat-txt">
+        <h2 class="mega" id="t-jeux">Joue.</h2>
+        <p>Steam, Epic et EA au même endroit. Un clic, et tu joues.</p>
+      </div>
+      <div class="feat-shot"><div class="screen"><picture><source type="image/avif" srcset="/assets/v2/img/shots/bibliotheque-800.avif 800w, /assets/v2/img/shots/bibliotheque-1200.avif 1200w, /assets/v2/img/shots/bibliotheque-1480.avif 1480w" sizes="(max-width: 1100px) 92vw, 58vw"><source type="image/webp" srcset="/assets/v2/img/shots/bibliotheque-800.webp 800w, /assets/v2/img/shots/bibliotheque-1200.webp 1200w, /assets/v2/img/shots/bibliotheque-1480.webp 1480w" sizes="(max-width: 1100px) 92vw, 58vw"><img src="/assets/v2/img/shots/bibliotheque-1200.webp" width="1480" height="710" alt="Bibliothèque de Player X" loading="lazy" decoding="async"></picture></div></div>
     </div>
-    <figure class="ov-shot"><picture><source type="image/avif" srcset="/assets/v1/img/shots/overlay-800.avif 800w, /assets/v1/img/shots/overlay-1200.avif 1200w, /assets/v1/img/shots/overlay-1600.avif 1600w" sizes="(min-width: 1460px) 1328px, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><source type="image/webp" srcset="/assets/v1/img/shots/overlay-800.webp 800w, /assets/v1/img/shots/overlay-1200.webp 1200w, /assets/v1/img/shots/overlay-1600.webp 1600w" sizes="(min-width: 1460px) 1328px, calc(100vw - 2 * clamp(16px, 4vw, 64px))"><img src="/assets/v1/img/shots/overlay-1200.webp" width="1600" height="939" alt="Paramètres de Player X, Overlay : l’aperçu de l’overlay par-dessus une partie de Counter-Strike 2, avec le temps d’achat et le bilan de fin de match." loading="lazy" decoding="async"></picture><figcaption class="cap">Capture de Player X</figcaption></figure>
-    <p class="soon">Bientôt : Fortnite, Teamfight&nbsp;Tactics et League&nbsp;of&nbsp;Legends.</p>
-  </div>
-</section>
-
-<!-- ═════════════════ Tes données ═════════════════ -->
-<section class="data" aria-labelledby="data-t">
-  <div class="wrap">
-    <div>
-      <h2 class="t-l" id="data-t">Rien ne quitte ton PC.</h2>
-      <p class="lede">Player X n’a pas de serveur. Il échange seulement avec Steam, Discord et PlayStation, et télécharge ses mises à jour sur GitHub.</p>
+  </section>
+  <section class="feat flip k-stats" id="stats" aria-labelledby="t-stats">
+    <p class="feat-word mega" aria-hidden="true">Stats</p>
+    <div class="wrap feat-in">
+      <div class="feat-txt">
+        <h2 class="mega" id="t-stats">Analyse.</h2>
+        <p>Tes cartes, tes victoires et ton classement Battlefield 6. Tes stats Counter-Strike 2.</p>
+      </div>
+      <div class="feat-shot"><div class="screen"><picture><source type="image/avif" srcset="/assets/v2/img/shots/stats-800.avif 800w, /assets/v2/img/shots/stats-1200.avif 1200w, /assets/v2/img/shots/stats-1300.avif 1300w" sizes="(max-width: 1100px) 92vw, 58vw"><source type="image/webp" srcset="/assets/v2/img/shots/stats-800.webp 800w, /assets/v2/img/shots/stats-1200.webp 1200w, /assets/v2/img/shots/stats-1300.webp 1300w" sizes="(max-width: 1100px) 92vw, 58vw"><img src="/assets/v2/img/shots/stats-1200.webp" width="1300" height="630" alt="Stats Battlefield 6 dans Player X" loading="lazy" decoding="async"></picture></div></div>
     </div>
-    <div class="links">
-      <div class="pc"><img src="/assets/v1/img/px-icon.svg" alt="" width="56" height="56"><span>Ton PC<small>Player X et tes données</small></span></div>
-      <ul>
-        <li><span class="mono m-steam" aria-hidden="true">S</span><div><b>Steam</b><span class="d">Tes jeux, tes stats CS2 et tes succès</span></div></li>
-        <li><span class="mono m-discord" aria-hidden="true">D</span><div><b>Discord</b></div></li>
-        <li><span class="mono m-psn" aria-hidden="true">P</span><div><b>PlayStation</b></div></li>
-        <li><span class="mono m-gh" aria-hidden="true">G</span><div><b>GitHub</b><span class="d">Les mises à jour signées de Player X</span></div></li>
-      </ul>
+  </section>
+  <section class="feat k-troph" id="trophees" aria-labelledby="t-trophees">
+    <p class="feat-word mega" aria-hidden="true">Trophées</p>
+    <div class="wrap feat-in">
+      <div class="feat-txt">
+        <h2 class="mega" id="t-trophees">Débloque.</h2>
+        <p>Tous tes succès Steam, jeu par jeu, avec ta progression.</p>
+      </div>
+      <div class="feat-shot"><div class="screen"><picture><source type="image/avif" srcset="/assets/v2/img/shots/trophees-800.avif 800w, /assets/v2/img/shots/trophees-1200.avif 1200w, /assets/v2/img/shots/trophees-1480.avif 1480w" sizes="(max-width: 1100px) 92vw, 58vw"><source type="image/webp" srcset="/assets/v2/img/shots/trophees-800.webp 800w, /assets/v2/img/shots/trophees-1200.webp 1200w, /assets/v2/img/shots/trophees-1480.webp 1480w" sizes="(max-width: 1100px) 92vw, 58vw"><img src="/assets/v2/img/shots/trophees-1200.webp" width="1480" height="580" alt="Trophées dans Player X" loading="lazy" decoding="async"></picture></div></div>
     </div>
-  </div>
-</section>
+  </section>
+  <section class="feat flip" id="actus" aria-labelledby="t-actus">
+    <p class="feat-word mega" aria-hidden="true">Actus</p>
+    <div class="wrap feat-in">
+      <div class="feat-txt">
+        <h2 class="mega" id="t-actus">À jour.</h2>
+        <p>Les patchs et les news de tes jeux, dès qu’ils sortent.</p>
+      </div>
+      <div class="feat-shot"><div class="screen"><picture><source type="image/avif" srcset="/assets/v2/img/shots/actus-800.avif 800w, /assets/v2/img/shots/actus-1200.avif 1200w, /assets/v2/img/shots/actus-1480.avif 1480w" sizes="(max-width: 1100px) 92vw, 58vw"><source type="image/webp" srcset="/assets/v2/img/shots/actus-800.webp 800w, /assets/v2/img/shots/actus-1200.webp 1200w, /assets/v2/img/shots/actus-1480.webp 1480w" sizes="(max-width: 1100px) 92vw, 58vw"><img src="/assets/v2/img/shots/actus-1200.webp" width="1480" height="530" alt="Actus des jeux dans Player X" loading="lazy" decoding="async"></picture></div></div>
+    </div>
+  </section>
+  <section class="feat k-ov" id="overlay" aria-labelledby="t-overlay">
+    <p class="feat-word mega" aria-hidden="true">Overlay</p>
+    <div class="wrap feat-in">
+      <div class="feat-txt">
+        <h2 class="mega" id="t-overlay">Alt + X.</h2>
+        <p>Tes stats par-dessus Counter-Strike 2 : temps d’achat, mi-temps, bilan du match.</p>
+        <p class="soon">Bientôt : Fortnite, Teamfight&nbsp;Tactics et League&nbsp;of&nbsp;Legends.</p>
+      </div>
+      <div class="feat-shot"><div class="screen"><picture><source type="image/avif" srcset="/assets/v2/img/shots/overlay-876.avif 876w" sizes="(max-width: 1100px) 92vw, 58vw"><source type="image/webp" srcset="/assets/v2/img/shots/overlay-876.webp 876w" sizes="(max-width: 1100px) 92vw, 58vw"><img src="/assets/v2/img/shots/overlay-876.webp" width="876" height="493" alt="Overlay Counter-Strike 2 dans Player X" loading="lazy" decoding="async"></picture></div></div>
+    </div>
+  </section>
 
-<!-- ═════════════════ Téléchargement ═════════════════ -->
-<section class="get" id="telecharger" aria-labelledby="get-t">
-  <p class="wm" aria-hidden="true" data-v>0.9.4</p>
-  <div class="wrap">
-    <h2 class="t-l" id="get-t">Gratuit. Pour Windows.</h2>
-    <a class="btn btn--main dl-desk" href="/telecharger"><svg class="ic" aria-hidden="true"><use href="#i-dl"/></svg><span>Télécharger Player X <span data-v>0.9.4</span></span></a>
-    <button class="btn btn--main share" type="button" data-share><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg><span>Envoie le lien sur ton PC</span></button>
-    <p class="note">Windows peut t’avertir : <b>Informations complémentaires</b>, puis <b>Exécuter quand même</b>.</p>
-  </div>
-</section>
-
+  <section class="final" aria-labelledby="t-go">
+    <div class="wrap final-in">
+      <div class="final-icon" aria-hidden="true"><i></i><i></i>
+        <picture><source type="image/avif" srcset="/assets/v2/img/px-icon-512.avif"><img src="/assets/v2/img/px-icon-512.webp" width="512" height="512" alt="" loading="lazy"></picture>
+      </div>
+      <h2 class="mega" id="t-go">Prêt <span class="grad">à jouer&nbsp;?</span></h2>
+      <a class="btn btn-xl on-pc" href="/telecharger"><svg class="ic" aria-hidden="true"><use href="#i-dl"/></svg>Télécharger Player X</a>
+      <button class="btn btn-xl on-mobile" type="button" data-share><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg><span>Envoie le lien sur ton PC</span></button>
+      <p class="meta">Gratuit · Windows · <b data-v>0.9.4</b></p>
+    </div>
+  </section>
 </main>
 
-<footer>
-  <div class="wrap">
-    <span>Fait par Breezydev et Jason</span>
-    <a href="https://github.com/Moon-ItachiDEV/player-x">GitHub</a>
-    <a href="https://github.com/Moon-ItachiDEV/player-x/releases">Notes de version</a>
-    <span class="aff">Player X n’est affilié à aucun éditeur.</span>
-  </div>
+<footer class="wrap foot">
+  <a class="brand" href="#contenu"><img src="/assets/v2/img/px-icon.svg" width="26" height="26" alt="">Player X</a>
+  <a class="gh" href="https://github.com/Moon-ItachiDEV/player-x" aria-label="Player X sur GitHub"><svg class="ic" aria-hidden="true"><use href="#i-gh"/></svg></a>
 </footer>
 </body>
 </html>
