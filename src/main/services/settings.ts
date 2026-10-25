@@ -28,6 +28,12 @@ function defaults(): Settings {
   }
 }
 
+/** Mode démo permis (développement seulement, voir index.ts) : sinon toujours coupé, quoi qu'en dise l'enregistrement. */
+let demoAllowed = false
+export function allowDemo(on: boolean): void {
+  demoAllowed = on
+}
+
 const TEXT_KEYS = ['steamApiKey', 'discordClientId', 'discordClientSecret', 'discordGuildId', 'psnNpsso'] as const
 /** Clés et jetons : jamais envoyés à l'interface (voir publicSettings). */
 const SECRET_KEYS = ['steamApiKey', 'discordClientSecret', 'psnNpsso'] as const
@@ -48,7 +54,7 @@ function cleanPatch(patch: unknown): Partial<Settings> {
     if (typeof v === 'string' && v.length <= MAX_TEXT && !v.startsWith('•')) clean[k] = v.trim()
   }
   if (typeof clean.discordGuildId === 'string') clean.discordGuildId = discordGuildIdFrom(clean.discordGuildId)
-  if (typeof p.demoMode === 'boolean') clean.demoMode = p.demoMode
+  if (typeof p.demoMode === 'boolean') clean.demoMode = demoAllowed && p.demoMode
   if (typeof p.gameNews === 'boolean') clean.gameNews = p.gameNews
   if (typeof p.closeToTray === 'boolean') clean.closeToTray = p.closeToTray
   if (typeof p.startWithWindows === 'boolean') clean.startWithWindows = p.startWithWindows

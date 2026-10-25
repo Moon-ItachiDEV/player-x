@@ -1,6 +1,6 @@
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { app, BrowserWindow, Menu, powerMonitor, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, powerMonitor, screen, session, shell } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
 import { lastPlayedOf, type PlayedDates } from '@shared/played'
 import { CS2_GAME_ID } from '@shared/cs2'
@@ -26,7 +26,7 @@ import { createLaunches, sanitizeOpts, type LaunchDeps, type Launches, type Laun
 import { createWatcher } from './services/launchWatch'
 import { newMatches } from './services/launchWatchParse'
 import { getGameNews, markAllNewsSeen, markNewsSeen, newsFeed, refreshNewsIndex, refreshNewsNow, startNewsWatcher, withNews } from './services/news'
-import { getAccounts, getMemberPrefs, getSettings, publicSettings, removeAccount, saveMemberPrefs, saveSettings } from './services/settings'
+import { allowDemo, getAccounts, getMemberPrefs, getSettings, publicSettings, removeAccount, saveMemberPrefs, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { installSteamGame, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
 import {
@@ -56,14 +56,27 @@ if (!app.isPackaged) {
   }
 }
 
+// Mode démo (jeux et amis fictifs) : retiré de l'interface en 0.9.4-beta.6. Il ne reste que pour le développement
+// (captures, essais) ; la version installée l'ignore, même s'il avait été activé avant.
+allowDemo(!app.isPackaged)
+
 /** Serveur Vite de `npm run dev` : ignoré par la version installée. */
 const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
+
+/**
+ * Taille au lancement : 1600 × 940, celle où l'accueil tient en entier sans défiler (choix de Breezydev, 25/10/2026),
+ * réduite si l'écran est plus petit (zone de travail, barre des tâches comprise).
+ */
+function defaultSize(): { width: number; height: number } {
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize
+  return { width: Math.max(1024, Math.min(1600, width - 32)), height: Math.max(640, Math.min(940, height - 32)) }
+}
 
 function createWindow(): void {
   // Après « Redémarrer » pour une mise à jour, la fenêtre revient où elle était (si elle tient encore sur un écran).
   const b = takeRelaunchBounds()
   const win = new BrowserWindow({
-    ...(b ? { x: b.x, y: b.y, width: b.width, height: b.height } : { width: 1440, height: 900 }),
+    ...(b ? { x: b.x, y: b.y, width: b.width, height: b.height } : defaultSize()),
     // Agrandie avant la mise à jour : montrée directement agrandie, sans passer par sa taille normale.
     // Lancée avec Windows : cachée près de l'horloge jusqu'au premier clic sur l'icône.
     show: !b?.maximized && !startHidden,

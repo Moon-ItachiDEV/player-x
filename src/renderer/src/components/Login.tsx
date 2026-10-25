@@ -85,8 +85,8 @@ function Mosaic({ games }: { games: Game[] }): React.JSX.Element {
   )
 }
 
-/** Écran de connexion plein cadre : Steam, sans compte ou démo, avec la mosaïque des jeux détectés. */
-export function Login({ games, pending, error, onSteam, onCancel, onSkip, onDemo }: LoginProps): React.JSX.Element {
+/** Écran de connexion plein cadre : Steam ou sans compte, avec la mosaïque des jeux détectés. */
+export function Login({ games, pending, error, onSteam, onCancel, onSkip }: LoginProps): React.JSX.Element {
   const waiting = pending === 'steam'
   const steamRef = useRef<HTMLButtonElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
@@ -144,10 +144,6 @@ export function Login({ games, pending, error, onSteam, onCancel, onSkip, onDemo
               Continuer sans compte
             </button>
             <p className="caption login-skip-caption">Ta bibliothèque locale fonctionne sans connexion.</p>
-
-            <button type="button" className="link-btn muted login-demo" onClick={onDemo}>
-              Essayer le mode démo
-            </button>
           </div>
 
           <div className={`login-wait ${waiting ? '' : 'is-hidden'}`} inert={!waiting} aria-live="polite">

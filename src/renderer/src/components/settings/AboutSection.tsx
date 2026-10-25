@@ -1,4 +1,6 @@
 // Paramètres › À propos : version installée et mises à jour automatiques (GitHub Releases).
+// 0.9.4-beta.6 : l'en-tête ne garde que la version, son état et deux actions ; le canal passe dans « Mises à jour » ;
+// « Quoi de neuf » ouvre la fenêtre de l'appli (plus GitHub) ; plus d'aperçu de l'animation (démo retirée).
 import { useState } from 'react'
 import { timeAgo } from '@shared/text'
 import type { Settings, UpdateState } from '@shared/types'
@@ -7,13 +9,11 @@ import { Icon } from '../ui/Icon'
 import { Segmented } from '../ui/Overlay'
 import { errorMessage, useToast } from '../ui/Toasts'
 import { useUpdateState } from '../UpdateNotice'
-import { busyTitle, gameRunning, isRealUpdateBusy, lastUpdate, useStore } from '../../update/session'
+import { lastUpdate, useStore } from '../../update/session'
 import { requestRestart, warpActive } from '../../update/stage'
-import { preview, startPreview } from '../../update/preview'
+import { openWhatsNew } from '../WhatsNew'
 import { fpGroups, mo, pair, pct } from '../../update/format'
 import { SectionHead, SettingRow, SettingsCard, useNow } from './parts'
-
-const RELEASES_URL = 'https://github.com/Moon-ItachiDEV/player-x/releases'
 
 /** Version de test (préversion) : « 0.8.1-beta.1 ». */
 const IS_PRERELEASE = /-/.test(window.launcher.version)
@@ -29,8 +29,6 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
   const [update, setUpdate] = useUpdateState()
   const [checkBusy, setCheckBusy] = useState(false)
   const last = useStore(lastUpdate).value
-  const previewing = useStore(preview).active
-  const inGame = useStore(gameRunning)
 
   const check = async (): Promise<void> => {
     if (checkBusy) return
@@ -65,88 +63,68 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
     !!update && update.state !== 'disabled' && update.state !== 'downloading' && update.state !== 'verifying' && update.state !== 'installing' && !checking
   // Empreinte connue à partir de la 3e étape de la vérification.
   const fp = (update?.state === 'ready' || update?.state === 'verifying') && update.fingerprint ? { version: update.version, hex: update.fingerprint } : null
-  const busyForPreview = isRealUpdateBusy(update)
+
+  const channelText =
+    settings.updateChannel === 'beta'
+      ? 'Bêta · tu reçois aussi les versions de test, avant tout le monde. Elles peuvent avoir des bugs.'
+      : IS_PRERELEASE
+        ? 'Stable · tu gardes cette version de test jusqu’à la prochaine version stable, qui arrivera toute seule.'
+        : 'Stable · seulement les versions publiées pour tout le monde.'
 
   return (
     <>
       <SectionHead title="À propos">La version installée de Player X et ses mises à jour.</SectionHead>
 
       <section className="set-card set-ab-hero" aria-labelledby="set-ab-name">
-        <div className="set-ab-top">
-          <BrandMark height={64} className="set-ab-mark" />
-          <div className="set-ab-id">
-            <h3 id="set-ab-name" className="set-ab-name">
-              <span>
-                Player X <span className="num">{window.launcher.version}</span>
-              </span>
-              {IS_PRERELEASE && <span className="set-beta">Version de test</span>}
-            </h3>
-            <UpdateStatus update={update} now={now} />
-          </div>
-          <div className="set-ab-channel">
-            <span className="overline" aria-hidden="true">
-              Canal de mises à jour
-            </span>
-            <Segmented
-              className="set-seg"
-              label="Canal des mises à jour"
-              value={settings.updateChannel}
-              options={[
-                { value: 'stable', label: 'Stable' },
-                { value: 'beta', label: 'Bêta' }
-              ]}
-              onChange={(updateChannel) => onSaveSettings({ updateChannel }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-            />
-          </div>
-          <div className="set-ab-actions">
-            {update?.state === 'ready' || update?.state === 'installing' ? (
-              <button className="btn btn-primary" onClick={restart} disabled={update.state === 'installing'}>
-                {update.state === 'installing' ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
-                {update.state === 'installing' ? 'Redémarrage…' : 'Redémarrer pour mettre à jour'}
-              </button>
-            ) : (
-              <button className="btn btn-secondary set-ab-check" onClick={check} disabled={!canCheck} aria-busy={checking}>
-                {checking ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
-                {checking ? 'Recherche…' : 'Rechercher une mise à jour'}
-              </button>
-            )}
-            <button
-              className="link-btn set-link set-ab-news"
-              onClick={() => window.launcher.openExternal(RELEASES_URL)}
-              aria-label="Quoi de neuf : notes de version sur GitHub"
-              title="Les nouveautés de chaque version, sur GitHub"
-            >
-              Quoi de neuf
-              <Icon name="external-link" size={13} />
-            </button>
-          </div>
+        <BrandMark height={72} className="set-ab-mark" />
+        <div className="set-ab-id">
+          <h3 id="set-ab-name" className="set-ab-name">
+            Player X
+          </h3>
+          <p className="set-ab-ver">
+            <span className="num">{window.launcher.version}</span>
+            {IS_PRERELEASE && <span className="set-beta">Version de test</span>}
+          </p>
+          <UpdateStatus update={update} now={now} />
         </div>
-        <p className="set-ab-foot">
-          {settings.updateChannel === 'beta'
-            ? 'Canal Bêta · tu reçois aussi les versions de test, avant tout le monde. Elles peuvent avoir des bugs.'
-            : IS_PRERELEASE
-              ? 'Canal Stable · tu restes sur cette version de test jusqu’à la prochaine version stable, qui arrivera toute seule.'
-              : 'Canal Stable · seulement les versions publiées pour tout le monde.'}{' '}
-          Player X vérifie au démarrage, toutes les heures et quand tu reviens sur sa fenêtre, télécharge en arrière-plan et installe la nouvelle version au prochain redémarrage.
-        </p>
+        <div className="set-ab-actions">
+          <button className="btn btn-ghost" onClick={openWhatsNew} title="Les nouveautés de chaque version">
+            <Icon name="news" size={16} />
+            Quoi de neuf
+          </button>
+          {update?.state === 'ready' || update?.state === 'installing' ? (
+            <button className="btn btn-primary" onClick={restart} disabled={update.state === 'installing'}>
+              {update.state === 'installing' ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
+              {update.state === 'installing' ? 'Redémarrage…' : 'Redémarrer pour mettre à jour'}
+            </button>
+          ) : (
+            <button className="btn btn-secondary set-ab-check" onClick={check} disabled={!canCheck} aria-busy={checking}>
+              {checking ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
+              {checking ? 'Recherche…' : 'Rechercher une mise à jour'}
+            </button>
+          )}
+        </div>
       </section>
 
       <SettingsCard title="Mises à jour">
-        {fp && (
-          <SettingRow
-            label={`Empreinte de la ${fp.version}`}
-            value={
-              <span className="set-ab-fp" title={fp.hex}>
-                {fpGroups(fp.hex)}
-              </span>
-            }
-          >
-            <button className="btn btn-ghost" onClick={() => copyFingerprint(fp.hex)}>
-              <Icon name="copy" size={14} />
-              Copier l'empreinte
-            </button>
-          </SettingRow>
-        )}
+        <SettingRow label="Canal" value={channelText}>
+          <Segmented
+            className="set-seg"
+            label="Canal des mises à jour"
+            value={settings.updateChannel}
+            options={[
+              { value: 'stable', label: 'Stable' },
+              { value: 'beta', label: 'Bêta' }
+            ]}
+            onChange={(updateChannel) => onSaveSettings({ updateChannel }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Vérification"
+          value="Au démarrage, toutes les heures et quand tu reviens sur Player X. Téléchargée en arrière-plan, signée, installée quand tu le choisis."
+        >
+          {null}
+        </SettingRow>
         {last && (
           <SettingRow
             label="Dernière mise à jour"
@@ -162,22 +140,31 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
             {null}
           </SettingRow>
         )}
-        <SettingRow label="Animation de mise à jour" value="Rejoue la séquence sans rien télécharger ni installer, jusqu’à la fenêtre Quoi de neuf">
-          <button
-            className="btn btn-secondary"
-            onClick={(e) => void startPreview({ from: 'about', trigger: e.currentTarget })}
-            disabled={busyForPreview || previewing || inGame}
-            title={busyForPreview ? 'Indisponible pendant une vraie mise à jour' : inGame ? busyTitle() : undefined}
+        {fp && (
+          <SettingRow
+            label={`Empreinte de la ${fp.version}`}
+            value={
+              <span className="set-ab-fp" title={fp.hex}>
+                {fpGroups(fp.hex)}
+              </span>
+            }
           >
-            Voir l'aperçu
-          </button>
-        </SettingRow>
+            <button className="btn btn-ghost" onClick={() => copyFingerprint(fp.hex)}>
+              <Icon name="copy" size={14} />
+              Copier l'empreinte
+            </button>
+          </SettingRow>
+        )}
       </SettingsCard>
 
-      <p className="set-help set-ab-privacy">
-        Lance tes jeux Steam, Epic et EA et vois tes amis en ligne. Player X n'a pas de serveur : tes données restent sur ce PC et ne sont échangées
-        qu'avec Steam, Discord et PlayStation. Les mises à jour viennent de GitHub.
-      </p>
+      <SettingsCard title="Tes données">
+        <SettingRow
+          label="Rien ne quitte ton PC"
+          value="Player X n'a pas de serveur. Il échange seulement avec Steam, Discord et PlayStation, et télécharge ses mises à jour sur GitHub."
+        >
+          {null}
+        </SettingRow>
+      </SettingsCard>
     </>
   )
 }

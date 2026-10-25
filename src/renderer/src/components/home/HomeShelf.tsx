@@ -36,6 +36,17 @@ export function HomeShelf({ games, heroId, onLaunch, onOpen, onShowLibrary }: Pr
     track.current?.scrollTo({ left: 0 })
   }, [shown, track])
 
+  // Jeu à la une changé (molette, « À reprendre ») : sa jaquette reste visible dans la rangée, sans faire défiler la page.
+  useEffect(() => {
+    const t = track.current
+    const tile = t ? [...t.querySelectorAll<HTMLElement>('[data-id]')].find((el) => el.dataset.id === heroId) : undefined
+    if (!t || !tile) return
+    const left = tile.offsetLeft - t.offsetLeft
+    if (left >= t.scrollLeft && left + tile.offsetWidth <= t.scrollLeft + t.clientWidth) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    t.scrollTo({ left: Math.max(0, left - 24), behavior: reduce ? 'auto' : 'smooth' })
+  }, [heroId, track])
+
   if (!list.length) return null
   return (
     <section className="hm-shelf" aria-labelledby="hm-shelf-title">
@@ -109,6 +120,7 @@ function ShelfTile({ game, target, onLaunch, onOpen }: TileProps): React.JSX.Ele
   return (
     <div
       className={`hm-tile ${target ? 'is-target' : ''} ${game.running ? 'is-live' : ''} ${p.className ? 'is-busy' : ''}`}
+      data-id={game.id}
       onPointerEnter={() => light(true)}
       onPointerLeave={() => light(false)}
       onFocus={() => light(true)}

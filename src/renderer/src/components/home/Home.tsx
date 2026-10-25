@@ -17,8 +17,9 @@ import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
 import { playersLabel, playersOf, whoIsAround } from './around'
 import { HomeAchievements, useHomeNews } from './HomeBottom'
 import { HomeShelf } from './HomeShelf'
+import { HomeTop } from './HomeTop'
 import { LastMatchCard, OnlinePanel } from './HomeSide'
-import { achievementRows, achievementsOf, pickHero, resumeList } from './pick'
+import { achievementRows, achievementsOf, pickHero, resumeList, shelfList } from './pick'
 import { useLastMatch } from './useLastMatch'
 import './home.css'
 
@@ -36,7 +37,6 @@ export function Home(props: HomeProps): React.JSX.Element {
     onOpen,
     onFavorite,
     onRescan,
-    onEnableDemo,
     onShowLibrary,
     onReadNews,
     onShowNews,
@@ -56,6 +56,17 @@ export function Home(props: HomeProps): React.JSX.Element {
   }, [runningId])
 
   const { list: resume, resumed } = useMemo(() => resumeList(games, hero), [games, hero])
+
+  // Molette sur le jeu à la une : jeu suivant / précédent, dans l'ordre de « Ta bibliothèque » (filtre « Tout »).
+  const order = useMemo(() => shelfList(games, 'all'), [games])
+  const [dir, setDir] = useState<'next' | 'prev' | null>(null)
+  const step = (d: 1 | -1): void => {
+    if (!heroId || order.length < 2) return
+    const i = order.findIndex((g) => g.id === heroId)
+    const next = order[(i + d + order.length) % order.length]
+    setDir(d > 0 ? 'next' : 'prev')
+    setTargetId(next.id)
+  }
   const around = useMemo(() => (hero ? whoIsAround(hero, friends) : null), [hero, friends])
   const match = useLastMatch()
   const { data: overview } = useAchievementsOverview()
@@ -72,7 +83,7 @@ export function Home(props: HomeProps): React.JSX.Element {
   if (games.length === 0 || !hero) {
     return (
       <div className="page home">
-        <NoGames report={report} demo={demo} onRescan={onRescan} onEnableDemo={onEnableDemo} />
+        <NoGames report={report} onRescan={onRescan} />
       </div>
     )
   }
@@ -80,6 +91,7 @@ export function Home(props: HomeProps): React.JSX.Element {
   const side = !!match || !!around
   return (
     <div className="page home">
+      <HomeTop games={games} friends={friends} news={news} onOpen={onOpen} onShowFriends={onShowFriends} onShowNews={onShowNews} />
       <div className="hm-top">
         <HomeHero
           key={hero.id}
@@ -88,7 +100,12 @@ export function Home(props: HomeProps): React.JSX.Element {
           achievements={heroAch}
           resume={resume}
           resumeTitle={resumed ? 'À reprendre' : 'Dans ta bibliothèque'}
-          onTarget={(g) => setTargetId(g.id)}
+          onTarget={(g) => {
+            setDir(null)
+            setTargetId(g.id)
+          }}
+          dir={dir}
+          onStep={step}
           news={news}
           updates={updates}
           onReadNews={onReadNews}
@@ -125,6 +142,9 @@ interface HeroProps {
   resume: Game[]
   resumeTitle: string
   onTarget: (g: Game) => void
+  /** Sens du dernier changement à la molette : l'entrée du jeu glisse dans ce sens. */
+  dir: 'next' | 'prev' | null
+  onStep: (d: 1 | -1) => void
   /** Actus des jeux activées : lien « Patch » de la ligne d'infos. */
   news: boolean
   /** Derniers patchs des jeux de la bibliothèque : onglet « Mises à jour » à côté de « À reprendre ». */
@@ -144,6 +164,8 @@ function HomeHero({
   resume,
   resumeTitle,
   onTarget,
+  dir,
+  onStep,
   news,
   onReadNews,
   updates,
@@ -163,6 +185,28 @@ function HomeHero({
   const heroUrl = game.heroUrl && !heroFailed ? game.heroUrl : undefined
   // Sans bannière : la jaquette, floutée, fait le fond.
   const backUrl = heroUrl ?? game.coverUrl
+
+  // Molette au-dessus du jeu à la une : un cran = un jeu (seuil pour les pavés tactiles, un pas toutes les 280 ms au plus).
+  const stepRef = useRef(onStep)
+  stepRef.current = onStep
+  useEffect(() => {
+    const el = root.current
+    if (!el) return
+    let acc = 0
+    let last = 0
+    const onWheel = (e: WheelEvent): void => {
+      if (e.ctrlKey || Math.abs(e.deltaY) < Math.abs(e.deltaX)) return
+      e.preventDefault()
+      acc += e.deltaY
+      const now = performance.now()
+      if (Math.abs(acc) < 40 || now - last < 280) return
+      last = now
+      stepRef.current(acc > 0 ? 1 : -1)
+      acc = 0
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
 
   // Fond de la page aux couleurs du jeu à la une.
   useEffect(() => {
@@ -230,7 +274,7 @@ function HomeHero({
   const patch = news ? game.lastPatch : undefined
 
   return (
-    <section ref={root} className={`hh ${game.running ? 'is-live' : ''}`} aria-label={`À la une : ${name}`}>
+    <section ref={root} className={`hh ${game.running ? 'is-live' : ''}`} data-dir={dir ?? undefined} aria-label={`À la une : ${name}`}>
       <div className="hh-bleed" aria-hidden="true">
         <div ref={art} className="hh-art" style={{ background: generatedBackground(game.name) }}>
           {backUrl && (

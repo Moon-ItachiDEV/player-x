@@ -165,12 +165,6 @@
   text-align: center;
 }
 
-.login-demo {
-  display: block;
-  margin: 20px auto 0;
-  font-size: 13px;
-}
-
 /* Attente du navigateur */
 .login-wait {
   align-self: center;

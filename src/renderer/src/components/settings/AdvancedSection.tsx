@@ -1,11 +1,10 @@
-// Section « Avancé » : clés et applications développeur, mode démo, diagnostic.
+// Section « Avancé » : clés et applications développeur, diagnostic.
 import { useEffect, useRef, useState } from 'react'
 import { discordGuildIdFrom } from '@shared/text'
 import type { FriendPlatform, ScanReport, Settings } from '@shared/types'
 import { Icon } from '../ui/Icon'
-import { Switch } from '../ui/Overlay'
 import { StoreTag } from '../ui/StoreTag'
-import { errorMessage, useToast } from '../ui/Toasts'
+import { useToast } from '../ui/Toasts'
 import { Collapse, prefersReducedMotion, readLocal, reportText, SectionHead, SettingRow, SettingsCard, writeLocal } from './parts'
 import { SecretField, TextField } from './SecretField'
 
@@ -32,7 +31,6 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
   const notify = useToast()
   const cards = useRef<Partial<Record<FriendPlatform, HTMLElement | null>>>({})
   const guildInput = useRef<HTMLInputElement>(null)
-  const [demoSaving, setDemoSaving] = useState(false)
   const [diagOpen, setDiagOpen] = useState(() => readLocal(PREFS_KEY, { diagOpen: false }).diagOpen)
 
   useEffect(() => {
@@ -47,19 +45,6 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
     }
     onFocused()
   }, [focusCard, onFocused])
-
-  const setDemo = async (demoMode: boolean): Promise<void> => {
-    if (demoSaving) return
-    setDemoSaving(true)
-    try {
-      await onSaveSettings({ demoMode })
-      notify(demoMode ? 'Mode démo activé · jeux et amis fictifs' : 'Mode démo désactivé', { kind: 'info', id: 'demo' })
-    } catch (e) {
-      notify(errorMessage(e), { kind: 'error', id: 'demo' })
-    } finally {
-      setDemoSaving(false)
-    }
-  }
 
   const copy = async (text: string, done: string): Promise<void> => {
     try {
@@ -81,7 +66,7 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
 
   return (
     <>
-      <SectionHead title="Avancé">Clés d'accès, mode démo et informations utiles en cas de souci.</SectionHead>
+      <SectionHead title="Avancé">Clés d'accès et informations utiles en cas de souci.</SectionHead>
 
       <div className="set-banner">
         <Icon name="info" size={16} />
@@ -194,12 +179,6 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
       </div>
 
       <SettingsCard title="Données et diagnostic" className="set-adv-data">
-        <SettingRow
-          label="Mode démo"
-          value={settings.demoMode ? 'Activé · jeux et amis fictifs pour tester l\'interface' : 'Remplace tes jeux et amis par des données fictives pour tester l\'interface.'}
-        >
-          <Switch checked={settings.demoMode} onChange={setDemo} label="Mode démo" />
-        </SettingRow>
         <div className="set-diag">
           <button className="set-diag-toggle" aria-expanded={diagOpen} aria-controls="set-diag-body" onClick={toggleDiag}>
             <span className="set-row-text">

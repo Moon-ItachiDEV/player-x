@@ -95,7 +95,7 @@ function matcher(query: string): (g: Game) => boolean {
 }
 
 export function Library(props: LibraryProps): React.JSX.Element {
-  const { games, notInstalled, onInstall, scanning, report, demo, query, onClearQuery, onLaunch, onOpen, onFavorite, onRescan, onEnableDemo, coverSize, onCoverSize } =
+  const { games, notInstalled, onInstall, scanning, report, demo, query, onClearQuery, onLaunch, onOpen, onFavorite, onRescan, coverSize, onCoverSize } =
     props
   const [prefs, setPrefs] = useState<LibPrefs>(loadPrefs)
 
@@ -206,7 +206,7 @@ export function Library(props: LibraryProps): React.JSX.Element {
       <div className="page lib">
         {title}
         {hasUninstalled && toolbar()}
-        <NoGames report={report} demo={demo} onRescan={onRescan} onEnableDemo={onEnableDemo} />
+        <NoGames report={report} onRescan={onRescan} />
       </div>
     )
   }
