@@ -229,7 +229,7 @@ kbd {
   .final-icon i { animation: ring 4.5s ease-out infinite; }
   .final-icon i + i { animation-delay: 1.4s; }
   @keyframes ring { from { transform: scale(0.6); opacity: 0.9; } to { transform: scale(1.15); opacity: 0; } }
-  .final .btn { animation: pulse 2.8s ease-in-out infinite; }
+  .final .btn:not(.btn-metal) { animation: pulse 2.8s ease-in-out infinite; }
   @keyframes pulse { 50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25) inset, 0 24px 70px -8px var(--glow), 0 0 140px 0 var(--glow-soft); } }
   .hero h1 span, .hero .lead, .hero .cta-row { animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both; }
   .hero h1 span:nth-child(2) { animation-delay: 90ms; }
@@ -297,3 +297,74 @@ kbd {
   .feat-word { -webkit-text-stroke-width: 1.5px; }
 }
 .sprite { position: absolute; }
+
+/* ───────── « Joue. » : vraies jaquettes de la bibliothèque, qui réagissent à la souris ───────── */
+.tiles {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: clamp(10px, 1.2vw, 18px);
+  margin: 0; padding: 0 var(--gut) 0 0; list-style: none; perspective: 1100px;
+}
+.tile {
+  --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 50%;
+  position: relative; border-radius: 16px; overflow: hidden; aspect-ratio: 183 / 277;
+  transform: rotateX(var(--rx)) rotateY(var(--ry)) translateZ(0);
+  box-shadow: 0 0 0 1px rgba(255, 200, 220, 0.12), 0 24px 40px -24px rgba(0, 0, 0, 0.9);
+  transition: transform 450ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms ease, filter 300ms ease, scale 450ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.tile img { width: 100%; height: 100%; object-fit: cover; }
+.glare {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0; mix-blend-mode: soft-light; transition: opacity 300ms ease;
+  background: radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 55%);
+}
+.tile.is-on {
+  scale: 1.08; z-index: 2; transition-duration: 120ms, 300ms, 300ms, 450ms;
+  box-shadow: 0 0 0 2px var(--accent), 0 30px 60px -18px rgba(0, 0, 0, 0.95), 0 0 50px -6px var(--glow);
+}
+.tile.is-on .glare { opacity: 1; }
+.tiles:has(.is-on) .tile:not(.is-on) { filter: brightness(0.55) saturate(0.7); }
+@media (max-width: 1100px) {
+  .tiles { padding-right: 0; }
+}
+@media (max-width: 640px) {
+  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tile:nth-child(n + 10) { display: none; }
+  .tile { border-radius: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile, .tile.is-on { transform: none; scale: 1; transition: none; }
+}
+
+/* Mur du héros : la jaquette sous la souris s'allume (souris seulement) */
+@media (hover: hover) and (pointer: fine) {
+  .wall-row img { transition: filter 260ms ease, scale 380ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 260ms ease; }
+  .wall-row img:hover { scale: 1.1; filter: brightness(1.12) saturate(1.2); box-shadow: 0 0 0 2px var(--accent), 0 0 60px -6px var(--glow), 0 30px 60px -20px rgba(0, 0, 0, 0.9); position: relative; z-index: 1; }
+}
+
+/* ───────── Boutons « métal liquide » (shader WebGL dans site.js ; repli CSS sans WebGL) ───────── */
+@property --spin { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.btn-metal {
+  --lift: 0px; --tx: 0px; --ty: 0px;
+  position: relative; isolation: isolate; overflow: hidden;
+  background: conic-gradient(from var(--spin), #3a2433, #f4e9ef, #8d6a7c, #ffd6e2, #2a1a24, #e9d3dc, #3a2433);
+  padding-inline: 34px; color: var(--on-accent);
+  transform: translate(var(--tx), var(--ty));
+  transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 400ms ease;
+  box-shadow: 0 18px 50px -12px var(--glow), 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+.btn-metal canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -2; pointer-events: none; }
+.btn-metal::before {
+  content: ''; position: absolute; inset: 3px; z-index: -1; border-radius: inherit;
+  background: linear-gradient(180deg, #ff86a4 0%, #ff5c86 48%, #ec3f75 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -3px 8px rgba(110, 0, 36, 0.35);
+  opacity: 0.95;
+  transition: inset 420ms cubic-bezier(0.16, 1, 0.3, 1), opacity 420ms ease;
+}
+.btn-metal:hover { background-color: transparent; transform: translate(var(--tx), var(--ty)) scale(1.04); box-shadow: 0 26px 70px -10px var(--glow), 0 0 120px -10px var(--glow-soft), 0 0 0 1px rgba(255, 255, 255, 0.25); }
+.btn-metal:hover::before { inset: 5px; opacity: 0.87; }
+.btn-metal:active { transform: translate(var(--tx), var(--ty)) scale(0.97); transition-duration: 120ms; }
+.btn-metal .ic { transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1); }
+.btn-metal:hover .ic { transform: translateY(3px); }
+@media (prefers-reduced-motion: no-preference) {
+  .btn-metal:not(.gl) { animation: spin 6s linear infinite; }
+  @keyframes spin { to { --spin: 360deg; } }
+}
