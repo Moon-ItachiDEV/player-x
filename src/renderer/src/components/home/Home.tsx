@@ -15,11 +15,11 @@ import { Icon } from '../ui/Icon'
 import { LiveBadge } from '../ui/LiveBadge'
 import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
 import { playersLabel, playersOf, whoIsAround } from './around'
-import { HomeAchievements, useHomeNews } from './HomeBottom'
+import { useHomeNews } from './HomeBottom'
 import { HomeShelf } from './HomeShelf'
 import { HomeTop } from './HomeTop'
 import { LastMatchCard, OnlinePanel } from './HomeSide'
-import { achievementRows, achievementsOf, pickHero, resumeList, shelfList } from './pick'
+import { achievementsOf, pickHero, resumeList, shelfList } from './pick'
 import { useWheelStep } from './rowScroll'
 import { useLastMatch } from './useLastMatch'
 import './home.css'
@@ -41,8 +41,7 @@ export function Home(props: HomeProps): React.JSX.Element {
     onShowLibrary,
     onReadNews,
     onShowNews,
-    onShowFriends,
-    onShowTrophies
+    onShowFriends
   } = props
   // Jeu mis à la une depuis « À reprendre » ; sinon le choix automatique (en cours, dernière partie…).
   const [targetId, setTargetId] = useState<string | null>(null)
@@ -75,7 +74,6 @@ export function Home(props: HomeProps): React.JSX.Element {
   const around = useMemo(() => (hero ? whoIsAround(hero, friends) : null), [hero, friends])
   const match = useLastMatch()
   const { data: overview } = useAchievementsOverview()
-  const achRows = useMemo(() => achievementRows(overview), [overview])
   const heroAch = useMemo(() => (heroId ? achievementsOf(overview, heroId) : null), [overview, heroId])
   const newsItems = useHomeNews(games, news, demo)
   const updates = useMemo(() => {
@@ -127,12 +125,8 @@ export function Home(props: HomeProps): React.JSX.Element {
         )}
       </div>
       <HomeShelf games={games} heroId={hero.id} onStep={stepIn} onLaunch={onLaunch} onOpen={onOpen} onShowLibrary={onShowLibrary} />
-      {/* « Mises à jour de tes jeux » est monté dans le bloc du jeu à la une (onglet), visible sans faire défiler. */}
-      {achRows.length > 0 && (
-        <div className="hm-bottom">
-          <HomeAchievements rows={achRows} onShowTrophies={onShowTrophies} />
-        </div>
-      )}
+      {/* « Mises à jour de tes jeux » est monté dans le bloc du jeu à la une (onglet), visible sans faire défiler.
+          « Tes succès » n'est plus sur l'Accueil (0.9.4-beta.8, demande de Breezydev) : ils restent dans Trophées. */}
     </div>
   )
 }

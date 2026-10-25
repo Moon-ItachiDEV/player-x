@@ -63,18 +63,6 @@ export function storesOf(games: Game[]): Store[] {
 /** Barres « Tes succès ». */
 export const ACH_MAX = 3
 
-/**
- * « Tes succès » : les jeux où un succès a été débloqué le plus récemment (ceux qui ont avancé), puis les mieux avancés.
- * Vide sans relevé (pas de compte Steam, pas de clé, profil privé…) : la section est masquée.
- */
-export function achievementRows(o: AchievementsOverview | null): AchievementGame[] {
-  if (!o || (o.state !== 'ready' && o.state !== 'scanning')) return []
-  return o.games
-    .filter((g) => g.total > 0 && g.unlocked > 0)
-    .sort((a, b) => (b.lastAt ?? 0) - (a.lastAt ?? 0) || b.unlocked / b.total - a.unlocked / a.total)
-    .slice(0, ACH_MAX)
-}
-
 /** Succès d'un jeu dans le relevé (seulement Steam), ou null. */
 export function achievementsOf(o: AchievementsOverview | null, gameId: string): AchievementGame | null {
   if (!o || (o.state !== 'ready' && o.state !== 'scanning')) return null

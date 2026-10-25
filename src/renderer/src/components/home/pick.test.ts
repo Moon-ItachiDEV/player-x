@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AchievementsOverview, Bf6Recap, Cs2Recap, Game } from '@shared/types'
 // @ts-ignore TS5097
-import { achievementRows, achievementsOf, latestMatch, pickHero, resumeList, shelfList, storesOf } from './pick.ts'
+import { achievementsOf, latestMatch, pickHero, resumeList, shelfList, storesOf } from './pick.ts'
 
 const g = (name: string, extra: Partial<Game> = {}): Game => ({
   id: `steam:${name}`,
@@ -75,7 +75,7 @@ const overview = (games: AchievementsOverview['games'], state: AchievementsOverv
   updatedAt: 1
 })
 
-test('succès : les jeux qui ont avancé le plus récemment, rien sans relevé', () => {
+test('succès du jeu à la une : son relevé, sinon rien', () => {
   const o = overview([
     { gameId: 'steam:1', name: 'Un', unlocked: 3, total: 10, lastAt: 50 },
     { gameId: 'steam:2', name: 'Deux', unlocked: 0, total: 10 },
@@ -83,14 +83,9 @@ test('succès : les jeux qui ont avancé le plus récemment, rien sans relevé',
     { gameId: 'steam:4', name: 'Quatre', unlocked: 1, total: 4 },
     { gameId: 'steam:5', name: 'Cinq', unlocked: 2, total: 2, lastAt: 10 }
   ])
-  assert.deepEqual(
-    achievementRows(o).map((x) => x.name),
-    ['Trois', 'Un', 'Cinq']
-  )
   assert.equal(achievementsOf(o, 'steam:3')?.unlocked, 9)
   assert.equal(achievementsOf(o, 'steam:9'), null)
-  assert.deepEqual(achievementRows(overview([], 'no-key')), [])
-  assert.deepEqual(achievementRows(null), [])
+  assert.equal(achievementsOf(null, 'steam:3'), null)
 })
 
 const cs2 = (endedAt: number, extra: Partial<Cs2Recap> = {}): Cs2Recap =>
