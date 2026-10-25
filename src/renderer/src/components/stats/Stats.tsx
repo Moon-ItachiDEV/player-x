@@ -38,7 +38,6 @@ export type { StatsProps }
 
 const api = window.launcher
 
-const SOURCE_URL = 'https://gametools.network/stats'
 const TOP = 10
 
 /** Ligne « All » que l'API glisse dans les cartes, modes et classes : c'est le total, pas une entrée. */
@@ -270,14 +269,6 @@ function Bf6Stats({ art, logo: logoUrl }: { art?: string; logo?: string }): Reac
           )}
         </div>
       )}
-
-      <p className="caption bf-source">
-        Statistiques fournies par{' '}
-        <button className="link-btn" onClick={() => api.openExternal(SOURCE_URL)}>
-          gametools.network
-        </button>
-        , un service communautaire non officiel : EA ne propose pas d’API publique pour Battlefield 6. Player X n’est affilié ni à EA ni à DICE.
-      </p>
     </>
   )
 }

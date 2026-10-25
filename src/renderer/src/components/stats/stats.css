@@ -1414,14 +1414,6 @@
   }
 }
 
-.bf-source {
-  max-width: 760px;
-  color: var(--text-3);
-}
-.bf-source .link-btn {
-  font-size: inherit;
-}
-
 /* ---------- cartes jouées ---------- */
 
 .bf-maps {
