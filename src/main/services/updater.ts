@@ -2,13 +2,13 @@
 // La source (owner/repo) vient de app-update.yml, écrit par electron-builder à partir de `build.publish`.
 // En développement, PX_UPDATE_SIM rejoue une mise à jour sur ce même code (updateSim.ts, jamais chargé par la version installée).
 import { stat } from 'node:fs/promises'
-import { app, net, screen } from 'electron'
+import { app, net, powerMonitor, screen } from 'electron'
 // Import par défaut : marche que le main soit bundlé en CJS (le cas ici, dépendance externe → require) ou en ESM.
 import updaterPkg, { type AppUpdater, type Logger, type UpdateDownloadedEvent } from 'electron-updater'
 import type { InstallResult, LastUpdate, UpdateErrorCode, UpdateMeta, UpdateState } from '@shared/types'
 import * as db from '../db'
 import { handle } from '../ipc'
-import { appWindows, mainWindow } from '../windows'
+import { appWindows, isOverlay, mainWindow } from '../windows'
 import { clampDelay, isLast, isPending, lastFromPending, visibleBounds, type PendingUpdate, type WindowBounds } from './updateHandoff'
 import { getSettings } from './settings'
 import { summarizeReleaseNotes } from './updateNotes'
@@ -16,7 +16,14 @@ import { isVersion, sha512File, verifyUpdateSignature } from './updateSignature'
 import type { SimHooks } from './updateSim'
 
 const FIRST_CHECK_DELAY = 10_000
-const CHECK_INTERVAL = 6 * 60 * 60 * 1000
+/** Toutes les heures (avant : 6 h). L'API publique de GitHub permet 60 demandes par heure : on en est loin. */
+const CHECK_INTERVAL = 60 * 60 * 1000
+/**
+ * Player X rangé près de l'horloge ne redémarre pas quand on « relance » le client : la vérification de démarrage n'avait
+ * pas lieu. Désormais, revenir sur la fenêtre (ou sortir de veille) vérifie aussi, si la dernière vérification a plus de 15 min.
+ */
+const STALE_AFTER = 15 * 60 * 1000
+let lastCheckAt = 0
 /** Après une erreur (hors ligne, GitHub indisponible…), on retente plus tôt que la vérification suivante. */
 const RETRY_DELAY = 30 * 60 * 1000
 /** Signatures publiées à côté de l'installeur (même dépôt que `build.publish` dans package.json). */
@@ -214,6 +221,7 @@ function check(): Promise<UpdateState> {
   if (!u || state.state === 'ready' || state.state === 'downloading' || state.state === 'verifying' || state.state === 'installing')
     return Promise.resolve(state)
   inflight ??= (async () => {
+    lastCheckAt = Date.now()
     try {
       applyChannel(u)
       const result = await u.checkForUpdates()
@@ -491,4 +499,11 @@ export function initUpdater(): void {
     void check()
     setInterval(() => void check(), CHECK_INTERVAL)
   }, FIRST_CHECK_DELAY)
+  const checkIfStale = (): void => {
+    if (lastCheckAt && Date.now() - lastCheckAt > STALE_AFTER) void check()
+  }
+  app.on('browser-window-focus', (_e, w) => {
+    if (!isOverlay(w)) checkIfStale()
+  })
+  powerMonitor.on('resume', () => setTimeout(checkIfStale, FIRST_CHECK_DELAY))
 }

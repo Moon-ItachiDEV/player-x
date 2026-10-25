@@ -342,7 +342,7 @@ function registerIpc(): void {
     if (next.bf6Recap !== before.bf6Recap) syncBf6Recaps()
     if (next.cs2Live !== before.cs2Live) void syncCs2()
     if (next.updateChannel !== before.updateChannel) updateChannelChanged()
-    if (next.updateChannel !== before.updateChannel || next.cs2Overlay !== before.cs2Overlay) syncCs2Overlay()
+    if (next.updateChannel !== before.updateChannel || next.cs2Overlay !== before.cs2Overlay || next.overlayHotkey !== before.overlayHotkey) syncCs2Overlay()
     if (next.gameNews !== before.gameNews) {
       // Badges retirés tout de suite, ou relevés dès la réactivation.
       notifyGamesChanged()

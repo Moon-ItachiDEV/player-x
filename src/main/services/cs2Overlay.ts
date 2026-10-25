@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, globalShortcut, screen } from 'electron'
 import { CS2_GAME_ID } from '@shared/cs2'
+import { hotkeyProblem } from '@shared/hotkey'
 import type { Cs2OverlayConfig } from '@shared/types'
 import { handle } from '../ipc'
 import { appWindows, isOverlay, markOverlay } from '../windows'
@@ -12,9 +13,9 @@ import { getSettings } from './settings'
 // n'est jamais au premier plan à la place du jeu. Rien n'est injecté dans CS2 : c'est une fenêtre de Player X, visible
 // quand le jeu est en « plein écran fenêtré » (Windows ne montre rien devant un jeu en plein écran exclusif).
 // Elle n'existe que pendant que CS2 tourne (ou pendant un aperçu lancé depuis Paramètres). Ce qu'elle affiche vient des
-// mêmes envois que la fiche (cs2:live, cs2:recap) ; son style et Alt+X passent par cs2:overlay-config.
+// mêmes envois que la fiche (cs2:live, cs2:recap) ; son style et son raccourci (Alt+X par défaut, réglable dans
+// Paramètres › Overlay) passent par cs2:overlay-config.
 
-const HOTKEY = 'Alt+X'
 /** Aperçu depuis Paramètres : le temps de voir les quatre pièces. */
 const PREVIEW_MS = 24_000
 
@@ -22,7 +23,10 @@ let win: BrowserWindow | null = null
 let hidden = false
 let previewAt: number | undefined
 let previewTimer: ReturnType<typeof setTimeout> | undefined
-let hotkey = false
+/** Le raccourci pris en ce moment (accélérateur), null si aucun. */
+let hotkey: string | null = null
+/** Raccourci refusé par Windows à la dernière tentative : pas de nouvel essai tant qu'il ne change pas. */
+let hotkeyRefused: string | null = null
 /** Une fenêtre de Player X a le focus : l'overlay s'efface pour ne pas la couvrir. */
 let appFocused = false
 /**
@@ -44,7 +48,12 @@ export function overlayAllowed(): boolean {
 function config(): Cs2OverlayConfig {
   const style = overlayAllowed() ? getSettings().cs2Overlay : 'off'
   // L'aperçu se lance depuis Paramètres, donc Player X au premier plan : il se voit quand même.
-  return { style, hidden: hidden || (appFocused && previewAt === undefined), ...(previewAt !== undefined ? { previewAt } : {}) }
+  return {
+    style,
+    hidden: hidden || (appFocused && previewAt === undefined),
+    hotkey: getSettings().overlayHotkey,
+    ...(previewAt !== undefined ? { previewAt } : {})
+  }
 }
 
 function send(): void {
@@ -103,22 +112,50 @@ function destroy(): void {
   win = null
 }
 
-/** Alt+X : masquer ou réafficher l'overlay. Pris seulement pendant que l'overlay existe, pour ne gêner aucun autre jeu. */
+/**
+ * Le raccourci choisi (Alt+X par défaut) masque ou réaffiche l'overlay. Pris seulement pendant que l'overlay existe, pour
+ * ne gêner aucun autre jeu ; changé dans Paramètres, il est remplacé tout de suite.
+ */
 function syncHotkey(): void {
-  const need = !!win
-  if (need === hotkey) return
-  if (need) {
-    try {
-      hotkey = globalShortcut.register(HOTKEY, () => {
+  const want = win ? getSettings().overlayHotkey : null
+  if (want === hotkey || (want !== null && want === hotkeyRefused)) return
+  if (hotkey) globalShortcut.unregister(hotkey)
+  hotkey = null
+  hotkeyRefused = null
+  if (!want) return
+  try {
+    if (
+      globalShortcut.register(want, () => {
         hidden = !hidden
         send()
       })
-    } catch {
-      hotkey = false
+    )
+      hotkey = want
+    else {
+      hotkeyRefused = want
+      console.warn('[cs2] raccourci de l’overlay déjà pris :', want)
     }
-  } else {
-    globalShortcut.unregister(HOTKEY)
-    hotkey = false
+  } catch (e) {
+    hotkeyRefused = want
+    console.warn('[cs2] raccourci de l’overlay refusé :', want, e)
+  }
+}
+
+/** Avant d'enregistrer un nouveau raccourci : est-il valable et libre ? null si oui, sinon la raison à afficher. */
+function checkHotkey(accel: unknown): string | null {
+  if (typeof accel !== 'string') return "Ce raccourci n'est pas reconnu."
+  const problem = hotkeyProblem(accel)
+  if (problem) return problem
+  // Déjà le nôtre (overlay ouvert avec ce raccourci) : rien à vérifier.
+  if (accel === hotkey) return null
+  if (globalShortcut.isRegistered(accel)) return 'Player X utilise déjà ce raccourci.'
+  try {
+    // Un essai : Windows refuse si une autre appli l'a déjà pris.
+    if (!globalShortcut.register(accel, () => {})) return 'Déjà pris par Windows ou une autre appli : choisis-en un autre.'
+    globalShortcut.unregister(accel)
+    return null
+  } catch {
+    return "Ce raccourci n'est pas reconnu."
   }
 }
 
@@ -165,6 +202,7 @@ function preview(): void {
 export function startCs2Overlay(): void {
   handle('cs2:overlay-config', () => config())
   handle('cs2:overlay-preview', () => preview())
+  handle('cs2:overlay-hotkey-check', (_e, accel: unknown) => checkHotkey(accel))
   handle('cs2:overlay-ready', (e) => {
     if (win && !win.isDestroyed() && e.sender === win.webContents && !win.isVisible()) win.showInactive()
   })

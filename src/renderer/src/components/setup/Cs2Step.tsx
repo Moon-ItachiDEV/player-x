@@ -1,6 +1,7 @@
 // Étape Counter-Strike 2 (seulement si CS2 est dans les jeux trouvés) : le match en direct et le bilan,
 // et l'overlay bêta. Mêmes réglages et mêmes aperçus que dans Paramètres › Interface (match, bilan) et Paramètres › Overlay.
 import type { RefObject } from 'react'
+import { hotkeyText } from '@shared/hotkey'
 import type { Game, Settings } from '@shared/types'
 import { openCs2Recap, sampleCs2Recap } from '../cs2/useCs2'
 import { Cover } from '../ui/Cover'
@@ -61,7 +62,7 @@ export function Cs2Step({ game, settings, onSaveSettings, headingRef, onBack, on
               <span className="cs2s-row-text">
                 <span className="cs2s-row-label">Overlay CS2 (bêta)</span>
                 <span className="cs2s-row-value">
-                  {settings.cs2Overlay === 'off' ? 'Désactivé · rien par-dessus le jeu' : 'Activé · tes chiffres par-dessus CS2 pendant les matchs. Alt+X le masque'}
+                  {settings.cs2Overlay === 'off' ? 'Désactivé · rien par-dessus le jeu' : `Activé · tes chiffres par-dessus CS2 pendant les matchs. ${hotkeyText(settings.overlayHotkey)} le masque`}
                 </span>
               </span>
               <button
