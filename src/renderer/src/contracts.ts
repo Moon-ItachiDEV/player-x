@@ -122,7 +122,6 @@ export interface HomeProps {
   /** « Voir tous les amis » : page Amis. */
   onShowFriends: () => void
   /** « Trophées » : page Trophées. */
-  onShowTrophies: () => void
 }
 
 /** components/library/Library.tsx → `export function Library` */

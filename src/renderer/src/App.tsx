@@ -669,7 +669,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               onReadNews={readNews}
               onShowNews={() => go('news')}
               onShowFriends={showFriends}
-              onShowTrophies={() => go('trophies')}
             />
           )}
           {view === 'library' && (
