@@ -62,6 +62,8 @@ export interface CardApi {
 
 /** Compte à rebours du redémarrage automatique, inchangé. */
 const RESTART_DELAY = 10
+/** « Plus tard » : la carte revient au bout de 3 h si la mise à jour n'est toujours pas installée. */
+const LATER_MS = 3 * 60 * 60 * 1000
 /** Sans événement de progression pendant 6 s : « en attente du réseau ». */
 const STALL_MS = 6000
 const STEPS: VerifyStep[] = ['signature', 'hash', 'check']
@@ -442,7 +444,9 @@ export function useCardPhase(
   const left = cd.key === cdKey ? cd.left : D
 
   const hidden = view.kind === 'hidden' || (!view.preview && dismissed === view.key)
-  const blocked = view.kind === 'ready' && ((!view.preview && blockedVersion === view.version) || selfBlocked === readyKey)
+  // Une vraie mise à jour n'installe jamais toute seule : la carte attend « Installer maintenant » ou « Plus tard »
+  // (demande de Breezydev, 0.9.4-beta.3). Seul l'aperçu garde son compte à rebours de démonstration.
+  const blocked = view.kind === 'ready' && (!view.preview || blockedVersion === view.version || selfBlocked === readyKey)
   const isRestarting = view.kind === 'ready' && restarting === readyKey && !blocked
   const lockActive = !!lock && lock.key === view.key && view.kind === 'ready'
 
@@ -537,8 +541,12 @@ export function useCardPhase(
   const later = useCallback(() => {
     const v = viewRef.current
     if (v.preview) return leave(stopPreview)
-    notify(`La ${v.version} s’installera quand tu fermeras Player X`, { kind: 'info', id: 'update' })
+    notify(`La ${v.version} s’installera quand tu fermeras Player X. Elle te sera reproposée dans 3${'\u00a0'}h.`, { kind: 'info', id: 'update' })
     leave(() => dismissedKey.set(v.key))
+    // Rangé près de l'horloge, Player X ne se ferme presque jamais : la carte revient après LATER_MS.
+    setTimeout(() => {
+      if (dismissedKey.get() === v.key) dismissedKey.set(null)
+    }, LATER_MS)
   }, [leave, notify])
 
   const close = useCallback(() => {

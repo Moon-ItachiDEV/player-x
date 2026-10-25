@@ -2,7 +2,7 @@
 // La source (owner/repo) vient de app-update.yml, écrit par electron-builder à partir de `build.publish`.
 // En développement, PX_UPDATE_SIM rejoue une mise à jour sur ce même code (updateSim.ts, jamais chargé par la version installée).
 import { stat } from 'node:fs/promises'
-import { app, net, powerMonitor, screen } from 'electron'
+import { app, net, Notification, powerMonitor, screen } from 'electron'
 // Import par défaut : marche que le main soit bundlé en CJS (le cas ici, dépendance externe → require) ou en ESM.
 import updaterPkg, { type AppUpdater, type Logger, type UpdateDownloadedEvent } from 'electron-updater'
 import type { InstallResult, LastUpdate, UpdateErrorCode, UpdateMeta, UpdateState } from '@shared/types'
@@ -11,6 +11,7 @@ import { handle } from '../ipc'
 import { appWindows, isOverlay, mainWindow } from '../windows'
 import { clampDelay, isLast, isPending, lastFromPending, visibleBounds, type PendingUpdate, type WindowBounds } from './updateHandoff'
 import { getSettings } from './settings'
+import { showMainWindow } from './tray'
 import { summarizeReleaseNotes } from './updateNotes'
 import { isVersion, sha512File, verifyUpdateSignature } from './updateSignature'
 import type { SimHooks } from './updateSim'
@@ -367,6 +368,24 @@ async function verifyDownloaded(u: AppUpdater, info: UpdateDownloadedEvent, down
   // Méthode interne : si elle disparaît un jour, seul « installer en quittant » manque, « Redémarrer » marche toujours.
   ;(u as unknown as { addQuitHandler?: () => void }).addQuitHandler?.()
   setState({ state: 'ready', version: v, fingerprint, size, downloadMs })
+  notifyReady(v)
+}
+
+/** Version déjà annoncée par une notification Windows (une seule fois par version). */
+let notified: string | null = null
+
+/**
+ * Fenêtre cachée (rangée près de l'horloge) ou réduite : la carte « Nouvelle mise à jour » ne se verrait pas. Une
+ * notification Windows l'annonce ; un clic rouvre Player X sur la carte (Installer maintenant / Plus tard).
+ */
+function notifyReady(v: string): void {
+  const win = mainWindow()
+  if (notified === v || (win && win.isVisible() && !win.isMinimized())) return
+  if (!Notification.isSupported()) return
+  notified = v
+  const n = new Notification({ title: 'Nouvelle mise à jour de Player X', body: `La ${v} est prête. Clique pour l’installer maintenant ou plus tard.` })
+  n.on('click', () => showMainWindow())
+  n.show()
 }
 
 function refuse(message: string, code: UpdateErrorCode, version?: string): void {
