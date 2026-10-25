@@ -69,7 +69,7 @@ const ordinal = (n: number): string => (n === 1 ? '1er' : `${n}e`)
 const signed = (n: number): string => `${n >= 0 ? '+' : '−'}${dec.format(Math.abs(n))}`
 
 /** Page Stats de jeu : Battlefield 6 (gametools.network) et, quand le suivi est actif, Counter-Strike 2 (envoyé par le jeu). */
-export function Stats({ games }: StatsProps): React.JSX.Element {
+export function Stats({ games, onOpenSettings }: StatsProps): React.JSX.Element {
   const cs2 = useCs2()
   const [game, setGame] = useState<StatsGame>(loadStatsGame)
   const [gameArt, setGameArt] = useState<Bf6Art>({})
@@ -118,7 +118,7 @@ export function Stats({ games }: StatsProps): React.JSX.Element {
         }
       />
       {shown === 'bf6' && <Bf6Stats art={bf6Art} logo={gameArt.logoUrl} />}
-      {shown === 'cs2' && cs2.state && <Cs2Stats state={cs2.state} live={cs2.live} />}
+      {shown === 'cs2' && cs2.state && <Cs2Stats state={cs2.state} live={cs2.live} onOpenSettings={onOpenSettings} />}
       {shown === null && <div className="skel bf-skel" />}
     </div>
   )

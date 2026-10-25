@@ -181,6 +181,8 @@ export interface ProfileProps {
 export interface StatsProps {
   /** Pour le visuel de Battlefield 6 quand le jeu est dans la bibliothèque. */
   games: Game[]
+  /** Stats à vie de CS2 sans clé ou sans compte Steam : ouvre la bonne section des Paramètres. */
+  onOpenSettings: (section: SettingsSection) => void
 }
 
 /** components/achievements/Trophies.tsx → `export function Trophies` (succès Steam de tous les jeux joués) */

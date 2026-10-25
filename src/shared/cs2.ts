@@ -36,7 +36,30 @@ const MAPS: Record<string, string> = {
   cs_agency: 'Agency',
   ar_baggage: 'Baggage',
   ar_shoots: 'Shoots',
-  ar_pool_day: 'Pool Day'
+  ar_pool_day: 'Pool Day',
+  // Cartes de CS:GO : elles restent dans les stats à vie de Steam.
+  de_cbble: 'Cobblestone',
+  de_lake: 'Lake',
+  de_safehouse: 'Safehouse',
+  de_shortdust: 'Shortdust',
+  de_shortnuke: 'Shortnuke',
+  de_stmarc: 'St. Marc',
+  de_bank: 'Bank',
+  de_sugarcane: 'Sugarcane',
+  de_aztec: 'Aztec',
+  de_dust: 'Dust',
+  de_canals: 'Canals',
+  de_tuscany: 'Tuscany',
+  de_zoo: 'Zoo',
+  de_abbey: 'Abbey',
+  de_biome: 'Biome',
+  de_breach: 'Breach',
+  de_studio: 'Studio',
+  cs_assault: 'Assault',
+  cs_militia: 'Militia',
+  cs_insertion: 'Insertion',
+  ar_monastery: 'Monastery',
+  ar_lunacy: 'Lunacy'
 }
 
 const MODES: Record<string, string> = {
@@ -95,6 +118,52 @@ export const formatKd = (n: number): string => dec.format(n)
 export function cs2RecapLine(r: Pick<Cs2Recap, 'result' | 'score' | 'map' | 'kills' | 'deaths'>): string {
   const head = [RESULT_LABEL[r.result], r.score && r.result !== 'left' ? `${r.score.us}–${r.score.them}` : ''].filter(Boolean).join(' ')
   return `${head} sur ${mapLabel(r.map)} · ${r.kills} élim. · K/D ${formatKd(killDeath(r))}`
+}
+
+/** Une carte de tes matchs suivis par Player X. */
+export interface Cs2MapSummary {
+  map: string
+  matches: number
+  wins: number
+  losses: number
+  ties: number
+  kills: number
+  deaths: number
+  kd: number
+  /** Dégâts par round, sur les rounds suivis des modes en rounds (null : aucun). */
+  adr: number | null
+  /** Dernier match joué sur cette carte. */
+  last: number
+}
+
+/** Tes matchs suivis regroupés par carte : la plus jouée d'abord (puis la plus récente). Les exemples sont ignorés. */
+export function mapSummaries(recaps: Cs2Recap[]): Cs2MapSummary[] {
+  const by = new Map<string, Cs2Recap[]>()
+  for (const r of recaps) {
+    if (r.sample || !r.map) continue
+    const k = r.map.toLowerCase()
+    by.set(k, [...(by.get(k) ?? []), r])
+  }
+  return [...by.entries()]
+    .map(([map, list]) => {
+      const kills = list.reduce((n, r) => n + r.kills, 0)
+      const deaths = list.reduce((n, r) => n + r.deaths, 0)
+      const rounds = list.filter((r) => r.hasRounds && r.roundsTracked > 0)
+      const tracked = rounds.reduce((n, r) => n + r.roundsTracked, 0)
+      return {
+        map,
+        matches: list.length,
+        wins: list.filter((r) => r.result === 'win').length,
+        losses: list.filter((r) => r.result === 'loss').length,
+        ties: list.filter((r) => r.result === 'tie').length,
+        kills,
+        deaths,
+        kd: deaths > 0 ? kills / deaths : kills,
+        adr: tracked > 0 ? rounds.reduce((n, r) => n + r.damage, 0) / tracked : null,
+        last: Math.max(...list.map((r) => r.endedAt))
+      }
+    })
+    .sort((a, b) => b.matches - a.matches || b.last - a.last)
 }
 
 /** Plus longue série de rounds gagnés (seulement ceux dont ton camp est connu). */

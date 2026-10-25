@@ -709,7 +709,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               onShowFriends={showFriends}
             />
           )}
-          {view === 'stats' && <Stats games={games} />}
+          {view === 'stats' && <Stats games={games} onOpenSettings={goSettings} />}
           {view === 'trophies' && <Trophies games={shownGames} notInstalled={notInstalled} onOpen={openSheet} onOpenAccounts={() => goSettings('accounts')} />}
           {view === 'news' && (
             <NewsPage games={shownGames} enabled={settings.gameNews} demo={settings.demoMode} onRead={readNews} onOpenSettings={() => goSettings('library')} />
