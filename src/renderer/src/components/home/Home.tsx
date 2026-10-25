@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { hasPlayed, PLAYED_SOURCE } from '@shared/played'
 import { capitalize, cleanName, formatDate, formatPlaytime, plural, timeAgo } from '@shared/text'
-import type { AchievementGame, Friend, Game } from '@shared/types'
+import type { AchievementGame, Friend, Game, NewsFeedItem } from '@shared/types'
 import type { HomeProps, LaunchFn } from '../../contracts'
 import { PlayLabel } from '../../launch/PlayLabel'
 import { usePlayState } from '../../launch/usePlayState'
@@ -15,7 +15,7 @@ import { Icon } from '../ui/Icon'
 import { LiveBadge } from '../ui/LiveBadge'
 import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
 import { playersLabel, playersOf, whoIsAround } from './around'
-import { HomeAchievements, HomeNews, useHomeNews } from './HomeBottom'
+import { HomeAchievements, useHomeNews } from './HomeBottom'
 import { HomeShelf } from './HomeShelf'
 import { LastMatchCard, OnlinePanel } from './HomeSide'
 import { achievementRows, achievementsOf, pickHero, resumeList } from './pick'
@@ -62,6 +62,10 @@ export function Home(props: HomeProps): React.JSX.Element {
   const achRows = useMemo(() => achievementRows(overview), [overview])
   const heroAch = useMemo(() => (heroId ? achievementsOf(overview, heroId) : null), [overview, heroId])
   const newsItems = useHomeNews(games, news, demo)
+  const updates = useMemo(() => {
+    const byId = new Map(games.map((g) => [g.id, g]))
+    return newsItems.map((item) => ({ item, game: byId.get(item.gameId) }))
+  }, [newsItems, games])
 
   if (games.length === 0 && scanning) return <HomeSkeleton />
 
@@ -86,7 +90,9 @@ export function Home(props: HomeProps): React.JSX.Element {
           resumeTitle={resumed ? 'À reprendre' : 'Dans ta bibliothèque'}
           onTarget={(g) => setTargetId(g.id)}
           news={news}
+          updates={updates}
           onReadNews={onReadNews}
+          onShowNews={onShowNews}
           onLaunch={onLaunch}
           onOpen={onOpen}
           onFavorite={onFavorite}
@@ -99,10 +105,10 @@ export function Home(props: HomeProps): React.JSX.Element {
         )}
       </div>
       <HomeShelf games={games} heroId={hero.id} onLaunch={onLaunch} onOpen={onOpen} onShowLibrary={onShowLibrary} />
-      {(newsItems.length > 0 || achRows.length > 0) && (
+      {/* « Mises à jour de tes jeux » est monté dans le bloc du jeu à la une (onglet), visible sans faire défiler. */}
+      {achRows.length > 0 && (
         <div className="hm-bottom">
-          {newsItems.length > 0 && <HomeNews items={newsItems} games={games} onRead={onReadNews} onShowAll={onShowNews} />}
-          {achRows.length > 0 && <HomeAchievements rows={achRows} onShowTrophies={onShowTrophies} />}
+          <HomeAchievements rows={achRows} onShowTrophies={onShowTrophies} />
         </div>
       )}
     </div>
@@ -121,7 +127,10 @@ interface HeroProps {
   onTarget: (g: Game) => void
   /** Actus des jeux activées : lien « Patch » de la ligne d'infos. */
   news: boolean
+  /** Derniers patchs des jeux de la bibliothèque : onglet « Mises à jour » à côté de « À reprendre ». */
+  updates: Update[]
   onReadNews: (gameId: string, postId: string) => void
+  onShowNews: () => void
   onLaunch: LaunchFn
   onOpen: (g: Game) => void
   onFavorite: (g: Game) => void
@@ -137,6 +146,8 @@ function HomeHero({
   onTarget,
   news,
   onReadNews,
+  updates,
+  onShowNews,
   onLaunch,
   onOpen,
   onFavorite
@@ -312,18 +323,137 @@ function HomeHero({
           </div>
         </div>
 
-        {resume.length > 1 && (
-          <div className="hh-end">
-            <h3 className="hh-end-title">{resumeTitle}</h3>
-            <ul className="hh-resume">
-              {resume.map((g) => (
-                <ResumeRow key={g.id} game={g} active={g.id === game.id} onTarget={onTarget} />
-              ))}
-            </ul>
-          </div>
+        {(resume.length > 1 || updates.length > 0) && (
+          <EndPanel
+            game={game}
+            resume={resume.length > 1 ? resume : []}
+            resumeTitle={resumeTitle}
+            updates={updates}
+            onTarget={onTarget}
+            onReadNews={onReadNews}
+            onShowNews={onShowNews}
+          />
         )}
       </div>
     </section>
+  )
+}
+
+type EndTab = 'resume' | 'updates'
+/** Un patch et le jeu de la bibliothèque qu'il concerne (pour sa jaquette). */
+interface Update {
+  item: NewsFeedItem
+  game?: Game
+}
+const END_TAB_KEY = 'pg.home.endTab'
+
+function readEndTab(): EndTab {
+  try {
+    return localStorage.getItem(END_TAB_KEY) === 'updates' ? 'updates' : 'resume'
+  } catch {
+    return 'resume'
+  }
+}
+
+/**
+ * Bloc de droite du jeu à la une : « À reprendre » et « Mises à jour » (derniers patchs de tes jeux) en deux onglets,
+ * à la même place, pour voir les patchs sans faire défiler l'accueil. Le dernier onglet choisi est retenu.
+ */
+function EndPanel({
+  game,
+  resume,
+  resumeTitle,
+  updates,
+  onTarget,
+  onReadNews,
+  onShowNews
+}: {
+  game: Game
+  resume: Game[]
+  resumeTitle: string
+  updates: Update[]
+  onTarget: (g: Game) => void
+  onReadNews: (gameId: string, postId: string) => void
+  onShowNews: () => void
+}): React.JSX.Element {
+  const [picked, setPicked] = useState<EndTab>(readEndTab)
+  // Un onglet vide n'est jamais montré : on bascule sur l'autre.
+  const tab: EndTab = picked === 'updates' ? (updates.length ? 'updates' : 'resume') : resume.length ? 'resume' : 'updates'
+  const pick = (t: EndTab): void => {
+    setPicked(t)
+    try {
+      localStorage.setItem(END_TAB_KEY, t)
+    } catch {
+      // simple confort
+    }
+  }
+  const fresh = updates.some((u) => u.item.isNew)
+  const both = resume.length > 0 && updates.length > 0
+  return (
+    <div className="hh-end">
+      {both ? (
+        <div className="hh-end-tabs" role="tablist" aria-label="À côté du jeu à la une">
+          <button role="tab" id="hh-tab-resume" aria-selected={tab === 'resume'} aria-controls="hh-panel" className="hh-end-tab" onClick={() => pick('resume')}>
+            {resumeTitle}
+          </button>
+          <button role="tab" id="hh-tab-updates" aria-selected={tab === 'updates'} aria-controls="hh-panel" className="hh-end-tab" onClick={() => pick('updates')}>
+            Mises à jour
+            {fresh && <span className="hh-end-dot" aria-label="nouveau" />}
+          </button>
+        </div>
+      ) : (
+        <h3 className="hh-end-title">{tab === 'resume' ? resumeTitle : 'Mises à jour de tes jeux'}</h3>
+      )}
+      <div id="hh-panel" role={both ? 'tabpanel' : undefined} aria-labelledby={both ? `hh-tab-${tab}` : undefined}>
+        {tab === 'resume' ? (
+          <ul className="hh-resume">
+            {resume.map((g) => (
+              <ResumeRow key={g.id} game={g} active={g.id === game.id} onTarget={onTarget} />
+            ))}
+          </ul>
+        ) : (
+          <>
+            <ul className="hh-resume">
+              {updates.map((u) => (
+                <UpdateRow key={`${u.item.gameId}:${u.item.id}`} update={u} onRead={onReadNews} />
+              ))}
+            </ul>
+            <button className="hm-link hh-end-more" onClick={onShowNews}>
+              Toutes les actus
+              <Icon name="chevron-right" size={14} />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Ligne de « Mises à jour » : le jeu, le titre du patch, quand ; un clic ouvre la lecture. */
+function UpdateRow({ update, onRead }: { update: Update; onRead: (gameId: string, postId: string) => void }): React.JSX.Element {
+  const item = update.item
+  const name = cleanName(item.gameName)
+  const when = capitalize(timeAgo(item.date))
+  return (
+    <li>
+      <button
+        className="hh-row hh-row-update"
+        title={item.title}
+        aria-label={`Patch de ${name} : ${item.title}, ${when.toLowerCase()}${item.isNew ? ', nouveau' : ''}`}
+        onClick={() => onRead(item.gameId, item.id)}
+      >
+        <span className="hh-row-thumb" aria-hidden="true">
+          <Cover game={update.game ?? { name: item.gameName }} variant="letter" />
+        </span>
+        <span className="hh-row-text" aria-hidden="true">
+          <span className="hh-row-name">{item.title}</span>
+          <span className="hh-row-sub">
+            {item.isNew && <span className="hh-row-new">Nouveau · </span>}
+            {when} · {name}
+          </span>
+        </span>
+      </button>
+    </li>
   )
 }
 
