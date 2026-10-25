@@ -121,7 +121,7 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
         </SettingRow>
         <SettingRow
           label="Vérification"
-          value="Au démarrage, toutes les heures et quand tu reviens sur Player X. Téléchargée en arrière-plan, signée, installée quand tu le choisis."
+          value="Au démarrage, quand tu ouvres ou retrouves Player X, et toutes les 30 minutes. Téléchargée en arrière-plan, signée, installée quand tu le choisis."
         >
           {null}
         </SettingRow>

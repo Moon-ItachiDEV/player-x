@@ -16,14 +16,19 @@ import { summarizeReleaseNotes } from './updateNotes'
 import { isVersion, sha512File, verifyUpdateSignature } from './updateSignature'
 import type { SimHooks } from './updateSim'
 
-const FIRST_CHECK_DELAY = 10_000
-/** Toutes les heures (avant : 6 h). L'API publique de GitHub permet 60 demandes par heure : on en est loin. */
-const CHECK_INTERVAL = 60 * 60 * 1000
+const FIRST_CHECK_DELAY = 3_000
 /**
- * Player X rangé près de l'horloge ne redémarre pas quand on « relance » le client : la vérification de démarrage n'avait
- * pas lieu. Désormais, revenir sur la fenêtre (ou sortir de veille) vérifie aussi, si la dernière vérification a plus de 15 min.
+ * Toutes les 30 min (0.9.4-beta.7 ; avant : 1 h, et 6 h avant la beta.2). Le canal Bêta lit le flux des releases de github.com
+ * (pas l'API limitée à 60 demandes par heure) puis latest.yml : quelques Ko.
  */
-const STALE_AFTER = 15 * 60 * 1000
+const CHECK_INTERVAL = 30 * 60 * 1000
+/**
+ * Player X rangé près de l'horloge ne redémarre pas quand on « relance » le client : la vérification de démarrage n'a pas lieu.
+ * Revenir sur la fenêtre (ou sortir de veille) vérifie donc aussi, si la dernière vérification a plus de 2 min.
+ * Avant (beta.2 à beta.6) : 15 min, d'où la beta.6 publiée juste après une vérification et pas proposée à la réouverture
+ * (Breezydev, 25/10) : il a fallu « Rechercher une mise à jour ».
+ */
+const STALE_AFTER = 2 * 60 * 1000
 let lastCheckAt = 0
 /** Après une erreur (hors ligne, GitHub indisponible…), on retente plus tôt que la vérification suivante. */
 const RETRY_DELAY = 30 * 60 * 1000
@@ -523,6 +528,12 @@ export function initUpdater(): void {
   }
   app.on('browser-window-focus', (_e, w) => {
     if (!isOverlay(w)) checkIfStale()
+  })
+  // Fenêtre rouverte depuis l'icône près de l'horloge : « show » arrive même quand Windows ne lui redonne pas le focus.
+  app.on('browser-window-created', (_e, w) => {
+    w.on('show', () => {
+      if (!isOverlay(w)) checkIfStale()
+    })
   })
   powerMonitor.on('resume', () => setTimeout(checkIfStale, FIRST_CHECK_DELAY))
 }
