@@ -12,7 +12,7 @@ import { Cover } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
 import { KIND_LABEL } from '../ui/StoreTag'
 import { shelfList, storesOf } from './pick'
-import { useRowScroll } from './rowScroll'
+import { useRowScroll, useWheelStep } from './rowScroll'
 
 interface Props {
   games: Game[]
@@ -21,15 +21,18 @@ interface Props {
   onLaunch: LaunchFn
   onOpen: (g: Game) => void
   onShowLibrary: () => void
+  /** Molette sur la rangée : jeu suivant / précédent à la une, dans l'ordre affiché (filtre compris). */
+  onStep: (list: Game[], d: 1 | -1) => void
 }
 
-export function HomeShelf({ games, heroId, onLaunch, onOpen, onShowLibrary }: Props): React.JSX.Element | null {
+export function HomeShelf({ games, heroId, onStep, onLaunch, onOpen, onShowLibrary }: Props): React.JSX.Element | null {
   const [store, setStore] = useState<Store | 'all'>('all')
   const stores = useMemo(() => storesOf(games), [games])
   // Store disparu de la bibliothèque (démo coupée…) : retour à « Tout ».
   const shown = store !== 'all' && !stores.includes(store) ? 'all' : store
   const list = useMemo(() => shelfList(games, shown), [games, shown])
   const { track, edges, scrollBy } = useRowScroll(list.length)
+  useWheelStep(track, (d) => onStep(list, d))
 
   // Nouveau filtre : on repart du début de la rangée.
   useEffect(() => {

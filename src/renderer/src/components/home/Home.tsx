@@ -20,6 +20,7 @@ import { HomeShelf } from './HomeShelf'
 import { HomeTop } from './HomeTop'
 import { LastMatchCard, OnlinePanel } from './HomeSide'
 import { achievementRows, achievementsOf, pickHero, resumeList, shelfList } from './pick'
+import { useWheelStep } from './rowScroll'
 import { useLastMatch } from './useLastMatch'
 import './home.css'
 
@@ -57,16 +58,20 @@ export function Home(props: HomeProps): React.JSX.Element {
 
   const { list: resume, resumed } = useMemo(() => resumeList(games, hero), [games, hero])
 
-  // Molette sur le jeu à la une : jeu suivant / précédent, dans l'ordre de « Ta bibliothèque » (filtre « Tout »).
+  // Molette sur le jeu à la une ou sur « Ta bibliothèque » : jeu suivant / précédent, dans l'ordre de la rangée
+  // (filtre « Tout » pour le jeu à la une, le filtre choisi pour la rangée). La rangée suit le jeu à la une.
   const order = useMemo(() => shelfList(games, 'all'), [games])
   const [dir, setDir] = useState<'next' | 'prev' | null>(null)
-  const step = (d: 1 | -1): void => {
-    if (!heroId || order.length < 2) return
-    const i = order.findIndex((g) => g.id === heroId)
-    const next = order[(i + d + order.length) % order.length]
+  const stepIn = (list: Game[], d: 1 | -1): void => {
+    if (!heroId || list.length < 1) return
+    const i = list.findIndex((g) => g.id === heroId)
+    // Jeu à la une absent de la rangée filtrée : on entre par le premier (ou le dernier) jeu.
+    const next = i < 0 ? list[d > 0 ? 0 : list.length - 1] : list[(i + d + list.length) % list.length]
+    if (next.id === heroId) return
     setDir(d > 0 ? 'next' : 'prev')
     setTargetId(next.id)
   }
+  const step = (d: 1 | -1): void => stepIn(order, d)
   const around = useMemo(() => (hero ? whoIsAround(hero, friends) : null), [hero, friends])
   const match = useLastMatch()
   const { data: overview } = useAchievementsOverview()
@@ -121,7 +126,7 @@ export function Home(props: HomeProps): React.JSX.Element {
           </div>
         )}
       </div>
-      <HomeShelf games={games} heroId={hero.id} onLaunch={onLaunch} onOpen={onOpen} onShowLibrary={onShowLibrary} />
+      <HomeShelf games={games} heroId={hero.id} onStep={stepIn} onLaunch={onLaunch} onOpen={onOpen} onShowLibrary={onShowLibrary} />
       {/* « Mises à jour de tes jeux » est monté dans le bloc du jeu à la une (onglet), visible sans faire défiler. */}
       {achRows.length > 0 && (
         <div className="hm-bottom">
@@ -187,26 +192,7 @@ function HomeHero({
   const backUrl = heroUrl ?? game.coverUrl
 
   // Molette au-dessus du jeu à la une : un cran = un jeu (seuil pour les pavés tactiles, un pas toutes les 280 ms au plus).
-  const stepRef = useRef(onStep)
-  stepRef.current = onStep
-  useEffect(() => {
-    const el = root.current
-    if (!el) return
-    let acc = 0
-    let last = 0
-    const onWheel = (e: WheelEvent): void => {
-      if (e.ctrlKey || Math.abs(e.deltaY) < Math.abs(e.deltaX)) return
-      e.preventDefault()
-      acc += e.deltaY
-      const now = performance.now()
-      if (Math.abs(acc) < 40 || now - last < 280) return
-      last = now
-      stepRef.current(acc > 0 ? 1 : -1)
-      acc = 0
-    }
-    el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
-  }, [])
+  useWheelStep(root, onStep)
 
   // Fond de la page aux couleurs du jeu à la une.
   useEffect(() => {
