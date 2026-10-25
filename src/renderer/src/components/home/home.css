@@ -166,6 +166,38 @@
     opacity: 0;
   }
 }
+/* Changement de jeu à la molette : le texte arrive dans le sens du geste, le visuel se pose en douceur ;
+   « À reprendre » ne rejoue pas son entrée. */
+@keyframes hh-next {
+  from {
+    opacity: 0;
+    translate: 0 28px;
+  }
+}
+@keyframes hh-prev {
+  from {
+    opacity: 0;
+    translate: 0 -28px;
+  }
+}
+@keyframes hh-settle {
+  from {
+    opacity: 0;
+    scale: 1.04;
+  }
+}
+.hh[data-dir='next'] .hh-main {
+  animation: hh-next 380ms var(--ease-arrive) both;
+}
+.hh[data-dir='prev'] .hh-main {
+  animation: hh-prev 380ms var(--ease-arrive) both;
+}
+.hh[data-dir] .hh-bleed {
+  animation: hh-settle 520ms var(--ease-out) both;
+}
+.hh[data-dir] .hh-end {
+  animation: none;
+}
 
 .hh-bleed {
   position: absolute;
