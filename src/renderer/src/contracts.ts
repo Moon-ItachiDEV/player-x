@@ -86,8 +86,8 @@ export interface TopBarProps {
   accounts: Account[]
   accountMenuOpen: boolean
   onToggleAccountMenu: () => void
-  /** Mode démo : pastille « Démo » dans la barre. */
-  demo: boolean
+  /** Accueil : « Bonsoir, Breezydev » à la place du titre de la page. */
+  greet: boolean
 }
 
 /** components/AccountMenu.tsx → `export function AccountMenu` (popover ancré sous l'avatar de la barre du haut) */
@@ -112,7 +112,6 @@ export interface HomeProps {
   onOpen: (g: Game) => void
   onFavorite: (g: Game) => void
   onRescan: () => void
-  onEnableDemo: () => void
   onShowLibrary: () => void
   /** Actus des jeux activées : lien « Patch » du jeu à la une et « Mises à jour de tes jeux ». */
   news: boolean
@@ -142,7 +141,6 @@ export interface LibraryProps {
   onOpen: (g: Game) => void
   onFavorite: (g: Game) => void
   onRescan: () => void
-  onEnableDemo: () => void
   /** Taille des jaquettes (menu « Taille »), partagée avec Paramètres › Interface. */
   coverSize: UiPrefs['coverSize']
   onCoverSize: (s: UiPrefs['coverSize']) => void
@@ -254,7 +252,6 @@ export interface LoginProps {
   onSteam: () => void
   onCancel: () => void
   onSkip: () => void
-  onDemo: () => void
 }
 
 /**
@@ -276,7 +273,6 @@ export interface SetupProps {
   demo: boolean
   /** Rescanne le PC (même action que « Relancer le scan »). */
   onRescan: () => void
-  onEnableDemo: () => void
   /** Réglages CS2 de l'étape Counter-Strike 2 (les mêmes que dans Paramètres). */
   settings: Settings
   onSaveSettings: (patch: Partial<Settings>) => Promise<Settings>

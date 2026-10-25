@@ -7,13 +7,11 @@ import './library.css'
 
 interface NoGamesProps {
   report: ScanReport[]
-  demo: boolean
   onRescan: () => void
-  onEnableDemo: () => void
 }
 
-/** Aucun jeu détecté : relancer, comprendre (dossiers examinés) ou essayer la démo. */
-export function NoGames({ report, demo, onRescan, onEnableDemo }: NoGamesProps): React.JSX.Element {
+/** Aucun jeu détecté : relancer ou comprendre (dossiers examinés). */
+export function NoGames({ report, onRescan }: NoGamesProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   return (
     <div className="empty-state lib-empty">
@@ -33,11 +31,6 @@ export function NoGames({ report, demo, onRescan, onEnableDemo }: NoGamesProps):
         </button>
       </div>
       {open && <ScanReportList id="lib-scan-report" report={report} />}
-      {!demo && (
-        <button className="link-btn lib-demo-link" onClick={onEnableDemo}>
-          Essayer le mode démo
-        </button>
-      )}
     </div>
   )
 }

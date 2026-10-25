@@ -151,7 +151,7 @@ function ReadyStep({ total, favorites, saving, headingRef, onReplay, onFinish }:
 }
 
 export function Setup(props: SetupProps): React.JSX.Element {
-  const { firstRun, replay, games, report, scanning, demo, settings, onSaveSettings, onRescan, onEnableDemo, onDone, onSkip } = props
+  const { firstRun, replay, games, report, scanning, demo, settings, onSaveSettings, onRescan, onDone, onSkip } = props
   const [step, setStep] = useState<Step>(firstRun ? 'welcome' : 'favorites')
   const hasCs2 = useMemo(() => games.some((g) => g.id === CS2_GAME_ID), [games])
   // Sans jeu, il n'y a rien à choisir : on reste sur l'analyse (relancer, démo, continuer). Sans CS2, pas d'étape CS2.
@@ -289,7 +289,6 @@ export function Setup(props: SetupProps): React.JSX.Element {
               onRevealed={() => setScanSeen(true)}
               onNext={() => setStep(afterScan)}
               onRescan={onRescan}
-              onEnableDemo={onEnableDemo}
               onSkip={onSkip}
             />
           )}

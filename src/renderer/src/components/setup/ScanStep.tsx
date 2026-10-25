@@ -147,12 +147,11 @@ interface ScanStepProps {
   onRevealed: () => void
   onNext: () => void
   onRescan: () => void
-  onEnableDemo: () => void
   onSkip: () => void
 }
 
 export function ScanStep(props: ScanStepProps): React.JSX.Element {
-  const { games, report, scanning, demo, instant, headingRef, nextLabel, onRevealed, onNext, onRescan, onEnableDemo, onSkip } = props
+  const { games, report, scanning, demo, instant, headingRef, nextLabel, onRevealed, onNext, onRescan, onSkip } = props
   const [showChecked, setShowChecked] = useState(false)
   const results = useMemo(() => storeResults(games, report, demo), [games, report, demo])
   const [revealed, setRevealed] = useState(() => (!scanning && (instant || motionReduced()) ? STORES.length : 0))
@@ -310,11 +309,6 @@ export function ScanStep(props: ScanStepProps): React.JSX.Element {
                 <Icon name="refresh" size={16} />
                 Relancer le scan
               </button>
-              {!demo && (
-                <button type="button" className="btn btn-secondary btn-lg" onClick={onEnableDemo}>
-                  Essayer le mode démo
-                </button>
-              )}
               <button type="button" className="btn btn-ghost btn-lg" onClick={onSkip}>
                 Continuer
               </button>

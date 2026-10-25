@@ -35,9 +35,9 @@ function useGreeting(): string {
   return greeting
 }
 
-/** Barre du haut : zone de déplacement de la fenêtre, titre ou onglets de la page, recherche, mode démo, compte. */
+/** Barre du haut : zone de déplacement de la fenêtre, titre ou onglets de la page (salutation sur l'Accueil), recherche, compte. */
 export function TopBar(props: TopBarProps): React.JSX.Element {
-  const { title, query, onQueryChange, searchRef, slotRef, accounts, accountMenuOpen, onToggleAccountMenu, demo, search, onLibraryView } = props
+  const { title, query, onQueryChange, searchRef, slotRef, accounts, accountMenuOpen, onToggleAccountMenu, greet, search, onLibraryView } = props
   const account = primaryAccount(accounts)
   const name = account?.name ?? 'Joueur'
   const greeting = useGreeting()
@@ -101,7 +101,20 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
 
   return (
     <header className={`topbar ${IS_MAC ? 'is-mac' : ''}`}>
-      {title && <p className="tb-title">{title}</p>}
+      {greet ? (
+        // Accueil : le rail dit déjà où l'on est ; la barre salue plutôt (heure du PC et nom du compte, rien d'inventé).
+        <p className="tb-greet">
+          {account ? (
+            <>
+              {greeting}, <b>{name}</b>
+            </>
+          ) : (
+            greeting
+          )}
+        </p>
+      ) : (
+        title && <p className="tb-title">{title}</p>
+      )}
       <div ref={slotRef} className="tb-slot" />
       <div className="tb-spacer" />
 
@@ -152,13 +165,6 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
         )}
         {open && <SearchResults id="tb-results" groups={groups} gameCount={gameCount} query={query} active={current} onActive={setActive} onPick={pick} />}
       </div>
-
-      {demo && (
-        <span className="tb-demo" title="Mode démo actif : jeux et amis fictifs (Paramètres › Avancé pour le couper)">
-          <span className="tb-demo-dot" aria-hidden="true" />
-          Démo
-        </span>
-      )}
 
       <button
         className="tb-me"

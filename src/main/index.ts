@@ -26,7 +26,7 @@ import { createLaunches, sanitizeOpts, type LaunchDeps, type Launches, type Laun
 import { createWatcher } from './services/launchWatch'
 import { newMatches } from './services/launchWatchParse'
 import { getGameNews, markAllNewsSeen, markNewsSeen, newsFeed, refreshNewsIndex, refreshNewsNow, startNewsWatcher, withNews } from './services/news'
-import { getAccounts, getMemberPrefs, getSettings, publicSettings, removeAccount, saveMemberPrefs, saveSettings } from './services/settings'
+import { allowDemo, getAccounts, getMemberPrefs, getSettings, publicSettings, removeAccount, saveMemberPrefs, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { installSteamGame, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
 import {
@@ -55,6 +55,10 @@ if (!app.isPackaged) {
     /* .env facultatif */
   }
 }
+
+// Mode démo (jeux et amis fictifs) : retiré de l'interface en 0.9.4-beta.6. Il ne reste que pour le développement
+// (captures, essais) ; la version installée l'ignore, même s'il avait été activé avant.
+allowDemo(!app.isPackaged)
 
 /** Serveur Vite de `npm run dev` : ignoré par la version installée. */
 const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL

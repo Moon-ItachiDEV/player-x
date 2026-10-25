@@ -1176,3 +1176,85 @@
 .hm-track .hm-tile.skel {
   border-radius: 18px;
 }
+
+/* ---------- barre du haut : « En ce moment » (HomeTop.tsx), sur le modèle du choix du jeu de Stats ---------- */
+.hm-now {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin-left: 16px;
+  padding: 4px;
+  border-radius: var(--r-pill);
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+.hm-now-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 14px 0 5px;
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  font: 600 13px/18px var(--font-ui);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    scale var(--d-1) var(--ease-out);
+}
+.hm-now-pill:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+.hm-now-pill:active {
+  scale: 0.97;
+}
+.hm-now-pill.is-live {
+  color: var(--live-text);
+}
+.hm-now-thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  overflow: hidden;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.hm-now-thumb > * {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.hm-now-thumb img {
+  object-fit: cover;
+}
+.hm-now-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 25%, transparent);
+}
+.hm-now-faces {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding-left: 2px;
+}
+.hm-now-faces > .avatar {
+  box-shadow: 0 0 0 2px var(--bg-0);
+}
+.hm-now-faces > .avatar + .avatar {
+  margin-left: -8px;
+}

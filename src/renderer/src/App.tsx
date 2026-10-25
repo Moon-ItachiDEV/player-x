@@ -46,7 +46,7 @@ const DEFAULT_UI: UiPrefs = { coverSize: 'M', reduceMotion: false, transparency:
 const SETUP_KEY = 'pg.setup'
 
 /** Titre de la barre du haut ; la bibliothèque, les stats et les paramètres y posent leurs onglets à la place. */
-const VIEW_TITLE: Partial<Record<View, string>> = { home: 'Accueil', friends: 'Amis', profile: 'Profil', trophies: 'Trophées' }
+const VIEW_TITLE: Partial<Record<View, string>> = { friends: 'Amis', profile: 'Profil', trophies: 'Trophées' }
 
 function setupDone(): boolean {
   try {
@@ -390,11 +390,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     [notify]
   )
 
-  const enableDemo = useCallback(async () => {
-    await saveSettings({ demoMode: true })
-    setEntered(true)
-  }, [saveSettings, setEntered])
-
   /** Ferme l'écran de démarrage : vers l'accueil après un choix ou au premier passage, sinon on reste où on était. */
   const closeSetup = useCallback(
     (toHome: boolean) => {
@@ -562,7 +557,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         onSteam={() => login('steam')}
         onCancel={() => api.cancelLogin()}
         onSkip={() => setEntered(true)}
-        onDemo={enableDemo}
       />
     )
   }
@@ -577,7 +571,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         scanning={scanning}
         demo={settings.demoMode}
         onRescan={() => loadGames(true)}
-        onEnableDemo={enableDemo}
         settings={settings}
         onSaveSettings={saveSettings}
         onDone={finishSetup}
@@ -655,7 +648,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         accounts={accounts}
         accountMenuOpen={accountMenu}
         onToggleAccountMenu={() => setAccountMenu((o) => !o)}
-        demo={settings.demoMode}
+        greet={view === 'home'}
       />
       <Ambient />
       <TopSlot.Provider value={tabSlot}>
@@ -671,7 +664,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               onOpen={openSheet}
               onFavorite={toggleFavorite}
               onRescan={() => loadGames(true)}
-              onEnableDemo={enableDemo}
               onShowLibrary={() => go('library')}
               news={settings.gameNews}
               onReadNews={readNews}
@@ -694,7 +686,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               onOpen={openSheet}
               onFavorite={toggleFavorite}
               onRescan={() => loadGames(true)}
-              onEnableDemo={enableDemo}
               coverSize={ui.coverSize}
               onCoverSize={(coverSize) => updateUi({ coverSize })}
             />

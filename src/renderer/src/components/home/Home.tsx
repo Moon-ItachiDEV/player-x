@@ -17,6 +17,7 @@ import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
 import { playersLabel, playersOf, whoIsAround } from './around'
 import { HomeAchievements, useHomeNews } from './HomeBottom'
 import { HomeShelf } from './HomeShelf'
+import { HomeTop } from './HomeTop'
 import { LastMatchCard, OnlinePanel } from './HomeSide'
 import { achievementRows, achievementsOf, pickHero, resumeList, shelfList } from './pick'
 import { useLastMatch } from './useLastMatch'
@@ -36,7 +37,6 @@ export function Home(props: HomeProps): React.JSX.Element {
     onOpen,
     onFavorite,
     onRescan,
-    onEnableDemo,
     onShowLibrary,
     onReadNews,
     onShowNews,
@@ -83,7 +83,7 @@ export function Home(props: HomeProps): React.JSX.Element {
   if (games.length === 0 || !hero) {
     return (
       <div className="page home">
-        <NoGames report={report} demo={demo} onRescan={onRescan} onEnableDemo={onEnableDemo} />
+        <NoGames report={report} onRescan={onRescan} />
       </div>
     )
   }
@@ -91,6 +91,7 @@ export function Home(props: HomeProps): React.JSX.Element {
   const side = !!match || !!around
   return (
     <div className="page home">
+      <HomeTop games={games} friends={friends} news={news} onOpen={onOpen} onShowFriends={onShowFriends} onShowNews={onShowNews} />
       <div className="hm-top">
         <HomeHero
           key={hero.id}

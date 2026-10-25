@@ -884,35 +884,56 @@
    ========================================================================== */
 
 .set-ab-hero {
-  gap: 16px;
-}
-.set-ab-top {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px 20px;
+  gap: 16px 24px;
+  padding: 24px;
 }
 .set-ab-mark {
   flex-shrink: 0;
 }
 .set-ab-id {
-  flex: 1 1 220px;
+  flex: 1 1 280px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 .set-ab-name {
+  margin: 0;
+  font: 600 22px/28px var(--font-display);
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+}
+.set-ab-ver {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 10px;
   margin: 0;
-  font: 600 17px/22px var(--font-display);
-  letter-spacing: -0.01em;
-  color: var(--text-1);
+  font: 500 15px/20px var(--font-ui);
+  color: var(--text-2);
 }
 .set-ab-id .set-ab-status {
+  margin-top: 2px;
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-3);
+}
+.set-ab-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.btn.set-ab-check {
+  height: 44px;
+  padding: 0 20px;
+  font-size: 14px;
+}
+
+.set-ab-status {
   font: 500 13px/18px var(--font-ui);
   color: var(--text-3);
 }
@@ -1006,6 +1027,3 @@
   color: var(--text-2);
 }
 
-.set-ab-privacy {
-  max-width: 72ch;
-}
