@@ -18,6 +18,7 @@ import {
   isBf6Game,
   keyOf,
   loadStatsGame,
+  pct,
   percent,
   periodOf,
   PLATFORM_LABEL,
@@ -632,7 +633,8 @@ function KeyTiles({ snap }: { snap: Bf6Snapshot }): React.JSX.Element {
 
 /* ---------- recherche d'un joueur ---------- */
 
-function PlayerSearch({ action, onPick, exclude = [] }: { action: string; onPick: (a: Bf6Account) => void; exclude?: string[] }): React.JSX.Element {
+function PlayerSearch(props: { action: string; onPick: (a: Bf6Account) => void; exclude?: string[]; autoFocus?: boolean }): React.JSX.Element {
+  const { action, onPick, exclude = [], autoFocus } = props
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [results, setResults] = useState<Bf6Match[] | null>(null)
@@ -663,6 +665,7 @@ function PlayerSearch({ action, onPick, exclude = [] }: { action: string; onPick
           placeholder="Pseudo EA exact"
           maxLength={64}
           aria-label="Pseudo Battlefield 6"
+          autoFocus={autoFocus}
           spellCheck={false}
         />
         <button className="btn btn-primary" type="submit" disabled={busy || !name.trim()}>
@@ -985,15 +988,35 @@ function Details({ snap, tabs, title }: { snap: Bf6Snapshot; tabs: Tab[]; title:
 
 type Metric = 'killDeath' | 'killsPerMinute' | 'winPercent' | 'kills' | 'secondsPlayed'
 
-const METRICS: { id: Metric; label: string; fmt: (n: number) => string }[] = [
-  { id: 'killDeath', label: 'K/D', fmt: dec.format },
-  { id: 'killsPerMinute', label: 'Élim./min', fmt: dec.format },
-  { id: 'winPercent', label: 'Victoires', fmt: percent },
-  { id: 'kills', label: 'Éliminations', fmt: int.format },
-  { id: 'secondsPlayed', label: 'Temps de jeu', fmt: duration }
+/** Joueurs suivis au plus (le processus principal applique la même limite). */
+const MAX_RIVALS = 12
+
+/** Écart signé, sans signe quand il s'arrondit à zéro : « +0,37 », « −1 204 », « 0,00 ». */
+const gapWith =
+  (fmt: (n: number) => string) =>
+  (d: number): string => {
+    const t = fmt(Math.abs(d))
+    return /[1-9]/.test(t) ? `${d > 0 ? '+' : '−'}${t}` : t
+  }
+
+interface MetricDef {
+  id: Metric
+  label: string
+  fmt: (n: number) => string
+  /** Écart avec toi, dans l'unité du critère. */
+  gap: (d: number) => string
+}
+
+const METRICS: MetricDef[] = [
+  { id: 'killDeath', label: 'K/D', fmt: dec.format, gap: gapWith(dec.format) },
+  { id: 'killsPerMinute', label: 'Élim./min', fmt: dec.format, gap: gapWith(dec.format) },
+  // Écart de deux pourcentages : en points.
+  { id: 'winPercent', label: 'Victoires', fmt: percent, gap: gapWith((n) => `${pct.format(n)} pt${n >= 2 ? 's' : ''}`) },
+  { id: 'kills', label: 'Éliminations', fmt: int.format, gap: gapWith(int.format) },
+  { id: 'secondsPlayed', label: 'Temps de jeu', fmt: duration, gap: gapWith(duration) }
 ]
 
-type Entry = { account: Bf6Account; snap?: Bf6Snapshot; error?: string; me: boolean }
+type Entry = { key: string; name: string; account: Bf6Account; snap?: Bf6Snapshot; error?: string; me: boolean }
 
 interface LeaderboardProps {
   tracked: Bf6Tracked
@@ -1010,143 +1033,257 @@ function Leaderboard({ tracked, meSnap, meError, meLoading, rivals: board, onCha
   const { data: rivals, loading, refresh } = board
 
   const def = METRICS.find((m) => m.id === metric)!
+  const solo = tracked.rivals.length === 0
+  const full = tracked.rivals.length >= MAX_RIVALS
+  const entryOf = (account: Bf6Account, me: boolean, rest: { snap?: Bf6Snapshot; error?: string }): Entry => ({
+    key: keyOf(account),
+    name: rest.snap?.stats.account.name ?? account.name,
+    account,
+    me,
+    ...rest
+  })
   const entries: Entry[] = [
     ...(tracked.me
-      ? [{ account: tracked.me, snap: meSnap ?? undefined, error: meLoading ? undefined : (meError ?? (meSnap ? undefined : 'Stats indisponibles')), me: true }]
+      ? [entryOf(tracked.me, true, { snap: meSnap ?? undefined, error: meLoading ? undefined : (meError ?? (meSnap ? undefined : 'Stats indisponibles')) })]
       : []),
-    ...tracked.rivals.map((a) => ({ account: a, ...rivals[keyOf(a)], me: false }))
+    ...tracked.rivals.map((a) => entryOf(a, false, rivals[keyOf(a)] ?? {}))
   ]
-  const value = (e: Entry): number | undefined => e.snap?.stats[metric]
-  const ranked = [...entries].sort((a, b) => (value(b) ?? -1) - (value(a) ?? -1))
-  const max = Math.max(...ranked.map((e) => value(e) ?? 0), 0)
-  // Podium dès deux joueurs classés ; la suite en liste.
-  const valued = ranked.filter((e) => value(e) !== undefined)
-  const podium = valued.length >= 2 ? valued.slice(0, 3) : []
-  const rest = ranked.slice(podium.length)
+  const value = (e: Entry): number => e.snap!.stats[metric]
+  // Classés : les joueurs dont les stats sont lues. Les autres (chargement, erreur) suivent, sans rang.
+  const ranked = entries.filter((e) => e.snap).sort((a, b) => value(b) - value(a))
+  const unranked = entries.filter((e) => !e.snap)
+  const podium = ranked.length >= 2 ? ranked.slice(0, 3) : []
+  const mine = meSnap?.stats[metric]
+  const fetched = entries.flatMap((e) => (e.snap ? [e.snap.fetchedAt] : []))
+  // La lecture la plus ancienne : c'est elle qui dit à quel point le classement est frais.
+  const oldest = fetched.length ? Math.min(...fetched) : null
+  const busy = loading || meLoading
 
   const remove = (a: Bf6Account): void => onChange({ ...tracked, rivals: tracked.rivals.filter((r) => keyOf(r) !== keyOf(a)) })
+  const add = (a: Bf6Account): void => {
+    onChange({ ...tracked, rivals: [...tracked.rivals, a] })
+    setAdding(false)
+  }
 
   return (
-    <section className="bf-card bf-board-card" aria-labelledby="bf-board-title">
-      <header className="bf-card-head">
-        <h2 id="bf-board-title" className="bf-card-title">
-          Classement
-        </h2>
-        <div className="seg bf-seg" role="tablist" aria-label="Classer par">
-          {METRICS.map((m) => (
-            <button key={m.id} role="tab" aria-selected={metric === m.id} className={metric === m.id ? 'active' : ''} onClick={() => setMetric(m.id)}>
-              {m.label}
-            </button>
-          ))}
+    <section className="bf-card bf-lb" aria-labelledby="bf-board-title">
+      <header className="bf-lb-head">
+        <div className="bf-lb-heading">
+          <h2 id="bf-board-title" className="bf-card-title">
+            Classement
+          </h2>
+          {(!solo || oldest !== null) && (
+            <p className="bf-lb-meta">
+              {solo ? `Mis à jour ${timeAgo(oldest!)}` : `${entries.length} joueurs${oldest !== null ? `, mis à jour ${timeAgo(oldest)}` : ''}`}
+            </p>
+          )}
         </div>
-      </header>
-
-      {tracked.rivals.length === 0 && <p className="bf-text">Ajoute tes amis ou des joueurs que tu veux suivre pour te comparer à eux.</p>}
-
-      {podium.length > 0 && (
-        <ol className="bf-podium" aria-label="Podium">
-          {podium.map((e, i) => {
-            const name = e.snap?.stats.account.name ?? e.account.name
-            return (
-              <li key={keyOf(e.account)} className={`bf-step is-${i + 1} ${e.me ? 'is-me' : ''}`}>
-                <span className="bf-step-avatar">
-                  <Avatar name={name} url={e.snap?.stats.avatarUrl} size={i === 0 ? 64 : 52} />
-                  <span className="bf-step-rank num">{i + 1}</span>
-                </span>
-                <span className="bf-step-name" title={name}>
-                  {name}
-                  {e.me && <span className="caption"> (toi)</span>}
-                </span>
-                <span className="bf-plat">{PLATFORM_LABEL[e.account.platform]}</span>
-                <span className="bf-step-value num">{def.fmt(value(e)!)}</span>
-                <span className="bf-step-block" aria-hidden="true" />
-                {!e.me && (
-                  <button
-                    className="btn btn-ghost btn-sm bf-step-remove"
-                    onClick={() => remove(e.account)}
-                    aria-label={`Retirer ${name} du classement`}
-                    title="Retirer"
-                  >
-                    <Icon name="x" size={14} />
-                  </button>
-                )}
-              </li>
-            )
-          })}
-        </ol>
-      )}
-
-      <ol className="bf-board" start={podium.length + 1}>
-        {rest.map((e, j) => {
-          const i = j + podium.length
-          const v = value(e)
-          const name = e.snap?.stats.account.name ?? e.account.name
-          return (
-            <li key={keyOf(e.account)} className={`bf-board-row ${e.me ? 'is-me' : ''}`}>
-              <span className="bf-rank num">{v === undefined ? '–' : i + 1}</span>
-              <Avatar name={name} url={e.snap?.stats.avatarUrl} size={32} />
-              <span className="bf-board-main">
-                <span className="bf-board-name">
-                  {name}
-                  {e.me && <span className="caption"> (toi)</span>}
-                  <span className="bf-plat">{PLATFORM_LABEL[e.account.platform]}</span>
-                </span>
-                {v !== undefined ? (
-                  <span className="bf-bar" aria-hidden="true">
-                    <span style={{ '--v': max ? Math.max(0.03, v / max) : 0 } as React.CSSProperties} />
-                  </span>
-                ) : (
-                  <span className="caption">{e.error ?? 'Chargement…'}</span>
-                )}
-              </span>
-              <span className="bf-board-value num">{v === undefined ? '' : def.fmt(v)}</span>
-              {!e.me ? (
-                <button
-                  className="btn btn-ghost btn-sm bf-remove"
-                  onClick={() => remove(e.account)}
-                  aria-label={`Retirer ${name} du classement`}
-                  title="Retirer"
-                >
-                  <Icon name="x" size={14} />
-                </button>
-              ) : (
-                <span className="bf-remove" />
-              )}
-            </li>
-          )
-        })}
-      </ol>
-
-      <div className="bf-board-foot">
-        {adding ? (
-          <>
-            <PlayerSearch
-              action="Ajouter"
-              exclude={entries.map((e) => keyOf(e.account))}
-              onPick={(a) => {
-                onChange({ ...tracked, rivals: [...tracked.rivals, a] })
-                setAdding(false)
-              }}
-            />
-            <button className="link-btn muted bf-board-cancel" onClick={() => setAdding(false)}>
-              Annuler
+        {!solo && (
+          <div className="bf-lb-actions">
+            <button className="btn btn-ghost btn-sm" onClick={refresh} disabled={busy} aria-label="Actualiser le classement">
+              {busy ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
+              Actualiser
             </button>
-          </>
-        ) : (
-          <div className="bf-board-actions">
-            <button className="btn btn-secondary btn-sm" onClick={() => setAdding(true)} disabled={tracked.rivals.length >= 12}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setAdding(true)}
+              disabled={full || adding}
+              title={full ? `${MAX_RIVALS} joueurs suivis au maximum : retires-en un pour en ajouter un autre.` : undefined}
+            >
               <Icon name="plus" size={16} />
               Ajouter un joueur
             </button>
-            {tracked.rivals.length > 0 && (
-              <button className="btn btn-ghost btn-sm" onClick={refresh} disabled={loading}>
-                {loading ? <span className="spinner" /> : <Icon name="refresh" size={16} />}
-                Actualiser le classement
-              </button>
-            )}
           </div>
         )}
-      </div>
+      </header>
+
+      {adding && (
+        <div className="bf-lb-add">
+          <p className="bf-lb-add-title">Ajouter un joueur au classement</p>
+          <PlayerSearch action="Ajouter" exclude={entries.map((e) => e.key)} onPick={add} autoFocus />
+          <button className="link-btn muted bf-lb-cancel" onClick={() => setAdding(false)}>
+            Annuler
+          </button>
+        </div>
+      )}
+
+      {solo ? (
+        !adding && (
+          <div className="bf-lb-empty">
+            <span className="bf-lb-empty-av" aria-hidden="true">
+              <Avatar name={entries[0]?.name ?? '?'} url={meSnap?.stats.avatarUrl} size={56} />
+            </span>
+            <div className="bf-lb-empty-text">
+              <h3 className="bf-lb-empty-title">Personne à battre pour l’instant</h3>
+              {meSnap && (
+                <p className="bf-lb-empty-mine">
+                  Tes chiffres à battre : <b className="num">{dec.format(meSnap.stats.killDeath)}</b> de K/D, <b className="num">{dec.format(meSnap.stats.killsPerMinute)}</b>{' '}
+                  élim./min et <b className="num">{percent(meSnap.stats.winPercent)}</b> de victoires.
+                </p>
+              )}
+              <p className="bf-text">
+                Ajoute tes amis ou des joueurs croisés en partie avec leur pseudo EA. Player X vous classe au K/D, aux éliminations par minute, aux victoires, aux
+                éliminations et au temps de jeu.
+              </p>
+              <button className="btn btn-primary" onClick={() => setAdding(true)}>
+                <Icon name="plus" size={16} />
+                Ajouter un joueur
+              </button>
+            </div>
+          </div>
+        )
+      ) : (
+        <>
+          <div className="bf-lb-by">
+            <span className="bf-lb-by-label" aria-hidden="true">
+              Classer par
+            </span>
+            <Segmented
+              className="bf-seg"
+              label="Classer par"
+              value={metric}
+              options={METRICS.map((m) => ({ value: m.id, label: m.label }))}
+              onChange={setMetric}
+            />
+          </div>
+
+          {podium.length > 0 && (
+            <ol className={`bf-lb-podium has-${podium.length}`} aria-label={`Podium au critère ${def.label}`}>
+              {podium.map((e, i) => (
+                <li key={e.key} className={`bf-lb-step is-${i + 1} ${e.me ? 'is-me' : ''}`}>
+                  <span className="sr-only">{ordinal(i + 1)} : </span>
+                  <span className="bf-lb-step-av">
+                    <Avatar name={e.name} url={e.snap?.stats.avatarUrl} size={i === 0 ? 72 : 56} />
+                  </span>
+                  <span className="bf-lb-step-name" title={e.name}>
+                    {e.name}
+                  </span>
+                  <span className="bf-lb-step-sub">
+                    {e.me && <span className="bf-lb-you">toi</span>}
+                    <span className="bf-plat">{PLATFORM_LABEL[e.account.platform]}</span>
+                  </span>
+                  <span className="bf-lb-pillar">
+                    <span className="bf-lb-step-value num">{def.fmt(value(e))}</span>
+                    <span className="bf-lb-step-label">{def.label}</span>
+                    <span className="bf-lb-step-rank num" aria-hidden="true">
+                      {i + 1}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          <div className="bf-lb-scroll" role="region" aria-label="Tableau du classement" tabIndex={0}>
+            <table className="bf-lb-table">
+              <caption className="sr-only">Tous les joueurs, classés par {def.label}</caption>
+              <thead>
+                <tr>
+                  <th scope="col" className="bf-lb-rank">
+                    <span aria-hidden="true">#</span>
+                    <span className="sr-only">Rang</span>
+                  </th>
+                  <th scope="col">Joueur</th>
+                  {METRICS.map((m) => {
+                    const on = m.id === metric
+                    return (
+                      <th key={m.id} scope="col" className={`bf-lb-n ${on ? 'is-on' : ''}`} aria-sort={on ? 'descending' : 'none'}>
+                        <button className={`bf-sort ${on ? 'is-on' : ''}`} onClick={() => setMetric(m.id)}>
+                          <Icon name="chevron-down" size={12} />
+                          {m.label}
+                        </button>
+                      </th>
+                    )
+                  })}
+                  <th scope="col" className="bf-lb-n bf-lb-gap" title={`Sur le critère choisi : ${def.label}`}>
+                    Écart avec toi
+                  </th>
+                  <th scope="col" className="bf-lb-x">
+                    <span className="sr-only">Retirer</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...ranked, ...unranked].map((e, i) => {
+                  const rank = e.snap ? i + 1 : null
+                  const s = e.snap?.stats
+                  const d = s && mine !== undefined && !e.me ? s[metric] - mine : null
+                  return (
+                    <tr key={e.key} className={e.me ? 'is-me' : ''}>
+                      <td className="bf-lb-rank num">
+                        <span className={`bf-lb-place ${rank && rank <= 3 ? `is-${rank}` : ''}`}>{rank ?? '–'}</span>
+                      </td>
+                      <td>
+                        <span className="bf-lb-player">
+                          <Avatar name={e.name} url={s?.avatarUrl} size={36} />
+                          <span className="bf-lb-who">
+                            <span className="bf-lb-name-line">
+                              <span className="bf-lb-name" title={e.name}>
+                                {e.name}
+                              </span>
+                              {e.me && <span className="bf-lb-you">toi</span>}
+                              {e.snap?.stale && (
+                                <span className="bf-lb-stale" title={`${e.snap.stale} Dernières stats connues.`}>
+                                  <Icon name="alert-triangle" size={14} />
+                                  <span className="sr-only">Stats d’une lecture précédente</span>
+                                </span>
+                              )}
+                            </span>
+                            <span className="bf-lb-sub">
+                              {PLATFORM_LABEL[e.account.platform]}
+                              {s && `, ${int.format(s.matches)} ${s.matches > 1 ? 'matchs' : 'match'}`}
+                            </span>
+                          </span>
+                        </span>
+                      </td>
+                      {s ? (
+                        <>
+                          {METRICS.map((m) => (
+                            <td key={m.id} className={`bf-lb-n num ${m.id === metric ? 'is-on' : ''}`}>
+                              {m.fmt(s[m.id])}
+                            </td>
+                          ))}
+                          <td className="bf-lb-n bf-lb-gap num">
+                            {d === null ? (
+                              <span className="bf-lb-none">–</span>
+                            ) : (
+                              <span className={d > 0 ? 'is-ahead' : d < 0 ? 'is-behind' : ''} title={d > 0 ? 'Devant toi' : d < 0 ? 'Derrière toi' : 'À égalité avec toi'}>
+                                {def.gap(d)}
+                              </span>
+                            )}
+                          </td>
+                        </>
+                      ) : e.error ? (
+                        <td colSpan={METRICS.length + 1} className="bf-lb-error">
+                          <span>
+                            <Icon name="alert-triangle" size={14} />
+                            {e.error}
+                          </span>
+                        </td>
+                      ) : (
+                        // Chargement : une barre par chiffre, écart compris.
+                        Array.from({ length: METRICS.length + 1 }, (_, j) => (
+                          <td key={j} className="bf-lb-n" aria-hidden={j > 0 || undefined}>
+                            <span className="skel bf-lb-skel" />
+                            {j === 0 && <span className="sr-only">Chargement…</span>}
+                          </td>
+                        ))
+                      )}
+                      <td className="bf-lb-x">
+                        {!e.me && (
+                          <button className="icon-btn icon-btn-sm bf-lb-remove" onClick={() => remove(e.account)} aria-label={`Retirer ${e.name} du classement`} title="Retirer">
+                            <Icon name="x" size={14} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </section>
   )
 }
