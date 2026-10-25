@@ -86,6 +86,9 @@
   --info: #b9a6ff; /* patchs, actus, rareté : lavande, accordée au rose (l'ancien bleu détonnait) */
   --favorite: #f2c66d; /* étoile des favoris, or des succès */
   --trophy: #f2c66d;
+  /* Podium du classement : argent et bronze, accordés à l'or des succès (jamais en aplat, seulement en filet et en chiffre) */
+  --podium-silver: #cbc3d8;
+  --podium-bronze: #dba074;
   /* Stores / plateformes : teintes et monogrammes, jamais de logos */
   --store-steam: #66c0f4;
   --store-epic: #e4e6ee;
