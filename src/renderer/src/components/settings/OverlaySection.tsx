@@ -4,6 +4,7 @@
 // Teamfight Tactics (auto-battler) et League of Legends (MOBA).
 import { useEffect, useRef, useState } from 'react'
 import { CS2_GAME_ID } from '@shared/cs2'
+import { DEFAULT_OVERLAY_HOTKEY, hotkeyFromPress, hotkeyLabel, hotkeyText } from '@shared/hotkey'
 import { norm } from '@shared/text'
 import type { Game, Settings } from '@shared/types'
 import cs2Dust2 from '../../assets/cs2-dust2.webp'
@@ -64,7 +65,7 @@ export function OverlaySection({ settings, onSaveSettings, games }: Props): Reac
           <span className="ovs-sample">Chiffres d'exemple · style {OVERLAY_LABEL[style]}</span>
         </Scene>
         <p className="ovs-keys">
-          En jeu, <kbd>Alt</kbd> + <kbd>X</kbd> masque ou réaffiche l'overlay
+          En jeu, <Keys accel={settings.overlayHotkey} /> masque ou réaffiche l'overlay
         </p>
         <Features items={CS2_FEATURES} />
         <SettingRow
@@ -91,6 +92,13 @@ export function OverlaySection({ settings, onSaveSettings, games }: Props): Reac
             </button>
           </div>
         </SettingRow>
+        {settings.cs2Overlay !== 'off' && (
+          <HotkeyRow
+            label="Raccourci : masquer ou afficher"
+            value={settings.overlayHotkey}
+            onSave={(overlayHotkey) => onSaveSettings({ overlayHotkey }).then(() => undefined)}
+          />
+        )}
         {settings.cs2Overlay !== 'off' && (
           <SettingRow
             label="Style de l’overlay"
@@ -224,6 +232,109 @@ function StillFrame({ style }: { style: 'a' | 'b' | 'c' }): React.JSX.Element {
         </div>
       )}
     </div>
+  )
+}
+
+/** « Alt + X » en touches de clavier. */
+function Keys({ accel }: { accel: string }): React.JSX.Element {
+  const keys = hotkeyLabel(accel)
+  return (
+    <>
+      {keys.map((k, i) => (
+        <span key={k} className="ovs-keys-part">
+          {i > 0 && ' + '}
+          <kbd>{k}</kbd>
+        </span>
+      ))}
+    </>
+  )
+}
+
+/**
+ * Un raccourci réglable : « Changer », puis la combinaison au clavier (Échap annule). Vérifié avant d'être gardé :
+ * règles de shared/hotkey.ts, puis libre auprès de Windows (cs2:overlay-hotkey-check).
+ */
+function HotkeyRow({ label, value, onSave }: { label: string; value: string; onSave: (accel: string) => Promise<void> }): React.JSX.Element {
+  const [listening, setListening] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const apply = (accel: string): void => {
+    setBusy(true)
+    window.launcher
+      .cs2OverlayHotkeyCheck(accel)
+      .then(async (why) => {
+        if (why) return setProblem(why)
+        setProblem(null)
+        await onSave(accel)
+      })
+      .catch((e) => setProblem(errorMessage(e)))
+      .finally(() => setBusy(false))
+  }
+
+  useEffect(() => {
+    if (!listening) return
+    const onKey = (e: KeyboardEvent): void => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.key === 'Escape' && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        setProblem(null)
+        return setListening(false)
+      }
+      const r = hotkeyFromPress(e)
+      if (!r) return
+      if ('problem' in r) return setProblem(r.problem)
+      setListening(false)
+      apply(r.accel)
+    }
+    const stop = (): void => setListening(false)
+    window.addEventListener('keydown', onKey, true)
+    window.addEventListener('blur', stop)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('blur', stop)
+    }
+    // apply ne dépend que de onSave : inutile de réabonner l'écoute à chaque rendu.
+  }, [listening])
+
+  return (
+    <SettingRow
+      label={label}
+      value={
+        problem ? (
+          <span className="ovs-hotkey-problem" role="alert">
+            {problem}
+          </span>
+        ) : listening ? (
+          'Appuie sur ta combinaison · Échap pour annuler'
+        ) : (
+          `${hotkeyText(value)} · Ctrl ou Alt + une touche, ou une touche F`
+        )
+      }
+    >
+      <div className="set-inline">
+        <span className="ovs-hotkey" aria-hidden="true">
+          <Keys accel={value} />
+        </span>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          aria-pressed={listening}
+          disabled={busy}
+          onClick={() => {
+            setProblem(null)
+            setListening((l) => !l)
+          }}
+        >
+          {listening ? 'Annuler' : 'Changer'}
+        </button>
+        {value !== DEFAULT_OVERLAY_HOTKEY && !listening && (
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => apply(DEFAULT_OVERLAY_HOTKEY)}>
+            Remettre {hotkeyText(DEFAULT_OVERLAY_HOTKEY)}
+          </button>
+        )}
+      </div>
+    </SettingRow>
   )
 }
 

@@ -1,9 +1,10 @@
 // Overlay CS2 (bêta) : la page de la fenêtre transparente posée par-dessus le jeu (main/services/cs2Overlay.ts).
 // Elle suit le match tout seul : temps d'achat, pastille pendant le round, mi-temps, fin du match. Trois styles à essayer
 // en jeu (Paramètres › Overlay) : A façon Apple, B verre, C finition du style Player X. Rien ne se clique : la souris
-// et le clavier restent au jeu ; Alt+X masque l'overlay.
+// et le clavier restent au jeu ; son raccourci (Alt+X par défaut, réglable dans Paramètres › Overlay) le masque.
 import { useEffect, useState } from 'react'
 import { formatKd, killDeath, mapLabel, modeLabel, RESULT_LABEL } from '@shared/cs2'
+import { DEFAULT_OVERLAY_HOTKEY, hotkeyText } from '@shared/hotkey'
 import type { Cs2Live, Cs2OverlayConfig, Cs2OverlayStyle, Cs2Recap, Cs2Round } from '@shared/types'
 import { sampleCs2Recap } from '../components/cs2/useCs2'
 import './overlay.css'
@@ -72,7 +73,7 @@ function liveView(live: Cs2Live | null, end: Cs2Recap | null, now: number): View
 }
 
 export default function OverlayApp(): React.JSX.Element | null {
-  const [cfg, setCfg] = useState<Cs2OverlayConfig>({ style: 'off', hidden: false })
+  const [cfg, setCfg] = useState<Cs2OverlayConfig>({ style: 'off', hidden: false, hotkey: DEFAULT_OVERLAY_HOTKEY })
   const [live, setLive] = useState<Cs2Live | null>(null)
   const [end, setEnd] = useState<Cs2Recap | null>(null)
   const [now, setNow] = useState(() => Date.now())
@@ -129,7 +130,7 @@ export default function OverlayApp(): React.JSX.Element | null {
       {view.kind === 'pill' && <Pill key="pill" live={view.live} style={style} />}
       {view.kind === 'half' && <Half key="half" live={view.live} style={style} />}
       {view.kind === 'end' && <End key={`end-${view.recap.id}`} recap={view.recap} style={style} left={Math.min(20, endLeft)} />}
-      {cfg.previewAt !== undefined && <span className="ov-sample">Aperçu · chiffres d’exemple · Alt+X pour masquer</span>}
+      {cfg.previewAt !== undefined && <span className="ov-sample">Aperçu · chiffres d’exemple · {hotkeyText(cfg.hotkey)} pour masquer</span>}
     </div>
   )
 }

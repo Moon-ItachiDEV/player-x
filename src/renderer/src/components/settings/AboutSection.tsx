@@ -127,7 +127,7 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
             : IS_PRERELEASE
               ? 'Canal Stable · tu restes sur cette version de test jusqu’à la prochaine version stable, qui arrivera toute seule.'
               : 'Canal Stable · seulement les versions publiées pour tout le monde.'}{' '}
-          Player X vérifie au démarrage puis toutes les 6 heures, télécharge en arrière-plan et installe la nouvelle version au prochain redémarrage.
+          Player X vérifie au démarrage, toutes les heures et quand tu reviens sur sa fenêtre, télécharge en arrière-plan et installe la nouvelle version au prochain redémarrage.
         </p>
       </section>
 

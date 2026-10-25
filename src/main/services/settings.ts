@@ -1,4 +1,5 @@
 import { discordGuildIdFrom } from '@shared/text'
+import { DEFAULT_OVERLAY_HOTKEY, isValidHotkey } from '@shared/hotkey'
 import type { Account, FriendPlatform, Settings } from '@shared/types'
 import { deleteKv, getKv, setKv } from '../db'
 import { cleanMemberPrefs, type MemberPrefs } from './discordMembers'
@@ -22,7 +23,8 @@ function defaults(): Settings {
     cs2Live: true,
     cs2RecapOpen: true,
     updateChannel: 'stable',
-    cs2Overlay: 'off'
+    cs2Overlay: 'off',
+    overlayHotkey: DEFAULT_OVERLAY_HOTKEY
   }
 }
 
@@ -57,6 +59,7 @@ function cleanPatch(patch: unknown): Partial<Settings> {
   if (typeof p.launchWindow === 'string' && WINDOW_MODES.includes(p.launchWindow)) clean.launchWindow = p.launchWindow as Settings['launchWindow']
   if (typeof p.updateChannel === 'string' && CHANNELS.includes(p.updateChannel)) clean.updateChannel = p.updateChannel as Settings['updateChannel']
   if (typeof p.cs2Overlay === 'string' && OVERLAY_STYLES.includes(p.cs2Overlay)) clean.cs2Overlay = p.cs2Overlay as Settings['cs2Overlay']
+  if (isValidHotkey(p.overlayHotkey)) clean.overlayHotkey = p.overlayHotkey
   return clean
 }
 

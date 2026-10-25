@@ -47,6 +47,21 @@
 .ovs-keys kbd {
   color: var(--text-1);
 }
+.ovs-keys-part {
+  white-space: nowrap;
+}
+
+/* Raccourci réglable : les touches en clair, le message d'erreur en couleur de danger. */
+.ovs-hotkey {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-2);
+}
+.ovs-hotkey-problem {
+  color: var(--danger);
+}
 
 .ovs-features {
   display: grid;

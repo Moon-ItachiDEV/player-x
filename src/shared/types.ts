@@ -90,15 +90,19 @@ export interface Settings {
   updateChannel: UpdateChannel
   /** Overlay CS2 (bêta) : coupé, ou un des trois styles à essayer en jeu. Proposé seulement sur le canal Bêta. */
   cs2Overlay: Cs2OverlayStyle
+  /** Raccourci global qui masque ou réaffiche l'overlay (accélérateur Electron, « Alt+X » par défaut ; voir shared/hotkey.ts). */
+  overlayHotkey: string
 }
 
 /** `a` : façon Apple (matériaux, ressorts, sheet) ; `b` : verre ; `c` : finition du style Player X. */
 export type Cs2OverlayStyle = 'off' | 'a' | 'b' | 'c'
 
-/** Ce que l'overlay doit faire : son style, masqué par Alt+X, ou un aperçu en cours (chiffres d'exemple). */
+/** Ce que l'overlay doit faire : son style, masqué par son raccourci, ou un aperçu en cours (chiffres d'exemple). */
 export interface Cs2OverlayConfig {
   style: Cs2OverlayStyle
   hidden: boolean
+  /** Le raccourci choisi (« Alt+X »), pour l'afficher dans l'aperçu. */
+  hotkey: string
   /** Aperçu lancé depuis Paramètres : l'overlay passe ses pièces avec des chiffres d'exemple. */
   previewAt?: number
 }
@@ -759,6 +763,8 @@ export interface LauncherApi {
   cs2OverlayConfig(): Promise<Cs2OverlayConfig>
   /** Paramètres : montre l'overlay quelques secondes avec des chiffres d'exemple, même sans CS2. */
   cs2OverlayPreview(): Promise<void>
+  /** Le raccourci est-il libre ? null si oui, sinon pourquoi (déjà pris par Windows ou une autre appli, refusé). */
+  cs2OverlayHotkeyCheck(accel: string): Promise<string | null>
   /** Page de l'overlay peinte : la fenêtre peut s'afficher. */
   cs2OverlayReady(): Promise<void>
   onCs2OverlayConfig(cb: (c: Cs2OverlayConfig) => void): () => void

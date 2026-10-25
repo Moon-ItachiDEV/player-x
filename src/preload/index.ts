@@ -79,6 +79,7 @@ const api: LauncherApi = {
   },
   cs2OverlayConfig: () => ipcRenderer.invoke('cs2:overlay-config'),
   cs2OverlayPreview: () => ipcRenderer.invoke('cs2:overlay-preview'),
+  cs2OverlayHotkeyCheck: (accel: string) => ipcRenderer.invoke('cs2:overlay-hotkey-check', accel),
   cs2OverlayReady: () => ipcRenderer.invoke('cs2:overlay-ready'),
   onCs2OverlayConfig: (cb) => {
     const listener = (_e: unknown, c: Cs2OverlayConfig): void => cb(c)
