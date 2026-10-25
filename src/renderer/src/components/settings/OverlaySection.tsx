@@ -1,6 +1,7 @@
-// Paramètres › Overlay : un bloc par jeu qui a un overlay, façon fiche (image du jeu avec l'overlay posé dessus,
-// raccourci, ce qu'il montre, réglages). CS2 est gratuit ; Fortnite est annoncé en Premium, qui n'existe pas encore :
-// rien à acheter, la popup compare seulement les formules.
+// Paramètres › Overlay : les overlays rangés par type de jeu. Counter-Strike 2 (FPS, gratuit) en fiche complète (image du
+// jeu avec l'overlay posé dessus, raccourci, ce qu'il montre, réglages) ; puis ceux en préparation : Fortnite (battle
+// royale, annoncé en Premium, qui n'existe pas encore : rien à acheter, la popup compare seulement les formules),
+// Teamfight Tactics (auto-battler) et League of Legends (MOBA).
 import { useEffect, useRef, useState } from 'react'
 import { CS2_GAME_ID } from '@shared/cs2'
 import { norm } from '@shared/text'
@@ -24,11 +25,11 @@ const CS2_FEATURES = [
   { title: 'Fin du match', text: 'Ton bilan pendant 20 secondes : victoire ou défaite, K/D, ADR, MVP, meilleur round.' }
 ]
 
-/** Ce que l'overlay Fortnite montrera : les stats de fortnite-api.com, relues entre les parties (pas de données en direct). */
-const FORTNITE_FEATURES = [
-  { title: 'Ta saison', text: 'K/D, victoires, kills et tops 10 de la saison en cours.' },
-  { title: 'Ta session', text: 'Parties, kills et victoires depuis que tu as lancé le jeu.' },
-  { title: 'Quand tu veux', text: 'Au lancement du jeu, puis avec Alt+X.' }
+/** Les overlays à venir, rangés par type de jeu. Fortnite est annoncé en Premium (qui n'existe pas encore : rien à acheter). */
+const SOON: { name: string; genre: string; premium?: boolean }[] = [
+  { name: 'Fortnite', genre: 'Battle royale', premium: true },
+  { name: 'Teamfight Tactics', genre: 'Auto-battler' },
+  { name: 'League of Legends', genre: 'MOBA' }
 ]
 
 interface Props {
@@ -47,12 +48,17 @@ export function OverlaySection({ settings, onSaveSettings, games }: Props): Reac
 
   return (
     <>
-      <SectionHead title="Overlay">
-        Tes chiffres par-dessus le jeu, pendant les matchs. Rien n'est injecté dans le jeu : c'est une fenêtre transparente de Player X, qui ne prend ni la
-        souris ni le clavier.
-      </SectionHead>
+      <SectionHead title="Overlay" />
 
-      <SettingsCard title="Counter-Strike 2" meta={<span className="set-plan is-free">Gratuit</span>}>
+      <SettingsCard
+        title="Counter-Strike 2"
+        meta={
+          <span className="ovs-meta">
+            <span className="ovs-genre">FPS</span>
+            <span className="set-plan is-free">Gratuit</span>
+          </span>
+        }
+      >
         <Scene game={cs2} art={cs2Dust2} label="Exemple de l'overlay CS2 sur une partie (Dust2)">
           <StillFrame style={style} />
           <span className="ovs-sample">Chiffres d'exemple · style {OVERLAY_LABEL[style]}</span>
@@ -109,21 +115,38 @@ export function OverlaySection({ settings, onSaveSettings, games }: Props): Reac
         )}
       </SettingsCard>
 
-      <SettingsCard title="Fortnite" meta={<span className="set-plan is-premium">Premium</span>} className="ovs-locked">
-        <button type="button" className="ovs-scene-btn" onClick={() => setPlans(true)} aria-label="Fortnite : voir les formules Gratuit et Premium">
-          <Scene game={fortnite} label="">
-            <span className="ovs-lock">
-              <Icon name="lock" size={22} />
-              <b>Premium · en préparation</b>
-              <span>Voir les formules</span>
-            </span>
-          </Scene>
-        </button>
-        <Features items={FORTNITE_FEATURES} />
-        <p className="ovs-note">
-          Fortnite n'envoie rien en direct pendant la partie : l'overlay lira tes stats entre deux parties. Pas encore disponible, rien à acheter pour
-          l'instant.
-        </p>
+      <SettingsCard title="En préparation">
+        <ul className="ovs-soon">
+          {SOON.map((g) => {
+            const game = g.premium ? fortnite : undefined
+            const body = (
+              <>
+                <Scene game={game} label="">
+                  {!game?.heroUrl && !game?.coverUrl && <span className="ovs-soon-name">{g.name}</span>}
+                  {g.premium && <Icon name="lock" size={18} className="ovs-soon-lock" />}
+                </Scene>
+                <span className="ovs-soon-row">
+                  <span className="ovs-soon-title">
+                    <b>{g.name}</b>
+                    <span className="ovs-genre">{g.genre}</span>
+                  </span>
+                  {g.premium ? <span className="set-plan is-premium">Premium</span> : <span className="set-plan is-soon">Bientôt</span>}
+                </span>
+              </>
+            )
+            return (
+              <li key={g.name} className="ovs-soon-item">
+                {g.premium ? (
+                  <button type="button" className="ovs-soon-btn" onClick={() => setPlans(true)} aria-label={`${g.name} : voir les formules Gratuit et Premium`}>
+                    {body}
+                  </button>
+                ) : (
+                  body
+                )}
+              </li>
+            )
+          })}
+        </ul>
       </SettingsCard>
 
       <Dialog

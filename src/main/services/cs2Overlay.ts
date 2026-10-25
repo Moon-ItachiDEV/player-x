@@ -1,9 +1,11 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, globalShortcut, screen } from 'electron'
+import { CS2_GAME_ID } from '@shared/cs2'
 import type { Cs2OverlayConfig } from '@shared/types'
 import { handle } from '../ipc'
 import { appWindows, isOverlay, markOverlay } from '../windows'
 import { cs2IsRunning, onCs2Running } from './cs2Live'
+import { gamePids, pidAlive, pollNow } from './playtime'
 import { getSettings } from './settings'
 
 // Overlay CS2 (bêta) : une fenêtre transparente posée par-dessus le jeu, qui ne prend jamais les clics ni le clavier et
@@ -23,6 +25,16 @@ let previewTimer: ReturnType<typeof setTimeout> | undefined
 let hotkey = false
 /** Une fenêtre de Player X a le focus : l'overlay s'efface pour ne pas la couvrir. */
 let appFocused = false
+/**
+ * CS2 fermé : sans ça, la fenêtre restait jusqu'au relevé suivant des programmes (une fois par minute), et la dernière
+ * carte pouvait rester sur le bureau. Tant que l'overlay est ouvert, on teste toutes les 3 s si les PID de CS2 vivent
+ * encore (gratuit) ; s'ils sont tous partis, un relevé complet tout de suite le confirme et ferme l'overlay.
+ */
+const EXIT_CHECK_MS = 3_000
+/** Relevé complet au plus toutes les 15 s si le premier n'a pas suffi (PowerShell lent ou en panne). */
+const EXIT_POLL_GAP_MS = 15_000
+let exitTimer: ReturnType<typeof setInterval> | undefined
+let exitPolledAt = 0
 
 /** Proposé à tout le monde depuis la 0.9.1 (avant : canal Bêta et versions de test seulement). Désactivé par défaut. */
 export function overlayAllowed(): boolean {
@@ -110,12 +122,32 @@ function syncHotkey(): void {
   }
 }
 
+function checkExit(): void {
+  const pids = gamePids(CS2_GAME_ID)
+  if (!pids.length || pids.some(pidAlive)) return
+  const now = Date.now()
+  if (now - exitPolledAt < EXIT_POLL_GAP_MS) return
+  exitPolledAt = now
+  void pollNow()
+}
+
+function syncExitWatch(): void {
+  const need = !!win && cs2IsRunning()
+  if (need && !exitTimer) exitTimer = setInterval(checkExit, EXIT_CHECK_MS)
+  else if (!need && exitTimer) {
+    clearInterval(exitTimer)
+    exitTimer = undefined
+    exitPolledAt = 0
+  }
+}
+
 /** Ouvre ou ferme la fenêtre selon le réglage, CS2 et l'aperçu ; sinon prévient la fenêtre d'un changement de réglage. */
 export function syncCs2Overlay(): void {
   if (wanted() && !win) create()
   else if (!wanted() && win) destroy()
   else send()
   syncHotkey()
+  syncExitWatch()
 }
 
 function preview(): void {
@@ -165,4 +197,5 @@ export function closeCs2Overlay(): void {
   previewAt = undefined
   destroy()
   syncHotkey()
+  syncExitWatch()
 }

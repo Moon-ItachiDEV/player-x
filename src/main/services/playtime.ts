@@ -153,6 +153,24 @@ export const pollNow = coalesce(() =>
   })
 )
 
+/** PID des programmes rattachés à un jeu au dernier relevé réussi (vide si le jeu n'y était pas). */
+export function gamePids(id: string): number[] {
+  const names = lastMatch.get(id)
+  if (!names || !snapshot) return []
+  return snapshot.procs.filter((p) => names.has(p.name.toLowerCase())).map((p) => p.pid)
+}
+
+/** Le programme tourne-t-il encore ? Test sans coût (aucun signal envoyé, pas de PowerShell). */
+export function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (e) {
+    // EPERM : le programme existe mais appartient à un autre compte (ou est protégé).
+    return (e as NodeJS.ErrnoException).code === 'EPERM'
+  }
+}
+
 export function startPlaytimeTracker(notify: () => void): void {
   listeners.add(notify)
   if (process.platform !== 'win32') return
