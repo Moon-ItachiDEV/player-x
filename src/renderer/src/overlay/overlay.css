@@ -448,86 +448,52 @@ html.ov-page #root {
 }
 
 /* =====================================================================
-   B · verre : verre sombre, liseré de lumière, grain, un balayage de lumière et une seule surface « liquide ».
-   Dans le vrai jeu, une fenêtre ne peut pas flouter ce qu'il y a derrière elle : c'est du verre teinté sans flou.
+   B · verre (style par défaut) : exactement la carte « À la une » des Actus (feed.css .nf-une-card), demande de
+   Breezydev (0.9.5-beta.2) : verre sombre --glass, liseré --glass-line, reflet du haut --glass-hi, coins de 24 px,
+   surtitre rose, titres en Sora. Sans flou : une fenêtre transparente ne peut pas flouter le jeu derrière elle, et
+   l'aperçu de Paramètres › Overlay doit montrer ce qu'on verra en jeu.
    ===================================================================== */
 
 .ov-b {
-  color: #fbf3f7;
+  color: var(--text-1);
 }
 .ov-b .ov-card {
   isolation: isolate;
-  background: rgba(22, 12, 26, 0.58);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: var(--glass);
   box-shadow:
-    0 18px 44px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-}
-.ov-b .ov-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.05) 40%, transparent 60%, rgba(255, 255, 255, 0.18));
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+    inset 0 0 0 1px var(--glass-line),
+    inset 0 1px 0 var(--glass-hi),
+    0 22px 40px -28px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 .ov-b .ov-buy {
-  padding: 18px;
-  border-radius: 20px;
+  padding: 24px;
+  border-radius: 24px;
 }
 .ov-b .ov-end {
-  padding: 22px 24px;
-  border-radius: 26px;
+  padding: 24px;
+  border-radius: 24px;
 }
 .ov-b .ov-pill {
   height: 44px;
   border-radius: 22px;
 }
-.ov-b .ov-liquid {
-  position: absolute;
-  inset: -20px -20px auto;
-  height: 170px;
-  z-index: -1;
-  background:
-    radial-gradient(60% 90% at 20% 30%, rgba(251, 79, 122, 0.42), transparent 70%),
-    radial-gradient(50% 80% at 85% 20%, rgba(255, 138, 128, 0.36), transparent 70%);
+.ov-b .ov-kicker {
+  color: var(--accent-text);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.ov-b .ov-title {
+  font: 700 17px/22px var(--font-display);
+  letter-spacing: -0.01em;
+}
+.ov-b .ov-sub {
+  color: var(--text-2);
+  opacity: 1;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .ov-b .ov-liquid {
-    animation: ov-b-drift 9s ease-in-out infinite alternate;
-  }
-  .ov-b .ov-sweep {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 40%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
-    animation: ov-b-sweep 1400ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
-  }
   .ov-b .ov-enter {
     animation: ov-in 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-}
-@keyframes ov-b-drift {
-  to {
-    translate: 18px 6px;
-    scale: 1.06;
-  }
-}
-@keyframes ov-b-sweep {
-  from {
-    transform: translateX(-120%) skewX(-18deg);
-  }
-  to {
-    transform: translateX(260%) skewX(-18deg);
   }
 }
 .ov-b .ov-r.is-won {

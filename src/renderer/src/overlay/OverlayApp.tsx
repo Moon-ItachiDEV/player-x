@@ -300,8 +300,6 @@ function End({ recap: r, style, left }: { recap: Cs2Recap; style: Cs2OverlayStyl
   return (
     <section className={`ov-card ov-end ov-enter ${style === 'a' ? 'is-sheet' : ''}`}>
       {style === 'a' && <span className="ov-grabber" />}
-      {style === 'b' && <span className="ov-liquid" />}
-      {style === 'b' && <span className="ov-sweep" />}
       <div className="ov-end-top ov-s1">
         <span className="ov-kicker">
           Bilan de match · {modeLabel(r.mode)}
