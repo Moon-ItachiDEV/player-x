@@ -2,7 +2,7 @@
    Animations : CSS natif seulement (animation-timeline pour le défilement), jamais sous prefers-reduced-motion. */
 :root {
   --font-title: 'Inter Tight', 'Titre repli', system-ui, sans-serif;
-  --hdr: 68px;
+  --hdr: 0px;
   --gut: max(16px, env(safe-area-inset-left, 0px), clamp(16px, 4vw, 72px));
   --maxw: 1600px;
   --glow: rgba(255, 92, 134, 0.55);
@@ -64,19 +64,9 @@ body::after {
 .meta b { color: var(--text-1); font-weight: 600; }
 .on-mobile { display: none; }
 
-/* ───────── Barre du haut ───────── */
-.bar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: var(--hdr);
-  display: flex; align-items: center; gap: 28px; padding-inline: var(--gut);
-  background: linear-gradient(180deg, rgba(7, 6, 10, 0.78), rgba(7, 6, 10, 0.4));
-  backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%);
-  border-bottom: 1px solid rgba(255, 200, 220, 0.08);
-}
-.brand { display: inline-flex; align-items: center; gap: 12px; font: 700 20px/1 var(--font-display); color: var(--text-1); letter-spacing: -0.01em; }
-.brand img { width: 36px; height: 36px; }
-.bar nav { display: flex; gap: 26px; margin-left: auto; }
-.bar nav a { font: 500 15px/1 var(--font-ui); color: var(--text-2); transition: color 160ms ease; }
-.bar nav a:hover { color: var(--text-1); }
+/* ───────── Signature « Player X » au-dessus du titre (pas de barre du haut) ───────── */
+.wordmark { display: inline-flex; align-items: center; gap: 16px; margin-bottom: clamp(22px, 2.6vw, 36px); font: 700 clamp(26px, 2.3vw, 36px)/1 var(--font-display); letter-spacing: -0.025em; color: var(--text-1); }
+.wordmark img { width: clamp(44px, 3.6vw, 58px); height: auto; aspect-ratio: 1; filter: drop-shadow(0 12px 28px rgba(224, 32, 126, 0.45)); }
 
 /* ───────── Héros : mur de jeux ───────── */
 .hero {
@@ -196,7 +186,7 @@ kbd {
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* ───────── Final ───────── */
-.final { position: relative; min-height: 100svh; display: grid; place-items: center; text-align: center; padding-block: 120px; overflow: hidden; isolation: isolate; }
+.final { position: relative; min-height: 100svh; display: grid; place-items: center; text-align: center; padding-block: 120px calc(120px + env(safe-area-inset-bottom, 0px)); overflow: hidden; isolation: isolate; }
 .final::before {
   content: ''; position: absolute; inset: 0; z-index: -1;
   background: radial-gradient(45% 50% at 50% 42%, rgba(251, 79, 122, 0.3), transparent 70%), radial-gradient(70% 60% at 50% 120%, rgba(224, 32, 126, 0.25), transparent 70%);
@@ -208,12 +198,6 @@ kbd {
 .final-icon i + i { inset: -80%; border-color: rgba(255, 157, 181, 0.1); }
 .final h2 { font-size: clamp(60px, 11vw, 200px); }
 
-.foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 28px calc(28px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255, 200, 220, 0.08); }
-.foot .brand { font-size: 16px; }
-.foot .brand img { width: 26px; height: 26px; }
-.foot a.gh { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: var(--text-3); }
-.foot a.gh:hover { color: var(--text-1); }
-.foot a.gh .ic { font-size: 22px; }
 
 /* ───────── Mouvement (jamais sous mouvement réduit) ───────── */
 @media (prefers-reduced-motion: no-preference) {
@@ -229,9 +213,8 @@ kbd {
   .final-icon i { animation: ring 4.5s ease-out infinite; }
   .final-icon i + i { animation-delay: 1.4s; }
   @keyframes ring { from { transform: scale(0.6); opacity: 0.9; } to { transform: scale(1.15); opacity: 0; } }
-  .final .btn { animation: pulse 2.8s ease-in-out infinite; }
   @keyframes pulse { 50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25) inset, 0 24px 70px -8px var(--glow), 0 0 140px 0 var(--glow-soft); } }
-  .hero h1 span, .hero .lead, .hero .cta-row { animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .hero .wordmark, .hero h1 span, .hero .lead, .hero .cta-row { animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both; }
   .hero h1 span:nth-child(2) { animation-delay: 90ms; }
   .hero .lead { animation-delay: 180ms; }
   .hero .cta-row { animation-delay: 260ms; }
@@ -260,8 +243,6 @@ kbd {
 
 /* ───────── Tablette et mobile ───────── */
 @media (max-width: 1100px) {
-  .bar nav { display: none; }
-  .bar .btn-sm { margin-left: auto; }
   .hero-in { grid-template-columns: 1fr; }
   .hero-icon { display: none; }
   .feat-in, .feat.flip .feat-in { grid-template-columns: 1fr; }
@@ -274,10 +255,7 @@ kbd {
 }
 @media (max-width: 640px) {
   body { font-size: 17px; }
-  :root { --hdr: 60px; }
-  .brand { font-size: 18px; }
-  .brand img { width: 32px; height: 32px; }
-  .bar .btn-sm { display: none; }
+  :root { --hdr: 0px; }
   .hero { min-height: 0; padding-block: calc(var(--hdr) + 48px) 64px; }
   .wall { inset: -10% -60%; gap: 14px; transform: perspective(900px) rotateX(20deg) rotateZ(-14deg) scale(1); }
   .wall-row { gap: 14px; }
@@ -340,27 +318,31 @@ kbd {
   .wall-row img:hover { scale: 1.1; filter: brightness(1.12) saturate(1.2); box-shadow: 0 0 0 2px var(--accent), 0 0 60px -6px var(--glow), 0 30px 60px -20px rgba(0, 0, 0, 0.9); position: relative; z-index: 1; }
 }
 
-/* ───────── Bouton « Chargement » (A) : se remplit comme un téléchargement, la flèche tombe dans le bac ───────── */
-.btn-charge { position: relative; isolation: isolate; overflow: hidden; padding: 0 30px 0 26px; }
-.btn-charge::before {
-  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
-  background: linear-gradient(90deg, #ffd0dc, var(--brand-1) 70%, #ffb3a8);
-  transform: scaleX(0); transform-origin: left; transition: transform 900ms cubic-bezier(0.65, 0, 0.35, 1);
+/* ───────── Bouton « Aura » (C) : verre sombre, bordure braise qui tourne, halo qui grandit au survol ───────── */
+@property --ang { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.btn-aura {
+  --spd: 5s; position: relative; isolation: isolate; background: transparent; color: var(--text-1);
+  padding: 0 36px; box-shadow: none; border-radius: 999px;
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.btn-charge::after {
-  content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; z-index: -1;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent); transform: skewX(-20deg);
+.btn-aura::before, .btn-aura::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: conic-gradient(from var(--ang), var(--brand-3), var(--accent), var(--brand-1), #ffd0dc, var(--accent), var(--brand-3));
 }
-.btn-charge .tray { position: relative; width: 22px; height: 22px; overflow: hidden; flex: none; }
-.btn-charge .tray .ic { position: absolute; inset: 0; width: 22px; height: 22px; }
-.btn-charge .pct { text-align: right; white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums; opacity: 0; width: 0; transition: opacity 200ms, width 300ms; }
-.btn-charge:hover::before, .btn-charge.is-full::before { transform: scaleX(1); }
-.btn-charge:hover .pct { opacity: 1; width: 4.6ch; }
+.btn-aura::before { z-index: -2; }
+.btn-aura::after { z-index: -3; inset: 4px; filter: blur(22px); opacity: 0.5; transition: opacity 450ms ease, inset 450ms ease, filter 450ms ease; }
+.btn-aura .aura-fill { position: absolute; inset: 2px; z-index: -1; border-radius: inherit; background: rgba(17, 13, 22, 0.94); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+.btn-aura b { font-weight: inherit; background: linear-gradient(90deg, var(--text-1), var(--text-1)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.btn-aura .ic { color: var(--accent-text); transition: transform 450ms cubic-bezier(0.16, 1, 0.3, 1); }
+.btn-aura:hover, .btn-aura.is-lit { --spd: 1.6s; background: transparent; transform: translateY(-2px); box-shadow: none; }
+.btn-aura:hover::after, .btn-aura.is-lit::after { opacity: 1; inset: -10px; filter: blur(30px); }
+.btn-aura:hover b, .btn-aura.is-lit b { background-image: linear-gradient(90deg, #ffd0dc, var(--brand-1), var(--accent)); }
+.btn-aura:hover .ic { transform: translateY(4px); }
+.btn-aura:active { transform: scale(0.97); }
+.btn-sm.btn-aura { padding: 0 20px; }
 @media (prefers-reduced-motion: no-preference) {
-  .btn-charge::after { animation: shine 3.6s ease-in-out infinite; }
-  @keyframes shine { 0%, 60% { left: -60%; } 100% { left: 130%; } }
-  .btn-charge:hover .arrow { animation: drop 900ms cubic-bezier(0.5, 0, 0.5, 1) infinite; }
-  @keyframes drop { 0% { transform: translateY(-120%); } 55% { transform: translateY(0); } 70% { transform: translateY(-8%); } 100% { transform: translateY(0); } }
+  .btn-aura::before, .btn-aura::after { animation: aura-spin var(--spd) linear infinite; }
+  @keyframes aura-spin { to { --ang: 360deg; } }
 }
 
 /* ───────── Overlay : la vraie capture ; en mode ciné, la scène s'assombrit et les panneaux s'allument ───────── */

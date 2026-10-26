@@ -83,7 +83,7 @@
       y: () => rand(-260, 260), rotation: () => rand(-50, 50), z: 400, opacity: 0,
       duration: 1.1, ease: 'power2.in', stagger: { amount: 0.35, from: 'center' }
     }, 0)
-      .to(['.hero .lead', '.hero .cta-row', '.facts li'], { y: 120, opacity: 0, duration: 0.7, ease: 'power2.in', stagger: 0.05 }, 0)
+      .fromTo(['.hero .wordmark', '.hero .lead', '.hero .cta-row', '.facts li'], { y: 0, opacity: 1 }, { y: 120, opacity: 0, duration: 0.7, ease: 'power2.in', stagger: 0.05 }, 0)
       // la caméra entre dans le mur
       .to(wall, { rotationX: 4, rotationZ: -6, scale: 2.8, duration: 2.4, ease: 'power2.in' }, 0.25)
       .to($$('.wall-row'), { '--ry': (i) => (i % 2 ? '160%' : '-160%'), duration: 2.2, ease: 'power2.in' }, 0.55)
@@ -207,7 +207,7 @@
     $$('.grad', h2).forEach((g) => g.classList.add('gsplit-ch'));
     const sp = new SplitText(h2, { type: 'chars', charsClass: 'ch' });
     const icon = $('.final-icon');
-    const btn = $('.final .btn-charge');
+    const btn = $('.final .btn-aura');
     const meta = $('.final .meta');
     const flash = $('.final .flash');
     let fired = false;
@@ -221,7 +221,7 @@
         .to(flash, { opacity: 0, duration: 0.6, ease: 'power2.in' })
         .fromTo(icon, { scale: 1.18 }, { scale: 1, duration: 0.8, ease: 'back.out(1.6)' }, 0)
         .to([btn, meta], { opacity: 1, scale: 1, duration: 0.6, ease: 'back.out(1.6)', stagger: 0.06 }, 0.05)
-        .add(() => { btn.classList.add('is-full'); setTimeout(() => btn.classList.remove('is-full'), 1400); }, 0.1);
+        .add(() => { btn.classList.add('is-lit'); setTimeout(() => btn.classList.remove('is-lit'), 1600); }, 0.1);
     };
     gsap.timeline({
       defaults: { ease: 'none' },
