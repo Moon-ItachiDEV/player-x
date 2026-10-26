@@ -1,7 +1,8 @@
 # Fenêtre « Mise à jour de Player X » (installer/cmd/update) : essai sur un vrai Windows à chaque modification.
 # Logique testée (go test), puis deux mises à jour simulées de bout en bout avec la vraie fenêtre (WebView2) :
 # normale (tout coché, la fenêtre s'efface seule) et sans relance (message « Player X ne s'est pas rouvert »).
-# Les captures de la fenêtre sont jointes à l'exécution (onglet Actions › Artifacts).
+# Les captures de la fenêtre et le journal sont joints à l'exécution (onglet Actions › Artifacts) et déposés dans la release
+# BROUILLON « Fenêtre de mise à jour (essai) » (tag update-window-test) : jamais publiée, jamais lue par les mises à jour.
 name: Fenêtre de mise à jour
 
 on:
@@ -15,7 +16,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # brouillon « Fenêtre de mise à jour (essai) » (jamais publié, invisible pour les mises à jour)
 
 concurrency:
   group: update-window-${{ github.ref }}
@@ -53,6 +54,27 @@ jobs:
         run: |
           node scripts/build-update-window.mjs --ci "${RUNNER_TEMP}/update-window" | tee "${RUNNER_TEMP}/update-window.log"
           if grep -q '::warning::' "${RUNNER_TEMP}/update-window.log"; then echo "::error::La fenêtre de mise à jour n'a pas passé l'essai"; exit 1; fi
+
+      - name: Déposer les captures dans le brouillon « Fenêtre de mise à jour (essai) »
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag=update-window-test
+          notes="Captures de la fenêtre « Mise à jour de Player X » (branche ${GITHUB_REF_NAME}, ${GITHUB_SHA::7}). Brouillon jamais publié."
+          if gh release view "${tag}" > /dev/null 2>&1; then
+            gh release edit "${tag}" --draft --title "Fenêtre de mise à jour (essai)" --notes "${notes}"
+          else
+            gh release create "${tag}" --draft --prerelease --title "Fenêtre de mise à jour (essai)" --notes "${notes}" --target "${GITHUB_SHA}"
+          fi
+          for a in $(gh release view "${tag}" --json assets --jq '.assets[].name'); do gh release delete-asset "${tag}" "$a" --yes; done
+          cd "${RUNNER_TEMP}/update-window"
+          cp ../update-window.log essai.log 2>/dev/null || true
+          for f in $(find . -name '*.png' -o -name '*.log' | sort); do
+            n="$(echo "${f#./}" | tr '/' '-')"
+            cp "$f" "${RUNNER_TEMP}/${n}" && gh release upload "${tag}" "${RUNNER_TEMP}/${n}" --clobber
+          done
 
       - uses: actions/upload-artifact@v4
         if: always()
