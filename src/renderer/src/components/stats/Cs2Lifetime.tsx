@@ -234,7 +234,6 @@ export function LifetimeCard({ state, onOpenSettings }: { state: LifetimeState; 
                   À vie (Steam)
                   {data.sample && <span className="bf-plat">Exemple</span>}
                 </h2>
-                <p className="caption">Totaux de Valve depuis tes débuts : CS:GO et CS2 confondus, tous modes</p>
               </div>
               <span className="bf-cs-source">
                 {data.sample ? 'Chiffres fictifs du simulateur' : `Mis à jour ${timeAgo(data.fetchedAt)}`}
@@ -370,7 +369,7 @@ function Weapons({ stats }: { stats: Cs2Lifetime }): React.JSX.Element {
             <h2 id="cs-fav-title" className="bf-card-title">
               Armes favorites
             </h2>
-            <span className="caption">Par éliminations, à vie</span>
+            <span className="caption">Par éliminations</span>
           </header>
           <ol className="bf-arsenal">
             {top.map((w, i) => (
@@ -399,7 +398,7 @@ function Weapons({ stats }: { stats: Cs2Lifetime }): React.JSX.Element {
             <h2 id="cs-kinds-title" className="bf-card-title">
               Familles
             </h2>
-            <span className="caption">Part de tes éliminations à vie</span>
+            <span className="caption">Part des éliminations</span>
           </header>
           <ul className="bf-classes">
             {families.map((f, i) => {
@@ -430,7 +429,6 @@ function Weapons({ stats }: { stats: Cs2Lifetime }): React.JSX.Element {
             <h2 id="cs-weapons-title" className="bf-card-title">
               Toutes tes armes
             </h2>
-            <p className="caption">Valve compte certaines armes ensemble (M4A4 et M4A1-S, par exemple) : le nom le dit.</p>
           </div>
           {kinds.length > 1 && (
             <Segmented
@@ -516,7 +514,6 @@ function SteamMaps({ stats }: { stats: Cs2Lifetime }): React.JSX.Element {
           <h2 id="cs-maps-title" className="bf-card-title">
             Tes cartes à vie
           </h2>
-          <p className="caption">Totaux Steam en rounds, pas en matchs : CS:GO et CS2 confondus, tous modes</p>
         </div>
       </header>
       {list.length === 0 ? (
@@ -581,7 +578,7 @@ function TrackedMaps({ recaps }: { recaps: Cs2Recap[] }): React.JSX.Element {
           <h2 id="cs-tracked-maps-title" className="bf-card-title">
             Tes matchs suivis par Player X
           </h2>
-          <p className="caption">Par carte, d’après tes bilans gardés sur ce PC</p>
+          <p className="caption">Par carte</p>
         </div>
       </header>
       {list.length === 0 ? (

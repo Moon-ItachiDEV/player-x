@@ -54,7 +54,6 @@ export function NewsSection({ game, state, seenAt, onRead, onRetry, onSeen }: Se
     <section ref={ref} className="sheet-card news" aria-labelledby="news-h" aria-busy={state.status === 'loading'}>
       <h3 id="news-h" className="sheet-h">
         Actus
-        <span className="sheet-h-count">annonces officielles sur Steam</span>
       </h3>
       {state.status === 'loading' && <NewsSkeleton />}
       {state.status === 'error' && (

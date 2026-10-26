@@ -19,12 +19,6 @@ import './overlay-settings.css'
 const OVERLAY_LABEL = { a: 'Façon Apple', b: 'Verre', c: 'Finition Player X' } as const
 
 /** Ce que montre l'overlay CS2, moment par moment (voir overlay/OverlayApp.tsx). */
-const CS2_FEATURES = [
-  { title: "Temps d'achat", text: 'Score, ton argent, la frise des rounds, ton K/D/A, ton ADR et tes headshots, sous le radar.' },
-  { title: 'Pendant le round', text: 'Une petite pastille au-dessus des munitions, rien de plus.' },
-  { title: 'Mi-temps', text: 'Le score et ta première moitié de match, le temps de changer de camp.' },
-  { title: 'Fin du match', text: 'Ton bilan pendant 20 secondes : victoire ou défaite, K/D, ADR, MVP, meilleur round.' }
-]
 
 /** Les overlays à venir, rangés par type de jeu. Fortnite est annoncé en Premium (qui n'existe pas encore : rien à acheter). */
 const SOON: { name: string; genre: string; premium?: boolean }[] = [
@@ -67,15 +61,7 @@ export function OverlaySection({ settings, onSaveSettings, games }: Props): Reac
         <p className="ovs-keys">
           En jeu, <Keys accel={settings.overlayHotkey} /> masque ou réaffiche l'overlay
         </p>
-        <Features items={CS2_FEATURES} />
-        <SettingRow
-          label="Overlay (bêta)"
-          value={
-            settings.cs2Overlay === 'off'
-              ? 'Désactivé · rien par-dessus le jeu'
-              : 'Activé · par-dessus CS2 en plein écran fenêtré, pendant les matchs'
-          }
-        >
+        <SettingRow label="Overlay (bêta)">
           <div className="set-inline">
             <Switch
               checked={settings.cs2Overlay !== 'off'}
@@ -100,14 +86,7 @@ export function OverlaySection({ settings, onSaveSettings, games }: Props): Reac
           />
         )}
         {settings.cs2Overlay !== 'off' && (
-          <SettingRow
-            label="Style de l’overlay"
-            value={
-              settings.cs2Overlay === 'b'
-                ? 'Verre, le style par défaut · les deux autres restent là pour comparer'
-                : `${OVERLAY_LABEL[settings.cs2Overlay]}, à l’essai · Verre est le style par défaut`
-            }
-          >
+          <SettingRow label="Style de l’overlay">
             <Segmented
               className="set-seg"
               label="Style de l’overlay"
@@ -307,9 +286,7 @@ function HotkeyRow({ label, value, onSave }: { label: string; value: string; onS
           </span>
         ) : listening ? (
           'Appuie sur ta combinaison · Échap pour annuler'
-        ) : (
-          `${hotkeyText(value)} · Ctrl ou Alt + une touche, ou une touche F`
-        )
+        ) : undefined
       }
     >
       <div className="set-inline">
@@ -338,15 +315,3 @@ function HotkeyRow({ label, value, onSave }: { label: string; value: string; onS
   )
 }
 
-function Features({ items }: { items: { title: string; text: string }[] }): React.JSX.Element {
-  return (
-    <dl className="ovs-features">
-      {items.map((f) => (
-        <div key={f.title}>
-          <dt>{f.title}</dt>
-          <dd>{f.text}</dd>
-        </div>
-      ))}
-    </dl>
-  )
-}

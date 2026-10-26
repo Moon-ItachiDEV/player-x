@@ -182,7 +182,7 @@ function LibrarySection(props: LibraryProps): React.JSX.Element {
   const notify = useToast()
   return (
     <>
-      <SectionHead title="Bibliothèque">Les jeux sont détectés automatiquement sur ce PC.</SectionHead>
+      <SectionHead title="Bibliothèque" />
       {demo && (
         <div className="set-banner">
           <Icon name="info" size={16} />
@@ -222,25 +222,18 @@ function LibrarySection(props: LibraryProps): React.JSX.Element {
         </div>
       </SettingsCard>
       <SettingsCard title="Jeux et actus">
-        <SettingRow label="Jeux favoris" value="Mis en avant en tête de ta bibliothèque">
+        <SettingRow label="Jeux favoris">
           <button className="btn btn-secondary" onClick={onOpenSetup} disabled={gamesCount === 0} data-open-setup>
             <Icon name="star" size={16} />
             Choisir mes jeux favoris
           </button>
         </SettingRow>
-        <SettingRow label="Accueil de Player X" value="Rejoue le premier lancement · favoris, comptes et réglages sont gardés">
+        <SettingRow label="Accueil de Player X">
           <button className="btn btn-secondary" onClick={props.onReplaySetup}>
             Revoir l'accueil de Player X
           </button>
         </SettingRow>
-        <SettingRow
-          label="Actus des jeux"
-          value={
-            settings.gameNews
-              ? 'Activées · annonces officielles de Steam dans la fiche et dans Actus des jeux, badge « Nouveau patch » sur les jeux mis à jour cette semaine'
-              : 'Désactivées · Player X ne demande plus les actus de tes jeux à Steam'
-          }
-        >
+        <SettingRow label="Actus des jeux">
           <Switch
             checked={settings.gameNews}
             onChange={(gameNews) => onSaveSettings({ gameNews }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
@@ -291,8 +284,8 @@ function SteamLibraryRow(props: {
     : state !== 'ready'
       ? STEAM_LIB_TEXT[state]
       : n
-        ? `${n} des ${lib?.owned ?? n} jeux de ton compte Steam ${n > 1 ? 'ne sont' : "n'est"} pas sur ce PC · onglet « Non installés » de la bibliothèque`
-        : 'Tous les jeux de ton compte Steam sont installés sur ce PC'
+        ? `${n} des ${lib?.owned ?? n} jeux de ton compte Steam ${n > 1 ? 'ne sont' : "n'est"} pas sur ce PC`
+        : 'Tous tes jeux Steam sont installés'
 
   let action: React.ReactNode = null
   if (demo || state === 'loading') action = null
@@ -361,22 +354,9 @@ function StoreRow({ report: r }: { report: ScanReport }): React.JSX.Element {
 
 const SIZE_LABEL: Record<UiPrefs['coverSize'], string> = { S: 'Petite', M: 'Moyenne', L: 'Grande' }
 
-const ALERT_LABEL: Record<FriendAlertMode, string> = {
-  all: 'Connexions et jeux lancés · amis Steam et PlayStation',
-  games: 'Seulement quand un ami lance un jeu',
-  off: 'Désactivées'
-}
 
 const IS_WINDOWS = window.launcher?.platform === 'win32'
 
-/** Légende de « Quand un jeu démarre » (spec launch-sequence.md §5). Player X ne passe jamais devant le jeu. */
-function launchWindowCaption(settings: Settings): string {
-  if (!IS_WINDOWS) return 'Disponible sur Windows'
-  if (settings.demoMode) return 'Sans effet en mode démo : rien n’est lancé'
-  return settings.launchWindow === 'minimize'
-    ? 'Se réduit quand le jeu est détecté et revient quand tu le quittes, sauf s’il était agrandi'
-    : 'Player X reste ouvert derrière le jeu, sans jamais passer devant'
-}
 
 interface InterfaceProps {
   ui: UiPrefs
@@ -391,16 +371,9 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
   const notify = useToast()
   return (
     <>
-      <SectionHead title="Interface">Ces préférences s'appliquent tout de suite et restent sur ce PC.</SectionHead>
+      <SectionHead title="Interface" />
       <SettingsCard title="Affichage">
-        <SettingRow
-          label="Taille des jaquettes"
-          value={
-            <>
-              {SIZE_LABEL[ui.coverSize]} · <span className="num">{COVER_MIN[ui.coverSize]}</span> px de large au minimum
-            </>
-          }
-        >
+        <SettingRow label="Taille des jaquettes">
           <Segmented
             className="set-seg"
             label="Taille des jaquettes"
@@ -411,43 +384,25 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
         </SettingRow>
         <SettingRow
           label="Réduire les animations"
-          value={
-            ui.reduceMotion
-              ? 'Activé · mouvements réduits au minimum'
-              : systemReduced
-                ? "Désactivé · Windows demande déjà moins d'animations, c'est respecté"
-                : "Désactivé · suit aussi le réglage d'accessibilité de Windows"
-          }
+          value={!ui.reduceMotion && systemReduced ? 'Déjà réduites par Windows' : undefined}
         >
           <Switch checked={ui.reduceMotion} onChange={(reduceMotion) => onUiChange({ reduceMotion })} label="Réduire les animations" />
         </SettingRow>
         <SettingRow
           label="Effets visuels"
-          value={
-            ui.reduceMotion || systemReduced
-              ? 'En pause · les animations sont réduites'
-              : ui.visualFx
-                ? 'Activés · jaquettes en relief, reflets, fond aux couleurs du jeu survolé'
-                : 'Désactivés · interface sobre, moins de calcul graphique'
-          }
+          value={ui.visualFx && (ui.reduceMotion || systemReduced) ? 'En pause : animations réduites' : undefined}
         >
           <Switch checked={ui.visualFx} onChange={(visualFx) => onUiChange({ visualFx })} label="Effets visuels" />
         </SettingRow>
         <SettingRow
           label="Effets de transparence"
-          value={
-            !ui.transparency
-              ? 'Désactivés · couleurs pleines, sans flou'
-              : systemOpaque
-                ? "En pause · Windows demande moins de transparence, c'est respecté"
-                : 'Activés · barres et bandeaux en verre, flou derrière'
-          }
+          value={ui.transparency && systemOpaque ? 'En pause : réglage de Windows' : undefined}
         >
           <Switch checked={ui.transparency} onChange={(transparency) => onUiChange({ transparency })} label="Effets de transparence" />
         </SettingRow>
       </SettingsCard>
       <SettingsCard title="Fenêtre">
-        <SettingRow label="Quand un jeu démarre" value={launchWindowCaption(settings)}>
+        <SettingRow label="Quand un jeu démarre" value={IS_WINDOWS ? undefined : 'Disponible sur Windows'}>
           <Segmented
             className="set-seg"
             label="Quand un jeu démarre"
@@ -463,7 +418,7 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
         <BackgroundRows settings={settings} onSaveSettings={onSaveSettings} />
       </SettingsCard>
       <SettingsCard title="Notifications">
-        <SettingRow label="Alertes d'amis" value={ALERT_LABEL[settings.friendAlerts]}>
+        <SettingRow label="Alertes d'amis">
           <div className="set-inline">
             <Segmented
               className="set-seg"
@@ -487,14 +442,7 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
         </SettingRow>
       </SettingsCard>
       <SettingsCard title="Bilans de match">
-        <SettingRow
-          label="Bilan Battlefield 6"
-          value={
-            settings.bf6Recap
-              ? 'Activé · quand tu quittes le jeu, tes éliminations, ton K/D et tes victoires de la session (profil relié dans Stats)'
-              : 'Désactivé · Player X ne relève plus tes stats au lancement du jeu'
-          }
-        >
+        <SettingRow label="Bilan Battlefield 6">
           <div className="set-inline">
             <Switch
               checked={settings.bf6Recap}
@@ -506,14 +454,7 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
             </button>
           </div>
         </SettingRow>
-        <SettingRow
-          label="Match Counter-Strike 2"
-          value={
-            settings.cs2Live
-              ? 'Activé · ton match en direct dans la fiche de CS2, et ton bilan à la fin, envoyés par le jeu lui-même'
-              : 'Désactivé · le fichier de liaison est retiré du dossier de CS2'
-          }
-        >
+        <SettingRow label="Match Counter-Strike 2">
           <div className="set-inline">
             <Switch
               checked={settings.cs2Live}
@@ -526,14 +467,7 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
           </div>
         </SettingRow>
         {settings.cs2Live && (
-          <SettingRow
-            label="Ouvrir le bilan à la fermeture de CS2"
-            value={
-              settings.cs2RecapOpen
-                ? 'Activé · quand tu quittes le jeu, Player X s’ouvre de lui-même sur ton dernier bilan'
-                : 'Désactivé · une notification Windows, à cliquer pour voir le bilan'
-            }
-          >
+          <SettingRow label="Ouvrir le bilan à la fermeture de CS2">
             <Switch
               checked={settings.cs2RecapOpen}
               onChange={(cs2RecapOpen) => onSaveSettings({ cs2RecapOpen }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}

@@ -7,9 +7,8 @@ import { SettingRow } from './parts'
 
 const api = window.launcher
 
-const STARTUP_TEXT: Record<StartupState, string> = {
-  on: 'Activé · Player X se lance caché près de l’horloge quand tu ouvres ta session',
-  off: 'Désactivé',
+/** Seulement ce qui empêche le réglage de marcher : activé ou non, l'interrupteur le montre déjà. */
+const STARTUP_TEXT: Partial<Record<StartupState, string>> = {
   blocked: 'Bloqué par Windows · réactive Player X dans le Gestionnaire des tâches, onglet Applications de démarrage',
   unavailable: 'Disponible avec Player X installé sur Windows'
 }
@@ -44,14 +43,7 @@ export function BackgroundRows({ settings, onSaveSettings }: Props): React.JSX.E
 
   return (
     <>
-      <SettingRow
-        label="Fermer la fenêtre"
-        value={
-          settings.closeToTray
-            ? 'Range Player X près de l’horloge · le temps de jeu, les alertes d’amis et le bilan BF6 continuent'
-            : 'Quitte Player X · plus de temps de jeu ni d’alertes jusqu’à sa réouverture'
-        }
-      >
+      <SettingRow label="Fermer la fenêtre">
         <Segmented
           className="set-seg"
           label="Fermer la fenêtre"
@@ -63,7 +55,7 @@ export function BackgroundRows({ settings, onSaveSettings }: Props): React.JSX.E
           onChange={(v) => save({ closeToTray: v === 'tray' })}
         />
       </SettingRow>
-      <SettingRow label="Démarrer avec Windows" value={startup ? STARTUP_TEXT[startup] : ' '}>
+      <SettingRow label="Démarrer avec Windows" value={startup ? STARTUP_TEXT[startup] : undefined}>
         {startup !== 'unavailable' && (
           <Switch checked={settings.startWithWindows} onChange={(startWithWindows) => save({ startWithWindows })} label="Démarrer avec Windows" />
         )}

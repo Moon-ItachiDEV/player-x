@@ -265,7 +265,6 @@ export function AchievementsTab({ state, onRetry }: TabProps): React.JSX.Element
           ) : (
             <p className="caption ach-empty">{filter === 'done' ? 'Aucun succès débloqué pour l’instant.' : 'Tout est débloqué. Bravo !'}</p>
           )}
-          <p className="caption ach-source">Rareté : part des joueurs Steam du jeu qui ont débloqué le succès.</p>
         </>
       )}
     </div>

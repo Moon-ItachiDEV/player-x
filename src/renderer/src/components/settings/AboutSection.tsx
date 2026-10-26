@@ -64,16 +64,13 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
   // Empreinte connue à partir de la 3e étape de la vérification.
   const fp = (update?.state === 'ready' || update?.state === 'verifying') && update.fingerprint ? { version: update.version, hex: update.fingerprint } : null
 
+  // Seul cas à expliquer : repassé en Stable avec une version de test, rien n'arrive avant la prochaine stable.
   const channelText =
-    settings.updateChannel === 'beta'
-      ? 'Bêta · tu reçois aussi les versions de test, avant tout le monde. Elles peuvent avoir des bugs.'
-      : IS_PRERELEASE
-        ? 'Stable · tu gardes cette version de test jusqu’à la prochaine version stable, qui arrivera toute seule.'
-        : 'Stable · seulement les versions publiées pour tout le monde.'
+    settings.updateChannel === 'stable' && IS_PRERELEASE ? 'Tu gardes cette version de test jusqu’à la prochaine version stable' : undefined
 
   return (
     <>
-      <SectionHead title="À propos">La version installée de Player X et ses mises à jour.</SectionHead>
+      <SectionHead title="À propos" />
 
       <section className="set-card set-ab-hero" aria-labelledby="set-ab-name">
         <BrandMark height={72} className="set-ab-mark" />
@@ -119,12 +116,6 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
             onChange={(updateChannel) => onSaveSettings({ updateChannel }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
           />
         </SettingRow>
-        <SettingRow
-          label="Vérification"
-          value="Au démarrage, quand tu ouvres ou retrouves Player X, et toutes les 30 minutes. Téléchargée en arrière-plan, signée, installée quand tu le choisis."
-        >
-          {null}
-        </SettingRow>
         {last && (
           <SettingRow
             label="Dernière mise à jour"
@@ -157,14 +148,6 @@ export function AboutSection({ settings, onSaveSettings }: Props): React.JSX.Ele
         )}
       </SettingsCard>
 
-      <SettingsCard title="Tes données">
-        <SettingRow
-          label="Rien ne quitte ton PC"
-          value="Player X n'a pas de serveur. Il échange seulement avec Steam, Discord et PlayStation, et télécharge ses mises à jour sur GitHub."
-        >
-          {null}
-        </SettingRow>
-      </SettingsCard>
     </>
   )
 }

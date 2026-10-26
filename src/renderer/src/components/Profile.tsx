@@ -127,7 +127,7 @@ export function Profile({ games, accounts, friends, onOpenGame, onLaunch, onMana
           )}
         </StatTile>
 
-        <StatTile label="Favoris" foot={<p className="caption">{stats.favorites.length ? 'Marqués d’une étoile' : 'Aucun favori'}</p>}>
+        <StatTile label="Favoris">
           <div className="prof-fav-stat">
             <span className="prof-stat num">{fmt.format(stats.favorites.length)}</span>
             {stats.favorites.length > 0 && (
@@ -323,7 +323,7 @@ function TopPlayed({ games, onOpenGame }: { games: Game[]; onOpenGame: (g: Game)
         <h2 id="prof-top-title" className="prof-card-title">
           Les plus joués
         </h2>
-        <span className="caption">Top 5 · temps de jeu</span>
+        <span className="caption">Top 5</span>
       </header>
       <ol className="prof-top">
         {games.map((g, i) => {
@@ -349,7 +349,6 @@ function TopPlayed({ games, onOpenGame }: { games: Game[]; onOpenGame: (g: Game)
                 </span>
                 <span className="prof-top-count">
                   <span className="num">{formatPlaytime(t)}</span>
-                  <span className="caption">{g.playtimeSource === 'steam' ? 'selon Steam' : 'mesuré ici'}</span>
                 </span>
               </button>
             </li>

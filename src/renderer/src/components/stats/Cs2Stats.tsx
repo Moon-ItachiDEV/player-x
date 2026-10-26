@@ -157,7 +157,7 @@ export function Cs2Stats({ state, live, onOpenSettings }: { state: Cs2State; liv
               <>
                 <header className="bf-card-head bf-cs-block-head">
                   <h2 className="bf-card-title">Tes matchs suivis par Player X</h2>
-                  <span className="caption">{recaps.length > 1 ? `Tes ${int.format(recaps.length)} derniers matchs, gardés sur ce PC` : 'Ton dernier match, gardé sur ce PC'}</span>
+                  <span className="caption">{recaps.length > 1 ? `Tes ${int.format(recaps.length)} derniers matchs` : 'Ton dernier match'}</span>
                 </header>
                 <Kpis list={recaps} />
                 <Matches list={recaps.slice(0, OVERVIEW_ROWS)} title="Derniers matchs" total={recaps.length} onAll={() => pick('matches')} />
@@ -302,7 +302,7 @@ function Matches({ list, title, full, total, onAll }: { list: Cs2Recap[]; title:
         <h2 id={`bf-cs-${full ? 'all' : 'last'}-title`} className="bf-card-title">
           {title}
         </h2>
-        <span className="caption">{full ? `${int.format(list.length)} gardés sur ce PC · les plus récents d’abord` : 'Suivis par Player X pendant que tu joues'}</span>
+        {full && <span className="caption num">{int.format(list.length)}</span>}
       </header>
       <ul className={`bf-cs-rows ${full ? 'is-full' : ''}`}>
         {rows.map((r) => (

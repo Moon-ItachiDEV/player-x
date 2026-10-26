@@ -289,15 +289,23 @@ function ConnectionCard({ platform, account, state, count, masked, settings, log
             </button>
           ) : (
             state.canConnect && (
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={onConnect}
-                disabled={pending || blocked}
-                title={platform === 'psn' ? undefined : 'Connexion dans ton navigateur'}
-              >
-                {pending && <span className="spinner" />}
-                {pending ? 'Connexion…' : CONNECT_LABEL[platform]}
-              </button>
+              <>
+                {/* Discord et PlayStation : les identifiants restent modifiables avant de connecter (erreur de saisie). */}
+                {platform !== 'steam' && !pending && (
+                  <button className="btn btn-ghost btn-sm" onClick={onConfigure}>
+                    Modifier
+                  </button>
+                )}
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={onConnect}
+                  disabled={pending || blocked}
+                  title={platform === 'psn' ? undefined : 'Connexion dans ton navigateur'}
+                >
+                  {pending && <span className="spinner" />}
+                  {pending ? 'Connexion…' : CONNECT_LABEL[platform]}
+                </button>
+              </>
             )
           )}
         </div>
