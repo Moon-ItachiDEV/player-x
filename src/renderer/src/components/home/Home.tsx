@@ -1,88 +1,87 @@
+// Accueil, direction « Écran console » (comme Player X Test) : le jeu choisi en plein écran, son nom en très grand,
+// Jouer ; à droite, les amis en ligne ; en bas, « Tes jeux » en jaquettes debout. La molette, les flèches ← → ou un clic
+// sur une jaquette changent de jeu ; Entrée joue ; clic droit (ou clic sur le jeu déjà choisi) ouvre sa fiche.
+// Rien d'autre à l'écran : le bilan de partie s'ouvre déjà tout seul à la fin d'un match, les patchs sont sur les jaquettes.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { hasPlayed, PLAYED_SOURCE } from '@shared/played'
-import { capitalize, cleanName, formatDate, formatPlaytime, plural, timeAgo } from '@shared/text'
-import type { AchievementGame, Friend, Game, NewsFeedItem } from '@shared/types'
-import type { HomeProps, LaunchFn } from '../../contracts'
+import { cleanName, formatDate, formatPlaytime, plural, timeAgo } from '@shared/text'
+import type { Friend, Game, Store } from '@shared/types'
+import type { HomeProps } from '../../contracts'
 import { PlayLabel } from '../../launch/PlayLabel'
 import { usePlayState } from '../../launch/usePlayState'
-import { follow, fxOn, setArtBase, setMorphSource } from '../../motion'
-import { useAchievementsOverview } from '../achievements/useAchievements'
+import { motionReduced, setArtBase, setMorphSource } from '../../motion'
 import { FavStar, usePop } from '../library/GameCard'
 import { NoGames } from '../library/NoGames'
 import { NewsBadge } from '../news/NewsBadge'
+import { Avatar } from '../ui/Avatar'
 import { Cover, generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
 import { LiveBadge } from '../ui/LiveBadge'
-import { KIND_LABEL, StoreTag } from '../ui/StoreTag'
+import { KIND_LABEL, STORE_LONG } from '../ui/StoreTag'
 import { playersLabel, playersOf, whoIsAround } from './around'
-import { useHomeNews } from './HomeBottom'
-import { HomeShelf } from './HomeShelf'
-import { HomeTop } from './HomeTop'
-import { LastMatchCard, OnlinePanel } from './HomeSide'
-import { achievementsOf, pickHero, resumeList, shelfList } from './pick'
+import { pickHero, shelfList } from './pick'
 import { useWheelStep } from './rowScroll'
-import { useLastMatch } from './useLastMatch'
 import './home.css'
 
 export type { HomeProps }
 
+const STORES: Store[] = ['steam', 'epic', 'ea']
+
 export function Home(props: HomeProps): React.JSX.Element {
-  const {
-    games,
-    friends,
-    scanning,
-    report,
-    demo,
-    news,
-    onLaunch,
-    onOpen,
-    onFavorite,
-    onRescan,
-    onShowLibrary,
-    onReadNews,
-    onShowNews,
-    onShowFriends
-  } = props
-  // Jeu mis à la une depuis « À reprendre » ; sinon le choix automatique (en cours, dernière partie…).
+  const { games, friends, scanning, report, onLaunch, onOpen, onFavorite, onRescan, onShowLibrary, onShowFriends } = props
+  // Jeu choisi à la main (molette, flèches, clic) ; sinon le choix automatique (en cours, dernière partie…).
   const [targetId, setTargetId] = useState<string | null>(null)
   const auto = useMemo(() => pickHero(games), [games])
+  const order = useMemo(() => shelfList(games, 'all'), [games])
   const hero = (targetId && games.find((g) => g.id === targetId)) || auto
   const heroId = hero?.id
+  const [dir, setDir] = useState<'next' | 'prev' | null>(null)
+  const page = useRef<HTMLDivElement>(null)
 
-  // Un jeu qui démarre passe à la une, même après un choix à la main.
+  // Un jeu qui démarre passe à l'écran, même après un choix à la main.
   const runningId = auto?.running ? auto.id : null
   useEffect(() => {
     if (runningId) setTargetId(null)
   }, [runningId])
 
-  const { list: resume, resumed } = useMemo(() => resumeList(games, hero), [games, hero])
-
-  // Molette sur le jeu à la une ou sur « Ta bibliothèque » : jeu suivant / précédent, dans l'ordre de la rangée
-  // (filtre « Tout » pour le jeu à la une, le filtre choisi pour la rangée). La rangée suit le jeu à la une.
-  const order = useMemo(() => shelfList(games, 'all'), [games])
-  const [dir, setDir] = useState<'next' | 'prev' | null>(null)
-  const stepIn = (list: Game[], d: 1 | -1): void => {
-    if (!heroId || list.length < 1) return
-    const i = list.findIndex((g) => g.id === heroId)
-    // Jeu à la une absent de la rangée filtrée : on entre par le premier (ou le dernier) jeu.
-    const next = i < 0 ? list[d > 0 ? 0 : list.length - 1] : list[(i + d + list.length) % list.length]
-    if (next.id === heroId) return
-    setDir(d > 0 ? 'next' : 'prev')
-    setTargetId(next.id)
+  const pick = (g: Game, d: 'next' | 'prev' | null): void => {
+    if (g.id === heroId) return
+    setDir(d)
+    setTargetId(g.id)
   }
-  const step = (d: 1 | -1): void => stepIn(order, d)
+  const step = (d: 1 | -1): void => {
+    if (!heroId || order.length < 2) return
+    const i = order.findIndex((g) => g.id === heroId)
+    const next = i < 0 ? order[0] : order[(i + d + order.length) % order.length]
+    pick(next, d > 0 ? 'next' : 'prev')
+  }
+
+  // Molette n'importe où sur l'accueil : un cran = un jeu.
+  useWheelStep(page, step)
+
+  // Clavier : ← → changent de jeu, Entrée joue (pas quand on écrit, ni dans un menu ou une fenêtre).
+  const stepRef = useRef(step)
+  stepRef.current = step
+  const heroRef = useRef(hero)
+  heroRef.current = hero
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return
+      const t = e.target instanceof Element ? e.target : null
+      if (t?.closest('input, textarea, select, [contenteditable], [role="dialog"], [role="menu"]')) return
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault()
+        stepRef.current(e.key === 'ArrowRight' ? 1 : -1)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const around = useMemo(() => (hero ? whoIsAround(hero, friends) : null), [hero, friends])
-  const match = useLastMatch()
-  const { data: overview } = useAchievementsOverview()
-  const heroAch = useMemo(() => (heroId ? achievementsOf(overview, heroId) : null), [overview, heroId])
-  const newsItems = useHomeNews(games, news, demo)
-  const updates = useMemo(() => {
-    const byId = new Map(games.map((g) => [g.id, g]))
-    return newsItems.map((item) => ({ item, game: byId.get(item.gameId) }))
-  }, [newsItems, games])
 
   if (games.length === 0 && scanning) return <HomeSkeleton />
-
   if (games.length === 0 || !hero) {
     return (
       <div className="page home">
@@ -91,445 +90,313 @@ export function Home(props: HomeProps): React.JSX.Element {
     )
   }
 
-  const side = !!match || !!around
   return (
-    <div className="page home">
-      <HomeTop games={games} friends={friends} news={news} onOpen={onOpen} onShowFriends={onShowFriends} onShowNews={onShowNews} />
-      <div className="hm-top">
-        <HomeHero
-          key={hero.id}
-          game={hero}
-          players={playersOf(hero, friends)}
-          achievements={heroAch}
-          resume={resume}
-          resumeTitle={resumed ? 'À reprendre' : 'Dans ta bibliothèque'}
-          onTarget={(g) => {
-            setDir(null)
-            setTargetId(g.id)
-          }}
-          dir={dir}
-          onStep={step}
-          news={news}
-          updates={updates}
-          onReadNews={onReadNews}
-          onShowNews={onShowNews}
-          onLaunch={onLaunch}
-          onOpen={onOpen}
-          onFavorite={onFavorite}
-        />
-        {side && (
-          <div className="hm-side">
-            {match && <LastMatchCard match={match} />}
-            {around && <OnlinePanel around={around} tall={!match} onShowFriends={onShowFriends} />}
-          </div>
-        )}
+    <div ref={page} className="hc">
+      <HeroArt game={hero} dir={dir} />
+      <div className="hc-in">
+        <HeroText key={hero.id} game={hero} players={playersOf(hero, friends)} dir={dir} onLaunch={onLaunch} onOpen={onOpen} onFavorite={onFavorite} />
+        {around && <Squad around={around.people} here={around.here} onShowFriends={onShowFriends} />}
       </div>
-      <HomeShelf games={games} heroId={hero.id} onStep={stepIn} onLaunch={onLaunch} onOpen={onOpen} onShowLibrary={onShowLibrary} />
-      {/* « Mises à jour de tes jeux » est monté dans le bloc du jeu à la une (onglet), visible sans faire défiler.
-          « Tes succès » n'est plus sur l'Accueil (0.9.4-beta.8, demande de Breezydev) : ils restent dans Trophées. */}
+      <Shelf
+        games={order}
+        heroId={hero.id}
+        onPick={(g) => pick(g, null)}
+        onLaunch={onLaunch}
+        onOpen={onOpen}
+        onShowLibrary={onShowLibrary}
+      />
     </div>
   )
 }
 
-interface HeroProps {
+/* ---------- l'image du jeu, en plein écran ---------- */
+
+/** Le visuel du jeu sur tout l'écran (sous la barre du haut) ; le nouveau se pose en fondu sur l'ancien. */
+function HeroArt({ game, dir }: { game: Game; dir: 'next' | 'prev' | null }): React.JSX.Element {
+  const [failed, setFailed] = useState<ReadonlySet<string>>(new Set())
+  const url = artOf(game, failed)
+  const last = useRef(game)
+  const [prev, setPrev] = useState<Game | null>(null)
+
+  // Changement de jeu : l'ancien visuel reste dessous le temps du fondu.
+  useEffect(() => {
+    if (last.current.id === game.id) return
+    setPrev(last.current)
+    last.current = game
+    const t = setTimeout(() => setPrev(null), 600)
+    return () => clearTimeout(t)
+  }, [game])
+
+  // Fond de la page aux couleurs du jeu (Ambient) : il déborde sous la barre et aux bords.
+  useEffect(() => {
+    setArtBase(url)
+    return () => setArtBase(null)
+  }, [url])
+
+  const fail = (u: string): void => setFailed((f) => new Set(f).add(u))
+  return (
+    <div className="hc-art" data-dir={dir ?? undefined} aria-hidden="true">
+      {prev && prev.id !== game.id && <ArtLayer key={`prev-${prev.id}`} game={prev} url={artOf(prev, failed)} still onFail={fail} />}
+      <ArtLayer key={game.id} game={game} url={url} onFail={fail} />
+      <div className="hc-scrim" />
+    </div>
+  )
+}
+
+/** La bannière du jeu, sinon sa jaquette (floutée). */
+function artOf(game: Game, failed: ReadonlySet<string>): string | undefined {
+  return game.heroUrl && !failed.has(game.heroUrl) ? game.heroUrl : game.coverUrl
+}
+
+function ArtLayer({ game, url, still, onFail }: { game: Game; url?: string; still?: boolean; onFail: (u: string) => void }): React.JSX.Element {
+  const [loaded, setLoaded] = useState(false)
+  const blur = !!url && url !== game.heroUrl
+  return (
+    <div className={`hc-art-layer ${still ? 'is-still' : ''}`} style={{ background: generatedBackground(game.name) }}>
+      {url && (
+        <img
+          className={`hc-img ${blur ? 'is-blur' : ''} ${loaded || still ? 'is-loaded' : ''}`}
+          src={url}
+          alt=""
+          draggable={false}
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          onError={() => onFail(url)}
+        />
+      )}
+    </div>
+  )
+}
+
+/* ---------- texte et actions du jeu ---------- */
+
+interface HeroTextProps {
   game: Game
   /** Amis et membres du serveur qui jouent à ce jeu. */
   players: Friend[]
-  /** Succès Steam du jeu, s'ils sont relevés. */
-  achievements: AchievementGame | null
-  /** « À reprendre », le jeu à la une compris (ligne surlignée). */
-  resume: Game[]
-  resumeTitle: string
-  onTarget: (g: Game) => void
-  /** Sens du dernier changement à la molette : l'entrée du jeu glisse dans ce sens. */
   dir: 'next' | 'prev' | null
-  onStep: (d: 1 | -1) => void
-  /** Actus des jeux activées : lien « Patch » de la ligne d'infos. */
-  news: boolean
-  /** Derniers patchs des jeux de la bibliothèque : onglet « Mises à jour » à côté de « À reprendre ». */
-  updates: Update[]
-  onReadNews: (gameId: string, postId: string) => void
-  onShowNews: () => void
-  onLaunch: LaunchFn
+  onLaunch: HomeProps['onLaunch']
   onOpen: (g: Game) => void
   onFavorite: (g: Game) => void
 }
 
-/** Jeu à la une : grand visuel, pastilles, titre, ligne d'infos, actions ; à droite, « À reprendre » sur du verre. */
-function HomeHero({
-  game,
-  players,
-  achievements,
-  resume,
-  resumeTitle,
-  onTarget,
-  dir,
-  onStep,
-  news,
-  onReadNews,
-  updates,
-  onShowNews,
-  onLaunch,
-  onOpen,
-  onFavorite
-}: HeroProps): React.JSX.Element {
-  const root = useRef<HTMLElement>(null)
-  const art = useRef<HTMLDivElement>(null)
+function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroTextProps): React.JSX.Element {
   const p = usePlayState(game, onLaunch)
-  const [heroFailed, setHeroFailed] = useState(false)
-  const [loaded, setLoaded] = useState(false)
   const [pop, firePop] = usePop()
+  const play = useRef<HTMLButtonElement>(null)
   const name = cleanName(game.name)
   const fav = !!game.favorite
-  const heroUrl = game.heroUrl && !heroFailed ? game.heroUrl : undefined
-  // Sans bannière : la jaquette, floutée, fait le fond.
-  const backUrl = heroUrl ?? game.coverUrl
+  const src = game.lastPlayedSource
 
-  // Molette au-dessus du jeu à la une : un cran = un jeu (seuil pour les pavés tactiles, un pas toutes les 280 ms au plus).
-  useWheelStep(root, onStep)
-
-  // Fond de la page aux couleurs du jeu à la une.
+  // Entrée joue le jeu affiché (hors champ de texte, menu ou fenêtre).
+  const activate = useRef(p.activate)
+  activate.current = p.activate
   useEffect(() => {
-    setArtBase(backUrl)
-    return () => setArtBase(null)
-  }, [backUrl])
-
-  // Parallaxe au pointeur : --hx/--hy (-1..1) sur la carte, lissés.
-  useEffect(() => {
-    const el = root.current
-    if (!el) return
-    let rect: DOMRect | null = null
-    let active = false
-    const f = follow(
-      (x, y) => {
-        el.style.setProperty('--hx', x.toFixed(4))
-        el.style.setProperty('--hy', y.toFixed(4))
-      },
-      { rate: 0.08 }
-    )
-    const clamp = (v: number): number => (v < -1 ? -1 : v > 1 ? 1 : v)
-    const stale = (): void => {
-      rect = null
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Enter' || e.defaultPrevented || e.repeat) return
+      const t = e.target instanceof Element ? e.target : null
+      // Un bouton qui a le focus garde sa propre action (Entrée = clic).
+      if (t && t !== document.body && t.closest('button, a, input, textarea, select, [contenteditable], [role="dialog"], [role="menu"], [role="listbox"]')) return
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+      e.preventDefault()
+      activate.current(play.current)
     }
-    const move = (e: PointerEvent): void => {
-      if (!active) return
-      rect ??= el.getBoundingClientRect()
-      f.set(clamp(((e.clientX - rect.left) / rect.width) * 2 - 1), clamp(((e.clientY - rect.top) / rect.height) * 2 - 1))
-    }
-    const enter = (e: PointerEvent): void => {
-      if (e.pointerType !== 'mouse' || !fxOn()) return
-      active = true
-      rect = el.getBoundingClientRect()
-      window.addEventListener('scroll', stale, {
-        capture: true,
-        passive: true
-      })
-      move(e)
-    }
-    const leave = (): void => {
-      if (!active) return
-      active = false
-      window.removeEventListener('scroll', stale, true)
-      f.release()
-    }
-    el.addEventListener('pointerenter', enter)
-    el.addEventListener('pointermove', move)
-    el.addEventListener('pointerleave', leave)
-    return () => {
-      leave()
-      f.cancel()
-      el.removeEventListener('pointerenter', enter)
-      el.removeEventListener('pointermove', move)
-      el.removeEventListener('pointerleave', leave)
-    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Le visuel du jeu sert de point de départ au morphing vers la fiche.
-  const open = (): void => {
-    setMorphSource(art.current, game.id, 'art')
-    onOpen(game)
-  }
-
-  const src = game.lastPlayedSource
-  const patch = news ? game.lastPatch : undefined
+  const kicker = game.running ? null : game.lastPlayed ? `Reprendre · joué ${timeAgo(game.lastPlayed)}` : hasPlayed(game) ? 'Dans ta bibliothèque' : 'Pas encore lancé'
 
   return (
-    <section ref={root} className={`hh ${game.running ? 'is-live' : ''}`} data-dir={dir ?? undefined} aria-label={`À la une : ${name}`}>
-      <div className="hh-bleed" aria-hidden="true">
-        <div ref={art} className="hh-art" style={{ background: generatedBackground(game.name) }}>
-          {backUrl && (
-            <img
-              key={backUrl}
-              className={`hh-img ${heroUrl ? '' : 'hh-img-blur'} ${loaded ? 'is-loaded' : ''}`}
-              src={backUrl}
-              alt=""
-              draggable={false}
-              decoding="async"
-              onLoad={() => setLoaded(true)}
-              onError={() => (heroUrl ? setHeroFailed(true) : undefined)}
-            />
-          )}
-        </div>
-        <div className="hh-scrim" />
-      </div>
-
-      <div className="hh-in">
-        <div className="hh-main">
-          <div className="hh-chips">
-            <StoreTag kind={game.store} long className="hh-store" />
-            {game.running && <LiveBadge />}
-            {players.length > 0 && (
-              <span className="hh-chip-live" title={players.map((f) => f.name).join(', ')}>
-                <Icon name="play" size={10} />
-                {playersLabel(players)}
-              </span>
-            )}
-            {game.newPatch && <NewsBadge patch={game.newPatch} className="hh-news" />}
-          </div>
-          <h2 className="hh-title" title={name}>
-            {name}
-          </h2>
-          <p className="hh-meta num">
-            {game.running ? (
-              <span className="hh-meta-live">Partie en cours</span>
-            ) : game.lastPlayed ? (
-              <span title={`${formatDate(game.lastPlayed)}${src ? `, ${PLAYED_SOURCE[src]}` : ''}`}>Dernière partie : {timeAgo(game.lastPlayed)}</span>
-            ) : (
-              !hasPlayed(game) && <span>Jamais lancé depuis Player X</span>
-            )}
-            {!!game.playtime && <span>{formatPlaytime(game.playtime)} de jeu</span>}
-            {(game.launches ?? 0) > 0 && <span title="Depuis Player X">{plural(game.launches ?? 0, 'lancement', 'lancements')}</span>}
-            {achievements && (
-              <span>
-                {achievements.unlocked} / {achievements.total} succès
-              </span>
-            )}
-            {patch && (
-              <span>
-                <button
-                  className="hh-patch"
-                  title={`${patch.title} · notes publiées sur Steam le ${formatDate(patch.at)}`}
-                  aria-label={`Lire les notes du dernier patch de ${name} : ${patch.title}, ${timeAgo(patch.at)}`}
-                  onClick={() => onReadNews(game.id, patch.id)}
-                >
-                  Patch {timeAgo(patch.at)}
-                  <Icon name="chevron-right" size={14} />
-                </button>
-              </span>
-            )}
-          </p>
-          <div className="hh-actions">
-            <button
-              className={`btn btn-primary btn-play ${p.className}`}
-              data-magnetic={p.state === 'idle' ? '' : undefined}
-              aria-disabled={p.inert || undefined}
-              aria-busy={p.busy || undefined}
-              aria-label={p.ariaLabel}
-              title={p.state === 'idle' ? undefined : p.title}
-              onClick={() => p.activate(art.current)}
-            >
-              <PlayLabel p={p} size={20} />
-            </button>
-            <button className="btn hh-glass hh-sheet" onClick={open}>
-              Détails du jeu
-            </button>
-            <button
-              className={`btn hh-glass hh-fav ${fav ? 'is-on' : ''}`}
-              aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-              title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-              onClick={() => {
-                firePop()
-                onFavorite(game)
-              }}
-            >
-              <FavStar on={fav} pop={pop} size={20} />
-            </button>
-          </div>
-        </div>
-
-        {(resume.length > 1 || updates.length > 0) && (
-          <EndPanel
-            game={game}
-            resume={resume.length > 1 ? resume : []}
-            resumeTitle={resumeTitle}
-            updates={updates}
-            onTarget={onTarget}
-            onReadNews={onReadNews}
-            onShowNews={onShowNews}
-          />
+    <section className="hc-text" data-dir={dir ?? undefined} aria-label={name}>
+      <p className="hc-kicker">
+        {game.running ? <LiveBadge /> : <span title={game.lastPlayed ? `${formatDate(game.lastPlayed)}${src ? `, ${PLAYED_SOURCE[src]}` : ''}` : undefined}>{kicker}</span>}
+        {players.length > 0 && (
+          <span className="hc-kicker-live" title={players.map((f) => f.name).join(', ')}>
+            <Icon name="play" size={10} />
+            {playersLabel(players)}
+          </span>
         )}
+      </p>
+      <h1 className="hc-title" title={name}>
+        {name}
+      </h1>
+      <p className="hc-meta num">
+        <span>{STORE_LONG[game.store]}</span>
+        {!!game.playtime && <span>{formatPlaytime(game.playtime)} de jeu</span>}
+        {game.notInstalled ? <span>Pas installé</span> : <span>Installé</span>}
+        {game.newPatch && <NewsBadge patch={game.newPatch} className="hc-news" />}
+      </p>
+      <div className="hc-actions">
+        <button
+          ref={play}
+          className={`btn btn-primary btn-play hc-play ${p.className}`}
+          data-magnetic={p.state === 'idle' ? '' : undefined}
+          aria-disabled={p.inert || undefined}
+          aria-busy={p.busy || undefined}
+          aria-label={p.ariaLabel}
+          title={p.state === 'idle' ? 'Jouer (Entrée)' : p.title}
+          onClick={() => p.activate(play.current)}
+        >
+          <PlayLabel p={p} size={20} />
+        </button>
+        <button
+          className="btn hc-glass"
+          onClick={(e) => {
+            setMorphSource(e.currentTarget.closest('.hc')?.querySelector('.hc-art-layer') ?? null, game.id, 'art')
+            onOpen(game)
+          }}
+        >
+          Détails du jeu
+        </button>
+        <button
+          className={`btn hc-glass hc-fav ${fav ? 'is-on' : ''}`}
+          aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          onClick={() => {
+            firePop()
+            onFavorite(game)
+          }}
+        >
+          <FavStar on={fav} pop={pop} size={20} />
+        </button>
       </div>
     </section>
   )
 }
 
-type EndTab = 'resume' | 'updates'
-/** Un patch et le jeu de la bibliothèque qu'il concerne (pour sa jaquette). */
-interface Update {
-  item: NewsFeedItem
-  game?: Game
-}
-const END_TAB_KEY = 'pg.home.endTab'
+/* ---------- amis, en colonne à droite ---------- */
 
-function readEndTab(): EndTab {
-  try {
-    return localStorage.getItem(END_TAB_KEY) === 'updates' ? 'updates' : 'resume'
-  } catch {
-    return 'resume'
-  }
-}
+const SQUAD_MAX = 5
 
-/**
- * Bloc de droite du jeu à la une : « À reprendre » et « Mises à jour » (derniers patchs de tes jeux) en deux onglets,
- * à la même place, pour voir les patchs sans faire défiler l'accueil. Le dernier onglet choisi est retenu.
- */
-function EndPanel({
-  game,
-  resume,
-  resumeTitle,
-  updates,
-  onTarget,
-  onReadNews,
-  onShowNews
-}: {
-  game: Game
-  resume: Game[]
-  resumeTitle: string
-  updates: Update[]
-  onTarget: (g: Game) => void
-  onReadNews: (gameId: string, postId: string) => void
-  onShowNews: () => void
-}): React.JSX.Element {
-  const [picked, setPicked] = useState<EndTab>(readEndTab)
-  // Un onglet vide n'est jamais montré : on bascule sur l'autre.
-  const tab: EndTab = picked === 'updates' ? (updates.length ? 'updates' : 'resume') : resume.length ? 'resume' : 'updates'
-  const pick = (t: EndTab): void => {
-    setPicked(t)
-    try {
-      localStorage.setItem(END_TAB_KEY, t)
-    } catch {
-      // simple confort
-    }
-  }
-  const fresh = updates.some((u) => u.item.isNew)
-  const both = resume.length > 0 && updates.length > 0
+/** Amis en jeu ou en ligne (ceux de ce jeu d'abord) : avatar, pseudo et ce qu'ils font. Clic : page Amis. */
+function Squad({ around, here, onShowFriends }: { around: Friend[]; here: ReadonlySet<string>; onShowFriends: () => void }): React.JSX.Element {
+  const shown = around.slice(0, SQUAD_MAX)
+  const more = around.length - shown.length
+  const inGame = around.filter((f) => f.status === 'in-game').length
   return (
-    <div className="hh-end">
-      {both ? (
-        <div className="hh-end-tabs" role="tablist" aria-label="À côté du jeu à la une">
-          <button role="tab" id="hh-tab-resume" aria-selected={tab === 'resume'} aria-controls="hh-panel" className="hh-end-tab" onClick={() => pick('resume')}>
-            {resumeTitle}
-          </button>
-          <button role="tab" id="hh-tab-updates" aria-selected={tab === 'updates'} aria-controls="hh-panel" className="hh-end-tab" onClick={() => pick('updates')}>
-            Mises à jour
-            {fresh && <span className="hh-end-dot" aria-label="nouveau" />}
-          </button>
-        </div>
-      ) : (
-        <h3 className="hh-end-title">{tab === 'resume' ? resumeTitle : 'Mises à jour de tes jeux'}</h3>
-      )}
-      <div id="hh-panel" role={both ? 'tabpanel' : undefined} aria-labelledby={both ? `hh-tab-${tab}` : undefined}>
-        {tab === 'resume' ? (
-          <ul className="hh-resume">
-            {resume.map((g) => (
-              <ResumeRow key={g.id} game={g} active={g.id === game.id} onTarget={onTarget} />
-            ))}
-          </ul>
-        ) : (
-          <>
-            <ul className="hh-resume">
-              {updates.map((u) => (
-                <UpdateRow key={`${u.item.gameId}:${u.item.id}`} update={u} onRead={onReadNews} />
-              ))}
-            </ul>
-            <button className="hm-link hh-end-more" onClick={onShowNews}>
-              Toutes les actus
-              <Icon name="chevron-right" size={14} />
+    <button className="hc-squad" onClick={onShowFriends} aria-label={`Amis : ${plural(around.length, 'en ligne', 'en ligne')}. Voir tes amis`}>
+      <span className="hc-squad-head">
+        Amis
+        <span className="hc-squad-count num">{inGame ? `${inGame} en jeu` : `${around.length} en ligne`}</span>
+      </span>
+      <ul className="hc-squad-list">
+        {shown.map((f) => (
+          <li key={f.id} className={`hc-mate ${here.has(f.id) ? 'is-here' : ''}`}>
+            <span className="hc-mate-text">
+              <span className="hc-mate-name">{f.name}</span>
+              <span className={`hc-mate-sub ${f.status === 'in-game' ? 'is-live' : ''}`}>
+                {f.status === 'in-game' && f.game ? f.game : f.status === 'away' ? 'Absent' : `En ligne · ${KIND_LABEL[f.platform]}`}
+              </span>
+            </span>
+            <Avatar name={f.name} url={f.avatarUrl} size={40} status={f.status} />
+          </li>
+        ))}
+      </ul>
+      {more > 0 && <span className="hc-squad-more num">+ {more}</span>}
+    </button>
+  )
+}
+
+/* ---------- « Tes jeux », en bas ---------- */
+
+interface ShelfProps {
+  games: Game[]
+  heroId: string
+  onPick: (g: Game) => void
+  onLaunch: HomeProps['onLaunch']
+  onOpen: (g: Game) => void
+  onShowLibrary: () => void
+}
+
+/** Les jeux en jaquettes debout (une fois chacun, sans copies aux bords). Le jeu affiché est agrandi et cerclé de blanc. */
+function Shelf({ games, heroId, onPick, onOpen, onShowLibrary }: ShelfProps): React.JSX.Element {
+  const track = useRef<HTMLDivElement>(null)
+  const counts = STORES.map((s) => ({ s, n: games.filter((g) => g.store === s).length })).filter((c) => c.n > 0)
+
+  // Le jeu affiché reste dans la partie visible de la rangée, sans faire défiler la page.
+  useEffect(() => {
+    const el = track.current?.querySelector<HTMLElement>(`[data-id="${CSS.escape(heroId)}"]`)
+    const box = track.current
+    if (!el || !box) return
+    const left = el.offsetLeft - box.clientWidth / 2 + el.clientWidth / 2
+    box.scrollTo({ left: Math.max(0, left), behavior: motionReduced() ? 'auto' : 'smooth' })
+  }, [heroId])
+
+  return (
+    <section className="hc-shelf" aria-labelledby="hc-shelf-h">
+      <header className="hc-shelf-head">
+        <h2 id="hc-shelf-h" className="hc-shelf-title">
+          Tes jeux
+        </h2>
+        <span className="hc-shelf-meta num">
+          {plural(games.length, 'jeu', 'jeux')}
+          {counts.length > 1 && counts.map((c) => ` · ${STORE_LONG[c.s]} ${c.n}`).join('')}
+        </span>
+        <button className="link-btn hc-shelf-all" onClick={onShowLibrary}>
+          Toute la bibliothèque
+        </button>
+      </header>
+      <div ref={track} className="hc-track" role="listbox" aria-label="Tes jeux" aria-orientation="horizontal">
+        {games.map((g) => {
+          const on = g.id === heroId
+          const name = cleanName(g.name)
+          return (
+            <button
+              key={g.id}
+              data-id={g.id}
+              role="option"
+              aria-selected={on}
+              className={`hc-cover ${on ? 'is-on' : ''} ${g.running ? 'is-live' : ''}`}
+              title={on ? `${name} · clic : fiche du jeu` : name}
+              onClick={(e) => {
+                if (on) {
+                  setMorphSource(e.currentTarget, g.id, 'cover')
+                  onOpen(g)
+                } else onPick(g)
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setMorphSource(e.currentTarget, g.id, 'cover')
+                onOpen(g)
+              }}
+            >
+              <Cover game={g} variant="portrait" />
+              {g.favorite && (
+                <span className="hc-cover-star" aria-hidden="true">
+                  <Icon name="star" size={13} filled />
+                </span>
+              )}
+              {g.newPatch && <span className="hc-cover-patch" aria-hidden="true" />}
+              <span className="sr-only">
+                {name}
+                {g.running ? ', en cours' : ''}
+                {g.newPatch ? ', nouveau patch' : ''}
+              </span>
             </button>
-          </>
-        )}
+          )
+        })}
       </div>
-    </div>
-  )
-}
-
-/** Ligne de « Mises à jour » : le jeu, le titre du patch, quand ; un clic ouvre la lecture. */
-function UpdateRow({ update, onRead }: { update: Update; onRead: (gameId: string, postId: string) => void }): React.JSX.Element {
-  const item = update.item
-  const name = cleanName(item.gameName)
-  const when = capitalize(timeAgo(item.date))
-  return (
-    <li>
-      <button
-        className="hh-row hh-row-update"
-        title={item.title}
-        aria-label={`Patch de ${name} : ${item.title}, ${when.toLowerCase()}${item.isNew ? ', nouveau' : ''}`}
-        onClick={() => onRead(item.gameId, item.id)}
-      >
-        <span className="hh-row-thumb" aria-hidden="true">
-          <Cover game={update.game ?? { name: item.gameName }} variant="letter" />
-        </span>
-        <span className="hh-row-text" aria-hidden="true">
-          <span className="hh-row-name">{item.title}</span>
-          <span className="hh-row-sub">
-            {item.isNew && <span className="hh-row-new">Nouveau · </span>}
-            {when} · {name}
-          </span>
-        </span>
-      </button>
-    </li>
-  )
-}
-
-/** Ligne de « À reprendre » : met le jeu à la une (le jeu à la une est surligné). */
-function ResumeRow({ game, active, onTarget }: { game: Game; active: boolean; onTarget: (g: Game) => void }): React.JSX.Element {
-  const name = cleanName(game.name)
-  const store = KIND_LABEL[game.store]
-  const sub = game.running
-    ? `En cours · ${store}`
-    : active
-      ? `À la une · ${store}`
-      : game.lastPlayed
-        ? `Joué ${timeAgo(game.lastPlayed)} · ${store}`
-        : game.favorite
-          ? `Favori · ${store}`
-          : store
-  return (
-    <li>
-      <button
-        className={`hh-row ${active ? 'is-on' : ''} ${game.running ? 'is-live' : ''}`}
-        aria-pressed={active}
-        title={active ? undefined : `Mettre ${name} à la une`}
-        onClick={() => onTarget(game)}
-      >
-        <span className="hh-row-thumb" aria-hidden="true">
-          <Cover game={game} variant="letter" />
-        </span>
-        <span className="hh-row-text">
-          <span className="hh-row-name">{name}</span>
-          <span className="hh-row-sub">{capitalize(sub)}</span>
-        </span>
-      </button>
-    </li>
+    </section>
   )
 }
 
 function HomeSkeleton(): React.JSX.Element {
   return (
-    <div className="page home" aria-busy="true">
+    <div className="hc" aria-busy="true">
       <span className="sr-only">Recherche des jeux installés…</span>
-      <div className="hm-top" aria-hidden="true">
-        <div className="hh hh-skel skel" />
-        <div className="hm-side">
-          <div className="hm-panel hm-skel-panel skel" />
-          <div className="hm-panel hm-skel-panel skel" />
+      <div className="hc-in" aria-hidden="true">
+        <div className="hc-text">
+          <span className="skel hc-skel-kicker" />
+          <span className="skel hc-skel-title" />
+          <span className="skel hc-skel-meta" />
         </div>
       </div>
-      <div className="hm-shelf" aria-hidden="true">
-        <span className="skel hm-skel-h" />
-        <div className="hm-track">
-          {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="hm-tile skel" />
+      <div className="hc-shelf" aria-hidden="true">
+        <span className="skel hc-skel-h" />
+        <div className="hc-track">
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} className="hc-cover skel" />
           ))}
         </div>
       </div>

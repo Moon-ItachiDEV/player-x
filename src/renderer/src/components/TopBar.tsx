@@ -1,14 +1,44 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { TopBarProps } from '../contracts'
+import { plural } from '@shared/text'
+import type { TopBarProps, View } from '../contracts'
 import { countGames, searchAll } from './search/searchIndex'
 import { LIBRARY_ROW, optionId, SearchResults } from './search/SearchResults'
 import { Avatar } from './ui/Avatar'
+import { BrandMark } from './ui/Brand'
 import { Icon } from './ui/Icon'
 import './chrome.css'
 
 export type { TopBarProps }
 
 const IS_MAC = window.launcher?.platform === 'darwin'
+const IS_PRERELEASE = (window.launcher?.version ?? '').includes('-')
+
+/** Pages, en onglets texte (direction « Écran console ») : une seule navigation, en haut. Le Profil passe par l'avatar. */
+const NAV: { view: View; label: string }[] = [
+  { view: 'home', label: 'Accueil' },
+  { view: 'library', label: 'Bibliothèque' },
+  { view: 'friends', label: 'Amis' },
+  { view: 'stats', label: 'Stats' },
+  { view: 'trophies', label: 'Trophées' },
+  // Seulement avec les actus des jeux (Paramètres › Bibliothèque).
+  { view: 'news', label: 'Actus' }
+]
+
+/** Heure du PC (HH:MM), relue chaque minute pile. */
+function useClock(): string {
+  const read = (): string => new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  const [now, setNow] = useState(read)
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>
+    const tick = (): void => {
+      setNow(read())
+      t = setTimeout(tick, 60_000 - (Date.now() % 60_000) + 50)
+    }
+    t = setTimeout(tick, 60_000 - (Date.now() % 60_000) + 50)
+    return () => clearTimeout(t)
+  }, [])
+  return now
+}
 
 /** « Bonjour, » de 5 h à 18 h, « Bonsoir, » ensuite (relu chaque minute), comme l'ancien menu latéral. */
 function useGreeting(): string {
@@ -26,10 +56,11 @@ function useGreeting(): string {
 
 /** Barre du haut : zone de déplacement de la fenêtre, titre ou onglets de la page (salutation sur l'Accueil), recherche, compte. */
 export function TopBar(props: TopBarProps): React.JSX.Element {
-  const { title, query, onQueryChange, searchRef, slotRef, me, accountMenuOpen, onToggleAccountMenu, greet, search, onLibraryView } = props
+  const { query, onQueryChange, searchRef, me, accountMenuOpen, onToggleAccountMenu, search, onLibraryView, view, onView, news, newsCount, friendsInGame } = props
   const account = me.account
   const name = me.name
   const greeting = useGreeting()
+  const clock = useClock()
 
   // Résultats de la recherche globale : ouverts quand le champ a le focus et du texte, refermés par Échap jusqu'à la frappe suivante.
   const [focused, setFocused] = useState(false)
@@ -90,21 +121,35 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
 
   return (
     <header className={`topbar ${IS_MAC ? 'is-mac' : ''}`}>
-      {greet ? (
-        // Accueil : le rail dit déjà où l'on est ; la barre salue plutôt (heure du PC, ton pseudo ou celui du compte, rien d'inventé).
-        <p className="tb-greet">
-          {account || me.customName ? (
-            <>
-              {greeting}, <b>{name}</b>
-            </>
-          ) : (
-            greeting
-          )}
-        </p>
-      ) : (
-        title && <p className="tb-title">{title}</p>
-      )}
-      <div ref={slotRef} className="tb-slot" />
+      <div className="tb-brand">
+        {!IS_MAC && <BrandMark height={30} />}
+        <span className="tb-brand-name">Player X</span>
+        {IS_PRERELEASE && <span className="tb-brand-beta">Bêta</span>}
+      </div>
+      <nav className="tb-nav" aria-label="Pages">
+        {NAV.filter((n) => n.view !== 'news' || news).map((n) => {
+          const live = n.view === 'friends' && friendsInGame > 0
+          const fresh = n.view === 'news' && newsCount > 0
+          const hint = live ? `${friendsInGame} en jeu` : fresh ? plural(newsCount, 'nouveau patch', 'nouveaux patchs') : undefined
+          return (
+            <button
+              key={n.view}
+              className="tb-nav-btn"
+              aria-current={view === n.view ? 'page' : undefined}
+              aria-label={hint ? `${n.label}, ${hint}` : undefined}
+              title={hint}
+              onClick={() => onView(n.view)}
+            >
+              {n.label}
+              {(live || fresh) && (
+                <span className={`tb-nav-badge num ${live ? 'is-live' : 'is-info'}`} aria-hidden="true">
+                  {live ? friendsInGame : newsCount > 99 ? '99+' : newsCount}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </nav>
       <div className="tb-spacer" />
 
       <div className={`tb-search ${query ? 'has-query' : ''}`} role="search" title="Rechercher (Ctrl K)" onClick={() => searchRef.current?.focus()}>
@@ -155,6 +200,18 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
         {open && <SearchResults id="tb-results" groups={groups} gameCount={gameCount} query={query} active={current} onActive={setActive} onPick={pick} />}
       </div>
 
+      <span className="tb-clock num" aria-hidden="true">
+        {clock}
+      </span>
+      <button
+        className="tb-icon-btn"
+        aria-label="Paramètres"
+        title="Paramètres"
+        aria-current={view === 'settings' ? 'page' : undefined}
+        onClick={() => onView('settings')}
+      >
+        <Icon name="settings" size={19} />
+      </button>
       <button
         className="tb-me"
         aria-label={account ? `Mon compte (${name})` : 'Compte invité'}
