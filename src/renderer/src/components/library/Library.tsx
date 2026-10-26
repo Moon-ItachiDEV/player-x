@@ -133,14 +133,14 @@ export function Library(props: LibraryProps): React.JSX.Element {
   // Un store sans jeu dans la sélection retombe sur « Tout ».
   const store: LibStore = prefs.store !== 'all' && storeCounts[prefs.store] === 0 ? 'all' : prefs.store
 
+  // Installés d'abord, puis les jeux du compte Steam absents de ce PC (leur date Steam ne se mêle pas à tes parties).
   const shown = useMemo(() => {
     const match = matcher(q)
-    return sortGames(
-      inSet.filter((g) => (store === 'all' || g.store === store) && match(g)),
-      prefs.sort
-    )
+    const list = inSet.filter((g) => (store === 'all' || g.store === store) && match(g))
+    return [...sortGames(list.filter((g) => !g.notInstalled), prefs.sort), ...sortGames(list.filter((g) => g.notInstalled), prefs.sort)]
   }, [inSet, store, q, prefs.sort])
-  const shownUninstalled = shown.some((g) => g.notInstalled)
+  const here = shown.filter((g) => !g.notInstalled)
+  const away = shown.filter((g) => g.notInstalled)
 
   const item = (g: Game): React.JSX.Element => {
     const p = {
@@ -183,7 +183,18 @@ export function Library(props: LibraryProps): React.JSX.Element {
     />
   )
 
-  const title = <TopTitle>Bibliothèque</TopTitle>
+  const title = (
+    <>
+      <TopTitle>Bibliothèque</TopTitle>
+      <header className="lib-head">
+        <h1 className="lib-h1">Ta bibliothèque</h1>
+        <span className="lib-head-count num">
+          {games.length > 0 && `${games.length} ${games.length > 1 ? 'jeux installés' : 'jeu installé'}`}
+          {notInstalled.length > 0 && ` · ${notInstalled.length} sur ton compte Steam`}
+        </span>
+      </header>
+    </>
+  )
 
   // Premier scan : squelettes.
   if (games.length === 0 && scanning && install !== 'uninstalled') {
@@ -237,7 +248,7 @@ export function Library(props: LibraryProps): React.JSX.Element {
             <Icon name="star" size={28} />
           </div>
           <h3>Aucun favori pour l'instant</h3>
-          <p className="caption">Clique sur l'étoile d'une jaquette : tes favoris s'affichent ici et dans le rail, tout à gauche.</p>
+          <p className="caption">Clique sur l'étoile d'une jaquette : tes favoris s'affichent ici.</p>
           <div className="empty-actions">
             <button className="btn btn-secondary btn-sm" onClick={() => update({ fav: false })}>
               Voir tous les jeux
@@ -264,7 +275,19 @@ export function Library(props: LibraryProps): React.JSX.Element {
               {shown.map(item)}
             </div>
           ) : (
-            <div className="lib-grid">{shown.map(item)}</div>
+            <>
+              {here.length > 0 && <div className="lib-grid">{here.map(item)}</div>}
+              {away.length > 0 && (
+                <>
+                  {here.length > 0 && (
+                    <h2 className="lib-section">
+                      Pas installés sur ce PC <span className="num">· {away.length}</span>
+                    </h2>
+                  )}
+                  <div className="lib-grid">{away.map(item)}</div>
+                </>
+              )}
+            </>
           )}
         </>
       )}

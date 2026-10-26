@@ -238,6 +238,8 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
           title={p.state === 'idle' ? 'Jouer (Entrée)' : p.title}
           onClick={() => p.activate(play.current)}
         >
+          {/* Bouton « Aura » du site (verre sombre, bordure braise qui tourne, halo) : seulement au repos. */}
+          <span className="hc-aura-fill" aria-hidden="true" />
           <PlayLabel p={p} size={20} />
         </button>
         <button
