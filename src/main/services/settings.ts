@@ -1,3 +1,4 @@
+import { cleanProfileName, isProfileAvatar } from '@shared/profile'
 import { discordGuildIdFrom } from '@shared/text'
 import { DEFAULT_OVERLAY_HOTKEY, isValidHotkey } from '@shared/hotkey'
 import type { Account, FriendPlatform, Settings } from '@shared/types'
@@ -24,7 +25,9 @@ function defaults(): Settings {
     cs2RecapOpen: true,
     updateChannel: 'stable',
     cs2Overlay: 'off',
-    overlayHotkey: DEFAULT_OVERLAY_HOTKEY
+    overlayHotkey: DEFAULT_OVERLAY_HOTKEY,
+    profileName: '',
+    profileAvatar: ''
   }
 }
 
@@ -66,6 +69,9 @@ function cleanPatch(patch: unknown): Partial<Settings> {
   if (typeof p.updateChannel === 'string' && CHANNELS.includes(p.updateChannel)) clean.updateChannel = p.updateChannel as Settings['updateChannel']
   if (typeof p.cs2Overlay === 'string' && OVERLAY_STYLES.includes(p.cs2Overlay)) clean.cs2Overlay = p.cs2Overlay as Settings['cs2Overlay']
   if (isValidHotkey(p.overlayHotkey)) clean.overlayHotkey = p.overlayHotkey
+  if (typeof p.profileName === 'string') clean.profileName = cleanProfileName(p.profileName)
+  // '' remet la photo du compte ; sinon seulement une vraie image (PNG, JPEG, WebP) de taille raisonnable.
+  if (p.profileAvatar === '' || isProfileAvatar(p.profileAvatar)) clean.profileAvatar = p.profileAvatar as string
   return clean
 }
 

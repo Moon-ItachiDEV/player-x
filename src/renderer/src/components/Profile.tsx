@@ -12,6 +12,7 @@ import { Cover } from './ui/Cover'
 import { Icon } from './ui/Icon'
 import { LiveBadge } from './ui/LiveBadge'
 import { KIND_LABEL, StoreTag } from './ui/StoreTag'
+import { ProfileEditor } from './ProfileEditor'
 import './profile.css'
 
 export type { ProfileProps }
@@ -19,22 +20,13 @@ export type { ProfileProps }
 const STORES: Store[] = ['steam', 'epic', 'ea']
 // Ordre d'affichage et de priorité du compte principal : Steam > Discord > PSN.
 const PLATFORMS: FriendPlatform[] = ['steam', 'discord', 'psn']
-const GUEST_NAME = 'Joueur'
 const fmt = new Intl.NumberFormat('fr-FR')
 
 const byName = (a: Game, b: Game): number => cleanName(a.name).localeCompare(cleanName(b.name), 'fr', { sensitivity: 'base' })
 const launchesOf = (g: Game): number => g.launches ?? 0
 const playtimeOf = (g: Game): number => g.playtime ?? 0
 
-function primaryAccount(accounts: Account[]): Account | undefined {
-  for (const p of PLATFORMS) {
-    const a = accounts.find((x) => x.platform === p)
-    if (a) return a
-  }
-  return undefined
-}
-
-export function Profile({ games, accounts, friends, onOpenGame, onLaunch, onManageAccounts, onShowFriends }: ProfileProps): React.JSX.Element {
+export function Profile({ games, accounts, me, onSaveProfile, friends, onOpenGame, onLaunch, onManageAccounts, onShowFriends }: ProfileProps): React.JSX.Element {
   const stats = useMemo(() => {
     const launched = games
       .filter((g) => launchesOf(g) > 0)
@@ -63,7 +55,7 @@ export function Profile({ games, accounts, friends, onOpenGame, onLaunch, onMana
     <div className="page prof">
       <header className="prof-hero">
         <Banner urls={bannerUrls} />
-        <Identity accounts={accounts} onManageAccounts={onManageAccounts} />
+        <Identity accounts={accounts} me={me} onSaveProfile={onSaveProfile} onManageAccounts={onManageAccounts} />
       </header>
 
       <section className="prof-stats" aria-label="Statistiques">
@@ -216,14 +208,25 @@ function BannerImage({ url, onFail }: { url: string; onFail: () => void }): Reac
 
 /* ---------- identité ---------- */
 
-function Identity({ accounts, onManageAccounts }: { accounts: Account[]; onManageAccounts: () => void }): React.JSX.Element {
-  const main = primaryAccount(accounts)
-  const name = main?.name ?? GUEST_NAME
+function Identity({
+  accounts,
+  me,
+  onSaveProfile,
+  onManageAccounts
+}: Pick<ProfileProps, 'accounts' | 'me' | 'onSaveProfile' | 'onManageAccounts'>): React.JSX.Element {
+  const [editing, setEditing] = useState(false)
+  const main = me.account
+  const name = me.name
   const linked = PLATFORMS.flatMap((p) => accounts.filter((a) => a.platform === p))
   return (
     <section className="prof-identity" aria-label="Identité">
       <div className="prof-avatar">
-        <Avatar name={name} url={main?.avatarUrl} size={88} status={main ? 'connected' : 'guest'} />
+        <button type="button" className="prof-avatar-btn" onClick={() => setEditing(true)} aria-label="Modifier ta photo et ton pseudo">
+          <Avatar name={name} url={me.avatarUrl} size={88} status={main ? 'connected' : 'guest'} />
+          <span className="prof-avatar-pen" aria-hidden="true">
+            <Icon name="pencil" size={22} />
+          </span>
+        </button>
       </div>
       <div className="prof-id-text">
         <span className="prof-kicker">Ton profil</span>
@@ -244,10 +247,23 @@ function Identity({ accounts, onManageAccounts }: { accounts: Account[]; onManag
           <p className="caption">Profil local · aucun compte relié</p>
         )}
       </div>
-      <button className="btn btn-secondary prof-manage" onClick={onManageAccounts}>
-        <Icon name="link" size={16} />
-        Gérer les comptes
-      </button>
+      <div className="prof-actions">
+        <button className="btn btn-secondary" onClick={() => setEditing(true)}>
+          <Icon name="pencil" size={16} />
+          Modifier le profil
+        </button>
+        <button className="btn btn-secondary" onClick={onManageAccounts}>
+          <Icon name="link" size={16} />
+          Gérer les comptes
+        </button>
+      </div>
+      <ProfileEditor
+        open={editing}
+        me={me}
+        current={{ name: me.customName ? me.name : '', avatar: me.customAvatar ? (me.avatarUrl ?? '') : '' }}
+        onClose={() => setEditing(false)}
+        onSave={onSaveProfile}
+      />
     </section>
   )
 }

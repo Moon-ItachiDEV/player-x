@@ -1,6 +1,7 @@
 // Contrats entre App.tsx et les écrans. Chaque écran exporte un composant nommé qui reçoit exactement ces props.
 import type { RefObject } from 'react'
 import type { LaunchVia } from '@shared/launch'
+import type { Identity } from '@shared/profile'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 import type { SearchItem } from './components/search/SearchResults'
 
@@ -84,6 +85,8 @@ export interface TopBarProps {
   slotRef: (el: HTMLElement | null) => void
   /** Bouton du compte (avatar, à droite) : ouvre le menu du compte. */
   accounts: Account[]
+  /** Toi : pseudo et photo choisis dans Profil, sinon ceux du compte principal (shared/profile.ts). */
+  me: Identity
   accountMenuOpen: boolean
   onToggleAccountMenu: () => void
   /** Accueil : « Bonsoir, Breezydev » à la place du titre de la page. */
@@ -94,6 +97,7 @@ export interface TopBarProps {
 export interface AccountMenuProps {
   open: boolean
   accounts: Account[]
+  me: Identity
   onClose: () => void
   onProfile: () => void
   onAccounts: () => void
@@ -171,6 +175,9 @@ export interface GameSheetProps {
 export interface ProfileProps {
   games: Game[]
   accounts: Account[]
+  me: Identity
+  /** Pseudo et photo choisis : enregistrés dans les réglages (vides : ceux du compte principal). */
+  onSaveProfile: (patch: { profileName?: string; profileAvatar?: string }) => Promise<void>
   friends: FriendsResult
   onOpenGame: (g: Game) => void
   onLaunch: LaunchFn

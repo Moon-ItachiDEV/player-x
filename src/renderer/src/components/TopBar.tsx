@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Account, FriendPlatform } from '@shared/types'
 import type { TopBarProps } from '../contracts'
 import { countGames, searchAll } from './search/searchIndex'
 import { LIBRARY_ROW, optionId, SearchResults } from './search/SearchResults'
@@ -10,16 +9,6 @@ import './chrome.css'
 export type { TopBarProps }
 
 const IS_MAC = window.launcher?.platform === 'darwin'
-const PRIORITY: FriendPlatform[] = ['steam', 'discord', 'psn']
-
-/** Compte affiché sur l'avatar : Steam, puis Discord, puis PSN. */
-function primaryAccount(accounts: Account[]): Account | undefined {
-  for (const p of PRIORITY) {
-    const a = accounts.find((x) => x.platform === p)
-    if (a) return a
-  }
-  return accounts[0]
-}
 
 /** « Bonjour, » de 5 h à 18 h, « Bonsoir, » ensuite (relu chaque minute), comme l'ancien menu latéral. */
 function useGreeting(): string {
@@ -37,9 +26,9 @@ function useGreeting(): string {
 
 /** Barre du haut : zone de déplacement de la fenêtre, titre ou onglets de la page (salutation sur l'Accueil), recherche, compte. */
 export function TopBar(props: TopBarProps): React.JSX.Element {
-  const { title, query, onQueryChange, searchRef, slotRef, accounts, accountMenuOpen, onToggleAccountMenu, greet, search, onLibraryView } = props
-  const account = primaryAccount(accounts)
-  const name = account?.name ?? 'Joueur'
+  const { title, query, onQueryChange, searchRef, slotRef, me, accountMenuOpen, onToggleAccountMenu, greet, search, onLibraryView } = props
+  const account = me.account
+  const name = me.name
   const greeting = useGreeting()
 
   // Résultats de la recherche globale : ouverts quand le champ a le focus et du texte, refermés par Échap jusqu'à la frappe suivante.
@@ -102,9 +91,9 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
   return (
     <header className={`topbar ${IS_MAC ? 'is-mac' : ''}`}>
       {greet ? (
-        // Accueil : le rail dit déjà où l'on est ; la barre salue plutôt (heure du PC et nom du compte, rien d'inventé).
+        // Accueil : le rail dit déjà où l'on est ; la barre salue plutôt (heure du PC, ton pseudo ou celui du compte, rien d'inventé).
         <p className="tb-greet">
-          {account ? (
+          {account || me.customName ? (
             <>
               {greeting}, <b>{name}</b>
             </>
@@ -176,7 +165,7 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
         onMouseDown={(e) => accountMenuOpen && e.stopPropagation()}
         onClick={onToggleAccountMenu}
       >
-        <Avatar name={name} url={account?.avatarUrl} size={36} status={account ? 'connected' : 'guest'} />
+        <Avatar name={name} url={me.avatarUrl} size={36} status={account ? 'connected' : 'guest'} />
       </button>
     </header>
   )
