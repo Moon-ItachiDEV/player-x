@@ -184,8 +184,92 @@
   min-height: 60px;
   padding: 0 36px;
   font: 700 17px/1 var(--font-ui);
-  box-shadow: 0 16px 40px -14px rgba(224, 32, 126, 0.75);
 }
+/* Jouer : le bouton « Aura » du site (proposition C choisie par Breezydev). Verre sombre, bordure braise qui
+   tourne, halo qui grandit au survol. Pendant un lancement (envoi, attente, en jeu), les couleurs de l'état reprennent. */
+@property --hc-ang {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.btn.hc-play {
+  --hc-spd: 5s;
+  position: relative;
+  /* Anneau, halo et fond restent dans le bouton (sous le libellé), jamais sous le voile de l'image */
+  isolation: isolate;
+  overflow: visible;
+}
+.btn.hc-play:not(.is-sending, .is-waiting, .is-live) {
+  background: transparent;
+  color: var(--text-1);
+  box-shadow: none;
+}
+.btn.hc-play:not(.is-sending, .is-waiting, .is-live)::before,
+.btn.hc-play:not(.is-sending, .is-waiting, .is-live)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(from var(--hc-ang), var(--brand-3), var(--accent), var(--brand-1), #ffd0dc, var(--accent), var(--brand-3));
+  /* Remplace le reflet de .btn-play (::after décalé de -130 % qui balaie au survol) */
+  translate: none;
+  pointer-events: none;
+}
+.btn.hc-play:not(.is-sending, .is-waiting, .is-live)::before {
+  z-index: -2;
+}
+.btn.hc-play:not(.is-sending, .is-waiting, .is-live)::after {
+  z-index: -3;
+  inset: 4px;
+  filter: blur(22px);
+  opacity: 0.5;
+  transition:
+    opacity 400ms var(--ease-out),
+    inset 400ms var(--ease-out);
+}
+.btn.hc-play > .hc-aura-fill {
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgba(17, 13, 22, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.btn.hc-play:is(.is-sending, .is-waiting, .is-live) > .hc-aura-fill {
+  display: none;
+}
+.btn.hc-play:not(.is-sending, .is-waiting, .is-live) svg {
+  color: var(--accent-text);
+}
+.btn.hc-play:not(.is-sending, .is-waiting, .is-live):hover {
+  --hc-spd: 1.6s;
+  background: transparent;
+}
+/* Plus précis que le reflet de .btn-play au survol (:root[data-fx='on'] .btn-play:hover…::after) */
+:root .btn.btn-play.hc-play:not(.is-sending, .is-waiting, .is-live):hover::after {
+  inset: -10px;
+  opacity: 1;
+  translate: none;
+  transition:
+    opacity 400ms var(--ease-out),
+    inset 400ms var(--ease-out);
+}
+.btn.hc-play:not(.is-sending, .is-waiting, .is-live):focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root:not(.reduce-motion) .btn.hc-play::before,
+  :root:not(.reduce-motion) .btn.hc-play::after {
+    animation: hc-aura-spin var(--hc-spd) linear infinite;
+  }
+}
+@keyframes hc-aura-spin {
+  to {
+    --hc-ang: 360deg;
+  }
+}
+
 .btn.hc-glass {
   min-height: 60px;
   padding: 0 26px;

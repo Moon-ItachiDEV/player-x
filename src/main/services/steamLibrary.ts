@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { net, shell } from 'electron'
+import { hasName, KNOWN_SOFTWARE, parseAppListPage } from '@shared/steamApps'
 import type { Game, SteamLibrary } from '@shared/types'
 import { deleteKv, getKv, setKv } from '../db'
 import { isSteamTool, steamLibraryDirs } from './games'
@@ -11,6 +12,12 @@ import { getAccounts, getSettings } from './settings'
 // La même réponse donne le temps de jeu Steam (playtime.ts) : un seul appel pour les deux, au plus toutes les heures.
 
 const API = 'https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/'
+const APP_LIST = 'https://api.steampowered.com/IStoreService/GetAppList/v1/'
+/** Logiciels du magasin : relus une fois par semaine (la liste change peu). */
+const SOFTWARE_MAX_AGE = 7 * 24 * 3600_000
+const SOFTWARE_KEY = 'steamSoftware'
+/** Au plus autant de pages de 50 000 (le magasin a bien moins de logiciels). */
+const SOFTWARE_PAGES = 4
 const MAX_AGE = 3600_000
 /** Après un échec (hors ligne, clé refusée), pas de nouvel essai automatique avant 5 min. */
 const RETRY_MS = 5 * 60_000
@@ -85,10 +92,71 @@ async function fetchOwned(key: string, id: string): Promise<void> {
   }
 }
 
+// ---------- logiciels ----------
+
+interface SoftwareCache {
+  at: number
+  ids: string[]
+}
+/** `undefined` : pas encore lu dans la base. */
+let software: Set<string> | undefined
+let softwareAt = 0
+let softwareLoading: Promise<void> | null = null
+let softwareTry = 0
+
+function softwareSet(): Set<string> {
+  if (software === undefined) {
+    const c = getKv<SoftwareCache | null>(SOFTWARE_KEY, null)
+    software = new Set([...KNOWN_SOFTWARE, ...(Array.isArray(c?.ids) ? c.ids : [])])
+    softwareAt = typeof c?.at === 'number' ? c.at : 0
+  }
+  return software
+}
+
+/** Logiciel Steam (pas un jeu) : masqué de la bibliothèque, installé ou non. */
+export function isSteamSoftware(appId: string): boolean {
+  return softwareSet().has(appId)
+}
+
+async function fetchSoftware(key: string): Promise<void> {
+  const ids: string[] = []
+  let last = 0
+  try {
+    for (let i = 0; i < SOFTWARE_PAGES; i++) {
+      const url = `${APP_LIST}?key=${encodeURIComponent(key)}&include_games=false&include_software=true&max_results=50000${last ? `&last_appid=${last}` : ''}`
+      const res = await net.fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(TIMEOUT_MS) })
+      if (!res.ok) return
+      const page = parseAppListPage(await res.json())
+      if (!page) return
+      ids.push(...page.ids)
+      if (!page.next) break
+      last = page.next
+    }
+  } catch {
+    return
+  }
+  // Une liste vide est suspecte (clé refusée, réponse tronquée) : on garde l'ancienne.
+  if (!ids.length) return
+  const before = softwareSet().size
+  software = new Set([...KNOWN_SOFTWARE, ...ids])
+  softwareAt = Date.now()
+  setKv(SOFTWARE_KEY, { at: softwareAt, ids } satisfies SoftwareCache)
+  if (software.size !== before) onChange()
+}
+
+/** Relit la liste des logiciels du magasin au plus une fois par semaine (essai au plus toutes les 5 min après un échec). */
+function ensureSoftware(key: string): void {
+  softwareSet()
+  if (softwareLoading || Date.now() - softwareAt < SOFTWARE_MAX_AGE || Date.now() - softwareTry < RETRY_MS) return
+  softwareTry = Date.now()
+  softwareLoading = fetchSoftware(key).finally(() => (softwareLoading = null))
+}
+
 /** Relit la liste si elle a plus d'une heure (ou tout de suite avec `force`). Renvoie la lecture en cours, s'il y en a une. */
 function ensure(force = false): Promise<void> | null {
   const key = getSettings().steamApiKey
   const id = steamId()
+  if (key) ensureSoftware(key)
   if (!key || !id) return null
   const list = mine()
   const stale = !list || Date.now() - list.at > MAX_AGE
@@ -151,7 +219,7 @@ export async function steamLibrary(installed: Game[], refresh = false): Promise<
   if (list.hidden) return none('private')
   const here = new Set(installed.filter((g) => g.store === 'steam').map((g) => g.storeId))
   const notInstalled = Object.entries(list.games)
-    .filter(([appId]) => !here.has(appId))
+    .filter(([appId, g]) => !here.has(appId) && !isSteamSoftware(appId) && hasName(g[0]))
     .map(([appId, g]) => ownedGame(appId, g))
   return { state: 'ready', notInstalled, owned: Object.keys(list.games).length }
 }

@@ -167,7 +167,11 @@ const itemClass = (game: Game, p: PlayInfo): string =>
 
 const ariaOf = (name: string, meta: string, game: Game): string => `${name}, ${meta}${game.newPatch ? ', nouveau patch' : ''}`
 
-/** Jaquette de la grille : plateforme en haut à gauche, état en haut à droite, titre et méta en bas. */
+/**
+ * Jaquette de la grille (direction « Écran console », 0.9.5-beta.7) : l'image seule, sans pastille posée sur le logo du jeu ;
+ * le nom (en entier, sur deux lignes au plus) et la ligne d'infos sous l'image. En haut à droite : En jeu, Nouveau patch,
+ * ou « Installer » (au survol) pour un jeu pas installé.
+ */
 export function GameCard(props: GameItemProps): React.JSX.Element {
   const { game, onFavorite } = props
   const card = useRef<HTMLElement>(null)
@@ -180,6 +184,8 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
   // Jeu du compte Steam pas installé : « Installer » à la place de « Jouer », pas de favori.
   const install = !!game.notInstalled
   const meta = metaOf(game, p)
+  // Sous la jaquette d'un jeu pas installé : sa section le dit déjà ; seulement le temps de jeu Steam s'il y en a.
+  const line = install && !libraryMeta(p.state, p.launch?.status.route ?? null) ? (game.playtime || game.lastPlayed ? cardMeta({ ...game, notInstalled: false }) : '') : meta
 
   useTilt(media, card, art)
 
@@ -201,7 +207,6 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
           <div ref={cover} className="lib-card-cover">
             <Cover key={game.id} game={game} showTitle={false} />
             <div className="lib-card-overlay" aria-hidden="true" />
-            <span className="lib-card-store">{KIND_LABEL[game.store]}</span>
             {install ? (
               <button
                 type="button"
@@ -239,19 +244,20 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
                 </button>
               </>
             )}
-            <div className="lib-card-text">
-              <span className="lib-card-words">
-                <h3 className="lib-card-title" title={name}>
-                  {name}
-                </h3>
-                <p className="lib-card-meta">{meta}</p>
-              </span>
-              {!install && <FavButton game={game} onFavorite={onFavorite} className="lib-card-fav" size={15} />}
-            </div>
+            {!install && <FavButton game={game} onFavorite={onFavorite} className="lib-card-fav" size={15} />}
           </div>
           <div className="lib-card-glare" aria-hidden="true" />
           <div className="lib-card-ring fx-loop" aria-hidden="true" />
         </div>
+      </div>
+      <div className="lib-card-text">
+        <h3 className="lib-card-title" title={name}>
+          {name}
+        </h3>
+        <p className="lib-card-meta">
+          <span className="lib-card-store">{KIND_LABEL[game.store]}</span>
+          {line && <span>{line}</span>}
+        </p>
       </div>
     </article>
   )

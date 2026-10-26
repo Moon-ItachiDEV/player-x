@@ -4,6 +4,7 @@ import { app, BrowserWindow, Menu, powerMonitor, screen, session, shell } from '
 import type { LaunchStatus } from '@shared/launch'
 import { lastPlayedOf, type PlayedDates } from '@shared/played'
 import { CS2_GAME_ID } from '@shared/cs2'
+import { hasName } from '@shared/steamApps'
 import { cleanName, isBf6Name } from '@shared/text'
 import type { Friend, FriendPlatform, FriendsResult, Game, Settings, SteamLibrary } from '@shared/types'
 import * as db from './db'
@@ -28,7 +29,7 @@ import { newMatches } from './services/launchWatchParse'
 import { getGameNews, markAllNewsSeen, markNewsSeen, newsFeed, refreshNewsIndex, refreshNewsNow, startNewsWatcher, withNews } from './services/news'
 import { allowDemo, getAccounts, getMemberPrefs, getSettings, publicSettings, removeAccount, saveMemberPrefs, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
-import { installSteamGame, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
+import { installSteamGame, isSteamSoftware, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
 import {
   exeNamesFor,
   isRunning,
@@ -197,7 +198,12 @@ async function games(refresh = false): Promise<Game[]> {
     // Le mode démo a pu s'activer pendant le scan : on rend alors la bibliothèque de démo.
     if (getSettings().demoMode) return games()
   }
-  return withNews(withPlaytime(withLogos(db.listGames())))
+  return withNews(withPlaytime(withLogos(db.listGames().filter(isGameEntry))))
+}
+
+/** Les logiciels Steam (Wallpaper Engine…) et les entrées sans nom ne sont pas affichés dans la bibliothèque. */
+function isGameEntry(g: Game): boolean {
+  return hasName(g.name) && !(g.store === 'steam' && isSteamSoftware(g.storeId))
 }
 
 /** La bibliothèque déjà connue (vraie ou de démo), sans relancer de scan : pour les actus des jeux. */
