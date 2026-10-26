@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { Account, FriendPlatform } from '@shared/types'
+import type { FriendPlatform } from '@shared/types'
 import type { AccountMenuProps } from '../contracts'
 import { Avatar } from './ui/Avatar'
 import { Icon } from './ui/Icon'
@@ -14,17 +14,9 @@ const PLATFORMS: FriendPlatform[] = ['steam', 'discord', 'psn']
 const IS_WIN_OVERLAY = window.launcher?.platform !== 'darwin'
 const MENU_STYLE: React.CSSProperties = { right: IS_WIN_OVERLAY ? 150 : 16, top: 'calc(var(--topbar-h) + 6px)', width: 288 }
 
-/** Compte principal : Steam, puis Discord, puis PSN. */
-function primaryAccount(accounts: Account[]): Account | undefined {
-  for (const p of PLATFORMS) {
-    const a = accounts.find((x) => x.platform === p)
-    if (a) return a
-  }
-  return accounts[0]
-}
 
 /** Popover du compte, ancré sous l'avatar de la barre du haut. */
-export function AccountMenu({ open, accounts, onClose, onProfile, onAccounts, onSettings, onLogin }: AccountMenuProps): React.JSX.Element | null {
+export function AccountMenu({ open, accounts, me, onClose, onProfile, onAccounts, onSettings, onLogin }: AccountMenuProps): React.JSX.Element | null {
   const bodyRef = useRef<HTMLDivElement>(null)
 
   // Focus sur la première entrée à l'ouverture, retour au déclencheur à la fermeture.
@@ -38,7 +30,7 @@ export function AccountMenu({ open, accounts, onClose, onProfile, onAccounts, on
     }
   }, [open])
 
-  const primary = primaryAccount(accounts)
+  const primary = me.account
   const run = (fn: () => void) => (): void => {
     fn()
     onClose()
@@ -63,9 +55,9 @@ export function AccountMenu({ open, accounts, onClose, onProfile, onAccounts, on
     <Menu open={open} onClose={onClose} style={MENU_STYLE} className="acc-menu">
       <div ref={bodyRef} onKeyDown={onKeyDown}>
         <div className="acc-head">
-          <Avatar name={primary?.name ?? 'Joueur'} url={primary?.avatarUrl} size={40} status={primary ? 'connected' : 'guest'} />
+          <Avatar name={me.name} url={me.avatarUrl} size={40} status={primary ? 'connected' : 'guest'} />
           <div className="acc-head-text">
-            <span className="acc-name">{primary?.name ?? 'Joueur'}</span>
+            <span className="acc-name">{me.name}</span>
             <span className="caption">{primary ? `Compte principal : ${KIND_LABEL[primary.platform]}` : 'Invité · aucun compte connecté'}</span>
           </div>
         </div>

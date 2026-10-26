@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { identity } from '@shared/profile'
 import { cleanName } from '@shared/text'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 import { AccountMenu } from './components/AccountMenu'
@@ -547,6 +548,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   }, [view])
 
   if (!ready || !settings) return <div className="boot" />
+  const me = identity(accounts, settings)
 
   if (!entered) {
     return (
@@ -646,6 +648,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         onLibraryView={view === 'library'}
         slotRef={setTabSlot}
         accounts={accounts}
+        me={me}
         accountMenuOpen={accountMenu}
         onToggleAccountMenu={() => setAccountMenu((o) => !o)}
         greet={view === 'home'}
@@ -694,6 +697,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
             <Profile
               games={shownGames}
               accounts={accounts}
+              me={me}
+              onSaveProfile={async (patch) => void (await saveSettings(patch))}
               friends={friends}
               onOpenGame={openSheet}
               onLaunch={startLaunch}
@@ -739,6 +744,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       <AccountMenu
         open={accountMenu}
         accounts={accounts}
+        me={me}
         onClose={() => setAccountMenu(false)}
         onProfile={() => go('profile')}
         onAccounts={() => goSettings('accounts')}

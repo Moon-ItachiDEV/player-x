@@ -96,6 +96,10 @@ export interface Settings {
   cs2Overlay: Cs2OverlayStyle
   /** Raccourci global qui masque ou réaffiche l'overlay (accélérateur Electron, « Alt+X » par défaut ; voir shared/hotkey.ts). */
   overlayHotkey: string
+  /** Ton pseudo dans Player X (Profil › Modifier) : passe avant celui de Steam. '' : celui du compte principal. */
+  profileName: string
+  /** Ta photo (data URL WebP 256 × 256, recadrée dans l'interface) : passe avant celle de Steam. '' : celle du compte. */
+  profileAvatar: string
 }
 
 /** `a` : façon Apple (matériaux, ressorts, sheet) ; `b` : verre ; `c` : finition du style Player X. */
