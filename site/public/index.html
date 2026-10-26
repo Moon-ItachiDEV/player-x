@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Player X · tous tes jeux, une seule app</title>
+<meta name="description" content="Player X, l’app gratuite pour Windows qui réunit tes jeux Steam, Epic et EA, tes stats Battlefield 6 et CS2, tes succès Steam, les patchs de tes jeux et un overlay pour Counter-Strike 2.">
+<meta name="theme-color" content="#07060a">
+<meta property="og:title" content="Player X · tous tes jeux, une seule app">
+<meta property="og:description" content="Steam, Epic et EA réunis. Gratuit, pour Windows.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/assets/v2/img/og.jpg">
+<link rel="icon" href="/assets/v2/img/px-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/v2/img/apple-touch-icon.png">
+<link rel="preload" href="/assets/v2/fonts/inter-tight-latin-900-italic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/v2/css/site.css">
+<script src="/assets/v2/js/boot.js"></script>
+<script defer src="/assets/v2/js/vendor/gsap.min.js"></script>
+<script defer src="/assets/v2/js/vendor/ScrollTrigger.min.js"></script>
+<script defer src="/assets/v2/js/vendor/SplitText.min.js"></script>
+<script defer src="/assets/v2/js/vendor/CustomEase.min.js"></script>
+<script defer src="/assets/v2/js/site.js"></script>
+<script defer src="/assets/v2/js/cine.js"></script>
+</head>
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+<svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8M5 12.5V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6.5"/></symbol>
+</svg>
+
+
+<main id="contenu">
+  <section class="hero" aria-labelledby="t-hero">
+    <div class="wall" aria-hidden="true">
+      <div class="wall-row"><img src="/assets/v2/img/covers/j08.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j10.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j06.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j11.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j03.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j09.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j04.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j07.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j10.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j11.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="180" alt="" decoding="async" loading="lazy"></div>
+      <div class="wall-row"><img src="/assets/v2/img/covers/j03.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j02.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j06.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j13.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j10.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j07.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j09.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j11.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j10.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j11.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="180" alt="" decoding="async" loading="lazy"></div>
+      <div class="wall-row"><img src="/assets/v2/img/covers/j10.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j09.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j11.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j07.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j08.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j02.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j05.webp" width="183" height="180" alt="" decoding="async" fetchpriority="high"><img src="/assets/v2/img/covers/j03.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j10.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j11.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="180" alt="" decoding="async" loading="lazy"></div>
+      <div class="wall-row"><img src="/assets/v2/img/covers/j13.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j10.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j11.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j13.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j01.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j09.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j07.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j05.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j04.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j12.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j03.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j08.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j02.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j10.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j06.webp" width="183" height="180" alt="" decoding="async" loading="lazy"><img src="/assets/v2/img/covers/j11.webp" width="183" height="180" alt="" decoding="async" loading="lazy"></div>
+    </div>
+    <div class="wrap hero-in">
+      <div class="hero-txt">
+        <p class="wordmark"><img src="/assets/v2/img/px-icon.svg" width="56" height="56" alt=""><span>Player X</span></p>
+        <h1 class="mega" id="t-hero"><span>Tous tes jeux.</span> <span class="grad">Une seule app.</span></h1>
+        <p class="lead">Steam, Epic et EA réunis, avec tes stats, tes succès et les patchs de tes jeux.</p>
+        <div class="cta-row">
+          <a class="btn btn-aura on-pc" href="/telecharger"><span class="aura-fill" aria-hidden="true"></span><svg class="ic" aria-hidden="true"><use href="#i-dl"/></svg><b>Télécharger gratuitement</b></a>
+          <button class="btn on-mobile" type="button" data-share><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg><span>Envoie le lien sur ton PC</span></button>
+          <p class="meta">Windows · version <b data-v>0.9.4</b></p>
+        </div>
+      </div>
+    </div>
+    <ul class="wrap facts"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12v8H4v-8M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7z"/></svg><span><b>Gratuit</b>Rien à payer pour l’installer.</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg><span><b>Steam, Epic et EA</b>Trouvés tout seuls sur ton PC.</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3zM8 20h8M12 16v4"/></svg><span><b>Rien ne quitte ton PC</b>Pas de serveur Player X.</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l8 3v6c0 5.2-3.4 9-8 10.5-4.6-1.5-8-5.3-8-10.5v-6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span><b>Mises à jour signées</b>Vérifiées avant l’installation.</span></li></ul>
+  </section>
+
+  <section class="reveal" aria-labelledby="t-qg">
+    <div class="wrap">
+      <div class="reveal-head">
+        <h2 class="mega" id="t-qg">Ton <span class="grad">QG.</span></h2>
+        <p>Tout ce qui compte, dès que tu ouvres Player&nbsp;X.</p>
+      </div>
+      <div class="stage">
+        <div class="screen"><picture><source type="image/avif" srcset="/assets/v2/img/shots/accueil-800.avif 800w, /assets/v2/img/shots/accueil-1200.avif 1200w, /assets/v2/img/shots/accueil-1600.avif 1600w" sizes="(max-width: 1600px) 94vw, 1600px"><source type="image/webp" srcset="/assets/v2/img/shots/accueil-800.webp 800w, /assets/v2/img/shots/accueil-1200.webp 1200w, /assets/v2/img/shots/accueil-1600.webp 1600w" sizes="(max-width: 1600px) 94vw, 1600px"><img src="/assets/v2/img/shots/accueil-800.webp" width="1600" height="939" alt="Accueil de Player X" loading="lazy" decoding="async"></picture></div>
+        <ul class="spots" aria-hidden="true">
+          <li class="spot s1"><i></i><span>Le jeu à la une</span></li>
+          <li class="spot s2"><i></i><span>Les patchs de tes jeux</span></li>
+          <li class="spot s3"><i></i><span>Ta dernière session</span></li>
+          <li class="spot s4"><i></i><span>Ta bibliothèque, à la molette</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <div class="band" aria-hidden="true"><div class="band-track"><p class="mega"><span>Steam</span><span class="dot">•</span><span class="o">Epic</span><span class="dot">•</span><span>EA</span><span class="dot">•</span><span class="o">Stats</span><span class="dot">•</span><span>Trophées</span><span class="dot">•</span><span class="o">Actus</span><span class="dot">•</span><span>Overlay CS2</span><span class="dot">•</span></p><p class="mega"><span>Steam</span><span class="dot">•</span><span class="o">Epic</span><span class="dot">•</span><span>EA</span><span class="dot">•</span><span class="o">Stats</span><span class="dot">•</span><span>Trophées</span><span class="dot">•</span><span class="o">Actus</span><span class="dot">•</span><span>Overlay CS2</span><span class="dot">•</span></p></div></div>
+
+  <section class="feat feat-grid" id="jeux" aria-labelledby="t-jeux">
+    <div class="feat-in">
+      <div class="feat-txt">
+        <h2 class="mega" id="t-jeux">Joue.</h2>
+        <p>Steam, Epic et EA au même endroit. Un clic, et tu joues.</p>
+      </div>
+      <ul class="tiles" aria-label="Jeux dans la bibliothèque de Player X"><li class="tile"><picture><source type="image/avif" srcset="/assets/v2/img/tiles/t01.avif"><img src="/assets/v2/img/tiles/t01.webp" width="183" height="277" alt="Battlefield 6" loading="lazy" decoding="async"></picture><i class="glare" aria-hidden="true"></i></li><li class="tile"><picture><source type="image/avif" srcset="/assets/v2/img/tiles/t02.avif"><img src="/assets/v2/img/tiles/t02.webp" width="183" height="277" alt="Counter-Strike 2" loading="lazy" decoding="async"></picture><i class="glare" aria-hidden="true"></i></li><li class="tile"><picture><source type="image/avif" srcset="/assets/v2/img/tiles/t03.avif"><img src="/assets/v2/img/tiles/t03.webp" width="183" height="277" alt="DRAGON BALL: Sparking! ZERO" loading="lazy" decoding="async"></picture><i class="glare" aria-hidden="true"></i></li><li class="tile"><picture><source type="image/avif" srcset="/assets/v2/img/tiles/t04.avif"><img src="/assets/v2/img/tiles/t04.webp" width="183" height="277" alt="ARC Raiders" loading="lazy" decoding="async"></picture><i class="glare" aria-hidden="true"></i></li><li class="tile"><picture><source type="image/avif" srcset="/assets/v2/img/tiles/t05.avif"><img src="/assets/v2/img/tiles/t05.webp" width="183" height="277" alt="Age of Empires IV" loading="lazy" decoding="async"></picture><i class="glare" aria-hidden="true"></i></li><li class="tile"><picture><source type="image/avif" srcset="/assets/v2/img/tiles/t06.avif"><img src="/assets/v2/img/tiles/t06.webp" width="183" height="277" alt="HELLDIVERS 2" loading="lazy" decoding="async"></picture><i class="glare" aria-hidden="true"></i></li><li class="tile"><picture><source type="image/avif" srcset="/assets/v2/img/tiles/t07.avif"><img src="/assets/v2/img/tiles/t07.webp" width="183" height="277" alt="Ready or Not" loading="lazy" decoding="async"></picture><i class="glare" aria-hidden="true"></i></li><li class="tile"><picture><source type="image/avif" srcset="/assets/v2/img/tiles/t08.avif"><img src="/assets/v2/img/tiles/t08.webp" width="183" height="277" alt="Delta Force" loading="lazy" decoding="async"></picture><i class="glare" aria-hidden="true"></i></li><li class="tile"><picture><source type="image/avif" srcset="/assets/v2/img/tiles/t09.avif"><img src="/assets/v2/img/tiles/t09.webp" width="183" height="277" alt="TopSpin 2K25" loading="lazy" decoding="async"></picture><i class="glare" aria-hidden="true"></i></li><li class="tile"><picture><source type="image/avif" srcset="/assets/v2/img/tiles/t10.avif"><img src="/assets/v2/img/tiles/t10.webp" width="183" height="277" alt="STAR WARS Jedi: Fallen Order" loading="lazy" decoding="async"></picture><i class="glare" aria-hidden="true"></i></li></ul>
+    </div>
+  </section>
+  <div class="hgal" id="galerie"><div class="hgal-track">
+  <section class="feat flip k-stats" id="stats" aria-labelledby="t-stats">
+    <div class="feat-in">
+      <div class="feat-txt">
+        <h2 class="mega" id="t-stats">Analyse.</h2>
+        <p>Tes cartes, tes victoires et ton classement Battlefield 6. Tes stats Counter-Strike 2.</p>
+      </div>
+      <div class="feat-shot"><div class="screen"><picture><source type="image/avif" srcset="/assets/v2/img/shots/stats-800.avif 800w, /assets/v2/img/shots/stats-1280.avif 1280w" sizes="(max-width: 1100px) 100vw, 64vw"><source type="image/webp" srcset="/assets/v2/img/shots/stats-800.webp 800w, /assets/v2/img/shots/stats-1280.webp 1280w" sizes="(max-width: 1100px) 100vw, 64vw"><img src="/assets/v2/img/shots/stats-800.webp" width="1280" height="490" alt="Stats Battlefield 6 dans Player X" loading="lazy" decoding="async"></picture></div></div>
+    </div>
+  </section>
+  <section class="feat k-troph" id="trophees" aria-labelledby="t-trophees">
+    <div class="feat-in">
+      <div class="feat-txt">
+        <h2 class="mega" id="t-trophees">Débloque.</h2>
+        <p>Tous tes succès Steam, jeu par jeu, avec ta progression.</p>
+      </div>
+      <div class="feat-shot"><div class="screen"><picture><source type="image/avif" srcset="/assets/v2/img/shots/trophees-800.avif 800w, /assets/v2/img/shots/trophees-1462.avif 1462w" sizes="(max-width: 1100px) 100vw, 64vw"><source type="image/webp" srcset="/assets/v2/img/shots/trophees-800.webp 800w, /assets/v2/img/shots/trophees-1462.webp 1462w" sizes="(max-width: 1100px) 100vw, 64vw"><img src="/assets/v2/img/shots/trophees-800.webp" width="1462" height="500" alt="Trophées dans Player X" loading="lazy" decoding="async"></picture></div></div>
+    </div>
+  </section>
+  <section class="feat flip" id="actus" aria-labelledby="t-actus">
+    <div class="feat-in">
+      <div class="feat-txt">
+        <h2 class="mega" id="t-actus">À jour.</h2>
+        <p>Les patchs et les news de tes jeux, dès qu’ils sortent.</p>
+      </div>
+      <div class="feat-shot"><div class="screen"><picture><source type="image/avif" srcset="/assets/v2/img/shots/actus-800.avif 800w, /assets/v2/img/shots/actus-1462.avif 1462w" sizes="(max-width: 1100px) 100vw, 64vw"><source type="image/webp" srcset="/assets/v2/img/shots/actus-800.webp 800w, /assets/v2/img/shots/actus-1462.webp 1462w" sizes="(max-width: 1100px) 100vw, 64vw"><img src="/assets/v2/img/shots/actus-800.webp" width="1462" height="455" alt="Actus des jeux dans Player X" loading="lazy" decoding="async"></picture></div></div>
+    </div>
+  </section>
+  </div></div>
+  <section class="ovs" id="overlay" aria-labelledby="t-overlay">
+    <div class="wrap ovs-head">
+      <div class="feat-txt">
+        <h2 class="mega" id="t-overlay">Overlay.</h2>
+        <p>Tes stats en direct, par‑dessus Counter‑Strike&nbsp;2.</p>
+        <p class="soon"><b>Bientôt :</b> Fortnite, Teamfight&nbsp;Tactics, League&nbsp;of&nbsp;Legends</p>
+      </div>
+      <p class="ovs-keys mega" aria-hidden="true"><kbd>Alt</kbd><span>+</span><kbd>X</kbd></p>
+    </div>
+    <div class="ovs-stage">
+      <div class="ovs-frame">
+        <picture class="ovs-base"><source type="image/avif" srcset="/assets/v2/img/shots/overlay2-876.avif"><img src="/assets/v2/img/shots/overlay2-876.webp" width="876" height="449" alt="Overlay Counter-Strike 2 de Player X pendant un match" loading="lazy" decoding="async"></picture>
+        <i class="ovs-p p1" aria-hidden="true"></i><i class="ovs-p p2" aria-hidden="true"></i>
+        <i class="ovs-scan" aria-hidden="true"></i>
+      </div>
+    </div>
+  </section>
+
+  <section class="how wrap" aria-labelledby="t-how">
+    <h2 class="sr" id="t-how">Comment l’installer</h2>
+    <ol>
+      <li><span class="mega">Installe.</span><p>Télécharge l’installeur et lance-le.</p></li>
+      <li><span class="mega">Ouvre.</span><p>Player X trouve tes jeux Steam, Epic et EA.</p></li>
+      <li><span class="mega grad">Joue.</span><p>Un clic sur Jouer, c’est parti.</p></li>
+    </ol>
+  </section>
+
+  <section class="final" aria-labelledby="t-go"><i class="flash" aria-hidden="true"></i>
+    <div class="wrap final-in">
+      <div class="final-icon" aria-hidden="true"><i></i><i></i><svg class="ring" viewBox="0 0 100 100"><circle class="ring-bg" cx="50" cy="50" r="47"/><circle class="ring-fg" cx="50" cy="50" r="47" pathLength="1"/></svg>
+        <picture><source type="image/avif" srcset="/assets/v2/img/px-icon-512.avif"><img src="/assets/v2/img/px-icon-512.webp" width="512" height="512" alt="" loading="lazy"></picture>
+      </div>
+      <h2 class="mega" id="t-go">Prêt <span class="grad">à jouer&nbsp;?</span></h2>
+      <a class="btn btn-aura btn-xl on-pc" href="/telecharger"><span class="aura-fill" aria-hidden="true"></span><svg class="ic" aria-hidden="true"><use href="#i-dl"/></svg><b>Télécharger Player X</b></a>
+      <button class="btn btn-xl on-mobile" type="button" data-share><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg><span>Envoie le lien sur ton PC</span></button>
+      <p class="meta">Gratuit · Windows · version <b data-v>0.9.4</b></p>
+    </div>
+  </section>
+</main>
+
+</body>
+</html>

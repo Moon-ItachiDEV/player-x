@@ -1,0 +1,32 @@
+# Landing Player X : site statique, sans dépendance.
+# Sur Netlify : « Base directory » = site (ce dossier). Publié : site/public.
+# La commande de build écrit seulement la version de la dernière release GitHub dans index.html
+# (si GitHub ne répond pas, la version déjà écrite est gardée).
+[build]
+  publish = "public"
+  command = "node version.mjs"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Lien de téléchargement stable, sans JS
+[[redirects]]
+  from = "/telecharger"
+  to = "https://github.com/Moon-ItachiDEV/player-x/releases/latest"
+  status = 302
+  force = true
+
+# Fichiers versionnés (dossier /assets/v1/) : cache d'un an. Changer de dossier (v2) à chaque modification.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Sécurité ; le HTML garde le cache Netlify par défaut (max-age=0, must-revalidate)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
