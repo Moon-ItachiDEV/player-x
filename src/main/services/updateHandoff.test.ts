@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { MAX_BACK_MS, MAX_INSTALL_DELAY, clampDelay, isLast, isPending, lastFromPending, visibleBounds, type PendingUpdate } from './updateHandoff.ts'
+import { MAX_BACK_MS, MAX_INSTALL_DELAY, clampDelay, isLast, isPending, isWindowDir, lastFromPending, visibleBounds, type PendingUpdate } from './updateHandoff.ts'
 
 const FP = 'ab'.repeat(64)
 const pending = (over: Partial<PendingUpdate> = {}): PendingUpdate => ({
@@ -48,6 +48,25 @@ test('isPending : refuse ce qui est mal formé', () => {
   assert.equal(isPending(null), false)
   assert.equal(isPending('0.6.0'), false)
   assert.equal(isPending([]), false)
+})
+
+test('isPending : dossier de la fenêtre de mise à jour facultatif', () => {
+  assert.equal(isPending(pending({ window: 'C:\\Users\\a\\AppData\\Local\\Temp\\PlayerXUpdate\\1761440000000' })), true)
+  assert.equal(isPending(pending({ window: '' })), false)
+  assert.equal(isPending(pending({ window: 'x'.repeat(501) })), false)
+  assert.equal(isPending({ ...pending(), window: 42 }), false)
+})
+
+test('isWindowDir : seulement un sous-dossier numéroté du dossier de la fenêtre', () => {
+  const root = 'C:\\Temp\\PlayerXUpdate'
+  assert.equal(isWindowDir(root + '\\1761440000000', root, '\\'), true)
+  assert.equal(isWindowDir(root + '\\..\\1761440000000', root, '\\'), false)
+  assert.equal(isWindowDir(root + '\\1761440000000\\x', root, '\\'), false)
+  assert.equal(isWindowDir(root + 'X\\1761440000000', root, '\\'), false)
+  assert.equal(isWindowDir('D:\\autre\\1761440000000', root, '\\'), false)
+  assert.equal(isWindowDir(root, root, '\\'), false)
+  assert.equal(isWindowDir(undefined, root, '\\'), false)
+  assert.equal(isWindowDir('/tmp/PlayerXUpdate/1761440000000', '/tmp/PlayerXUpdate', '/'), true)
 })
 
 test('lastFromPending : version différente → null', () => {

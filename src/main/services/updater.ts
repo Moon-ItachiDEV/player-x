@@ -14,6 +14,7 @@ import { getSettings } from './settings'
 import { showMainWindow } from './tray'
 import { summarizeReleaseNotes } from './updateNotes'
 import { isVersion, sha512File, verifyUpdateSignature } from './updateSignature'
+import { cleanupUpdateWindows, startUpdateWindow, stopUpdateWindow, updateWindowBoot, updateWindowShown } from './updateWindow'
 import type { SimHooks } from './updateSim'
 
 const FIRST_CHECK_DELAY = 3_000
@@ -156,6 +157,18 @@ function currentBounds(): WindowBounds | undefined {
   }
 }
 
+/** Centre de la fenêtre de Player X telle qu'elle est à l'écran (la fenêtre de mise à jour s'y place). */
+function windowCenter(): { x: number; y: number } | undefined {
+  try {
+    const w = mainWindow()
+    if (!w || !w.isVisible() || w.isMinimized()) return undefined
+    const b = w.getBounds()
+    return { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) }
+  } catch {
+    return undefined
+  }
+}
+
 /** Écriture synchrone sur disque (db.persist), faite avant que la fermeture soit programmée. */
 function savePending(p: PendingUpdate): void {
   try {
@@ -174,6 +187,8 @@ function consumePending(): void {
     const pending = isPending(raw) ? raw : null
     // Version différente de celle attendue : installation ratée ou fermeture annulée, on oublie.
     const last = pending && lastFromPending(pending, app.getVersion(), Date.now())
+    // Fenêtre « Mise à jour de Player X » lancée par la version précédente : elle attend la version qui démarre.
+    if (pending?.window) updateWindowBoot(pending.window, app.getVersion(), !!last)
     if (pending && last) {
       db.setKv(LAST_KEY, { ...last, thisBoot: false })
       lastUpdate = last
@@ -186,6 +201,11 @@ function consumePending(): void {
     // Base illisible : l'appli démarre quand même, sans « dernière mise à jour ».
     logger.warn(e)
   }
+}
+
+/** Page de Player X dessinée après un redémarrage de mise à jour : la fenêtre « Mise à jour de Player X » s'efface. */
+export function updateWindowReady(): void {
+  updateWindowShown()
 }
 
 /** Position de la fenêtre avant le redémarrage, si elle tient encore sur un écran. Une seule fois. */
@@ -254,6 +274,11 @@ function install(opts?: { delayMs?: unknown }): InstallResult {
   const ready = state
   const delay = clampDelay(opts?.delayMs)
   const quitAt = Date.now() + delay
+  const bounds = currentBounds()
+  // Fenêtre « Mise à jour de Player X » : elle prend le relais à l'écran pendant que Player X est fermé (Windows, version installée).
+  const winDir = sim
+    ? null
+    : startUpdateWindow({ from: runningVersion(), to: ready.version, center: windowCenter() })
   savePending({
     from: runningVersion(),
     to: ready.version,
@@ -262,7 +287,8 @@ function install(opts?: { delayMs?: unknown }): InstallResult {
     downloadMs: ready.downloadMs,
     quitAt,
     relaunch: true,
-    bounds: currentBounds()
+    bounds,
+    window: winDir ?? undefined
   })
   setState({ state: 'installing', version: ready.version, quitAt })
   // Même à 0 ms, le minuteur laisse partir la réponse IPC avant la fermeture.
@@ -288,6 +314,7 @@ function revert(): void {
   installStarted = false
   if (state.state !== 'installing') return
   logger.warn('Player X ne s’est pas fermé pour installer la mise à jour : elle reste prête.')
+  stopUpdateWindow()
   try {
     db.deleteKv(PENDING_KEY)
   } catch (e) {
@@ -310,6 +337,8 @@ function onBeforeQuit(): void {
   // electron-updater l'installe en quittant, sans relancer. Après quitAndInstall, le relais du redémarrage est déjà écrit.
   const r = state.state === 'ready' ? state : state.state === 'installing' && !installStarted ? readyState : null
   if (!r || !updater?.autoInstallOnAppQuit) return
+  // Pas de relance : la fenêtre de mise à jour attendrait Player X pour rien.
+  stopUpdateWindow()
   savePending({
     from: runningVersion(),
     to: r.version,
@@ -498,6 +527,7 @@ function startSim(mode: string): void {
 export function initUpdater(): void {
   // D'abord le relais du redémarrage : createWindow en a besoin (takeRelaunchBounds), l'interface aussi (update:last).
   consumePending()
+  cleanupUpdateWindows()
   handle('update:get', () => state)
   handle('update:check', () => check())
   handle('update:install', (_e, opts: unknown) => install(opts && typeof opts === 'object' ? (opts as { delayMs?: unknown }) : undefined))

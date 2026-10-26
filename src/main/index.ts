@@ -44,7 +44,7 @@ import {
   withPlaytime
 } from './services/playtime'
 import { applyInstallOptions, attachWindow, onHideToTray, setTrayPlaying, startHidden, startTray, startupState, syncStartup } from './services/tray'
-import { initUpdater, takeRelaunchBounds, updateChannelChanged } from './services/updater'
+import { initUpdater, takeRelaunchBounds, updateChannelChanged, updateWindowReady } from './services/updater'
 import type { LaunchSim } from './launchSim'
 
 // .env : clés de développement seulement, jamais lu par la version installée.
@@ -103,6 +103,8 @@ function createWindow(): void {
     win.focus()
   }
   attachWindow(win)
+  // Après une mise à jour : la fenêtre « Mise à jour de Player X » s'efface quand la page est dessinée.
+  win.webContents.once('did-finish-load', updateWindowReady)
   // Fermée pour de bon (pas rangée près de l'horloge) : l'overlay CS2 se ferme aussi, sinon Player X ne quitterait pas.
   win.on('closed', closeCs2Overlay)
   // Les liens externes s'ouvrent dans le navigateur, pas dans l'appli.
