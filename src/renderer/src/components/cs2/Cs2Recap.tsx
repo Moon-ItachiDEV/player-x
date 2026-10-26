@@ -269,9 +269,7 @@ export function Cs2RecapDialog({ recap: r, art, onClose }: DialogProps): React.J
         </div>
 
         <div className="dialog-actions recap-actions">
-          <span className="caption recap-source">
-            {r.sample ? 'Ton vrai bilan arrive à la fin de ton prochain match.' : 'Envoyé par CS2 pendant le match (Game State Integration de Valve).'}
-          </span>
+          <span className="caption recap-source">{r.sample && 'Ton vrai bilan arrive à la fin de ton prochain match.'}</span>
           <button className="btn btn-primary" onClick={close} autoFocus>
             Fermer
           </button>

@@ -86,10 +86,23 @@ export function Stats({ games, onOpenSettings }: StatsProps): React.JSX.Element 
     const g = games.find(isBf6Game)
     return g?.heroUrl || gameArt.heroUrl || g?.coverUrl
   }, [games, gameArt])
+  // Pastille Counter-Strike 2 : l'icône de son succès Steam (« Un nouveau départ », le soldat sur fond bleu et jaune),
+  // lisible dans un petit rond ; à défaut (pas de compte Steam ou de clé), le visuel de la bibliothèque.
+  const [cs2Badge, setCs2Badge] = useState<string>()
+  useEffect(() => {
+    let alive = true
+    api
+      .getAchievements(CS2_GAME_ID)
+      .then((a) => alive && setCs2Badge(a.list.find((x) => x.icon)?.icon))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
   const cs2Art = useMemo(() => {
     const g = games.find((x) => x.id === CS2_GAME_ID)
-    return g?.heroUrl || g?.coverUrl
-  }, [games])
+    return cs2Badge || g?.heroUrl || g?.coverUrl
+  }, [games, cs2Badge])
 
   // CS2 n'a sa vue que si son suivi est activé (Paramètres) ; tant que son état n'est pas lu, rien n'est choisi à sa place.
   const cs2On = !!cs2.state?.enabled
@@ -495,7 +508,6 @@ function KdCard({ history, onOpen }: { history: Bf6Point[] | null; onOpen: () =>
         )}
       </div>
       <p className="bf-kd-foot caption">
-        Un relevé par jour, gardé sur ce PC
         <button className="link-btn bf-kd-more" onClick={onOpen}>
           Voir la progression
           <Icon name="chevron-right" size={14} />

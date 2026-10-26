@@ -258,9 +258,6 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
         </div>
       )}
       <div className="nf-panel">{body}</div>
-      {feed && feed.tracked > 0 && (
-        <p className="nf-hint">Les annonces officielles publiées sur Steam pour tes jeux installés, notes de patch comprises. Un clic ouvre l'annonce en entier.</p>
-      )}
     </div>
   )
 }

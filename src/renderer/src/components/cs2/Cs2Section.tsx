@@ -38,7 +38,7 @@ function LiveCard({ live: l }: { live: Cs2Live }): React.JSX.Element {
         </span>
       </div>
       {warm ? (
-        <p className="cs2-live-warm caption">Le match commence à la fin de l’échauffement : ce qui s’y passe ne compte pas.</p>
+        <p className="cs2-live-warm caption">Échauffement : ne compte pas.</p>
       ) : (
         <>
           <div className="cs2-live-body">
@@ -243,7 +243,6 @@ function MatchesCard({ state, live, onRetry, onOpenFolder, onShowAll, limit }: P
         <h3 id="cs2-matches-title" className="cs2-matches-title">
           {limit ? 'Derniers matchs' : 'Tes matchs'}
         </h3>
-        <span className="caption">envoyés par CS2, tes chiffres seulement</span>
         {more && onShowAll && (
           <button className="link-btn cs2-matches-all" onClick={(e) => onShowAll(e.currentTarget)}>
             Tous les matchs
@@ -260,7 +259,7 @@ function MatchesCard({ state, live, onRetry, onOpenFolder, onShowAll, limit }: P
       ) : (
         !live && (
           <div className="cs2-empty">
-            <p className="caption">À la fin de chaque match : ton résultat, ton K/D, tes headshots, tes dégâts par round et la frise des rounds.</p>
+            <p className="caption">Pas encore de match.</p>
             <button className="btn btn-secondary btn-sm" onClick={() => openCs2Recap(sampleCs2Recap())}>
               Voir un exemple
             </button>

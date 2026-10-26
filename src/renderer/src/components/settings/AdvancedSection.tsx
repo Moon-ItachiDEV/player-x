@@ -66,7 +66,7 @@ export function AdvancedSection({ settings, report, onSaveSettings, focusCard, o
 
   return (
     <>
-      <SectionHead title="Avancé">Clés d'accès et informations utiles en cas de souci.</SectionHead>
+      <SectionHead title="Avancé" />
 
       <div className="set-banner">
         <Icon name="info" size={16} />

@@ -44,8 +44,11 @@ export function SettingsCard({ title, meta, beta, className = '', children }: Ca
 
 interface RowProps {
   label: string
-  /** Valeur actuelle (pas une description). */
-  value: React.ReactNode
+  /**
+   * Seulement une donnée ou un problème à régler (« Bloqué par Windows… », une date, une empreinte) : jamais une
+   * description de ce que fait le réglage ni la répétition de l'état que montre déjà le bouton (0.9.5-beta.4).
+   */
+  value?: React.ReactNode
   children: React.ReactNode
 }
 
@@ -54,7 +57,7 @@ export function SettingRow({ label, value, children }: RowProps): React.JSX.Elem
     <div className="set-row">
       <div className="set-row-text">
         <div className="set-row-label">{label}</div>
-        <div className="set-row-value">{value}</div>
+        {value !== undefined && value !== null && value !== '' && <div className="set-row-value">{value}</div>}
       </div>
       <div className="set-row-control">{children}</div>
     </div>

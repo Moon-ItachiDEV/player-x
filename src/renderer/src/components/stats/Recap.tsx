@@ -321,9 +321,7 @@ export function RecapDialog({ recap: r, art, onClose, onOpenStats }: DialogProps
         </div>
 
         <div className="dialog-actions recap-actions">
-          <span className="caption recap-source">
-            {r.sample ? 'Ton vrai bilan arrive quelques minutes après la fermeture du jeu.' : 'D’après gametools.network, relu après la partie.'}
-          </span>
+          <span className="caption recap-source">{r.sample && 'Ton vrai bilan arrive quelques minutes après la fermeture du jeu.'}</span>
           {onOpenStats && (
             <button className="btn btn-ghost" onClick={onOpenStats}>
               Voir mes stats

@@ -194,13 +194,6 @@
 }
 
 /* Phrase de bas de page (jeux Steam non installés) */
-.lib-note {
-  margin: 28px auto 0;
-  max-width: 72ch;
-  text-align: center;
-  font: 500 13px/18px var(--font-ui);
-  color: var(--text-3);
-}
 
 /* ---------- grille ---------- */
 

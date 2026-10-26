@@ -78,7 +78,7 @@ export function Trophies({ games, notInstalled, onOpen, onOpenAccounts }: Trophi
 
   return (
     <div className="page tro">
-      {data.state === 'scanning' && <ScanBand progress={data.progress} first={!data.updatedAt} />}
+      {data.state === 'scanning' && <ScanBand progress={data.progress} />}
       {blocked && <Blocked {...blocked} inline />}
 
       {!(empty && data.state === 'scanning') && <Summary data={data} onShow={show} />}
@@ -171,7 +171,7 @@ function Blocked({ icon, title, text, action, then, inline = false }: BlockedInf
   )
 }
 
-function ScanBand({ progress, first }: { progress?: { done: number; total: number }; first: boolean }): React.JSX.Element {
+function ScanBand({ progress }: { progress?: { done: number; total: number } }): React.JSX.Element {
   const total = progress?.total ?? 0
   const done = Math.min(progress?.done ?? 0, total)
   return (
@@ -180,9 +180,6 @@ function ScanBand({ progress, first }: { progress?: { done: number; total: numbe
       <div className="tro-scan-text">
         <p className="tro-scan-title">
           Relevé de tes succès Steam{total ? <span className="num"> · {done} / {plural(total, 'jeu', 'jeux')}</span> : '…'}
-        </p>
-        <p className="caption">
-          {first ? 'La première fois prend quelques minutes. Ensuite, seuls les jeux joués depuis sont relus.' : 'Les jeux joués depuis le dernier relevé sont relus.'}
         </p>
       </div>
       {total > 0 && (
@@ -558,7 +555,7 @@ function Footer({ data, onRefresh }: { data: AchievementsOverview; onRefresh: ()
         </div>
       )}
       <p className="caption tro-foot-note">
-        {data.updatedAt ? `Relevé ${timeAgo(data.updatedAt)} · ` : ''}Succès des jeux Steam seulement : Epic et EA ne les partagent pas.
+        {data.updatedAt ? `Relevé ${timeAgo(data.updatedAt)} · ` : ''}
         {data.state !== 'scanning' && (
           <button className="link-btn" onClick={onRefresh}>
             Actualiser

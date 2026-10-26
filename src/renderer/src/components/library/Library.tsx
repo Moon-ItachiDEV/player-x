@@ -266,13 +266,6 @@ export function Library(props: LibraryProps): React.JSX.Element {
           ) : (
             <div className="lib-grid">{shown.map(item)}</div>
           )}
-          {shownUninstalled && (
-            <p className="lib-note">
-              {install === 'uninstalled'
-                ? 'Les jeux de ton compte Steam qui ne sont pas sur ce PC. Un clic sur Installer ouvre Steam, qui télécharge le jeu ; il rejoint ensuite ta bibliothèque tout seul.'
-                : 'Les jeux Steam non installés apparaissent aussi : un clic sur Installer ouvre Steam.'}
-            </p>
-          )}
         </>
       )}
     </div>

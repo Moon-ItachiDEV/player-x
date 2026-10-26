@@ -107,7 +107,6 @@ export function Progress({ account, fetchedAt }: { account: Bf6Account; fetchedA
           <h2 id="pg-title" className="bf-card-title">
             Progression
           </h2>
-          <span className="caption">Un relevé par jour, gardé sur ce PC</span>
         </div>
         {history.length >= 2 && (
           <div className="pg-controls">
