@@ -78,7 +78,7 @@ jobs:
           for f in **/*.png *.log; do
             n="${f//\//-}"
             cp "$f" "${RUNNER_TEMP}/${n}"
-            gh release upload "${tag}" "${RUNNER_TEMP}/${n}" --clobber
+            gh release upload "${tag}" "${RUNNER_TEMP}/${n}" --clobber 2> "${RUNNER_TEMP}/gh-err.txt" || { echo "::error::$(tr '\n' ' ' < "${RUNNER_TEMP}/gh-err.txt")"; exit 1; }
           done
 
       - uses: actions/upload-artifact@v4
