@@ -1,8 +1,11 @@
-# Landing Player X : site statique, sans dépendance.
-# Sur Netlify : « Base directory » = site (ce dossier). Publié : site/public.
+# Landing Player X : site statique dans site/, sans dépendance. Ce fichier est à la racine du dépôt pour que Netlify
+# trouve le site sans réglage : il ne construit jamais l'appli Electron (pas de npm install, pas de npm run build).
+# base = site : Netlify se place dans site/ ; publish et command sont relatifs à ce dossier (publié : site/public).
+# Les réglages de l'interface Netlify (Build command, Publish directory) sont remplacés par ceux-ci.
 # La commande de build écrit seulement la version de la dernière release GitHub dans index.html
 # (si GitHub ne répond pas, la version déjà écrite est gardée).
 [build]
+  base = "site"
   publish = "public"
   command = "node version.mjs"
 
