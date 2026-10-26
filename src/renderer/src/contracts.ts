@@ -26,26 +26,6 @@ export const COVER_MIN: Record<UiPrefs['coverSize'], number> = { S: 136, M: 164,
  */
 export type LaunchFn = (g: Game, from?: HTMLElement | null, via?: LaunchVia) => void
 
-/** components/FavRail.tsx → `export function FavRail` (rail de gauche : logo, pages, jeux favoris, paramètres) */
-export interface FavRailProps {
-  games: Game[]
-  /** Clic : lance le jeu. */
-  onLaunch: LaunchFn
-  /** Clic droit ou touche Menu : ouvre la fiche. */
-  onOpen: (g: Game) => void
-  /** « + » : rouvre le choix des favoris. */
-  onEditFavorites: () => void
-  view: View
-  onView: (v: View) => void
-  gamesCount: number
-  /** Actus des jeux activées : entrée « Actus des jeux » du rail. */
-  news: boolean
-  /** Jeux qui portent le badge « Nouveau patch ». */
-  newsCount: number
-  /** Amis et membres en jeu : pastille cyan sur « Amis ». */
-  friendsInGame: number
-}
-
 /** components/friends/SideFriends.tsx → `export function SideFriends` (liste d'amis de la page Amis) */
 export interface SideFriendsProps {
   result: FriendsResult
@@ -69,10 +49,8 @@ export interface SideFriendsProps {
   onOpenGame: (g: Game) => void
 }
 
-/** components/TopBar.tsx → `export function TopBar` */
+/** components/TopBar.tsx → `export function TopBar` (direction « Écran console » : la seule navigation, en onglets texte) */
 export interface TopBarProps {
-  /** Titre de la page ; absent quand la page pose ses onglets dans la barre (TopTabs). */
-  title?: string
   /** Recherche globale (Ctrl K) : le texte filtre aussi la Bibliothèque quand elle est affichée. */
   query: string
   onQueryChange: (q: string) => void
@@ -81,16 +59,20 @@ export interface TopBarProps {
   search: { items: SearchItem[]; onPick: (item: SearchItem | null, launch: boolean) => void }
   /** La Bibliothèque est affichée : la liste ne propose pas d'y aller. */
   onLibraryView: boolean
-  /** Reçoit l'élément où les pages posent leurs onglets. */
-  slotRef: (el: HTMLElement | null) => void
+  /** Page affichée (onglet souligné) et changement de page. */
+  view: View
+  onView: (v: View) => void
+  /** Actus des jeux activées : onglet « Actus », avec le nombre de nouveaux patchs. */
+  news: boolean
+  newsCount: number
+  /** Amis en jeu : pastille de l'onglet « Amis ». */
+  friendsInGame: number
   /** Bouton du compte (avatar, à droite) : ouvre le menu du compte. */
   accounts: Account[]
   /** Toi : pseudo et photo choisis dans Profil, sinon ceux du compte principal (shared/profile.ts). */
   me: Identity
   accountMenuOpen: boolean
   onToggleAccountMenu: () => void
-  /** Accueil : « Bonsoir, Breezydev » à la place du titre de la page. */
-  greet: boolean
 }
 
 /** components/AccountMenu.tsx → `export function AccountMenu` (popover ancré sous l'avatar de la barre du haut) */

@@ -5,7 +5,6 @@ import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, 
 import { AccountMenu } from './components/AccountMenu'
 import { Trophies } from './components/achievements/Trophies'
 import { Ambient } from './components/Ambient'
-import { FavRail } from './components/FavRail'
 import { FriendsPage } from './components/friends/FriendsPage'
 import { countInGame } from './components/friends/friendView'
 import { FriendAlerts } from './components/FriendAlerts'
@@ -47,7 +46,6 @@ const DEFAULT_UI: UiPrefs = { coverSize: 'M', reduceMotion: false, transparency:
 const SETUP_KEY = 'pg.setup'
 
 /** Titre de la barre du haut ; la bibliothèque, les stats et les paramètres y posent leurs onglets à la place. */
-const VIEW_TITLE: Partial<Record<View, string>> = { friends: 'Amis', profile: 'Profil', trophies: 'Trophées' }
 
 function setupDone(): boolean {
   try {
@@ -627,35 +625,27 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
 
   return (
     <div className="shell">
-      <FavRail
-        games={shownGames}
-        onLaunch={startLaunch}
-        onOpen={openSheet}
-        onEditFavorites={() => setSetup({ open: true, first: false })}
-        view={view}
-        onView={go}
-        gamesCount={games.length}
-        news={settings.gameNews}
-        newsCount={games.filter((g) => g.newPatch).length}
-        friendsInGame={friendsInGame}
-      />
       <TopBar
-        title={VIEW_TITLE[view]}
         query={query}
         onQueryChange={setQuery}
         searchRef={searchRef}
         search={{ items: searchItems, onPick: searchPick }}
         onLibraryView={view === 'library'}
-        slotRef={setTabSlot}
+        view={view}
+        onView={go}
+        news={settings.gameNews}
+        newsCount={games.filter((g) => g.newPatch).length}
+        friendsInGame={friendsInGame}
         accounts={accounts}
         me={me}
         accountMenuOpen={accountMenu}
         onToggleAccountMenu={() => setAccountMenu((o) => !o)}
-        greet={view === 'home'}
       />
       <Ambient />
       <TopSlot.Provider value={tabSlot}>
-        <main className="content" key={view}>
+        <main className={`content view-${view}`} key={view}>
+          {/* Réglages propres à la page (choix du jeu de Stats…), posés par les pages (TopSlot) en haut du contenu. */}
+          <div ref={setTabSlot} className="page-bar" />
           {view === 'home' && (
             <Home
               games={shownGames}

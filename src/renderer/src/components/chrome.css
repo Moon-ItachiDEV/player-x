@@ -1,313 +1,4 @@
-/* Chrome de l'application : rail (.favrail-, .rail-), barre du haut (.tb-) et menu du compte (.acc-) */
-
-/* ---------- rail (design Braise) : logo, pages, favoris, paramètres ---------- */
-
-.favrail {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 0;
-  background: var(--bg-rail);
-  box-shadow: inset -1px 0 0 var(--line-1);
-}
-
-.favrail-logo {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: calc(var(--topbar-h) + 18px);
-  flex-shrink: 0;
-  padding-top: 6px;
-  -webkit-app-region: drag;
-}
-.favrail-logo .brand-mark {
-  filter: drop-shadow(0 6px 14px rgba(224, 32, 126, 0.35));
-}
-
-/* Pages : icônes de 48 px, l'active en rose avec une barre sur le bord gauche */
-.rail-nav,
-.rail-foot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  width: 100%;
-}
-.rail-foot {
-  margin-top: auto;
-  padding: 10px 0 16px;
-}
-.rail-nav-btn {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--r-md);
-  color: var(--text-3);
-  transition:
-    background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out),
-    box-shadow var(--d-1) var(--ease-out);
-}
-.rail-nav-btn svg {
-  transition: scale 160ms var(--ease-glide);
-}
-.rail-nav-btn:hover {
-  background: var(--surface-1);
-  color: var(--text-1);
-}
-.rail-nav-btn:hover svg {
-  scale: 1.08;
-}
-.rail-nav-btn[aria-current='page'] {
-  background: var(--nav-on-bg);
-  color: var(--accent-text);
-  box-shadow: inset 0 0 0 1px var(--nav-on-line);
-}
-.rail-nav-btn[aria-current='page']::before {
-  content: '';
-  position: absolute;
-  left: -18px;
-  top: 12px;
-  bottom: 12px;
-  width: 3px;
-  border-radius: 3px;
-  background: var(--accent);
-}
-.rail-badge {
-  position: absolute;
-  top: 4px;
-  right: 2px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: var(--r-pill);
-  background: var(--accent-solid);
-  color: var(--on-accent);
-  font: 700 10.5px/18px var(--font-ui);
-  text-align: center;
-  box-shadow: 0 0 0 2px var(--bg-rail);
-}
-/* Nouveautés (patchs) : couleur d'information ; amis en jeu : le cyan du « en jeu » */
-.rail-badge.is-info {
-  background: var(--info);
-  color: var(--ink);
-}
-.rail-badge.is-live {
-  background: var(--live);
-  color: var(--on-live);
-}
-
-.rail-sep {
-  width: 32px;
-  height: 1px;
-  margin: 14px 0 10px;
-  flex-shrink: 0;
-  background: var(--line-2);
-}
-.rail-label {
-  flex-shrink: 0;
-  font: 600 10px/12px var(--font-ui);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-3);
-}
-
-.favrail-list {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 0;
-  padding: 10px 0 12px;
-  overflow-y: auto;
-  scrollbar-width: none;
-  /* Les favoris qui ne tiennent pas défilent : un fondu en bas le signale, sans barre visible. */
-  mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
-}
-.favrail-list::-webkit-scrollbar {
-  display: none;
-}
-
-/* Fenêtre basse (jusqu'à la taille minimale, 640 px) : icônes un peu plus serrées pour laisser de la place aux favoris. */
-@media (max-height: 820px) {
-  .rail-nav {
-    gap: 2px;
-  }
-  .rail-nav-btn {
-    width: 44px;
-    height: 44px;
-  }
-  .rail-sep {
-    margin: 8px 0 6px;
-  }
-  .favrail-list {
-    gap: 8px;
-    padding-top: 8px;
-  }
-  .rail-foot {
-    padding: 6px 0 10px;
-  }
-}
-
-.favrail-item {
-  position: relative;
-  display: block;
-  width: 46px;
-  height: 46px;
-  flex-shrink: 0;
-  border-radius: var(--r-md);
-  box-shadow:
-    0 6px 14px -6px rgba(0, 0, 0, 0.6),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  transition:
-    box-shadow var(--d-2) var(--ease-out),
-    scale 160ms var(--ease-glide),
-    translate 200ms var(--ease-glide);
-}
-.favrail-art {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  border-radius: inherit;
-}
-.favrail-art .cover {
-  height: 100%;
-}
-.favrail-art .cover-glyph {
-  font-size: 16px;
-}
-.favrail-item:hover {
-  translate: 0 -1px;
-  box-shadow:
-    0 0 0 2px var(--bg-rail),
-    0 0 0 4px var(--line-3),
-    0 10px 18px -8px rgba(0, 0, 0, 0.7);
-}
-.favrail-item:active {
-  scale: 0.94;
-}
-/* Lancement en attente : anneau rose immobile, sans voile (rien ne tourne). */
-.favrail-item.is-pending {
-  box-shadow:
-    0 0 0 2px var(--bg-rail),
-    0 0 0 4px var(--accent-line);
-}
-.favrail-item.is-live {
-  box-shadow:
-    0 0 0 2px var(--bg-rail),
-    0 0 0 4px var(--live),
-    0 0 18px -2px var(--live);
-}
-/* Couleurs forcées : plus d'ombres, les anneaux deviennent des contours (le rail n'a pas de texte visible). */
-@media (forced-colors: active) {
-  .favrail-item.is-pending {
-    outline: 2px dashed CanvasText;
-    outline-offset: 2px;
-  }
-  .favrail-item.is-live {
-    outline: 2px solid CanvasText;
-    outline-offset: 2px;
-  }
-  .rail-nav-btn[aria-current='page'] {
-    outline: 2px solid CanvasText;
-  }
-}
-.favrail-dot {
-  position: absolute;
-  right: -5px;
-  bottom: -5px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--live);
-  border: 3px solid var(--bg-rail);
-}
-:root[data-fx='on'] .favrail-dot {
-  animation: favrail-beat 2.4s var(--ease-drift) infinite;
-}
-@keyframes favrail-beat {
-  50% {
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--live) 25%, transparent);
-  }
-}
-.favrail-busy {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  border-radius: inherit;
-  background: color-mix(in srgb, var(--ink) 60%, transparent);
-  color: var(--text-1);
-}
-.favrail-add {
-  display: grid;
-  place-items: center;
-  background: transparent;
-  border: 1.5px dashed var(--line-3);
-  color: var(--text-3);
-  box-shadow: none;
-}
-.favrail-add:hover {
-  border-color: var(--accent-line);
-  color: var(--accent-text);
-  box-shadow: none;
-}
-
-/* Infobulle du rail : nom de la page ou du jeu (et le rappel des clics), à droite du bouton */
-.favrail-tip {
-  position: fixed;
-  left: calc(var(--rail-w) + 6px);
-  z-index: var(--z-popover);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-width: 260px;
-  padding: 8px 12px;
-  border-radius: var(--r-md);
-  background: var(--surface-3);
-  border: 1px solid var(--line-2);
-  box-shadow: var(--sh-2);
-  translate: 0 -50%;
-  pointer-events: none;
-  animation: favrail-tip-in 140ms var(--ease-out);
-}
-.favrail-tip::before {
-  content: '';
-  position: absolute;
-  left: -5px;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  margin-top: -4px;
-  rotate: 45deg;
-  background: var(--surface-3);
-  border-left: 1px solid var(--line-2);
-  border-bottom: 1px solid var(--line-2);
-}
-.favrail-tip-name {
-  font: 700 14px/18px var(--font-display);
-  letter-spacing: -0.01em;
-  color: var(--text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.favrail-tip-hint {
-  font: 500 11.5px/15px var(--font-ui);
-  color: var(--text-2);
-  white-space: nowrap;
-}
-@keyframes favrail-tip-in {
-  from {
-    opacity: 0;
-    translate: -4px -50%;
-  }
-}
+/* Chrome de l'application : barre du haut (.tb-), seule navigation (direction « Écran console »), et menu du compte (.acc-) */
 
 /* Libellé de section en petites capitales (liste d'amis) */
 .side-label {
@@ -328,7 +19,7 @@
   min-width: 0;
   height: var(--topbar-h);
   /* À droite : place pour les boutons natifs de Windows (réduire, agrandir, fermer) */
-  padding: 0 150px 0 32px;
+  padding: 0 150px 0 20px;
   /* Verre : le contenu (et le visuel du héros) défile dessous, flouté. */
   background: var(--glass-bar);
   backdrop-filter: var(--glass-blur);
@@ -341,7 +32,149 @@
   background: var(--bg-2);
 }
 .topbar.is-mac {
-  padding-right: 24px;
+  /* À gauche : les feux de fenêtre de macOS */
+  padding: 0 24px 0 84px;
+}
+
+/* Marque : l'icône, « Player X », et « Bêta » sur une version de test */
+.tb-brand {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  margin-right: 14px;
+}
+.tb-brand .brand-mark {
+  filter: drop-shadow(0 4px 10px rgba(224, 32, 126, 0.35));
+}
+.tb-brand-name {
+  font: 700 17px/1 var(--font-display);
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+  white-space: nowrap;
+}
+.tb-brand-beta {
+  padding: 3px 7px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+  font: 700 10px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+/* Pages en onglets texte : la page affichée en blanc, soulignée de rose (comme Player X Test) */
+.tb-nav {
+  display: flex;
+  align-self: stretch;
+  gap: 2px;
+  min-width: 0;
+}
+.tb-nav-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  font: 600 15px/1 var(--font-ui);
+  color: var(--text-3);
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+  transition: color var(--d-1) var(--ease-out);
+}
+.tb-nav-btn::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 9px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 200ms var(--ease-out);
+}
+.tb-nav-btn:hover {
+  color: var(--text-1);
+}
+.tb-nav-btn[aria-current='page'] {
+  color: var(--text-1);
+}
+.tb-nav-btn[aria-current='page']::after {
+  transform: none;
+}
+.tb-nav-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent-text));
+  outline-offset: -6px;
+  border-radius: 10px;
+}
+.tb-nav-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-pill);
+  font: 700 11px/18px var(--font-ui);
+  text-align: center;
+}
+.tb-nav-badge.is-live {
+  background: rgba(79, 214, 232, 0.16);
+  color: var(--live, #4fd6e8);
+}
+.tb-nav-badge.is-info {
+  background: rgba(185, 166, 255, 0.16);
+  color: var(--info, #b9a6ff);
+}
+
+/* Heure du PC, réglages, compte */
+.tb-clock {
+  flex-shrink: 0;
+  font: 600 15px/1 var(--font-display);
+  color: var(--text-1);
+}
+.tb-icon-btn {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: var(--text-2);
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out);
+}
+.tb-icon-btn:hover,
+.tb-icon-btn[aria-current='page'] {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+/* Accueil : la barre est posée sur l'image du jeu, sans verre ni filet (l'image monte jusqu'en haut). */
+.shell:has(> .content.view-home) > .topbar {
+  background: linear-gradient(180deg, rgba(7, 6, 10, 0.62), rgba(7, 6, 10, 0));
+  backdrop-filter: none;
+  border-bottom-color: transparent;
+  box-shadow: none;
+}
+.shell:has(> .content.view-home) > .topbar::after {
+  display: none;
+}
+
+/* Réglages propres à la page (choix du jeu de Stats…), en haut du contenu ; le titre de la page n'y est pas repris
+   (l'onglet le dit déjà). Vide : rien du tout. */
+.page-bar {
+  display: none;
+}
+.page-bar:has(> :not(.tb-slot-title)) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 32px 0;
+}
+.page-bar .tb-slot-title,
+.page-bar .tb-title {
+  display: none;
 }
 /* Filet qui apparaît dès que le contenu défile (timeline --px-content, voir shell.css) */
 .topbar::after {
@@ -691,7 +524,7 @@
 
 /* Fenêtre étroite : la recherche se replie en loupe (elle se déplie au focus ou tant qu'elle contient une recherche),
    pour laisser la place aux onglets de la page. */
-@media (max-width: 1279px) {
+@media (max-width: 1439px) {
   .tb-search {
     flex: 0 0 auto;
     width: 36px;
@@ -704,7 +537,7 @@
   }
   .tb-search:focus-within,
   .tb-search.has-query {
-    width: 240px;
+    width: 220px;
   }
   .tb-search:not(:focus-within, .has-query) .tb-kbd {
     display: none;
@@ -721,8 +554,27 @@
     padding: 0 10px;
   }
 }
+@media (max-width: 1399px) {
+  .tb-clock {
+    display: none;
+  }
+}
 @media (max-width: 1180px) {
-  .topbar {
-    padding-left: 20px;
+  .tb-brand-name,
+  .tb-brand-beta {
+    display: none;
+  }
+  .tb-brand {
+    margin-right: 6px;
+  }
+  .tb-nav-btn {
+    padding: 0 9px;
+  }
+  .tb-nav-btn::after {
+    left: 9px;
+    right: 9px;
+  }
+  .page-bar:has(> :not(.tb-slot-title)) {
+    padding: 14px 20px 0;
   }
 }

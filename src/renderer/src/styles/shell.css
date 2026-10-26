@@ -1,4 +1,4 @@
-/* Grille de l'application (Braise) : rail (pages + favoris) | barre du haut + contenu.
+/* Grille de l'application (direction « Écran console ») : la barre du haut (seule navigation), puis le contenu.
    Le contenu et son fond prennent toute la hauteur : ils défilent sous la barre du haut, en verre. */
 
 .boot {
@@ -9,7 +9,7 @@
 .shell {
   display: grid;
   height: 100%;
-  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--topbar-h) minmax(0, 1fr);
   background: var(--bg-0);
   /* La barre du haut (et le héros) lisent le défilement du contenu */
@@ -17,20 +17,15 @@
   /* Contexte d'empilement : le fond (z -1) passe sous le contenu sans en créer un pour .content (les dialogues restent au-dessus du rail). */
   isolation: isolate;
 }
-.shell > .favrail {
-  grid-row: 1 / 3;
-  grid-column: 1;
-  z-index: var(--z-rail);
-}
 .shell > .topbar {
   grid-row: 1;
-  grid-column: 2;
+  grid-column: 1;
   z-index: var(--z-topbar);
 }
 /* Fond de page et fond aux couleurs du jeu (Ambient.tsx), sous le contenu et sous la barre du haut */
 .shell > .backdrop {
   grid-row: 1 / 3;
-  grid-column: 2;
+  grid-column: 1;
   position: relative;
   z-index: -1;
   min-width: 0;
@@ -42,7 +37,7 @@
 /* Le contenu commence sous la barre (padding) mais défile derrière elle ; le focus clavier s'arrête sous la barre. */
 .shell > .content {
   grid-row: 1 / 3;
-  grid-column: 2;
+  grid-column: 1;
   position: relative;
   overflow-y: auto;
   overflow-x: hidden;

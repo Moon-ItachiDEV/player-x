@@ -1,1115 +1,473 @@
-/* Accueil (Home.tsx et voisins), design « Braise » : jeu à la une (.hh-) avec « À reprendre » à droite, colonne
-   « Dernier match » et amis en ligne (.hm-side), carrousel « Ta bibliothèque » (.hm-shelf, .hm-tile). Plus d'actus ni de
-   succès en bas de page (beta.5 et beta.8). Toutes les autres classes de la page commencent par .hm-. */
+/* Accueil, direction « Écran console » (Home.tsx) : toutes les classes commencent par .hc-.
+   Un seul moment fort : le visuel du jeu en plein écran et son nom en très grand. Le reste est sobre : texte posé sur
+   l'image, amis en colonne à droite, « Tes jeux » en jaquettes debout en bas. Pas de cartes dans des cartes. */
 
+/* Bibliothèque vide (NoGames) : page ordinaire */
 .home {
   display: flex;
   flex-direction: column;
   gap: 40px;
-  container-type: inline-size;
-  /* L'accueil tient dans la fenêtre sans barre de défilement (taille par défaut 1600 × 940, demande de Breezydev) :
-     moins de marge en bas, et le jeu à la une prend la hauteur qui reste au-dessus de « Ta bibliothèque ».
-     468 px = barre du haut 56 + marge du haut 28 + écart 40 + rangée 320 + marge du bas 24. */
-  --hm-fit: clamp(400px, calc(100vh - 468px), 660px);
-}
-.page.home {
-  padding-bottom: 24px;
 }
 
-/* ---------- pièces communes ---------- */
-
-.hm-h2 {
-  font: 600 22px/28px var(--font-display);
-  letter-spacing: -0.01em;
-  color: var(--text-1);
-}
-/* Liens d'en-tête (« Tout voir », « Trophées »…) : texte rose clair, sans fond. */
-.hm-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  border-radius: var(--r-xs);
-  font: 600 14px/18px var(--font-ui);
-  color: var(--accent-text);
-  white-space: nowrap;
-  transition: color var(--d-1) var(--ease-out);
-}
-.hm-link:hover {
-  color: var(--text-1);
-}
-.hm-link svg {
-  transition: translate var(--d-2) var(--ease-out);
-}
-.hm-link:hover svg {
-  translate: 2px 0;
-}
-/* Bouton rond (flèches) */
-.hm-round {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--surface-2);
-  color: var(--text-2);
-  transition:
-    background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out),
-    scale var(--d-1) var(--ease-out);
-}
-/* Retour au clic : la surface s'enfonce un peu (audit animations). */
-.hm-round:active:not(:disabled):not([aria-disabled='true']) {
-  scale: 0.97;
-}
-.hm-round:hover:not(:disabled) {
-  background: var(--surface-3);
-  color: var(--text-1);
-}
-.hm-grow {
-  flex: 1;
-}
-/* Listes de la page : sans puces ni retrait */
-.hh-resume,
-.hm-online-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-/* Pastille sur une image */
-.hm-pill {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 9px;
-  border-radius: var(--r-pill);
-  background: var(--badge-bg);
-  color: var(--text-1);
-  font: 600 11px/14px var(--font-ui);
-  white-space: nowrap;
-}
-.hm-new {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 8px;
-  border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  font: 700 10px/1 var(--font-ui);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-/* Panneaux de la colonne de droite et des succès */
-.hm-panel {
-  border-radius: 24px;
-  background: var(--bg-2);
-  box-shadow: inset 0 0 0 1px var(--line-1);
-}
-.hm-panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.hm-panel-title {
-  min-width: 0;
-  font: 600 17px/22px var(--font-display);
-  color: var(--text-1);
-  white-space: nowrap;
+/* L'accueil tient dans la fenêtre : pas de défilement, l'image monte sous la barre du haut. */
+.shell > .content.view-home {
   overflow: hidden;
-  text-overflow: ellipsis;
-}
-.hm-sec-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  padding-top: 0;
 }
 
-/* ---------- haut de page : jeu à la une et colonne de droite ---------- */
-
-.hm-top {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-}
-
-/* Grande carte arrondie qui porte le visuel du jeu ; le texte se pose en bas à gauche, « À reprendre » à droite. */
-.hh {
+.hc {
+  --hc-x: 48px;
   position: relative;
-  flex: 999 1 640px;
-  min-width: 0;
-  min-height: min(460px, var(--hm-fit));
-  height: var(--hm-fit);
-  display: flex;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+  padding-top: var(--topbar-h);
   isolation: isolate;
-  border-radius: var(--r-xl);
-  box-shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.9);
-  container: hh / inline-size;
-}
-/* Le filet de la carte se pose par-dessus le visuel (un ombrage intérieur serait caché par .hh-bleed). */
-.hh::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border-radius: inherit;
-  box-shadow: inset 0 0 0 1px var(--line-1);
-  pointer-events: none;
-}
-/* En jeu : filet cyan (« en direct ») */
-.hh.is-live::after {
-  box-shadow: inset 0 0 0 1px var(--live-line);
-}
-@keyframes hh-in {
-  from {
-    opacity: 0;
-    translate: 0 8px;
-  }
-}
-@keyframes hh-fade {
-  from {
-    opacity: 0;
-  }
-}
-/* Changement de jeu à la molette : le texte arrive dans le sens du geste, le visuel se pose en douceur ;
-   « À reprendre » ne rejoue pas son entrée. */
-@keyframes hh-next {
-  from {
-    opacity: 0;
-    translate: 0 28px;
-  }
-}
-@keyframes hh-prev {
-  from {
-    opacity: 0;
-    translate: 0 -28px;
-  }
-}
-@keyframes hh-settle {
-  from {
-    opacity: 0;
-    scale: 1.04;
-  }
-}
-.hh[data-dir='next'] .hh-main {
-  animation: hh-next 380ms var(--ease-arrive) both;
-}
-.hh[data-dir='prev'] .hh-main {
-  animation: hh-prev 380ms var(--ease-arrive) both;
-}
-.hh[data-dir] .hh-bleed {
-  animation: hh-settle 520ms var(--ease-out) both;
-}
-.hh[data-dir] .hh-end {
-  animation: none;
+  overflow: hidden;
 }
 
-.hh-bleed {
+/* ---------- l'image du jeu ---------- */
+
+.hc-art {
   position: absolute;
   inset: 0;
   z-index: -1;
   overflow: hidden;
-  border-radius: inherit;
-  contain: strict;
-  pointer-events: none;
-  background: var(--surface-1);
-  animation: hh-fade 600ms var(--ease-out) both;
+  background: var(--bg-0);
 }
-.hh-art {
+.hc-art-layer {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  animation: hc-art-in 520ms var(--ease-out) both;
 }
-/* Parallaxe au défilement : le visuel glisse moins vite que la page (effets visuels seulement). */
-:root[data-fx='on'] .hh-art {
-  animation: hh-scroll linear both;
-  animation-timeline: --px-content;
-  animation-range: 0 460px;
+.hc-art-layer.is-still {
+  animation: none;
 }
-@keyframes hh-scroll {
-  to {
-    translate: 0 60px;
-  }
-}
-.hh-img {
-  position: absolute;
-  inset: -4%;
-  width: 108%;
-  height: 108%;
-  object-fit: cover;
-  object-position: 50% 25%;
-  opacity: 0;
-  translate: calc(var(--hx, 0) * -10px) calc(var(--hy, 0) * -6px);
-  transition: opacity 500ms var(--ease-out);
-}
-.hh-img.is-loaded {
-  opacity: 1;
-}
-.hh-img-blur {
-  filter: blur(24px) saturate(1.3) brightness(0.7);
-  scale: 1.2;
-}
-/* Voiles d'encre : fort à gauche (titre, actions), léger au milieu, plus dense à droite (« À reprendre »), et vers le bas.
-   Ne pas les éclaircir : le texte doit rester lisible sur un visuel blanc. */
-.hh-scrim {
+.hc-img {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(0deg, color-mix(in srgb, var(--ink) 70%, transparent) 0, transparent 260px),
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--ink) 85%, transparent) 0%,
-      color-mix(in srgb, var(--ink) 30%, transparent) 60%,
-      color-mix(in srgb, var(--ink) 55%, transparent) 100%
-    );
-}
-
-.hh-in {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-}
-.hh-main {
-  position: relative;
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 16px;
-  padding: 40px;
-}
-.hh-main,
-.hh-end {
-  animation: hh-in 420ms var(--ease-arrive) both;
-}
-.hh-chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.store-tag.long.hh-store {
-  height: 26px;
-  padding: 0 11px;
-  border-radius: var(--r-pill);
-  background: var(--badge-bg);
-  border: 0;
-  color: var(--text-1);
-  font: 600 12px/16px var(--font-ui);
-}
-.hh-chip-live {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 11px;
-  border-radius: var(--r-pill);
-  background: var(--live-soft);
-  color: var(--live-text);
-  font: 600 11px/14px var(--font-ui);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.hh-chip-live svg {
-  color: var(--live);
-}
-.hh-title {
-  max-width: 560px;
-  font: 700 52px/54px var(--font-display);
-  letter-spacing: -0.025em;
-  color: var(--text-1);
-  text-wrap: balance;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-/* « Dernière partie : il y a 2 h · 123 h de jeu · 12 / 40 succès » : points posés entre les morceaux présents. */
-.hh-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 21px;
-  padding-left: 4px;
-  margin-left: -4px;
-  /* Le point posé avant chaque morceau sort à gauche : coupé en début de ligne (le premier, et après un retour à la ligne). */
-  clip-path: inset(-8px -8px -8px 0);
-  font: 400 15px/22px var(--font-ui);
-  color: var(--text-2);
-}
-.hh-meta > span {
-  position: relative;
-}
-.hh-meta > span::before {
-  content: '·';
-  position: absolute;
-  left: -13px;
-  color: var(--text-3);
-}
-.hh-meta:empty {
-  display: none;
-}
-.hh-meta-live {
-  color: var(--live-text);
-  font-weight: 600;
-}
-/* Dernier patch : ouvre ses notes dans la fiche */
-.hh-patch {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  border-radius: var(--r-xs);
-  color: var(--accent-text);
-  font-weight: 600;
-}
-.hh-patch:hover {
-  color: var(--text-1);
-}
-.hh-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 6px;
-}
-/* Largeur minimale (base.css) : la même dans tous les états du lancement. */
-.hh-actions .btn-play {
-  height: 54px;
-  padding: 0 30px;
-  gap: 10px;
-}
-/* Boutons en verre sur le visuel */
-.btn.hh-glass {
-  height: 54px;
-  padding: 0 24px;
-  background: var(--glass);
-  box-shadow: inset 0 0 0 1px var(--line-3);
-  backdrop-filter: blur(24px);
-  color: var(--text-1);
-  font: 600 15px/22px var(--font-ui);
-}
-.btn.hh-glass:hover {
-  background: var(--btn2-bg-hover);
-}
-.btn.hh-glass:focus-visible {
-  box-shadow:
-    inset 0 0 0 1px var(--line-3),
-    var(--focus);
-}
-.btn.hh-fav {
-  width: 54px;
-  padding: 0;
-}
-.btn.hh-fav.is-on {
-  color: var(--favorite);
-}
-
-/* « À reprendre » : colonne de droite de la carte, lignes en verre ; la ligne du jeu à la une est surlignée. */
-.hh-end {
-  position: relative;
-  flex: 0 0 280px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
-  padding: 24px 24px 24px 0;
-}
-.hh-end-title {
-  padding-left: 4px;
-  font: 600 11px/14px var(--font-ui);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-2);
-}
-/* « À reprendre » | « Mises à jour » : deux onglets à la place du titre, même ligne, même hauteur. */
-.hh-end-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 3px;
-  border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--glass) 70%, transparent);
-  box-shadow: inset 0 0 0 1px var(--glass-line);
-  backdrop-filter: blur(24px);
-}
-.no-blur .hh-end-tabs {
-  background: color-mix(in srgb, var(--bg-2) 92%, transparent);
-}
-.hh-end-tab {
-  flex: 1 1 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 32px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: var(--r-pill);
-  background: transparent;
-  font: 600 12px/16px var(--font-ui);
-  color: var(--text-2);
-  cursor: pointer;
-  transition:
-    background var(--d-2) var(--ease-out),
-    color var(--d-2) var(--ease-out);
-}
-@media (hover: hover) {
-  .hh-end-tab:hover {
-    color: var(--text-1);
-  }
-}
-.hh-end-tab[aria-selected='true'] {
-  background: var(--surface-3);
-  color: var(--text-1);
-}
-.hh-end-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-.hh-row-new {
-  color: var(--accent-text);
-  font-weight: 600;
-}
-.hh-end-more {
-  margin: 10px 0 0 4px;
-}
-.hh-resume {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.hh-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 8px;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--glass) 80%, transparent);
-  box-shadow: inset 0 0 0 1px var(--glass-line);
-  backdrop-filter: blur(24px);
-  text-align: left;
-  transition:
-    background-color var(--d-2) var(--ease-out),
-    box-shadow var(--d-2) var(--ease-out),
-    scale var(--d-1) var(--ease-out);
-}
-/* Retour au clic : la surface s'enfonce un peu (audit animations). */
-.hh-row:active:not(:disabled):not([aria-disabled='true']) {
-  scale: 0.97;
-}
-.hh-row:hover {
-  background: var(--glass);
-  box-shadow: inset 0 0 0 1px var(--line-3);
-}
-.hh-row.is-on {
-  background: rgba(30, 24, 40, 0.78);
-  box-shadow: inset 0 0 0 1px var(--accent-line);
-}
-.hh-row.is-live {
-  box-shadow: inset 0 0 0 1px var(--live-line);
-}
-.hh-row:focus-visible {
-  box-shadow:
-    inset 0 0 0 1px var(--accent-line),
-    var(--focus);
-}
-.no-blur .hh-row {
-  background: color-mix(in srgb, var(--bg-2) 92%, transparent);
-}
-.hh-row-thumb {
-  flex: 0 0 48px;
-  height: 48px;
-  overflow: hidden;
-  border-radius: 12px;
-  box-shadow: inset 0 0 0 1px var(--line-2);
-}
-.hh-row-thumb .cover {
   width: 100%;
   height: 100%;
-  aspect-ratio: auto;
+  object-fit: cover;
+  object-position: 68% 28%;
+  opacity: 0;
+  transform: scale(1.04);
+  transition:
+    opacity 420ms var(--ease-out),
+    transform 1200ms var(--ease-out);
 }
-.hh-row-text {
+.hc-img.is-loaded {
+  opacity: 1;
+  transform: none;
+}
+/* Sans bannière : la jaquette floutée fait le fond */
+.hc-img.is-blur {
+  filter: blur(36px) saturate(1.25);
+  transform: scale(1.2);
+}
+@keyframes hc-art-in {
+  from {
+    opacity: 0;
+  }
+}
+/* Lisibilité : sombre à gauche (texte), en bas (jaquettes), un peu en haut (barre) et à droite (amis). */
+.hc-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(7, 6, 10, 0.86) 0%, rgba(7, 6, 10, 0.5) 32%, rgba(7, 6, 10, 0) 60%),
+    linear-gradient(0deg, rgba(7, 6, 10, 0.97) 0%, rgba(7, 6, 10, 0.72) 24%, rgba(7, 6, 10, 0) 52%),
+    linear-gradient(180deg, rgba(7, 6, 10, 0.55) 0%, rgba(7, 6, 10, 0) 16%),
+    radial-gradient(40% 50% at 100% 12%, rgba(7, 6, 10, 0.55), rgba(7, 6, 10, 0));
+}
+
+/* ---------- texte et actions ---------- */
+
+.hc-in {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  min-height: 0;
+  padding: clamp(28px, 7vh, 88px) var(--hc-x) 0;
+}
+.hc-text {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
+  max-width: min(760px, 62%);
 }
-.hh-row-name {
-  font: 600 14px/18px var(--font-ui);
+.hc-text > * {
+  animation: hc-in 380ms var(--ease-out) both;
+}
+.hc-text > :nth-child(2) {
+  animation-delay: 30ms;
+}
+.hc-text > :nth-child(3) {
+  animation-delay: 60ms;
+}
+.hc-text > :nth-child(4) {
+  animation-delay: 90ms;
+}
+.hc-text[data-dir='prev'] > * {
+  animation-name: hc-in-prev;
+}
+@keyframes hc-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+@keyframes hc-in-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+
+.hc-kicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 24px;
+  font: 600 14.5px/20px var(--font-ui);
   color: var(--text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
 }
-.hh-row-sub {
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.hh-row.is-on .hh-row-sub {
-  color: var(--accent-text);
-}
-.hh-row.is-live .hh-row-sub {
+.hc-kicker-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--live-text);
 }
-
-/* Carte étroite (fenêtre réduite) : « À reprendre » passe sous les actions, titre plus petit. */
-@container hh (max-width: 720px) {
-  .hh-in {
-    flex-direction: column;
-  }
-  .hh-main {
-    padding: 28px 28px 20px;
-  }
-  .hh-title {
-    font-size: 40px;
-    line-height: 44px;
-  }
-  .hh-end {
-    flex: none;
-    padding: 0 28px 28px;
-  }
-  .hh-resume {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-.hh-skel {
-  border-radius: var(--r-xl);
-}
-
-/* Colonne de droite */
-.hm-side {
-  flex: 1 1 300px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.hm-match {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 20px;
-}
-.hm-match-when {
-  min-width: 0;
+.hc-title {
+  display: -webkit-box;
+  margin-top: 14px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-3);
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font: 700 clamp(44px, min(7.2vw, 11.5vh), 112px) / 0.96 var(--font-display);
+  letter-spacing: -0.035em;
+  color: #fff;
+  text-wrap: balance;
 }
-/* CS2 : le résultat en couleur, le score en grand, la carte, la frise des rounds. */
-.hm-match {
-  --hm-result: var(--text-2);
-}
-.hm-match[data-result='win'] {
-  --hm-result: var(--success);
-}
-.hm-match[data-result='loss'] {
-  --hm-result: var(--danger);
-}
-.hm-match-hero {
+.hc-meta {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px 16px;
-  border-radius: 16px;
-  background:
-    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--hm-result) 14%, transparent), transparent 60%),
-    var(--surface-1);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 0;
+  margin-top: 18px;
+  font: 500 15.5px/22px var(--font-ui);
+  color: var(--text-1);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
 }
-.hm-match-line {
+.hc-meta > span + span::before {
+  content: '·';
+  margin: 0 10px;
+  color: var(--text-3);
+}
+.hc-meta > .hc-news::before {
+  content: none;
+}
+.hc-meta > .hc-news {
+  margin-left: 14px;
+}
+
+.hc-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: clamp(20px, 3.4vh, 34px);
+}
+.btn.hc-play {
+  min-height: 60px;
+  padding: 0 36px;
+  font: 700 17px/1 var(--font-ui);
+  box-shadow: 0 16px 40px -14px rgba(224, 32, 126, 0.75);
+}
+.btn.hc-glass {
+  min-height: 60px;
+  padding: 0 26px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+  color: #fff;
+  font: 600 15.5px/1 var(--font-ui);
+}
+.btn.hc-glass:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+.btn.hc-fav {
+  width: 60px;
+  padding: 0;
+  justify-content: center;
+}
+.btn.hc-fav.is-on {
+  color: var(--gold, #f2c66d);
+}
+.no-blur .btn.hc-glass {
+  background: rgba(30, 24, 40, 0.92);
+  backdrop-filter: none;
+}
+
+/* ---------- amis, à droite ---------- */
+
+.hc-squad {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  width: 260px;
+  margin-top: -6px;
+  padding: 12px 14px;
+  border-radius: 20px;
+  text-align: right;
+  transition: background-color var(--d-1) var(--ease-out);
+}
+.hc-squad:hover {
+  background: rgba(7, 6, 10, 0.42);
+}
+.hc-squad:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+.hc-squad-head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-.hm-result {
-  font: 700 20px/26px var(--font-display);
-  color: var(--hm-result);
-}
-.hm-score {
-  font: 700 28px/32px var(--font-display);
-  color: var(--text-1);
-  white-space: nowrap;
-}
-.hm-match-map {
-  font: 500 13px/18px var(--font-ui);
-  color: var(--text-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.hm-strip {
-  display: flex;
-  gap: 2px;
-  margin-top: 10px;
-}
-.hm-strip i {
-  flex: 1 1 0;
-  max-width: 10px;
-  height: 6px;
-  border-radius: 2px;
-  background: var(--surface-3);
-}
-.hm-strip i[data-r='won'] {
-  background: var(--success);
-}
-.hm-strip i[data-r='lost'] {
-  background: color-mix(in srgb, var(--danger) 70%, transparent);
-}
-
-.hm-match-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin: 0;
-}
-.hm-stat {
-  display: flex;
-  flex-direction: column-reverse;
-  gap: 2px;
-  min-width: 0;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: var(--surface-1);
-}
-.hm-stat dd {
-  margin: 0;
-  font: 600 20px/24px var(--font-display);
-  color: var(--text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.hm-stat dt {
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.hm-match-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.hm-online {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 16px 8px;
-}
-.hm-online-head {
-  padding: 4px 12px 10px;
-}
-.hm-online-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.hm-person {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 12px;
-  border-radius: var(--r-md);
-}
-.hm-person-text {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-.hm-person-name,
-.hm-person-sub {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.hm-person-name {
-  font: 600 14px/18px var(--font-ui);
+  font: 700 15px/20px var(--font-display);
   color: var(--text-1);
 }
-.hm-person-sub {
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-3);
+.hc-squad-count {
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-2);
 }
-.hm-person-sub.is-live {
+.hc-squad-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hc-mate {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+.hc-mate .avatar {
+  --cut: rgb(16, 13, 21);
+  flex-shrink: 0;
+}
+.hc-mate.is-here .avatar {
+  box-shadow: 0 0 0 2px var(--live);
+}
+.hc-mate-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+}
+.hc-mate-name,
+.hc-mate-sub {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.6);
+}
+.hc-mate-name {
+  font: 600 14.5px/19px var(--font-ui);
+  color: var(--text-1);
+}
+.hc-mate-sub {
+  font: 500 12.5px/17px var(--font-ui);
+  color: var(--text-2);
+}
+.hc-mate-sub.is-live {
   color: var(--live-text);
 }
-.hm-online-more {
-  align-self: flex-start;
-  margin: 6px 12px 0;
+.hc-squad-more {
+  font: 600 12.5px/17px var(--font-ui);
+  color: var(--text-2);
 }
 
-/* Fenêtre étroite : la colonne passe sous le jeu à la une ; ses panneaux côte à côte, les amis sur plusieurs colonnes. */
-@container (max-width: 963px) {
-  .hm-side {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-  .hm-side > .hm-panel {
-    flex: 1 1 300px;
-  }
-  .hm-online-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  }
+/* ---------- « Tes jeux » ---------- */
+
+.hc-shelf {
+  min-width: 0;
+  padding: 0 0 clamp(16px, 3vh, 28px);
 }
-
-/* ---------- « Ta bibliothèque » ---------- */
-
-.hm-shelf {
+.hc-shelf-head {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  gap: 14px;
+  padding: 0 var(--hc-x);
+}
+.hc-shelf-title {
+  font: 700 22px/28px var(--font-display);
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+}
+.hc-shelf-meta {
+  font: 500 13.5px/18px var(--font-ui);
+  color: var(--text-2);
+}
+.hc-shelf-all {
+  margin-left: auto;
+  font: 600 14.5px/20px var(--font-ui);
+  color: var(--accent-text);
+}
+
+/* Le jeu affiché grandit vers le haut (place prévue en haut de la rangée) : rien ne bouge autour. */
+.hc-track {
+  --hc-cover: clamp(96px, min(9.4vw, 17vh), 160px);
+  display: flex;
+  align-items: flex-end;
   gap: 18px;
-}
-.hm-shelf-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-}
-.hm-shelf-head .hm-h2 {
-  margin-right: 12px;
-}
-.hm-shelf-head .hm-link {
-  margin-right: 8px;
-}
-/* Filtre de store : boutons à bascule dans une gélule */
-.hm-seg {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: var(--r-pill);
-  background: var(--bg-2);
-  box-shadow: inset 0 0 0 1px var(--line-1);
-}
-.hm-seg-btn {
-  height: 32px;
-  padding: 0 16px;
-  border-radius: var(--r-pill);
-  color: var(--text-3);
-  font: 600 13px/18px var(--font-ui);
-  transition:
-    background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out),
-    scale var(--d-1) var(--ease-out);
-}
-/* Retour au clic : la surface s'enfonce un peu (audit animations). */
-.hm-seg-btn:active:not(:disabled):not([aria-disabled='true']) {
-  scale: 0.97;
-}
-.hm-seg-btn:hover {
-  color: var(--text-1);
-}
-.hm-seg-btn[aria-pressed='true'] {
-  background: var(--surface-3);
-  color: var(--text-1);
-}
-/* Précédent / suivant : clair quand il reste des jeux de ce côté, éteint sinon. */
-.hm-round.hm-nav {
-  width: 40px;
-  height: 40px;
-  background: var(--text-1);
-  color: var(--bg-1);
-}
-.hm-round.hm-nav:hover:not(:disabled) {
-  background: var(--text-2);
-  color: var(--bg-1);
-}
-.hm-round.hm-nav:disabled {
-  background: var(--bg-2);
-  color: var(--text-4);
-  box-shadow: inset 0 0 0 1px var(--line-1);
-}
-
-/* Piste sans barre de défilement ; fondu à droite tant qu'il reste des jeux. Place pour le soulèvement du jeu à la une. */
-.hm-track {
-  display: flex;
-  gap: 20px;
-  margin: -10px -4px -14px;
-  padding: 10px 4px 14px;
   overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-padding-inline: 4px;
+  padding: calc(var(--hc-cover) * 0.17 + 8px) var(--hc-x) 10px;
   scrollbar-width: none;
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--hc-x), #000 calc(100% - var(--hc-x) - 40px), transparent);
 }
-.hm-track::-webkit-scrollbar {
+.hc-track::-webkit-scrollbar {
   display: none;
 }
-.hm-track.has-more {
-  -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent);
-  mask-image: linear-gradient(90deg, #000 85%, transparent);
-}
-
-.hm-tile {
+.hc-cover {
   position: relative;
-  flex: 0 0 196px;
-  height: 262px;
-  scroll-snap-align: start;
-  border-radius: 18px;
-  box-shadow: inset 0 0 0 1px var(--line-2);
-  transition:
-    translate var(--d-in) var(--ease-glide),
-    scale var(--d-in) var(--ease-glide),
-    box-shadow var(--d-2) var(--ease-out);
-}
-/* Retour au clic : la surface s'enfonce un peu (audit animations). */
-.hm-tile:active:not(:disabled):not([aria-disabled='true']) {
-  scale: 0.97;
-}
-.hm-tile:hover,
-.hm-tile:focus-within {
-  translate: 0 -3px;
-}
-.hm-tile.is-target {
-  translate: 0 -4px;
-  scale: 1.04;
-  box-shadow:
-    inset 0 0 0 2px var(--accent),
-    var(--glow-accent);
-}
-.hm-tile.is-live {
-  box-shadow:
-    inset 0 0 0 2px var(--live),
-    var(--glow-live);
-}
-.hm-tile-open {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  width: 100%;
-  height: 100%;
+  flex: 0 0 auto;
+  width: var(--hc-cover);
+  aspect-ratio: 2 / 3;
+  padding: 0;
   overflow: hidden;
-  border-radius: inherit;
-  text-align: left;
+  border-radius: 14px;
+  transform-origin: 50% 100%;
+  opacity: 0.78;
+  box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.9);
+  transition:
+    transform 220ms var(--ease-out),
+    opacity 220ms var(--ease-out);
 }
-/* Le filet de la carte au-dessus de la jaquette */
-.hm-tile-open::after {
-  content: '';
+.hc-cover .cover {
   position: absolute;
   inset: 0;
-  border-radius: inherit;
-  box-shadow: inherit;
-  pointer-events: none;
-}
-.hm-tile-open .cover {
-  position: absolute;
-  inset: 0;
-  width: 100%;
   height: 100%;
-  aspect-ratio: auto;
 }
-.hm-tile-open .cover-img {
-  transition:
-    opacity 240ms var(--ease-out),
-    scale 400ms var(--ease-glide);
+.hc-cover:hover {
+  opacity: 1;
+  transform: translateY(-4px);
 }
-.hm-tile:hover .hm-tile-open .cover-img {
-  scale: 1.05;
+.hc-cover.is-on {
+  z-index: 1;
+  opacity: 1;
+  transform: scale(1.14);
+  box-shadow:
+    0 0 0 3px #fff,
+    0 22px 44px -14px rgba(0, 0, 0, 0.9);
 }
-.hm-tile-open:focus-visible {
-  box-shadow: var(--focus);
+.hc-cover.is-live:not(.is-on) {
+  box-shadow:
+    0 0 0 2px var(--live),
+    0 14px 30px -16px rgba(0, 0, 0, 0.9);
 }
-.hm-tile-shade {
+.hc-cover:focus-visible {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 3px;
+}
+.hc-cover-star {
   position: absolute;
-  inset: 40% 0 0;
-  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--ink) 80%, transparent));
-}
-.hm-tile-store {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-}
-.news-badge.hm-tile-news {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-}
-.hm-tile-text {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  padding: 14px;
-}
-.hm-tile-name {
-  font: 600 14px/18px var(--font-ui);
-  color: var(--text-1);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.hm-tile-sub {
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.hm-tile.is-target .hm-tile-sub {
-  color: var(--accent-text);
-}
-.hm-tile-sub.is-live,
-.hm-tile.is-target .hm-tile-sub.is-live {
-  color: var(--live-text);
-}
-/* Jouer : rond rose au survol et au clavier ; reste visible pendant un lancement. */
-.hm-tile-play {
-  position: absolute;
-  right: 12px;
-  bottom: 62px;
+  top: 7px;
+  right: 7px;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  background: var(--accent-solid);
-  color: var(--on-accent);
-  box-shadow: var(--glow-accent);
-  opacity: 0;
-  scale: 0.9;
-  transition:
-    opacity var(--d-out) var(--ease-glide),
-    scale var(--d-out) var(--ease-glide),
-    background-color var(--d-1) var(--ease-out);
+  background: rgba(7, 6, 10, 0.62);
+  color: var(--gold, #f2c66d);
 }
-.hm-tile:hover .hm-tile-play,
-.hm-tile:focus-within .hm-tile-play,
-.hm-tile.is-busy .hm-tile-play {
-  opacity: 1;
-  scale: 1;
-  transition-duration: var(--d-in);
-}
-.hm-tile-play:hover {
-  background: var(--accent-solid-hover);
-}
-.hm-tile-play:focus-visible {
-  box-shadow: var(--focus);
-}
-.hm-tile-play.is-waiting {
-  background: var(--surface-3);
-  color: var(--accent-text);
-  box-shadow: inset 0 0 0 1px var(--accent-line);
-}
-.hm-tile-play.is-live {
-  background: var(--live-soft);
-  color: var(--live-text);
-  box-shadow: inset 0 0 0 1px var(--live-line);
-  backdrop-filter: blur(8px);
-}
-.hm-tile-play svg {
-  translate: 1px 0;
+.hc-cover-patch {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--info);
+  box-shadow: 0 0 0 3px rgba(7, 6, 10, 0.62);
 }
 
 /* ---------- chargement ---------- */
 
-.hm-skel-panel {
-  flex: 1;
-  min-height: 180px;
-}
-.hm-skel-h {
+.hc-skel-kicker {
   width: 220px;
-  height: 28px;
+  height: 18px;
+  border-radius: 8px;
 }
-.hm-track .hm-tile.skel {
+.hc-skel-title {
+  width: min(560px, 70%);
+  height: 92px;
+  margin-top: 18px;
   border-radius: 18px;
 }
+.hc-skel-meta {
+  width: 320px;
+  height: 18px;
+  margin-top: 20px;
+  border-radius: 8px;
+}
+.hc-skel-h {
+  display: block;
+  width: 160px;
+  height: 24px;
+  margin: 0 var(--hc-x);
+  border-radius: 8px;
+}
 
-/* ---------- barre du haut : « En ce moment » (HomeTop.tsx), sur le modèle du choix du jeu de Stats ---------- */
-.hm-now {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  margin-left: 16px;
-  padding: 4px;
-  border-radius: var(--r-pill);
-  background: var(--bg-0);
-  box-shadow: inset 0 0 0 1px var(--line-1);
-  overflow: hidden;
-  -webkit-app-region: no-drag;
+/* ---------- fenêtre plus petite ---------- */
+
+@media (max-width: 1180px) {
+  .hc {
+    --hc-x: 24px;
+  }
+  .hc-squad {
+    width: 220px;
+  }
+  .hc-mate-name,
+  .hc-mate-sub {
+    max-width: 150px;
+  }
 }
-.hm-now-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 1;
-  min-width: 0;
-  height: 36px;
-  padding: 0 14px 0 5px;
-  border-radius: var(--r-pill);
-  color: var(--text-2);
-  font: 600 13px/18px var(--font-ui);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition:
-    background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out),
-    scale var(--d-1) var(--ease-out);
+@media (max-height: 760px) {
+  .btn.hc-play,
+  .btn.hc-glass {
+    min-height: 52px;
+  }
+  .btn.hc-fav {
+    width: 52px;
+  }
 }
-.hm-now-pill:hover {
-  background: var(--surface-3);
-  color: var(--text-1);
+
+@media (prefers-reduced-motion: reduce) {
+  .hc-art-layer,
+  .hc-text > * {
+    animation: none;
+  }
+  .hc-img,
+  .hc-cover {
+    transition: none;
+  }
 }
-.hm-now-pill:active {
-  scale: 0.97;
+.reduce-motion .hc-art-layer,
+.reduce-motion .hc-text > * {
+  animation: none;
 }
-.hm-now-pill.is-live {
-  color: var(--live-text);
-}
-.hm-now-thumb {
-  position: relative;
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  overflow: hidden;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px var(--line-2);
-}
-.hm-now-thumb > * {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.hm-now-thumb img {
-  object-fit: cover;
-}
-.hm-now-dot {
-  flex-shrink: 0;
-  width: 7px;
-  height: 7px;
-  margin-left: -2px;
-  border-radius: 50%;
-  background: var(--live);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 25%, transparent);
-}
-.hm-now-faces {
-  display: inline-flex;
-  flex-shrink: 0;
-  padding-left: 2px;
-}
-.hm-now-faces > .avatar {
-  box-shadow: 0 0 0 2px var(--bg-0);
-}
-.hm-now-faces > .avatar + .avatar {
-  margin-left: -8px;
+.reduce-motion .hc-img,
+.reduce-motion .hc-cover {
+  transition: none;
 }

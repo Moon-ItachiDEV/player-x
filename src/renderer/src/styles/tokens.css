@@ -147,7 +147,7 @@
   --upd-h: 76px;
   --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   /* Mise en page : rail (navigation + favoris), barre du haut, contenu */
-  --rail-w: 84px;
+  --rail-w: 0px; /* plus de rail (direction « Écran console », 0.9.5-beta.6) : gardé à 0 pour les calculs existants */
   --side-w: 0px;
   --nav-w: calc(var(--rail-w) + var(--side-w));
   --topbar-h: 56px;
