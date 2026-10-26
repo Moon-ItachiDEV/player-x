@@ -20,6 +20,8 @@ export interface PendingUpdate {
   quitAt: number
   relaunch: boolean
   bounds?: WindowBounds
+  /** Dossier de la fenêtre « Mise à jour de Player X » (updateWindow.ts) : la nouvelle version y écrit done.json. */
+  window?: string
 }
 
 /** Zone utile d'un écran (workArea d'Electron). */
@@ -47,6 +49,7 @@ const str = (v: unknown, max = 64): v is string => typeof v === 'string' && v.le
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0
 const optNum = (v: unknown): boolean => v === undefined || num(v)
 /** SHA-512 en hexadécimal minuscule, tel que calculé par updater.ts. */
+const optPath = (v: unknown): boolean => v === undefined || (typeof v === 'string' && v.length > 0 && v.length <= 500)
 const optHex = (v: unknown): boolean => v === undefined || (typeof v === 'string' && /^[0-9a-f]{128}$/.test(v))
 
 export function isPending(v: unknown): v is PendingUpdate {
@@ -60,8 +63,18 @@ export function isPending(v: unknown): v is PendingUpdate {
     typeof p.relaunch === 'boolean' &&
     optHex(p.fingerprint) &&
     optNum(p.size) &&
-    optNum(p.downloadMs)
+    optNum(p.downloadMs) &&
+    optPath(p.window)
   )
+}
+
+/**
+ * Dossier de la fenêtre de mise à jour relu de la base : seulement un sous-dossier numéroté de `root`
+ * (%TEMP%\PlayerXUpdate), pour ne jamais écrire ailleurs. `sep` : séparateur du système (\ sous Windows).
+ */
+export function isWindowDir(dir: unknown, root: string, sep: string): dir is string {
+  if (typeof dir !== 'string' || !root || !dir.startsWith(root + sep)) return false
+  return /^\d{10,16}$/.test(dir.slice(root.length + sep.length))
 }
 
 /** Dernière mise à jour relue de la base : la valeur est montrée telle quelle par l'interface, on la vérifie. */

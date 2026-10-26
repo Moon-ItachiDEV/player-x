@@ -6,3 +6,7 @@ dist
 # Installeur sur mesure : fichiers produits à la construction (scripts/build-installer.mjs)
 installer/payload/
 installer/ui/page.html
+# Fenêtre « Mise à jour de Player X » : fichiers produits à la construction (scripts/build-update-window.mjs)
+installer/cmd/update/payload/
+installer/cmd/update/ui/page.html
+build/update-window/

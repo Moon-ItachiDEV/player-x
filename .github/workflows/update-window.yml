@@ -1,0 +1,89 @@
+# Fenêtre « Mise à jour de Player X » (installer/cmd/update) : essai sur un vrai Windows à chaque modification.
+# Logique testée (go test), puis deux mises à jour simulées de bout en bout avec la vraie fenêtre (WebView2) :
+# normale (tout coché, la fenêtre s'efface seule) et sans relance (message « Player X ne s'est pas rouvert »).
+# Les captures de la fenêtre et le journal sont joints à l'exécution (onglet Actions › Artifacts) et déposés dans la release
+# BROUILLON « Fenêtre de mise à jour (essai) » (tag update-window-test) : jamais publiée, jamais lue par les mises à jour.
+name: Fenêtre de mise à jour
+
+on:
+  push:
+    paths:
+      - 'installer/cmd/update/**'
+      - 'installer/internal/updwatch/**'
+      - 'installer/internal/winx/**'
+      - 'scripts/build-update-window.mjs'
+      - '.github/workflows/update-window.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write # brouillon « Fenêtre de mise à jour (essai) » (jamais publié, invisible pour les mises à jour)
+
+concurrency:
+  group: update-window-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: npm
+
+      # Pour les polices de la page (@fontsource) ; sans les scripts d'installation (Electron n'est pas téléchargé).
+      - name: Installer les dépendances
+        run: npm ci --ignore-scripts
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: installer/go.mod
+          cache: false
+
+      - name: Tester la logique
+        working-directory: installer
+        run: go test -mod=vendor ./internal/updwatch/
+
+      - name: Construire et essayer la fenêtre
+        shell: bash
+        run: |
+          node scripts/build-update-window.mjs --ci "${RUNNER_TEMP}/update-window" | tee "${RUNNER_TEMP}/update-window.log"
+          if grep -q '::warning::' "${RUNNER_TEMP}/update-window.log"; then echo "::error::La fenêtre de mise à jour n'a pas passé l'essai"; exit 1; fi
+
+      - name: Déposer les captures dans le brouillon « Fenêtre de mise à jour (essai) »
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          trap 'echo "::error::Dépôt des captures : échec de « ${BASH_COMMAND} »"' ERR
+          tag=update-window-test
+          notes="Captures de la fenêtre « Mise à jour de Player X » (branche ${GITHUB_REF_NAME}, ${GITHUB_SHA::7}). Brouillon jamais publié."
+          if gh release view "${tag}" > /dev/null 2>&1; then
+            gh release edit "${tag}" --draft --title "Fenêtre de mise à jour (essai)" --notes "${notes}"
+          else
+            gh release create "${tag}" --draft --prerelease --title "Fenêtre de mise à jour (essai)" --notes "${notes}" --target "${GITHUB_SHA}"
+          fi
+          for a in $(gh release view "${tag}" --json assets --jq '.assets[].name'); do gh release delete-asset "${tag}" "$a" --yes; done
+          cd "${RUNNER_TEMP}/update-window"
+          cp ../update-window.log essai.log 2>/dev/null || true
+          # Globbing de bash (sous Windows, « find » est celui du système, pas celui de GNU).
+          shopt -s globstar nullglob
+          for f in **/*.png *.log; do
+            n="${f//\//-}"
+            cp "$f" "${RUNNER_TEMP}/${n}"
+            gh release upload "${tag}" "${RUNNER_TEMP}/${n}" --clobber 2> "${RUNNER_TEMP}/gh-err.txt" || { echo "::error::$(tr '\n' ' ' < "${RUNNER_TEMP}/gh-err.txt")"; exit 1; }
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fenetre-mise-a-jour
+          path: ${{ runner.temp }}/update-window
+          retention-days: 14

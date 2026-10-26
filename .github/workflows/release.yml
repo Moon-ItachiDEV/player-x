@@ -82,6 +82,30 @@ jobs:
             fi
           fi
 
+      # Fenêtre « Mise à jour de Player X » (installer/cmd/update, Go + WebView2), rangée dans l'appli (extraResources).
+      # Essayée ici sur Windows (mise à jour simulée de bout en bout) : si elle ne se construit pas ou si l'essai échoue,
+      # elle n'est pas livrée et les mises à jour de cette version s'installent comme avant, sans fenêtre.
+      - uses: actions/setup-go@v5
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          go-version-file: installer/go.mod
+          cache: false
+
+      - name: Construire et essayer la fenêtre de mise à jour
+        id: update_window
+        continue-on-error: true
+        timeout-minutes: 6
+        shell: bash
+        run: |
+          mkdir -p build/update-window
+          node scripts/build-update-window.mjs --ci "${RUNNER_TEMP}/update-window"
+
+      - name: Retirer la fenêtre de mise à jour non essayée
+        if: steps.update_window.outcome != 'success'
+        shell: bash
+        run: rm -f build/update-window/player-x-update.exe
+
       - name: Construire et envoyer l'installeur
         run: npx electron-builder --win --x64 --publish always
         env:
@@ -116,13 +140,7 @@ jobs:
       # Installeur sur mesure (installer/, Go + WebView2) : pour une première installation. Il contient l'installeur ci-dessus,
       # lancé en silencieux ; les fichiers des mises à jour (latest.yml, .blockmap, .sig) n'en dépendent pas.
       # Après la vérification : un échec ici ne cache ni l'empreinte à signer ni les fichiers des mises à jour.
-      - uses: actions/setup-go@v5
-        continue-on-error: true
-        timeout-minutes: 5
-        with:
-          go-version-file: installer/go.mod
-          cache: false
-
+      # Go est déjà installé (fenêtre de mise à jour, plus haut).
       - name: Construire, essayer et envoyer l'installeur sur mesure
         continue-on-error: true
         timeout-minutes: 10

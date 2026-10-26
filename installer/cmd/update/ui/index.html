@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Mise à jour de Player X</title>
+<!-- Fenêtre « Mise à jour de Player X » (installer/cmd/update/main.go) : elle tient compagnie pendant que Player X est fermé
+     pour s'installer, puis s'efface quand la nouvelle version est ouverte. Polices et icône intégrées à la construction
+     (scripts/build-update-window.mjs) : rien n'est chargé depuis Internet.
+     Même famille que l'installeur sur mesure (installer/ui) : l'icône dans son anneau, des étapes vraies, cochées une fois faites. -->
+<style>
+/*__PX_FONTS__*/
+:root {
+  --bg: #0c0a11; --chip: #221d2c; --chip-2: #2c2538;
+  --line: rgba(255, 200, 220, .10);
+  --text-1: #f7f1f5; --text-2: #cdbfca; --text-3: #a898a6;
+  --accent: #ff5c86; --accent-hover: #ff7598; --on-accent: #2a0612; --accent-text: #ff9db5;
+  --brand: linear-gradient(90deg, #ff8a80, #fb4f7a 55%, #e0207e);
+  --ok: #5be49b; --on-ok: #04140b; --danger: #ff9a80;
+  --ui: 'Inter', 'Segoe UI', system-ui, sans-serif; --display: 'Sora', 'Inter', 'Segoe UI', sans-serif;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text-1); font-family: var(--ui); -webkit-font-smoothing: antialiased; user-select: none; cursor: default; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+
+@keyframes pxIn { from { opacity: 0; transform: scale(.985) } }
+@keyframes pxUp { from { opacity: 0; transform: translateY(8px) } }
+@keyframes pxLogo { from { opacity: 0; transform: scale(.9) } }
+@keyframes pxPop { 0% { transform: scale(0); opacity: 0 } 70% { transform: scale(1.12); opacity: 1 } 100% { transform: scale(1) } }
+@keyframes pxBreathe { 0%, 100% { opacity: .45 } 50% { opacity: .85 } }
+@keyframes pxSpin { to { transform: rotate(360deg) } }
+
+.win { position: relative; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); box-shadow: inset 0 0 0 1px rgba(255, 200, 220, .12); animation: pxIn .4s var(--ease) both; transition: opacity .22s ease, transform .22s ease; }
+.win.is-out { opacity: 0; transform: scale(.985); }
+/* Lumière braise fixe derrière l'icône. */
+.light { position: absolute; left: -150px; top: -40px; width: 520px; height: 440px; border-radius: 50%; background: radial-gradient(closest-side, rgba(251, 79, 122, .2), rgba(224, 32, 126, .06) 55%, transparent); pointer-events: none; }
+
+/* Barre de titre : on déplace la fenêtre en la tenant. */
+.bar { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 6px 0 16px; }
+.bar img { width: 18px; height: 18px; }
+.bar-title { flex: 1; font: 500 12.5px/1 var(--ui); color: var(--text-3); }
+.wbtn { display: grid; place-items: center; width: 44px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--text-3); transition: background .15s, color .15s; }
+.wbtn:hover { background: rgba(255, 255, 255, .06); color: var(--text-1); }
+.wbtn.close:hover { background: #c42b1c; color: #fff; }
+
+.main { position: relative; z-index: 1; flex: 1; display: grid; grid-template-columns: 196px 1fr; align-items: center; gap: 30px; padding: 0 40px 18px 34px; }
+
+/* L'icône et son anneau : le seul élément fort. */
+.hero { position: relative; display: grid; place-items: center; width: 196px; height: 196px; }
+.hero-glow { position: absolute; width: 168px; height: 168px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 92, 134, .42), transparent 68%); opacity: .5; }
+.is-busy .hero-glow { animation: pxBreathe 2.4s ease-in-out infinite; }
+.ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+.ring-bar { transition: stroke-dashoffset .5s var(--ease); }
+.logo { position: relative; width: 116px; height: 116px; filter: drop-shadow(0 14px 26px rgba(42, 6, 18, .55)); animation: pxLogo .5s .08s var(--ease) both; }
+.check { position: absolute; left: 50%; top: 50%; margin: 26px 0 0 26px; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--ok); color: var(--on-ok); box-shadow: 0 0 0 5px var(--bg); animation: pxPop .45s .05s var(--ease) both; }
+
+.head { animation: pxUp .4s .14s var(--ease) both; }
+h1 { margin: 0; font: 700 28px/34px var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pct { background: var(--brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.sub { margin: 4px 0 0; font: 400 13.5px/20px var(--ui); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.sub b { font-weight: 500; color: var(--text-2); }
+
+/* Étapes vraies, cochées seulement une fois faites (mêmes repères que l'installeur). */
+.tasks { display: flex; flex-direction: column; gap: 2px; margin: 18px 0 0; padding: 0; list-style: none; animation: pxUp .4s .22s var(--ease) both; }
+.task { display: flex; align-items: center; gap: 12px; height: 30px; font: 500 14px/20px var(--ui); color: var(--text-3); transition: color .3s; }
+.task.is-run { color: var(--text-1); font-weight: 600; }
+.task.is-done { color: var(--text-2); }
+.task-mark { position: relative; flex-shrink: 0; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--chip-2); color: transparent; transition: background .25s, box-shadow .25s; }
+.task.is-run .task-mark { box-shadow: inset 0 0 0 1.5px rgba(255, 92, 134, .3); }
+.task.is-run .task-mark::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid transparent; border-top-color: var(--accent); animation: pxSpin .8s linear infinite; }
+.task.is-done .task-mark { background: var(--ok); box-shadow: none; color: var(--on-ok); }
+.task-label { flex: 1; white-space: nowrap; }
+.task-state { font: 400 12.5px/16px var(--ui); color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+/* Avancée totale, tout en bas de la fenêtre. */
+.meter { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255, 200, 220, .06); }
+.meter i { position: absolute; inset: 0; background: var(--brand); transform: scaleX(0); transform-origin: left; transition: transform .5s var(--ease); }
+
+/* Player X ne s'est pas rouvert : message et deux boutons à la place des étapes. */
+.err { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; margin-top: 16px; animation: pxUp .3s var(--ease) both; }
+.row { display: flex; gap: 10px; }
+.cta { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 42px; padding: 0 22px; border: 0; border-radius: 999px; background: var(--accent); color: var(--on-accent); font: 700 14.5px/20px var(--ui); box-shadow: 0 0 0 1px rgba(255, 92, 134, .45), 0 10px 28px rgba(224, 32, 126, .32); transition: background .15s, transform .12s; }
+.cta:hover { background: var(--accent-hover); }
+.cta:active, .ghost:active { transform: scale(.97); }
+.ghost { min-height: 42px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--chip); color: var(--text-1); font: 600 14px/20px var(--ui); transition: background .15s, transform .12s; }
+.ghost:hover { background: var(--chip-2); }
+.is-err .ring, .is-err .hero-glow { display: none; }
+.is-err .logo { width: 96px; height: 96px; filter: grayscale(.35) drop-shadow(0 14px 26px rgba(42, 6, 18, .55)); }
+.is-err .meter { display: none; }
+.is-err h1 { font-size: 23px; line-height: 30px; white-space: normal; }
+[hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="win is-busy" id="win" role="dialog" aria-labelledby="title">
+  <div class="light" aria-hidden="true"></div>
+  <div class="bar" id="bar">
+    <img src="__PX_ICON__" alt="">
+    <span class="bar-title">Mise à jour de Player X</span>
+    <button type="button" class="wbtn" id="min" aria-label="Réduire"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6h10" stroke="currentColor" stroke-width="1.2"></path></svg></button>
+    <button type="button" class="wbtn close" id="close" aria-label="Fermer" hidden><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.2"></path></svg></button>
+  </div>
+
+  <div class="main">
+    <div class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <svg class="ring" width="196" height="196" viewBox="0 0 196 196" aria-hidden="true">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a80"></stop><stop offset=".55" stop-color="#fb4f7a"></stop><stop offset="1" stop-color="#e0207e"></stop></linearGradient></defs>
+        <circle cx="98" cy="98" r="88" fill="none" stroke="rgba(255,200,220,.09)" stroke-width="5"></circle>
+        <circle class="ring-bar" id="ringBar" cx="98" cy="98" r="88" fill="none" stroke="url(#g)" stroke-width="5" stroke-linecap="round" stroke-dasharray="552.9" stroke-dashoffset="552.9"></circle>
+      </svg>
+      <img class="logo" src="__PX_ICON__" alt="Player X">
+      <span class="check" id="check" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+    </div>
+
+    <div class="content">
+      <div class="head">
+        <h1 id="title">Mise à jour… <span class="pct" id="pct">0 %</span></h1>
+        <p class="sub" id="sub"></p>
+      </div>
+      <ol class="tasks" id="tasks" aria-live="polite">
+        <li class="task" data-task="0"><span class="task-mark"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span class="task-label">Fermeture de Player X</span><span class="task-state"></span></li>
+        <li class="task" data-task="1"><span class="task-mark"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span class="task-label">Fichiers de l’application</span><span class="task-state" id="mb"></span></li>
+        <li class="task" data-task="2"><span class="task-mark"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span class="task-label">Redémarrage</span><span class="task-state"></span></li>
+        <li class="task" data-task="3"><span class="task-mark"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span class="task-label">Vérification</span><span class="task-state"></span></li>
+      </ol>
+      <div class="err" id="err" hidden>
+        <div class="row">
+          <button type="button" class="cta" id="open"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"></path></svg>Ouvrir Player X</button>
+          <button type="button" class="ghost" id="finish">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+</div>
+
+<script>
+'use strict'
+// Liaisons avec la fenêtre (main.go) : pxReady, pxDrag, pxMinimize, pxOpen, pxClose.
+// main.go appelle window.pxUpdate(état) à chaque changement ; état = {
+//   step : étape en cours (0 fermeture, 1 fichiers, 2 redémarrage, 3 vérification, 4 tout est fait),
+//   percent : avancée totale (0 à 100), from / to : versions, written / total : octets vraiment écrits / attendus,
+//   error : "norelaunch" si Player X ne s'est pas rouvert, out : true pour s'effacer avant la fermeture }.
+const $ = (id) => document.getElementById(id)
+const C = 552.9
+const mo = (b) => Math.max(0, Math.round(b / 1048576)).toLocaleString('fr-FR')
+const nb = (s) => String(s).replace(/ (?=%)/, ' ')
+let last = { step: 0, percent: 0 }
+
+function setTasks(step) {
+  document.querySelectorAll('.task').forEach((el) => {
+    const i = Number(el.dataset.task)
+    el.classList.toggle('is-done', step > i)
+    el.classList.toggle('is-run', step === i)
+  })
+}
+
+window.pxUpdate = (s) => {
+  const win = $('win')
+  if (s.out) {
+    win.classList.add('is-out')
+    return
+  }
+  if (s.from && s.to) {
+    const a = document.createElement('b')
+    a.textContent = s.from
+    const b = document.createElement('b')
+    b.textContent = s.to
+    $('sub').replaceChildren(a, ' → ', b)
+  }
+  if (s.error) {
+    win.classList.add('is-err')
+    win.classList.remove('is-busy')
+    $('title').textContent = 'Player X ne s’est pas rouvert'
+    $('sub').textContent = 'L’installation est finie ou s’est arrêtée. Ouvre Player X pour retrouver tes jeux.'
+    $('tasks').hidden = true
+    $('err').hidden = false
+    $('close').hidden = false
+    $('open').focus()
+    return
+  }
+  const p = Math.max(last.percent, Math.min(100, Math.round(s.percent || 0)))
+  last = { step: s.step, percent: p }
+  $('ringBar').setAttribute('stroke-dashoffset', String(C - (C * p) / 100))
+  $('meter').style.transform = 'scaleX(' + p / 100 + ')'
+  setTasks(s.step)
+  $('mb').textContent = s.step === 1 && s.total > 0 && s.written > 0 ? mo(Math.min(s.written, s.total)) + ' / ' + mo(s.total) + ' Mo' : ''
+  if (s.step >= 4) {
+    win.classList.remove('is-busy')
+    $('title').textContent = 'Mise à jour terminée'
+    $('check').hidden = false
+  } else {
+    $('pct').textContent = nb(p + ' %')
+  }
+}
+
+$('bar').addEventListener('mousedown', (e) => {
+  if (e.button === 0 && !e.target.closest('button')) window.pxDrag()
+})
+$('min').addEventListener('click', () => window.pxMinimize())
+$('close').addEventListener('click', () => window.pxClose())
+$('finish').addEventListener('click', () => window.pxClose())
+$('open').addEventListener('click', () => window.pxOpen())
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('close').hidden) window.pxClose()
+})
+document.addEventListener('contextmenu', (e) => e.preventDefault())
+// Deux images peintes : la fenêtre peut s'afficher sans éclair.
+requestAnimationFrame(() => requestAnimationFrame(() => window.pxReady && window.pxReady()))
+</script>
+</body>
+</html>
