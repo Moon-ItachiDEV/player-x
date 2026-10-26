@@ -71,9 +71,12 @@ jobs:
           for a in $(gh release view "${tag}" --json assets --jq '.assets[].name'); do gh release delete-asset "${tag}" "$a" --yes; done
           cd "${RUNNER_TEMP}/update-window"
           cp ../update-window.log essai.log 2>/dev/null || true
-          for f in $(find . -name '*.png' -o -name '*.log' | sort); do
-            n="$(echo "${f#./}" | tr '/' '-')"
-            cp "$f" "${RUNNER_TEMP}/${n}" && gh release upload "${tag}" "${RUNNER_TEMP}/${n}" --clobber
+          # Globbing de bash (sous Windows, « find » est celui du système, pas celui de GNU).
+          shopt -s globstar nullglob
+          for f in **/*.png *.log; do
+            n="${f//\//-}"
+            cp "$f" "${RUNNER_TEMP}/${n}"
+            gh release upload "${tag}" "${RUNNER_TEMP}/${n}" --clobber
           done
 
       - uses: actions/upload-artifact@v4
