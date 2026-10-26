@@ -60,9 +60,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           trap 'echo "::error::Dépôt des captures : échec de « ${BASH_COMMAND} »"' ERR
-          ls -R "${RUNNER_TEMP}/update-window" | head -40 | sed 's/^/::notice::/'
           tag=update-window-test
           notes="Captures de la fenêtre « Mise à jour de Player X » (branche ${GITHUB_REF_NAME}, ${GITHUB_SHA::7}). Brouillon jamais publié."
           if gh release view "${tag}" > /dev/null 2>&1; then
