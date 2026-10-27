@@ -14,7 +14,7 @@
 /* Barre du haut posée sur l'image tant que la page n'a pas défilé (NewsPage pose data-bar) : sans verre ni filet, un peu
    plus sombre que sur l'Accueil (les images d'annonce sont souvent claires : orange, blanc). */
 .shell:has(> .content > .nf-page[data-bar='clear']) > .topbar {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 72%, transparent), transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 72%, transparent), transparent) no-repeat;
   backdrop-filter: none;
   border-bottom-color: transparent;
   box-shadow: none;

@@ -152,7 +152,7 @@
 
 /* Accueil : la barre est posée sur l'image du jeu, sans verre ni filet (l'image monte jusqu'en haut). */
 .shell:has(> .content.view-home) > .topbar {
-  background: linear-gradient(180deg, rgba(7, 6, 10, 0.62), rgba(7, 6, 10, 0));
+  background: linear-gradient(180deg, rgba(7, 6, 10, 0.62), rgba(7, 6, 10, 0)) no-repeat;
   backdrop-filter: none;
   border-bottom-color: transparent;
   box-shadow: none;
