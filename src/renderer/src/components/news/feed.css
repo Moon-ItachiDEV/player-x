@@ -1,475 +1,730 @@
-/* Page Actus des jeux (.nf-page) : puces de filtre, « À la une » (.nf-une) et « Plus récentes » (cartes .nf-item). Couleurs par jetons seulement ; pas de flou sur les étiquettes posées sur
-   des images fixes, seulement sur la carte et la colonne en verre de « À la une » (comme la maquette Braise). */
+/* Page Actus des jeux (NewsPage.tsx), dans le style de l'Accueil : toutes les classes commencent par .nf-. En haut, l'annonce
+   à la une en plein cadre sous la barre du haut (.nf-hero), puis la barre « Tes jeux » qui colle en défilant (.nf-head),
+   puis chaque jeu une fois, ses annonces en lignes (.nf-list). Couleurs par jetons ; voiles en --ink. */
 
-/* ---------- page Actus des jeux ---------- */
-
-/* Puces de filtre et outils, « À la une » (NewsUne.tsx), puis « Plus récentes » en grille de cartes. */
+/* L'écran du haut monte sous la barre du haut, comme l'Accueil ; la page défile. */
+.shell > .content.view-news {
+  padding-top: 0;
+  /* Le focus clavier s'arrête sous la barre du haut et sous « Tes jeux » collée. */
+  scroll-padding-top: calc(var(--topbar-h) + 76px);
+}
+/* Barre du haut posée sur l'image tant que la page n'a pas défilé (NewsPage pose data-bar) : sans verre ni filet, un peu
+   plus sombre que sur l'Accueil (les images d'annonce sont souvent claires : orange, blanc). */
+.shell:has(> .content > .nf-page[data-bar='clear']) > .topbar {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 72%, transparent), transparent);
+  backdrop-filter: none;
+  border-bottom-color: transparent;
+  box-shadow: none;
+}
+.shell:has(> .content > .nf-page[data-bar='clear']) > .topbar::after {
+  display: none;
+}
+/* Pas de .page (ses marges) ni d'overflow ici : la barre « Tes jeux » doit pouvoir coller. */
 .nf-page {
+  --nf-x: 48px;
   container-type: inline-size;
+  position: relative;
+  isolation: isolate;
+  padding-bottom: 56px;
+}
+/* Sans écran du haut (aucun patch pour tous les jeux) : la barre « Tes jeux » commence sous la barre du haut. */
+.nf-page.is-bare {
+  padding-top: var(--topbar-h);
+}
+/* États centrés dans la fenêtre : rien sous eux, la page ne défile pas. */
+.nf-page:has(> .nf-state) {
+  padding-bottom: 0;
+}
+@media (max-width: 1180px) {
+  .nf-page {
+    --nf-x: 24px;
+  }
+}
+
+/* ---------- À la une : l'image en plein cadre, le texte en bas à gauche ---------- */
+
+.nf-hero {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding-top: 12px;
+  justify-content: flex-end;
+  height: clamp(400px, 66vh, 860px);
+  padding: var(--topbar-h) var(--nf-x) clamp(28px, 4.4vh, 48px);
+  isolation: isolate;
 }
-.nf-bar {
+
+/* L'image : sur tout l'écran, fondue en bas dans le fond de la page (Ambient, aux couleurs de l'image). Pas de fond sur
+   .nf-hero : seul .nf-art a --bg-0, masqué sur 96 px, sinon un bord net couperait la page. */
+.nf-art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: var(--bg-0);
+  mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 96px), transparent);
+}
+.nf-art-layer {
+  position: absolute;
+  inset: 0;
+  animation: nf-art-in 520ms var(--ease-out) both;
+}
+.nf-art-layer.is-still {
+  animation: none;
+}
+@keyframes nf-art-in {
+  from {
+    opacity: 0;
+  }
+}
+.nf-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.04);
+  transition:
+    opacity 420ms var(--ease-out),
+    transform 1200ms var(--ease-out);
+}
+.nf-img.is-loaded {
+  opacity: 1;
+  transform: none;
+}
+/* Bannière du jeu : même cadrage que l'Accueil. Image d'annonce : le haut d'abord (titres incrustés). */
+.nf-img.is-game {
+  object-position: 68% 28%;
+}
+.nf-img.is-post {
+  object-position: 50% 0;
+}
+/* Sans bannière : la jaquette floutée fait le fond */
+.nf-img.is-blur {
+  filter: blur(36px) saturate(1.25);
+  transform: scale(1.2);
+}
+/* Lisibilité : un peu en haut (barre du haut), sombre en bas et à gauche (le texte). Le reste de l'image n'est pas voilé :
+   rien n'y est posé. */
+.nf-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--ink) 66%, transparent) 0%, transparent 18%),
+    linear-gradient(0deg, color-mix(in srgb, var(--ink) 94%, transparent) 0%, color-mix(in srgb, var(--ink) 62%, transparent) 26%, transparent 56%),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 72%, transparent) 0%, color-mix(in srgb, var(--ink) 30%, transparent) 34%, transparent 56%);
+}
+.nf-hero-text {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: min(880px, 70%);
+}
+/* Protection du texte sur une image claire (orange de CS2, bande blanche) : voile ovale juste derrière le bloc. */
+.nf-hero-text::before {
+  content: '';
+  position: absolute;
+  inset: -18% -16% -10% -12%;
+  z-index: -1;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--ink) 50%, transparent), transparent);
+  pointer-events: none;
+}
+.nf-hero.is-skel .nf-hero-text::before {
+  display: none;
+}
+.nf-hero-anim {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
+}
+/* Entrée du texte quand l'annonce à la une change (seul ce bloc a une key) */
+.nf-hero-anim > * {
+  animation: nf-rise 380ms var(--ease-out) both;
+}
+.nf-hero-anim > :nth-child(2) {
+  animation-delay: 40ms;
+}
+.nf-hero-anim > :nth-child(3) {
+  animation-delay: 80ms;
+}
+@keyframes nf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+/* « Patch · Il y a 3 h », et « Nouveau » si l'annonce n'est pas lue */
+.nf-hero-kicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 24px;
+  font: 600 14.5px/20px var(--font-ui);
+  color: var(--text-1);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+}
+.news-badge.nf-hero-new {
+  height: 24px;
+  text-shadow: none;
+}
+/* Le nom du jeu : le plus grand élément de la page, comme sur l'Accueil */
+.nf-hero-game {
+  display: -webkit-box;
+  max-width: 100%;
+  margin-top: 12px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font: 700 clamp(36px, min(4.6vw, 7.4vh), 80px) / 1 var(--font-display);
+  letter-spacing: -0.035em;
+  color: #fff;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+}
+/* Nom long (NewsHero.tsx, heroNameSize) : plus petit, deux lignes au plus */
+.nf-hero-game[data-size='m'] {
+  font-size: clamp(30px, min(3.4vw, 5.6vh), 60px);
+  line-height: 1.04;
+}
+/* Le titre de l'annonce, sans le nom du jeu : deux lignes, puis « … » (titre complet en infobulle) */
+.nf-hero-title {
+  display: -webkit-box;
+  max-width: 100%;
+  margin-top: 10px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font: 600 clamp(19px, min(2vw, 3.2vh), 30px) / 1.2 var(--font-display);
+  letter-spacing: -0.015em;
+  color: var(--text-1);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.55);
+}
+.nf-hero-note {
+  max-width: 62ch;
+  margin-top: 10px;
+  font: 400 15px/23px var(--font-ui);
+  color: var(--text-2);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
+}
+.nf-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: clamp(16px, 2.8vh, 26px);
+}
+/* « Lire le patch » : le seul bouton plein de la page (.btn-primary garde survol, lueur et anneau de focus). */
+.btn.nf-read {
+  height: 52px;
+  padding: 0 26px;
+  font: 700 16px/1 var(--font-ui);
+}
+/* Bouton en verre : seulement « Voir toutes les actus » de l'écran « Aucun patch récent ». */
+.btn.nf-glass {
+  gap: 10px;
+  height: 52px;
+  padding: 0 24px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+  color: #fff;
+  font: 600 15px/1 var(--font-ui);
+}
+.btn.nf-glass:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+.no-blur .btn.nf-glass {
+  background: rgba(30, 24, 40, 0.92);
+  backdrop-filter: none;
+}
+@media (max-width: 1180px) {
+  .nf-hero-text {
+    max-width: min(760px, 78%);
+  }
+}
+@media (max-height: 760px) {
+  .btn.nf-read,
+  .btn.nf-glass {
+    height: 46px;
+  }
+}
+
+/* ---------- « Tes jeux » : la barre qui colle sous la barre du haut ---------- */
+
+/* La sentinelle porte l'écart au-dessus de la barre : elle sort de la vue au moment exact où la barre colle. */
+.nf-sentinel {
+  height: 1px;
+  margin-top: 14px;
+  margin-bottom: -1px;
+}
+.nf-head {
+  position: sticky;
+  top: var(--topbar-h); /* .content n'a pas de padding-top sur cette page */
+  z-index: var(--z-sticky);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px 24px;
-}
-.nf-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-width: 0;
-}
-.nf-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  max-width: 240px;
-  padding: 0 16px;
-  border-radius: var(--r-pill);
-  background: var(--surface-1);
-  box-shadow: inset 0 0 0 1px var(--line-1);
-  color: var(--text-2);
-  font: 600 13px/18px var(--font-ui);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-top: 14px;
+  padding: 10px var(--nf-x);
+  border-bottom: 1px solid transparent;
   transition:
     background-color var(--d-1) var(--ease-out),
-    color var(--d-1) var(--ease-out),
-    box-shadow var(--d-1) var(--ease-out);
+    border-color var(--d-1) var(--ease-out);
 }
-.nf-chip:hover {
-  background: var(--surface-2);
+.nf-sentinel + .nf-head {
+  margin-top: 0;
+}
+/* Verre seulement une fois collée : au repos, la barre laisse voir le fond */
+.nf-head.is-stuck {
+  background: var(--glass-bar);
+  backdrop-filter: var(--glass-blur);
+  border-bottom-color: var(--glass-line);
+}
+.no-blur .nf-head.is-stuck {
+  background: var(--bg-2);
+}
+.nf-head-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  min-width: 0;
+}
+.nf-h2 {
+  font: 700 22px/28px var(--font-display);
+  letter-spacing: -0.01em;
   color: var(--text-1);
-  box-shadow: inset 0 0 0 1px var(--line-2);
 }
-.nf-chip[aria-pressed='true'] {
-  background: var(--text-1);
-  color: var(--bg-1);
-  box-shadow: none;
-}
-.nf-chip:focus-visible {
-  box-shadow: var(--focus);
-}
-.nf-chip-count {
-  min-width: 20px;
-  padding: 0 6px;
-  border-radius: var(--r-pill);
-  background: var(--surface-3);
-  color: var(--text-2);
-  font: 600 11px/18px var(--font-ui);
-  text-align: center;
-}
-.nf-chip[aria-pressed='true'] .nf-chip-count {
-  background: color-mix(in srgb, var(--bg-1) 14%, transparent);
-  color: var(--bg-1);
-}
-/* « Autres jeux » : le menu « Jeu » (PickMenu) habillé en puce ; son libellé reste pour les lecteurs d'écran (aria-label). */
-.picker.nf-more {
+/* « Relevé il y a 5 min · 8 jeux suivis », ou l'avertissement hors ligne à sa place */
+.nf-summary {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  padding: 0 12px 0 16px;
-  border: 0;
-  border-radius: var(--r-pill);
-  background: var(--surface-1);
+  font: 500 13.5px/18px var(--font-ui);
   color: var(--text-2);
 }
-.picker.nf-more:hover,
-.picker.nf-more[aria-expanded='true'] {
-  background: var(--surface-2);
+.nf-summary.is-offline {
+  color: var(--warning);
+}
+.nf-head-title > .nf-back + .nf-summary {
+  align-self: center;
+}
+/* Vue d'un jeu : retour à tous, à la place du titre */
+.nf-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 42px;
+  padding: 0 18px 0 12px;
+  border-radius: var(--r-pill);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
   color: var(--text-1);
+  font: 600 14px/1 var(--font-ui);
+  transition: box-shadow var(--d-1) var(--ease-out);
 }
-.picker.nf-more .picker-label {
-  display: none;
-}
-.picker.nf-more strong {
-  font-weight: 600;
-  color: inherit;
+.nf-back:hover {
+  box-shadow: inset 0 0 0 1px var(--line-3);
 }
 .nf-tools {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: 10px 12px;
   margin-left: auto;
 }
-.nf-summary {
-  min-width: 0;
-  font: 500 12.5px/16px var(--font-ui);
+/* Pilules à choix unique, comme la Bibliothèque : le choix actif se détache sur un fond encastré */
+.nf-seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-pill);
+  background: var(--bg-1);
+}
+.nf-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 15px;
+  border-radius: var(--r-pill);
   color: var(--text-3);
-}
-.nf-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-.nf-offline {
-  margin-bottom: -20px;
-  color: var(--warning);
-}
-.nf-kicker {
-  min-width: 0;
-  font: 600 12px/16px var(--font-ui);
-  color: var(--accent-text);
+  font: 600 13px/18px var(--font-ui);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
+    scale var(--d-1) var(--ease-out);
 }
-.nf-kicker-new {
-  color: var(--info);
+/* Retour au clic, comme la Bibliothèque : la pilule s'enfonce un peu */
+.nf-seg-btn:active:not([aria-disabled='true']) {
+  scale: 0.97;
 }
-
-/* ---------- À la une ---------- */
-
-.nf-une {
-  position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  min-height: 440px;
-  overflow: hidden;
-  border-radius: var(--r-xl);
-  background: var(--bg-2);
-  box-shadow: inset 0 0 0 1px var(--line-1);
-  isolation: isolate;
-}
-/* Image de l'annonce, sinon celle du jeu (NewsThumb), sur toute la surface */
-.news-thumb.nf-une-art {
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  width: auto;
-  height: auto;
-  border-radius: 0;
-}
-.nf-une-art .cover-title {
-  display: none;
-}
-/* Assombrit vers la droite : la colonne des titres reste lisible sur n'importe quelle image. */
-.nf-une-shade {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--ink) 20%, transparent) 0%,
-      color-mix(in srgb, var(--ink) 55%, transparent) 60%,
-      color-mix(in srgb, var(--ink) 85%, transparent) 100%
-    ),
-    linear-gradient(0deg, color-mix(in srgb, var(--ink) 45%, transparent) 0%, transparent 45%);
-}
-.nf-une-main {
-  flex: 999 1 420px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  min-width: 0;
-  padding: 32px;
-}
-.nf-une-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 460px;
-  padding: 24px;
-  border-radius: 24px;
-  background: var(--glass);
-  box-shadow:
-    inset 0 0 0 1px var(--glass-line),
-    inset 0 1px 0 var(--glass-hi);
-  backdrop-filter: var(--glass-blur);
-}
-.nf-une-title {
-  margin: 0;
-  font: 700 28px/34px var(--font-display);
-  letter-spacing: -0.015em;
+.nf-seg-btn:hover:not([aria-pressed='true']) {
+  background: var(--surface-1);
   color: var(--text-1);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: anywhere;
 }
-.nf-une-text {
-  margin: 0;
-  font: 400 14px/21px var(--font-ui);
-  color: var(--text-2);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: anywhere;
+.nf-seg-btn[aria-pressed='true'] {
+  background: var(--surface-3);
+  color: var(--text-1);
 }
-span.nf-une-text {
-  display: flex;
-  flex-direction: column;
+.nf-seg-count {
+  font-weight: 500;
+  opacity: 0.75;
+}
+.nf-tool {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
-  padding: 4px 0;
-}
-.nf-une-skel {
-  display: block;
-  height: 12px;
-}
-.nf-une-skel + .nf-une-skel {
-  width: 70%;
-}
-.nf-une-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 6px;
-}
-.nf-une-meta {
-  min-width: 0;
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-3);
-}
-.nf-une-go {
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--accent-solid);
-  color: var(--on-accent);
+  height: 42px;
+  padding: 0 18px 0 15px;
+  border-radius: var(--r-pill);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--text-2);
+  font: 600 13px/18px var(--font-ui);
+  white-space: nowrap;
   transition:
-    background-color var(--d-1) var(--ease-out),
-    translate var(--d-2) var(--ease-out);
-}
-.nf-une-go:hover {
-  background: var(--accent-solid-hover);
-  translate: 2px 0;
-}
-.nf-une-go:focus-visible {
-  box-shadow: var(--focus);
-}
-/* Transparence coupée (Paramètres) : sans flou, la carte et la colonne deviennent presque opaques pour rester lisibles. */
-.no-blur .nf-une-card {
-  background: color-mix(in srgb, var(--bg-2) 94%, transparent);
-}
-.no-blur .nf-side-row {
-  background: color-mix(in srgb, var(--bg-2) 90%, transparent);
-}
-.nf-side {
-  flex: 1 1 320px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
-  min-width: 0;
-  margin: 0;
-  padding: 24px;
-  list-style: none;
-}
-.nf-side-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px;
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--glass) 88%, transparent);
-  box-shadow: inset 0 0 0 1px var(--line-1);
-  backdrop-filter: var(--glass-blur);
-  text-align: left;
-  transition:
-    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out),
     box-shadow var(--d-1) var(--ease-out);
 }
-.nf-side-row:hover {
-  background: var(--glass-bar);
+.nf-tool:hover:not([aria-disabled='true']) {
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 1px var(--line-3);
+}
+.nf-icon-btn {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--bg-1);
   box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--text-2);
+  transition:
+    color var(--d-1) var(--ease-out),
+    box-shadow var(--d-1) var(--ease-out);
 }
-.nf-side-row[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--surface-1) 85%, transparent);
-  box-shadow: inset 0 0 0 1px var(--accent-line);
+.nf-icon-btn:hover:not([aria-disabled='true']) {
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 1px var(--line-3);
 }
-.nf-side-row:focus-visible {
+.nf-tool[aria-disabled='true'],
+.nf-icon-btn[aria-disabled='true'] {
+  cursor: progress;
+}
+:is(.nf-seg-btn, .nf-tool, .nf-icon-btn, .nf-back):focus-visible {
   box-shadow: var(--focus);
 }
-.news-thumb.nf-side-thumb {
-  flex: 0 0 56px;
-  width: 56px;
-  height: 56px;
-  border-radius: var(--r-md);
-  box-shadow: inset 0 0 0 1px var(--line-2);
-}
-.nf-side-thumb .cover-title {
-  display: none;
-}
-.nf-side-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.nf-side-title {
-  font: 600 14px/18px var(--font-ui);
-  color: var(--text-1);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-.nf-side-meta {
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* Pas encore lue : point lavande, comme le badge « Nouveau » */
-.nf-side-new {
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  margin-right: 4px;
-  border-radius: 50%;
-  background: var(--info);
-}
 
-/* ---------- Plus récentes ---------- */
+/* ---------- « Tes jeux » : chaque jeu une fois, ses annonces en lignes ---------- */
 
-.nf-recent {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.nf-list {
+  padding: 22px var(--nf-x) 0;
 }
-.nf-h2 {
-  margin: 0;
-  font: 600 22px/28px var(--font-display);
-  color: var(--text-1);
-}
-.nf-grid {
+.nf-games {
+  --nf-cover: 88px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px 40px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.nf-grid > li {
+.nf-games.is-single {
+  grid-template-columns: minmax(0, 960px);
+}
+.nf-games > li {
   display: flex;
   min-width: 0;
 }
-.nf-item {
-  display: flex;
-  flex-direction: column;
+.nf-game {
+  display: grid;
+  grid-template-columns: var(--nf-cover) minmax(0, 1fr);
+  align-items: start;
+  column-gap: 28px;
   width: 100%;
   min-width: 0;
-  padding: 8px;
-  border-radius: 22px;
-  background: var(--card-bg);
-  box-shadow:
-    inset 0 0 0 1px var(--line-1),
-    var(--sh-card);
-  color: var(--text-1);
-  text-align: left;
-  transition:
-    translate 220ms var(--ease-glide),
-    box-shadow var(--d-2) var(--ease-out);
 }
-.nf-item:hover {
-  translate: 0 -3px;
-  box-shadow:
-    inset 0 0 0 1px var(--line-3),
-    var(--sh-card-hover);
-}
-.nf-item:focus-visible {
-  box-shadow: var(--focus), var(--sh-card-hover);
-}
-.nf-item-art {
+/* La jaquette, comme sur l'Accueil : un clic montre seulement ce jeu */
+.nf-game-cover {
   position: relative;
   display: block;
+  width: var(--nf-cover);
+  aspect-ratio: 2 / 3;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.9);
+  transition: translate var(--d-in) var(--ease-out);
 }
-.news-thumb.nf-item-thumb {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 10;
-  border-radius: 16px;
-}
-.nf-item-thumb .cover-img {
-  transition: scale 400ms var(--ease-glide);
-}
-.nf-item:hover .nf-item-thumb :is(img, .cover-img) {
-  scale: 1.05;
-}
-.news-badge.nf-item-new {
+.nf-game-cover .cover {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  backdrop-filter: none;
+  inset: 0;
+  height: 100%;
 }
-.nf-item-text {
+button.nf-game-cover:hover {
+  translate: 0 -3px;
+}
+button.nf-game-cover:focus-visible {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 3px;
+}
+.nf-game-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: flex-start;
   min-width: 0;
-  padding: 12px 8px 8px;
+}
+.nf-game-name {
+  max-width: 100%;
+  margin: 2px 0 8px;
+  overflow: hidden;
+  font: 700 18px/24px var(--font-display);
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.nf-lines {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  margin: 0 -12px;
+  padding: 0;
+  list-style: none;
+}
+/* Une annonce, en retrait sous le nom du jeu : le point « pas encore lue » tombe sous la première lettre du nom. */
+.nf-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px 0 28px;
+  border-radius: 12px;
+  color: var(--text-2);
+  text-align: left;
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out);
+}
+.nf-item:hover {
+  background: var(--surface-1);
+  color: var(--text-1);
+}
+/* Pas encore lue : point lavande et titre plus appuyé (jamais la couleur seule) */
+.nf-item-dot {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  display: none;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--info);
+}
+.nf-item.is-new .nf-item-dot {
+  display: block;
 }
 .nf-item-title {
-  min-height: 40px;
-  font: 600 15px/20px var(--font-ui);
-  color: var(--text-1);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  font: 500 14.5px/20px var(--font-ui);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.nf-item.is-new .nf-item-title {
+  font-weight: 600;
+  color: var(--text-1);
+}
+/* « Patch », seulement dans « Toutes les actus » */
+.nf-item-kind {
+  flex-shrink: 0;
+  font: 600 12.5px/16px var(--font-ui);
+  color: var(--info);
 }
 .nf-item-when {
-  font: 500 12px/16px var(--font-ui);
+  flex-shrink: 0;
+  min-width: 76px;
+  font: 500 12.5px/16px var(--font-ui);
   color: var(--text-3);
+  text-align: right;
 }
-
-/* ---------- chargement ---------- */
-
-.nf-skel {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  pointer-events: none;
+.nf-item-go {
+  flex-shrink: 0;
+  margin: 0 -4px 0 -4px;
+  color: var(--text-3);
+  opacity: 0;
+  transition: opacity var(--d-1) var(--ease-out);
 }
-.skel.nf-skel-une {
-  display: block;
-  height: 440px;
-  border-radius: var(--r-xl);
+.nf-item:hover .nf-item-go,
+.nf-item:focus-visible .nf-item-go {
+  opacity: 1;
 }
-.nf-skel-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 8px 8px 16px;
-  border-radius: 22px;
-  background: var(--card-bg);
-  box-shadow: inset 0 0 0 1px var(--line-1);
+/* « Voir les 4 patchs » : la vue du jeu */
+.nf-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  margin: 4px 0 0 4px;
+  padding: 0 10px 0 12px;
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  font: 600 13px/18px var(--font-ui);
+  transition:
+    background-color var(--d-1) var(--ease-out),
+    color var(--d-1) var(--ease-out);
 }
-.nf-skel-card > .skel {
-  display: block;
+.nf-more:hover {
+  background: var(--surface-1);
+  color: var(--text-1);
 }
-.skel.nf-skel-art {
-  aspect-ratio: 16 / 10;
-  border-radius: 16px;
-}
-
-@container (max-width: 1080px) {
-  .nf-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-@container (max-width: 780px) {
-  .nf-grid {
+/* 3 colonnes au-delà de 1400 px de page, 2 jusqu'à 860, 1 en dessous (requêtes sur .nf-page, sans marges ici). */
+@container (max-width: 1399px) {
+  .nf-games {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .nf-une-main {
-    padding: 20px;
+}
+@container (max-width: 1180px) {
+  .nf-games {
+    --nf-cover: 72px;
+    column-gap: 32px;
   }
+  .nf-game {
+    column-gap: 24px;
+  }
+}
+@container (max-width: 859px) {
+  .nf-games {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- états : désactivé, erreur, hors ligne, rien de publié ---------- */
+
+/* Sans écran du haut : centrés dans la fenêtre */
+.nf-state {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: calc(var(--topbar-h) + 24px) 24px 48px;
+}
+.nf-state .empty-state {
+  margin: 0 auto;
+}
+
+/* ---------- premier relevé : la forme exacte de la page remplie ---------- */
+
+.nf-skel {
+  pointer-events: none;
+}
+.nf-skel .nf-head-title {
+  align-items: center;
+}
+.nf-skel .nf-game-body {
+  align-items: stretch;
+}
+.nf-hero.is-skel .skel,
+.nf-skel .nf-head .skel {
+  display: block;
+}
+.skel.nf-skel-kicker {
+  width: 180px;
+  height: 18px;
+  border-radius: 8px;
+}
+.skel.nf-skel-game {
+  width: min(560px, 56vw);
+  height: clamp(40px, 7vh, 72px);
+  margin-top: 12px;
+  border-radius: 16px;
+}
+.skel.nf-skel-title {
+  width: min(360px, 38vw);
+  height: 26px;
+  margin-top: 12px;
+  border-radius: 10px;
+}
+.skel.nf-skel-btn {
+  width: 170px;
+  height: 52px;
+  margin-top: clamp(16px, 2.8vh, 26px);
+  border-radius: var(--r-pill);
+}
+.skel.nf-skel-h2 {
+  width: 120px;
+  height: 24px;
+  border-radius: 8px;
+}
+.skel.nf-skel-summary {
+  width: 200px;
+  height: 14px;
+  border-radius: 7px;
+}
+.skel.nf-skel-seg {
+  width: 250px;
+  height: 42px;
+  border-radius: var(--r-pill);
+}
+.skel.nf-skel-round {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+}
+.skel.nf-skel-name {
+  display: block;
+  width: 42%;
+  height: 18px;
+  margin: 5px 0 15px;
+  border-radius: 6px;
+}
+.skel.nf-skel-line {
+  display: block;
+  height: 13px;
+  margin: 13px 0 14px;
+  border-radius: 6px;
+}
+
+/* ---------- mouvement réduit (réglage de Windows ou de Player X) ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .nf-art-layer,
+  .nf-hero-anim > * {
+    animation: none;
+  }
+  .nf-img,
+  .nf-game-cover,
+  .nf-head {
+    transition: none;
+  }
+  button.nf-game-cover:hover {
+    translate: none;
+  }
+}
+.reduce-motion .nf-art-layer,
+.reduce-motion .nf-hero-anim > * {
+  animation: none;
+}
+.reduce-motion .nf-img,
+.reduce-motion .nf-game-cover,
+.reduce-motion .nf-head {
+  transition: none;
+}
+.reduce-motion button.nf-game-cover:hover {
+  translate: none;
 }

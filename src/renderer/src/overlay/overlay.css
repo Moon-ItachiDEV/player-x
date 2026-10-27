@@ -448,7 +448,7 @@ html.ov-page #root {
 }
 
 /* =====================================================================
-   B · verre (style par défaut) : exactement la carte « À la une » des Actus (feed.css .nf-une-card), demande de
+   B · verre (style par défaut) : l'ancienne carte « À la une » des Actus (0.9.5), demande de
    Breezydev (0.9.5-beta.2) : verre sombre --glass, liseré --glass-line, reflet du haut --glass-hi, coins de 24 px,
    surtitre rose, titres en Sora. Sans flou : une fenêtre transparente ne peut pas flouter le jeu derrière elle, et
    l'aperçu de Paramètres › Overlay doit montrer ce qu'on verra en jeu.
