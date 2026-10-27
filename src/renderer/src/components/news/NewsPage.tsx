@@ -57,7 +57,7 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
   // Lecteurs d'écran : seulement la fin d'une action, jamais le « Relevé il y a N min » qui change chaque minute.
   // Deux fois le même message : une espace insécable en plus, pour qu'il soit lu de nouveau.
   const [status, setStatus] = useState('')
-  const announce = useCallback((msg: string) => setStatus((prev) => (prev === msg ? `${msg} ` : msg)), [])
+  const announce = useCallback((msg: string) => setStatus((prev) => (prev === msg ? `${msg}\u00a0` : msg)), [])
   const pageRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const refreshRef = useRef<HTMLButtonElement>(null)
