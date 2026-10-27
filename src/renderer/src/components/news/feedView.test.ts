@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import type { NewsFeedItem } from '@shared/types'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { feedGames, filterFeed, HOME_MAX, homeFeed } from './feedView.ts'
+import { feedGames, filterFeed, groupByGame, heroNameSize, HOME_MAX, homeFeed, listGroups, ofGame, shortTitle } from './feedView.ts'
 
 // Dates locales : les tests ne dépendent pas du fuseau horaire de la machine.
 const NOW = new Date(2026, 9, 21, 0, 30).getTime()
@@ -86,4 +86,101 @@ test('jeux du menu « Jeu » : par nom (ordre français), avec leur nombre d\'an
   const onlyNews = [item(NOW, false, 'steam:1145360', 'Hades'), ...list]
   const hades = feedGames(onlyNews, filterFeed(onlyNews, { patchesOnly: true, gameId: null })).find((g) => g.name === 'Hades')
   assert.deepEqual(hades, { id: 'steam:1145360', name: 'Hades', count: 0 })
+})
+
+test('« Tes jeux » : un groupe par jeu, le plus récent d\'abord, ses annonces dessous, ses non lues comptées', () => {
+  const cs1 = { ...item(NOW - 3 * H, true, 'steam:730'), isNew: true }
+  const elden = item(NOW - 20 * H, true, 'steam:1245620', 'ELDEN RING')
+  const cs2 = item(NOW - 6 * D, true, 'steam:730')
+  const dota = { ...item(NOW - 5 * D, false, 'steam:570', 'Dota 2'), isNew: true }
+  const groups = groupByGame([cs1, elden, dota, cs2])
+  assert.deepEqual(
+    groups.map((g) => [g.gameId, g.items.map((i) => i.id), g.latest, g.unread]),
+    [
+      ['steam:730', [cs1.id, cs2.id], cs1.date, 1],
+      ['steam:1245620', [elden.id], elden.date, 0],
+      ['steam:570', [dota.id], dota.date, 1]
+    ]
+  )
+  // Relevé dans le désordre (ne devrait pas arriver) : l'ordre reste celui des dates.
+  assert.deepEqual(
+    groupByGame([cs2, dota, elden, cs1]).map((g) => g.gameId),
+    ['steam:730', 'steam:1245620', 'steam:570']
+  )
+  assert.deepEqual(groupByGame([cs2, cs1])[0].items.map((i) => i.id), [cs1.id, cs2.id])
+  assert.deepEqual(groupByGame([]), [])
+})
+
+test('liste sous l\'écran du haut : l\'annonce à la une n\'y est pas reprise, « Voir les N » la compte quand même', () => {
+  const cs1 = item(NOW - 3 * H, true, 'steam:730')
+  const elden = item(NOW - 20 * H, true, 'steam:1245620', 'ELDEN RING')
+  const cs2 = item(NOW - 6 * D, true, 'steam:730')
+  const fc = item(NOW - 9 * D, true, 'steam:1091500', 'Cyberpunk 2077')
+  // Counter-Strike 2 passe derrière ELDEN RING : sa plus récente annonce restante a 6 jours.
+  assert.deepEqual(
+    listGroups([cs1, elden, cs2, fc]).map((g) => [g.gameId, g.items.map((i) => i.id), g.total]),
+    [
+      ['steam:1245620', [elden.id], 1],
+      ['steam:730', [cs2.id], 2],
+      ['steam:1091500', [fc.id], 1]
+    ]
+  )
+  // Un jeu qui n'avait que l'annonce à la une disparaît de la liste.
+  assert.deepEqual(listGroups([cs1]), [])
+  assert.deepEqual(listGroups([]), [])
+})
+
+test('titre sans le nom du jeu (déjà écrit au-dessus) ; le titre entier quand le doute est permis', () => {
+  const cases: [string, string, string][] = [
+    ['Counter-Strike 2 Update', 'Counter-Strike 2', 'Update'],
+    ['Counter-Strike 2 Release Notes', 'Counter-Strike 2', 'Release Notes'],
+    ['EA SPORTS FC™ 27 | Title Update v1.1 Pitch Notes', 'EA SPORTS FC™ 27', 'Title Update v1.1 Pitch Notes'],
+    ['EA SPORTS FC™ 27 | Title Update v1.1 Pitch Notes', 'EA SPORTS FC 27', 'Title Update v1.1 Pitch Notes'],
+    ['Age of Empires IV – Update 17.0 Preview', 'Age of Empires IV: Anniversary Edition', 'Update 17.0 Preview'],
+    ['Stardew Valley 1.6.16 Patch Notes', 'Stardew Valley', '1.6.16 Patch Notes'],
+    ['Dota 2 7.40b', 'Dota 2', '7.40b'],
+    ['counter-strike 2: hotfix', 'Counter-Strike 2', 'Hotfix'],
+    ["Baldur’s Gate 3 – Hotfix #31", "Baldur's Gate 3", 'Hotfix #31'],
+    ['TopSpin 2K25 Patch 6.0', 'TopSpin 2K25', 'Patch 6.0'],
+    // Le nom n'est pas au début, ou continue, ou c'est une suite : le titre reste entier.
+    ['Patch Notes Ver. 1.16.2', 'ELDEN RING', 'Patch Notes Ver. 1.16.2'],
+    ['Civilization VII Update 1.2', 'Civilization VI', 'Civilization VII Update 1.2'],
+    ['Hades II is out now', 'Hades', 'Hades II is out now'],
+    ['Hades 2 Early Access', 'Hades', 'Hades 2 Early Access'],
+    ['Hades: II days left', 'Hades', 'II days left'],
+    ['Counter-Strike 2', 'Counter-Strike 2', 'Counter-Strike 2'],
+    ['Counter-Strike 2 —', 'Counter-Strike 2', 'Counter-Strike 2 —'],
+    ['Valheim', '', 'Valheim'],
+    // Une phrase qui commence par le nom, un autre jeu au nom voisin, une suite en chiffre : le titre reste entier.
+    ['Valheim is coming to consoles', 'Valheim', 'Valheim is coming to consoles'],
+    ['Portal 2 is 15 years old', 'Portal 2', 'Portal 2 is 15 years old'],
+    ['Hades 2 is out now', 'Hades', 'Hades 2 is out now'],
+    ['Hadestown Update', 'Hades', 'Hadestown Update'],
+    ["Valheim's Ashlands update", 'Valheim', "Valheim's Ashlands update"],
+    ['Path of Exile 2 Patch 0.3.1', 'Path of Exile', 'Path of Exile 2 Patch 0.3.1'],
+    ['TopSpin Patch 6.0', 'TopSpin 2K25', 'TopSpin Patch 6.0'],
+    // Séparateur, marque déposée, nom avec deux-points : le nom s'en va.
+    ['Cyberpunk 2077: Update 2.31', 'Cyberpunk 2077', 'Update 2.31'],
+    ['Battlefield™ 6 Season 1 Update', 'Battlefield 6', 'Season 1 Update'],
+    ['DRAGON BALL: Sparking! ZERO Update Ver.1.4', 'DRAGON BALL: Sparking! ZERO', 'Update Ver.1.4'],
+    ['Warframe: 1999 Hotfix 38.0.5', 'Warframe', '1999 Hotfix 38.0.5']
+  ]
+  for (const [title, game, expected] of cases) assert.equal(shortTitle(title, game), expected, `${title} (${game})`)
+})
+
+test('« de » ou « d\' » devant le nom du jeu (noms lus par les lecteurs d\'écran)', () => {
+  assert.equal(ofGame('Counter-Strike 2'), 'de Counter-Strike 2')
+  assert.equal(ofGame('ELDEN RING'), "d'ELDEN RING")
+  assert.equal(ofGame('Age of Empires IV'), "d'Age of Empires IV")
+  assert.equal(ofGame('Hades'), 'de Hades')
+  assert.equal(ofGame('Yakuza 0'), 'de Yakuza 0')
+  assert.equal(ofGame('Écho'), "d'Écho")
+})
+
+test('taille du nom à la une : plus petite au-delà de 24 caractères (édition retirée)', () => {
+  assert.equal(heroNameSize('EA SPORTS FC™ 27'), 'l')
+  assert.equal(heroNameSize("Baldur's Gate 3"), 'l')
+  assert.equal(heroNameSize('Counter-Strike 2 Deluxe Edition'), 'l')
+  assert.equal(heroNameSize('DRAGON BALL: Sparking! ZERO'), 'm')
+  assert.equal(heroNameSize('Age of Empires IV: Anniversary Edition'), 'm')
 })
