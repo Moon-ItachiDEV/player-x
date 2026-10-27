@@ -7,6 +7,9 @@
   padding-top: 0;
   /* Le focus clavier s'arrête sous la barre du haut et sous « Tes jeux » collée. */
   scroll-padding-top: calc(var(--topbar-h) + 76px);
+  /* Place de la barre de défilement toujours gardée : rien ne glisse de 8 px quand la page devient plus courte que la
+     fenêtre (squelette, vue d'un jeu, état vide). */
+  scrollbar-gutter: stable;
 }
 /* Barre du haut posée sur l'image tant que la page n'a pas défilé (NewsPage pose data-bar) : sans verre ni filet, un peu
    plus sombre que sur l'Accueil (les images d'annonce sont souvent claires : orange, blanc). */
