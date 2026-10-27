@@ -335,9 +335,6 @@ function Shelf({ games, heroId, onPick, onOpen, onShowLibrary }: ShelfProps): Re
           {plural(games.length, 'jeu', 'jeux')}
           {counts.length > 1 && counts.map((c) => ` · ${STORE_LONG[c.s]} ${c.n}`).join('')}
         </span>
-        <button className="link-btn hc-shelf-all" onClick={onShowLibrary}>
-          Toute la bibliothèque
-        </button>
       </header>
       <div ref={track} className="hc-track" role="listbox" aria-label="Tes jeux" aria-orientation="horizontal">
         {games.map((g) => {
@@ -378,6 +375,13 @@ function Shelf({ games, heroId, onPick, onOpen, onShowLibrary }: ShelfProps): Re
             </button>
           )
         })}
+        {/* Au bout de la rangée, comme une jaquette de plus (pas un lien perdu à droite de l'écran) */}
+        <button type="button" className="hc-all" onClick={onShowLibrary}>
+          <span className="hc-all-icon" aria-hidden="true">
+            <Icon name="library" size={22} />
+          </span>
+          <span className="hc-all-label">Toute la bibliothèque</span>
+        </button>
       </div>
     </section>
   )
