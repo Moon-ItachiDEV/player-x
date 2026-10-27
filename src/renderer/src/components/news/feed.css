@@ -443,9 +443,6 @@
   padding: 0;
   list-style: none;
 }
-.nf-games.is-single {
-  grid-template-columns: minmax(0, 960px);
-}
 .nf-games > li {
   display: flex;
   min-width: 0;

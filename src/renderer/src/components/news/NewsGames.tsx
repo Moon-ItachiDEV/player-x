@@ -25,7 +25,7 @@ interface Props {
  */
 export function NewsGames({ groups, games, now, patchesOnly, single, onRead, onPick }: Props): React.JSX.Element {
   return (
-    <ul className={`nf-games ${single ? 'is-single' : ''}`}>
+    <ul className="nf-games">
       {groups.map((g) => (
         <li key={g.gameId}>
           <GameTile group={g} game={games.get(g.gameId)} now={now} patchesOnly={patchesOnly} single={single} onRead={onRead} onPick={onPick} />
