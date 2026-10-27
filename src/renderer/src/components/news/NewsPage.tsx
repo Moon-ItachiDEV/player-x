@@ -269,7 +269,9 @@ export function NewsPage({ games, enabled, demo, onRead, onOpenSettings }: NewsP
               {feed.offline ? (
                 <>
                   <Icon name="alert-circle" size={15} />
-                  Steam ne répond pas : voici les actus du dernier relevé.
+                  <span>
+                    Steam ne répond pas<span className="nf-summary-more"> : voici les actus du dernier relevé.</span>
+                  </span>
                 </>
               ) : (
                 summary(feed, now)
