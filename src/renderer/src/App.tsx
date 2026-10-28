@@ -3,7 +3,6 @@ import { identity } from '@shared/profile'
 import { cleanName } from '@shared/text'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 import { AccountMenu } from './components/AccountMenu'
-import { Trophies } from './components/achievements/Trophies'
 import { Ambient } from './components/Ambient'
 import { FriendsPage } from './components/friends/FriendsPage'
 import { countInGame } from './components/friends/friendView'
@@ -12,7 +11,6 @@ import { GameSheet } from './components/GameSheet'
 import { Home } from './components/home/Home'
 import { Library } from './components/library/Library'
 import { Login } from './components/Login'
-import { NewsPage } from './components/news/NewsPage'
 import { Profile } from './components/Profile'
 import { SettingsView } from './components/settings/SettingsView'
 import { Setup } from './components/setup/Setup'
@@ -134,8 +132,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   // Ami choisi dans la recherche globale : la page Amis s'ouvre filtrée sur lui (n force un nouvel affichage).
   const [friendsQuery, setFriendsQuery] = useState<{ text: string; n: number; id?: string }>({ text: '', n: 0 })
   const [openGameId, setOpenGameId] = useState<string | null>(null)
-  // Annonce à ouvrir dans le lecteur de la fiche (accueil, page Actus des jeux).
-  const [openPostId, setOpenPostId] = useState<string | null>(null)
   // Paramètres : bloc à montrer en arrivant (« Gérer » des membres masqués).
   const [settingsFocus, setSettingsFocus] = useState<'hidden-members' | null>(null)
   const [accountMenu, setAccountMenu] = useState(false)
@@ -435,10 +431,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   // Ouverture et fermeture de la fiche : la jaquette (ou le visuel) d'origine se transforme en en-tête.
   const openSheet = useCallback((g: Game) => {
     withViewTransition(
-      () => {
-        setOpenPostId(null)
-        setOpenGameId(g.id)
-      },
+      () => setOpenGameId(g.id),
       { kind: 'open', source: takeMorphSource(g.id) }
     )
   }, [])
@@ -463,23 +456,10 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   )
   const closeSheet = useCallback(() => {
     withViewTransition(
-      () => {
-        setOpenPostId(null)
-        setOpenGameId(null)
-      },
+      () => setOpenGameId(null),
       { kind: 'close', source: openGameId ? closeTarget(openGameId) : null }
     )
   }, [openGameId])
-  // Fiche ouverte directement sur une annonce : sans transition de vue (l'en-tête de la fiche est caché dans le lecteur).
-  const readNews = useCallback(
-    (gameId: string, postId: string) => {
-      const g = shownGames.find((x) => x.id === gameId)
-      if (!g) return
-      setOpenPostId(postId)
-      setOpenGameId(g.id)
-    },
-    [shownGames]
-  )
 
   // Recherche globale (Ctrl K) : ce que la liste propose. Les actions sont résolues au choix (searchPick).
   const searchItems = useMemo<SearchItem[]>(() => {
@@ -524,8 +504,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       page('library', 'Bibliothèque', 'grid', ['jeux']),
       page('friends', 'Amis', 'users', ['discord', 'membres', 'serveur', 'playstation']),
       page('stats', 'Stats de jeu', 'chart', ['temps de jeu', 'heures']),
-      page('trophies', 'Trophées', 'trophy', ['succès']),
-      ...(settings?.gameNews ? [page('news', 'Actus des jeux', 'news', ['patch', 'mises à jour des jeux'])] : []),
       page('profile', 'Profil', 'user'),
       page('settings:accounts', 'Paramètres › Comptes', 'settings', ['steam', 'discord', 'playstation', 'psn', 'connexion', 'membres masqués']),
       page('settings:library', 'Paramètres › Bibliothèque', 'settings', ['scan', 'favoris', 'actus']),
@@ -633,8 +611,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         onLibraryView={view === 'library'}
         view={view}
         onView={go}
-        news={settings.gameNews}
-        newsCount={games.filter((g) => g.newPatch).length}
         friendsInGame={friendsInGame}
         accounts={accounts}
         me={me}
@@ -658,9 +634,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
               onFavorite={toggleFavorite}
               onRescan={() => loadGames(true)}
               onShowLibrary={() => go('library')}
-              news={settings.gameNews}
-              onReadNews={readNews}
-              onShowNews={() => go('news')}
               onShowFriends={showFriends}
             />
           )}
@@ -697,10 +670,6 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
             />
           )}
           {view === 'stats' && <Stats games={games} onOpenSettings={goSettings} />}
-          {view === 'trophies' && <Trophies games={shownGames} notInstalled={notInstalled} onOpen={openSheet} onOpenAccounts={() => goSettings('accounts')} />}
-          {view === 'news' && (
-            <NewsPage games={shownGames} enabled={settings.gameNews} demo={settings.demoMode} onRead={readNews} onOpenSettings={() => goSettings('library')} />
-          )}
           {view === 'settings' && (
             <SettingsView
               section={section}
@@ -754,19 +723,16 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         onOpenFolder={openFolder}
         onInstall={install}
         onOpenStats={() => {
-          setOpenPostId(null)
           setOpenGameId(null)
           go('stats')
         }}
         news={settings.gameNews}
-        post={openPostId}
         from={view}
       />
       <FriendAlerts games={games} onShowFriends={showFriends} />
       <RecapHost
         games={games}
         onOpenStats={() => {
-          setOpenPostId(null)
           setOpenGameId(null)
           go('stats')
         }}

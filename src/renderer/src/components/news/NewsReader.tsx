@@ -49,7 +49,7 @@ export function NewsReader({ gameName, state, postId, backRef, onBack, onClose, 
         </div>
       )}
       {state.status === 'ready' && !post && (
-        // Ouverte depuis le relevé (accueil, page Actus) : elle peut être sortie des dernières annonces lues par la fiche.
+        // Annonce sortie des dernières annonces lues par la fiche entre-temps (nouveau relevé).
         <div className="news-article news-error">
           <p className="caption">{state.news.appId ? "Cette annonce n'est plus dans les dernières actus du jeu." : "Cette annonce n'est plus disponible sur Steam."}</p>
           {state.news.appId && (

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { plural } from '@shared/text'
 import type { TopBarProps, View } from '../contracts'
 import { countGames, searchAll } from './search/searchIndex'
 import { LIBRARY_ROW, optionId, SearchResults } from './search/SearchResults'
@@ -18,10 +17,7 @@ const NAV: { view: View; label: string }[] = [
   { view: 'home', label: 'Accueil' },
   { view: 'library', label: 'Bibliothèque' },
   { view: 'friends', label: 'Amis' },
-  { view: 'stats', label: 'Stats' },
-  { view: 'trophies', label: 'Trophées' },
-  // Seulement avec les actus des jeux (Paramètres › Bibliothèque).
-  { view: 'news', label: 'Actus' }
+  { view: 'stats', label: 'Stats' }
 ]
 
 /** Heure du PC (HH:MM), relue chaque minute pile. */
@@ -56,7 +52,7 @@ function useGreeting(): string {
 
 /** Barre du haut : zone de déplacement de la fenêtre, titre ou onglets de la page (salutation sur l'Accueil), recherche, compte. */
 export function TopBar(props: TopBarProps): React.JSX.Element {
-  const { query, onQueryChange, searchRef, me, accountMenuOpen, onToggleAccountMenu, search, onLibraryView, view, onView, news, newsCount, friendsInGame } = props
+  const { query, onQueryChange, searchRef, me, accountMenuOpen, onToggleAccountMenu, search, onLibraryView, view, onView, friendsInGame } = props
   const account = me.account
   const name = me.name
   const greeting = useGreeting()
@@ -127,10 +123,9 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
         {IS_PRERELEASE && <span className="tb-brand-beta">Bêta</span>}
       </div>
       <nav className="tb-nav" aria-label="Pages">
-        {NAV.filter((n) => n.view !== 'news' || news).map((n) => {
+        {NAV.map((n) => {
           const live = n.view === 'friends' && friendsInGame > 0
-          const fresh = n.view === 'news' && newsCount > 0
-          const hint = live ? `${friendsInGame} en jeu` : fresh ? plural(newsCount, 'nouveau patch', 'nouveaux patchs') : undefined
+          const hint = live ? `${friendsInGame} en jeu` : undefined
           return (
             <button
               key={n.view}
@@ -141,9 +136,9 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
               onClick={() => onView(n.view)}
             >
               {n.label}
-              {(live || fresh) && (
-                <span className={`tb-nav-badge num ${live ? 'is-live' : 'is-info'}`} aria-hidden="true">
-                  {live ? friendsInGame : newsCount > 99 ? '99+' : newsCount}
+              {live && (
+                <span className="tb-nav-badge num is-live" aria-hidden="true">
+                  {friendsInGame}
                 </span>
               )}
             </button>
