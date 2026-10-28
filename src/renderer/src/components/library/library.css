@@ -398,6 +398,14 @@
 .lib-card:is(:hover, :focus-visible, :focus-within) .lib-badge-install {
   opacity: 1;
 }
+/* Jeu pas installé avec un nouveau patch : le badge au repos, « Installer » à sa place au survol et au focus. */
+.lib-card-corner-rest {
+  pointer-events: none;
+  transition: opacity var(--d-1) var(--ease-out);
+}
+.lib-card:is(:hover, :focus-visible, :focus-within) .lib-card-corner-rest {
+  opacity: 0;
+}
 .lib-badge-install:hover:not([aria-disabled='true']) {
   background: color-mix(in srgb, var(--text-1) 82%, var(--accent-text));
 }

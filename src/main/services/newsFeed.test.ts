@@ -215,9 +215,9 @@ test('simulateur : chaque titre est reconnu comme prévu, annonces au format de 
   assert.ok(clean.every((n) => n && n.author === SIM_AUTHOR && n.date < t0))
   assert.ok(clean[0]!.date > clean[1]!.date)
   assert.deepEqual(simNews('900001', t0), [])
-  // 12 annonces, 8 patchs de moins de 60 jours (rangée de l'accueil), 5 de moins de 7 jours.
+  // 13 annonces (dont une d'un jeu pas installé en démo), 9 patchs de moins de 60 jours, 6 de moins de 7 jours.
   const all = SIM_POSTS.map((p) => ({ ...p, date: t0 - p.hours * H }))
-  assert.equal(all.length, 12)
-  assert.equal(all.filter((p) => p.patch && t0 - p.date < 60 * D).length, 8)
-  assert.equal(all.filter((p) => p.patch && t0 - p.date < NEW_MS).length, 5)
+  assert.equal(all.length, 13)
+  assert.equal(all.filter((p) => p.patch && t0 - p.date < 60 * D).length, 9)
+  assert.equal(all.filter((p) => p.patch && t0 - p.date < NEW_MS).length, 6)
 })

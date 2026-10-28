@@ -1,6 +1,6 @@
-// Simulateur des annonces Steam pour le développement (PX_NEWS_SIM) : la page Actus des jeux, la rangée de l'accueil et le
-// lecteur de la fiche sans réseau. Chargé seulement quand l'appli n'est pas installée (import dynamique), jamais livré dans
-// l'installeur. PX_NEWS_SIM=1 : 12 annonces inventées (newsSimData.ts) ; offline : Steam ne répond pas ; empty : aucune annonce.
+// Simulateur des annonces Steam pour le développement (PX_NEWS_SIM) : l'onglet Actus de la fiche, les badges « Nouveau patch »
+// et le lecteur, sans réseau. Chargé seulement quand l'appli n'est pas installée (import dynamique), jamais livré dans
+// l'installeur. PX_NEWS_SIM=1 : 13 annonces inventées (newsSimData.ts) ; offline : Steam ne répond pas ; empty : aucune annonce.
 // Ses relevés et ce qui a été lu vivent dans leurs propres clés, effacées à chaque démarrage : rien ne touche aux vrais.
 import { deleteKv } from '../db'
 import { setNewsSource } from './news'

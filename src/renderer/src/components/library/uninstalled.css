@@ -1,12 +1,13 @@
 /* Jeux du compte Steam pas installés sur ce PC : jaquettes et lignes atténuées, fiche. */
 
-/* Atténué tant que le jeu n'est pas sur ce PC ; pleine couleur au survol et au focus. */
-.lib-card.is-uninstalled .lib-card-cover,
+/* Atténué tant que le jeu n'est pas sur ce PC ; pleine couleur au survol et au focus. Seulement l'image de la jaquette :
+   le badge « Nouveau patch » posé dessus reste net. */
+.lib-card.is-uninstalled .lib-card-cover > .cover,
 .lib-row.is-uninstalled :is(.lib-row-thumb, .lib-row-words, .lib-row-num) {
   opacity: 0.62;
   transition: opacity var(--d-2) var(--ease-out);
 }
-.lib-card.is-uninstalled:is(:hover, :focus-visible, [data-tilt]) .lib-card-cover,
+.lib-card.is-uninstalled:is(:hover, :focus-visible, [data-tilt]) .lib-card-cover > .cover,
 .lib-row.is-uninstalled:is(:hover, :focus-visible) :is(.lib-row-thumb, .lib-row-words, .lib-row-num) {
   opacity: 1;
 }

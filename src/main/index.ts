@@ -29,7 +29,7 @@ import { newMatches } from './services/launchWatchParse'
 import { getGameNews, markAllNewsSeen, markNewsSeen, newsFeed, refreshNewsIndex, refreshNewsNow, startNewsWatcher, withNews } from './services/news'
 import { allowDemo, getAccounts, getMemberPrefs, getSettings, publicSettings, removeAccount, saveMemberPrefs, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
-import { installSteamGame, isSteamSoftware, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
+import { installSteamGame, isSteamSoftware, ownedForNews, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
 import {
   exeNamesFor,
   isRunning,
@@ -211,6 +211,15 @@ function knownGames(): Game[] {
   return getSettings().demoMode ? demoGames() : db.listGames()
 }
 
+/**
+ * Jeux suivis par le relevé des actus : la bibliothèque, plus les jeux du compte Steam pas installés les plus récemment
+ * joués (leur jaquette de la Bibliothèque a aussi le badge « Nouveau patch »).
+ */
+function newsGames(): Game[] {
+  const installed = knownGames()
+  return [...installed, ...(getSettings().demoMode ? demoNotInstalled() : ownedForNews(installed))]
+}
+
 /** Un jeu de la bibliothèque, ou un jeu du compte Steam pas installé sur ce PC (sa fiche s'ouvre aussi). */
 function findGame(id: unknown): Game | undefined {
   if (typeof id !== 'string') return undefined
@@ -317,7 +326,8 @@ function registerIpc(): void {
       lib = { state: 'ready', notInstalled, owned: DEMO_GAMES.filter((g) => g.store === 'steam').length + notInstalled.length }
     } else lib = await steamLibrary(db.listGames(), refresh === true)
     fetchOwnedArtwork(lib.notInstalled)
-    return { ...lib, notInstalled: applyArtwork(lib.notInstalled) }
+    // Badge « Nouveau patch » des jeux pas installés suivis par le relevé (newsGames).
+    return { ...lib, notInstalled: withNews(applyArtwork(lib.notInstalled)) }
   })
   // Succès Steam : comme les actus, le jeu est retrouvé ici à partir de son identifiant.
   handle('achievements:game', async (_e, id: unknown, refresh?: unknown) => {
@@ -368,7 +378,7 @@ function registerIpc(): void {
     if (next.gameNews !== before.gameNews) {
       // Badges retirés tout de suite, ou relevés dès la réactivation.
       notifyGamesChanged()
-      if (next.gameNews) refreshNewsIndex(knownGames()).catch(() => {})
+      if (next.gameNews) refreshNewsIndex(newsGames()).catch(() => {})
     }
     if (next.demoMode !== wasDemo) {
       updateRunning()
@@ -381,7 +391,7 @@ function registerIpc(): void {
       // Jaquettes des jeux fictifs, aussi quand la démo s'active en cours de session.
       if (next.demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())
       // Actus de l'autre bibliothèque tout de suite, sans attendre le relevé de l'heure suivante.
-      if (next.gameNews) refreshNewsIndex(knownGames()).catch(() => {})
+      if (next.gameNews) refreshNewsIndex(newsGames()).catch(() => {})
     }
     return publicSettings(next)
   })
@@ -575,14 +585,14 @@ app.whenReady().then(async () => {
   startPlaytimeTracker(notifyGamesChanged)
   startBf6Recorder()
   startCs2LifetimeRecorder()
-  startNewsWatcher(knownGames, notifyGamesChanged)
+  startNewsWatcher(newsGames, notifyGamesChanged)
   // Développement seulement : PX_NEWS_SIM simule les annonces Steam (newsSim.ts, jamais dans l'installeur).
   if (!app.isPackaged && process.env.PX_NEWS_SIM) {
     const mode = process.env.PX_NEWS_SIM
     import('./services/newsSim')
       .then(({ startNewsSim }) => {
         startNewsSim(mode)
-        return refreshNewsIndex(knownGames())
+        return refreshNewsIndex(newsGames())
       })
       .catch((e) => console.warn('[news-sim]', e))
   }

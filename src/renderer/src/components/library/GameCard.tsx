@@ -85,6 +85,12 @@ function useGameItem({ game, onOpen, onLaunch }: GameItemProps) {
       }, CLICK_DELAY)
     },
     onDoubleClick: launch,
+    // Clic droit : la fiche du jeu (actus, succès), comme sur l'Accueil ; installé ou non.
+    onContextMenu: (e: React.MouseEvent): void => {
+      e.preventDefault()
+      clearTimeout(timer.current)
+      open()
+    },
     onKeyDown: (e: React.KeyboardEvent): void => {
       if (e.target !== e.currentTarget) return
       if (e.key === 'Enter') {
@@ -208,22 +214,26 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
             <Cover key={game.id} game={game} showTitle={false} />
             <div className="lib-card-overlay" aria-hidden="true" />
             {install ? (
-              <button
-                type="button"
-                className="lib-badge lib-badge-install lib-card-corner"
-                tabIndex={-1}
-                aria-label={`Installer ${name} avec Steam`}
-                title="Installer avec Steam"
-                aria-disabled={p.inert || undefined}
-                onClick={(e) => {
-                  stop(e)
-                  launch()
-                }}
-                onDoubleClick={stop}
-              >
-                <Icon name="download" size={12} />
-                Installer
-              </button>
+              <>
+                {/* Nouveau patch d'un jeu pas installé : au repos ; « Installer » prend sa place au survol. */}
+                <StateBadge game={game} className="lib-card-corner lib-card-corner-rest" />
+                <button
+                  type="button"
+                  className="lib-badge lib-badge-install lib-card-corner"
+                  tabIndex={-1}
+                  aria-label={`Installer ${name} avec Steam`}
+                  title="Installer avec Steam"
+                  aria-disabled={p.inert || undefined}
+                  onClick={(e) => {
+                    stop(e)
+                    launch()
+                  }}
+                  onDoubleClick={stop}
+                >
+                  <Icon name="download" size={12} />
+                  Installer
+                </button>
+              </>
             ) : (
               <>
                 <StateBadge game={game} className="lib-card-corner" />

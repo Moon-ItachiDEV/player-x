@@ -231,6 +231,24 @@ export function ownedSteamList(): { appId: string; name: string; minutes: number
   return Object.entries(list.games).map(([appId, [name, minutes, last]]) => ({ appId, name, minutes, last: last * 1000 }))
 }
 
+/** Relevé des actus : au plus tant de jeux du compte pas installés, pour que l'appel à Steam reste léger avec un gros compte. */
+const NEWS_OWNED_MAX = 30
+
+/**
+ * Jeux du compte Steam pas installés sur ce PC que le relevé des actus suit aussi (badge « Nouveau patch » sur leur jaquette,
+ * dans la Bibliothèque) : les plus récemment joués, NEWS_OWNED_MAX au plus, sans les logiciels ni les entrées sans nom.
+ */
+export function ownedForNews(installed: Game[]): Game[] {
+  const list = mine()
+  if (!list || list.hidden) return []
+  const here = new Set(installed.filter((g) => g.store === 'steam').map((g) => g.storeId))
+  return Object.entries(list.games)
+    .filter(([appId, g]) => !here.has(appId) && !isSteamSoftware(appId) && hasName(g[0]))
+    .sort(([, a], [, b]) => b[2] - a[2] || b[1] - a[1])
+    .slice(0, NEWS_OWNED_MAX)
+    .map(([appId, g]) => ownedGame(appId, g))
+}
+
 /** Un jeu de la dernière liste Steam, installé ou non (pour retrouver la fiche d'un jeu non installé). */
 export function ownedSteamGame(id: string): Game | null {
   const appId = /^steam:(\d{1,10})$/.exec(id)?.[1]
