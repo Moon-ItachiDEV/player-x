@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { cleanRawNews, decodeEntities, excerptOf, isPatchPost, parseNewsContents, safeUrl, toNewsPost, unescapeBrackets } from './newsFormat.ts'
+import { cleanRawNews, decodeEntities, excerptOf, frenchPost, frenchTexts, isPatchPost, parseNewsContents, safeUrl, STEAM_FRENCH, toNewsPost, unescapeBrackets } from './newsFormat.ts'
 
 const textOf = (spans: { text: string }[]): string => spans.map((s) => s.text).join('')
 
@@ -242,3 +242,51 @@ test('vignette : la première vraie image, sinon l’affiche d’une vidéo', ()
   assert.equal(post('[p]Text[/p]').image, undefined)
   assert.equal(post(`${video}[p]Text[/p]`).excerpt, 'Text')
 })
+
+// ---------- version française (liste d'événements du magasin, l=french) ----------
+
+const rawEn = (gid: string, title: string, contents: string, date: number, tags: string[] = []) => ({ gid, title, url: `https://store.steampowered.com/news/app/1/view/${gid}`, contents, date, tags })
+const event = (body: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({ gid: '900', event_name: 'Event name', announcement_body: body, ...extra })
+
+test('frenchTexts : rattachée par news_post_gid, par gid ou par date ; gardée seulement si elle est en français', () => {
+  const raw = [
+    rawEn('101', 'Patch Notes 1.2', '[p]Fixed crashes.[/p]', 1_700_000_000_000, ['patchnotes']),
+    rawEn('102', 'Community Update', '[p]Hello everyone.[/p]', 1_700_000_100_000),
+    rawEn('103', 'Season 5', '[p]New maps.[/p]', 1_700_000_200_000)
+  ]
+  const fr = frenchTexts(raw, [
+    // Steam dit « français » : gardée, rattachée par news_post_gid.
+    event({ gid: 'x1', headline: 'Notes de patch 1.2', body: '[p]Plantages corrigés.[/p]', posttime: 1_700_000_000, language: STEAM_FRENCH }, { news_post_gid: '101' }),
+    // Steam dit « anglais » (pas de traduction) : ignorée.
+    event({ gid: '102', headline: 'Community Update', body: '[p]Hello everyone.[/p]', posttime: 1_700_000_100, language: 0 }),
+    // Sans champ de langue, rattachée par la date : texte différent de l'anglais, donc gardée.
+    event({ gid: 'x3', headline: 'Saison 5', body: '[p]Nouvelles cartes.[/p]', posttime: 1_700_000_200 })
+  ])
+  assert.deepEqual([...fr.keys()].sort(), ['101', '103'])
+  assert.equal(fr.get('101')?.title, 'Notes de patch 1.2')
+  assert.equal(fr.get('103')?.contents, '[p]Nouvelles cartes.[/p]')
+})
+
+test('frenchTexts : sans langue et identique à l\'anglais, ou réponse inattendue : rien', () => {
+  const raw = [rawEn('101', 'Patch Notes 1.2', '[p]Fixed crashes.[/p]', 1_700_000_000_000)]
+  assert.equal(frenchTexts(raw, [event({ gid: '101', headline: 'Patch Notes 1.2', body: '[p]Fixed  crashes.[/p]\n', posttime: 1_700_000_000 })]).size, 0)
+  assert.equal(frenchTexts(raw, null).size, 0)
+  assert.equal(frenchTexts(raw, [null, 3, 'x', { announcement_body: 'x' }, event({ gid: '101', headline: '', body: '' })]).size, 0)
+  // Annonce inconnue : rien à rattacher.
+  assert.equal(frenchTexts(raw, [event({ gid: '999', headline: 'Autre', body: '[p]Autre.[/p]', posttime: 1, language: STEAM_FRENCH })]).size, 0)
+})
+
+test('frenchPost : titre, extrait et texte français ; date, lien et « patch » de l\'annonce d\'origine ; image d\'origine gardée', () => {
+  const post = toNewsPost(rawEn('101', 'Patch Notes 1.2', '[img]https://clan.akamai.steamstatic.com/images/1/a.png[/img][p]Fixed crashes.[/p]', 1_700_000_000_000))
+  const fr = frenchPost(post, { title: 'Mise à jour du jour', contents: '[p]Plantages corrigés.[/p]' })
+  assert.equal(fr.title, 'Mise à jour du jour')
+  assert.equal(fr.excerpt, 'Plantages corrigés.')
+  assert.equal(fr.patch, post.patch)
+  assert.equal(fr.patch, true)
+  assert.equal(fr.date, post.date)
+  assert.equal(fr.url, post.url)
+  assert.equal(fr.image, post.image)
+  // Texte français vide après lecture : l'annonce d'origine reste entière.
+  assert.equal(frenchPost(post, { title: 'X', contents: '[p][/p]' }), post)
+})
+

@@ -582,3 +582,60 @@ export function toNewsPost(raw: RawNews): NewsPost {
     blocks
   }
 }
+
+// ---------- version française ----------
+//
+// GetNewsForApp n'a pas de langue : il donne le texte d'origine (presque toujours l'anglais). Quand l'éditeur a traduit son
+// annonce avec l'outil d'événements de Steamworks, Steam montre la version française aux joueurs en français ; on la lit dans
+// la liste d'événements du magasin (celle du site Steam : events/ajaxgetpartnereventspageable, l=french), puis on la pose sur
+// l'annonce lue par GetNewsForApp. Sans traduction, Steam y renvoie l'anglais : l'annonce reste telle quelle.
+
+/** « french » dans la numérotation des langues de Steam (ELanguage). */
+export const STEAM_FRENCH = 2
+
+export interface FrenchText {
+  title: string
+  contents: string
+}
+
+const squash = (s: string): string => s.replace(/\s+/g, ' ').trim()
+
+/**
+ * Textes français des annonces `raw`, par gid d'annonce. Un événement est rattaché à son annonce par son identifiant
+ * (`news_post_gid`, ou le gid de son `announcement_body`), sinon par sa date de publication. Il n'est gardé que s'il est
+ * vraiment en français : `language` = STEAM_FRENCH quand Steam le dit, sinon un titre ou un texte différent de l'anglais.
+ */
+export function frenchTexts(raw: RawNews[], events: unknown): Map<string, FrenchText> {
+  const out = new Map<string, FrenchText>()
+  if (!Array.isArray(events)) return out
+  for (const ev of events) {
+    if (!ev || typeof ev !== 'object') continue
+    const e = ev as Record<string, unknown>
+    const b = e.announcement_body && typeof e.announcement_body === 'object' ? (e.announcement_body as Record<string, unknown>) : null
+    if (!b) continue
+    const title = text(b.headline, 200) ?? text(e.event_name, 200)
+    const contents = typeof b.body === 'string' ? b.body.slice(0, 400_000) : ''
+    if (!title || !contents.trim()) continue
+    const ids = [e.news_post_gid, b.gid].filter((v) => typeof v === 'string' || typeof v === 'number').map(String)
+    const at = typeof b.posttime === 'number' && b.posttime > 0 ? b.posttime * 1000 : 0
+    const post = raw.find((r) => ids.includes(r.gid)) ?? (at ? raw.find((r) => r.date === at) : undefined)
+    if (!post || out.has(post.gid)) continue
+    const fr = { title: decodeEntities(unescapeBrackets(title)), contents }
+    const french =
+      typeof b.language === 'number' ? b.language === STEAM_FRENCH : squash(fr.title) !== squash(post.title) || squash(contents) !== squash(post.contents)
+    if (french) out.set(post.gid, fr)
+  }
+  return out
+}
+
+/**
+ * L'annonce avec son titre et son texte français. Le reste ne change pas : date, auteur, lien, et « notes de patch » (lu sur
+ * l'annonce d'origine, ses étiquettes et son titre). Sans image dans la version française, l'image d'origine reste.
+ */
+export function frenchPost(post: NewsPost, fr: FrenchText): NewsPost {
+  const { blocks, posters } = parse(fr.contents)
+  if (!blocks.length) return post
+  const images = blocks.flatMap((bl) => (bl.type === 'image' ? [bl.src] : []))
+  const image = images.find((src) => !posters.has(src)) ?? images[0]
+  return { ...post, title: fr.title, excerpt: excerptOf(blocks), ...(image ? { image } : {}), blocks }
+}
