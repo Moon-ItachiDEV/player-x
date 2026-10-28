@@ -3,7 +3,7 @@ import type { Game, GameNews, NewsFeed, NewsPost } from '@shared/types'
 import { getKv, setKv } from '../db'
 import { steamAppIds } from './artwork'
 import { buildFeed, entryFrom, fetchAll, needsRefresh, nextSeen, olderThanAll, patchFlags, postsStillFresh, type NewsIndex } from './newsFeed'
-import { cleanRawNews, toNewsPost, type RawNews } from './newsFormat'
+import { cleanRawNews, frenchPost, frenchTexts, toNewsPost, type RawNews } from './newsFormat'
 import { getSettings } from './settings'
 
 // Actus des jeux : les annonces officielles publiées sur Steam (notes de patch comprises), via ISteamNews/GetNewsForApp.
@@ -14,6 +14,10 @@ import { getSettings } from './settings'
 //    « Nouveau patch », le dernier patch du jeu et la page Actus des jeux (newsFeed.ts).
 
 const API = 'https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/'
+/** Liste d'événements du magasin, celle du site Steam : elle donne la version française d'une annonce quand l'éditeur l'a écrite. */
+const EVENTS_API = 'https://store.steampowered.com/events/ajaxgetpartnereventspageable/'
+/** La version française ne retarde pas la fiche : passé ce délai, l'annonce s'affiche dans sa langue d'origine. */
+const FRENCH_TIMEOUT_MS = 6_000
 const TIMEOUT_MS = 15_000
 const POSTS_COUNT = 8
 const POSTS_MAX_AGE = 30 * 60_000
@@ -44,6 +48,15 @@ let source: NewsSource | null = null
 
 export function setNewsSource(fn: NewsSource | null): void {
   source = fn
+  posts.clear()
+}
+
+/** Versions françaises du simulateur (événements au format du magasin), à la place de la liste d'événements de Steam. */
+type FrenchSource = (appId: string) => Promise<unknown[]>
+let frenchSource: FrenchSource | null = null
+
+export function setFrenchSource(fn: FrenchSource | null): void {
+  frenchSource = fn
   posts.clear()
 }
 
@@ -101,6 +114,23 @@ async function fetchNews(appId: string, count: number, maxlength: number, enddat
     .sort((a, b) => b.date - a.date)
 }
 
+/**
+ * Événements du jeu en français (versions traduites par l'éditeur, sinon l'anglais). Ne rejette jamais : sans réponse,
+ * les annonces restent dans leur langue d'origine. Avec le simulateur, jamais de vraie requête.
+ */
+async function fetchFrenchEvents(appId: string): Promise<unknown[]> {
+  try {
+    if (source) return frenchSource ? await frenchSource(appId) : []
+    const url = `${EVENTS_API}?clan_accountid=0&appid=${appId}&offset=0&count=${POSTS_COUNT + 4}&l=french`
+    const res = await net.fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(FRENCH_TIMEOUT_MS) })
+    if (!res.ok) return []
+    const body = (await res.json()) as { events?: unknown }
+    return Array.isArray(body?.events) ? body.events : []
+  } catch {
+    return []
+  }
+}
+
 const itemIds = (e: NewsIndex[string] | undefined): string => (e?.items ?? []).map((i) => i.id).join(',')
 
 /** Range les relevés ; prévient l'interface si un badge ou la page Actus des jeux peut avoir changé. Renvoie true dans ce cas. */
@@ -127,6 +157,8 @@ export async function getGameNews(game: Game, refresh = false): Promise<GameNews
   // Le relevé connaît une annonce plus récente (trouvée par « Actualiser ») : relue, sinon elle ne s'ouvrirait pas.
   const fresh = postsStillFresh(cached && { at: cached.at, newest: cached.posts[0]?.date ?? 0 }, index[appId]?.latest ?? 0, Date.now(), POSTS_MAX_AGE)
   if (cached && !refresh && fresh) return { appId, posts: cached.posts, seenAt }
+  // Version française demandée en même temps que les annonces : elle ne rallonge pas l'attente.
+  const french = fetchFrenchEvents(appId)
   let raw: RawNews[]
   try {
     raw = await fetchNews(appId, POSTS_COUNT, 0)
@@ -143,7 +175,13 @@ export async function getGameNews(game: Game, refresh = false): Promise<GameNews
     if (older[0]?.gid === kept.id) raw = [...raw, older[0]]
   }
   const now = Date.now()
-  const list = raw.map(toNewsPost)
+  // Le français de l'éditeur quand il existe ; le relevé (badges) garde les titres d'origine.
+  const fr = frenchTexts(raw, await french)
+  const list = raw.map((r) => {
+    const post = toNewsPost(r)
+    const text = fr.get(r.gid)
+    return text ? frenchPost(post, text) : post
+  })
   posts.set(appId, { at: now, posts: list })
   // Le badge suit ce qu'on vient de lire.
   updateIndex({ [appId]: entryFrom(raw, now, index[appId]) })

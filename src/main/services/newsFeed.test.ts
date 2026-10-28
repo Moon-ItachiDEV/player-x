@@ -8,7 +8,7 @@ import { buildFeed, entryFrom, FEED_MAX, fetchAll, needsRefresh, NEW_MS, nextSee
 // @ts-ignore TS5097
 import { cleanRawNews, isPatchPost } from './newsFormat.ts'
 // @ts-ignore TS5097
-import { SIM_AUTHOR, SIM_POSTS, simNews } from './newsSimData.ts'
+import { SIM_AUTHOR, SIM_FRENCH, SIM_POSTS, simFrenchEvents, simNews } from './newsSimData.ts'
 
 const NOW = new Date(2026, 9, 21, 22, 0).getTime()
 const H = 3600_000
@@ -220,4 +220,10 @@ test('simulateur : chaque titre est reconnu comme prévu, annonces au format de 
   assert.equal(all.length, 13)
   assert.equal(all.filter((p) => p.patch && t0 - p.date < 60 * D).length, 9)
   assert.equal(all.filter((p) => p.patch && t0 - p.date < NEW_MS).length, 6)
+  // Versions françaises : sans image, rattachées à leur annonce, et aucune pour Counter-Strike 2 (comme chez Valve).
+  assert.ok(Object.values(SIM_FRENCH).every((f) => !/\[img|STEAM_CLAN/i.test(f.contents)))
+  assert.deepEqual(simFrenchEvents('730', t0), [])
+  const elden = simFrenchEvents('1245620', t0)
+  assert.equal(elden.length, 1)
+  assert.ok(simNews('1245620', t0).some((n) => n.gid === elden[0].news_post_gid))
 })

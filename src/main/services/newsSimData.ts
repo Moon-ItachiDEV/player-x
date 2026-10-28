@@ -133,6 +133,21 @@ export const SIM_POSTS: SimPost[] = [
   }
 ]
 
+/**
+ * Versions françaises du simulateur, comme un éditeur qui traduit ses annonces (index dans SIM_POSTS) : ELDEN RING et Balatro.
+ * Les autres restent en anglais, comme Counter-Strike 2 chez Valve.
+ */
+export const SIM_FRENCH: Record<number, { title: string; contents: string }> = {
+  1: {
+    title: 'Notes de patch ver. 1.16.2',
+    contents: fixes(['Correction d\'un plantage au chargement de certaines zones.', 'Équilibrage de plusieurs armes.', 'Améliorations de la stabilité.'])
+  },
+  12: {
+    title: 'Notes de patch 1.0.2',
+    contents: fixes(["Correction d'un plantage rare à l'ouverture d'un booster.", 'Améliorations de la stabilité.'])
+  }
+}
+
 /** Identifiant Steam (gid) fictif de la n-ième annonce : « 9100000000000000001 »… */
 export function simGid(i: number): string {
   return `91000000000000000${String(i + 1).padStart(2, '0')}`
@@ -152,5 +167,26 @@ export function simNews(appId: string, t0: number): Record<string, unknown>[] {
       date: Math.floor((t0 - p.hours * 3600_000) / 1000),
       tags: p.tags,
       feedname: 'steam_community_announcements'
+    }))
+}
+
+/**
+ * Événements du magasin en français (ajaxgetpartnereventspageable, l=french) pour un appid : les annonces traduites de
+ * SIM_FRENCH, rattachées par news_post_gid, langue 2 (« french » dans la numérotation de Steam).
+ */
+export function simFrenchEvents(appId: string, t0: number): Record<string, unknown>[] {
+  return SIM_POSTS.map((p, i) => ({ p, i }))
+    .filter(({ p, i }) => p.appId === appId && SIM_FRENCH[i])
+    .map(({ p, i }) => ({
+      gid: `92${simGid(i).slice(2)}`,
+      event_name: p.title,
+      news_post_gid: simGid(i),
+      announcement_body: {
+        gid: simGid(i),
+        headline: SIM_FRENCH[i].title,
+        body: SIM_FRENCH[i].contents,
+        posttime: Math.floor((t0 - p.hours * 3600_000) / 1000),
+        language: 2
+      }
     }))
 }
