@@ -648,53 +648,6 @@
   background: color-mix(in srgb, var(--tint) 16%, transparent);
 }
 
-/* Dernière actu : image 16:9, puis le titre. Toute la carte ouvre le lecteur. */
-.sheet-news {
-  padding: 8px;
-}
-.sheet-news-link {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  border-radius: 18px;
-  text-align: left;
-}
-.sheet-news-link:hover .sheet-news-title {
-  color: var(--accent-text);
-}
-.news-thumb.sheet-news-thumb,
-.skel.sheet-news-thumb {
-  display: grid;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 9;
-  border-radius: 18px;
-}
-.sheet-news-thumb .news-glyph {
-  left: 10px;
-  bottom: 10px;
-}
-.sheet-news-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 10px 10px;
-}
-.sheet-news-kicker {
-  font: 600 12px/16px var(--font-ui);
-  color: var(--accent-text);
-}
-.sheet-news-title {
-  font: 600 15px/20px var(--font-ui);
-  color: var(--text-1);
-  overflow-wrap: anywhere;
-  transition: color var(--d-1) var(--ease-out);
-}
-.sheet-news-date {
-  font: 500 12px/16px var(--font-ui);
-  color: var(--text-3);
-}
-
 /* Installation */
 .sheet-path {
   height: 36px;

@@ -52,7 +52,8 @@ export function NewsSection({ game, state, seenAt, onRead, onRetry, onSeen }: Se
   const now = Date.now()
   return (
     <section ref={ref} className="sheet-card news" aria-labelledby="news-h" aria-busy={state.status === 'loading'}>
-      <h3 id="news-h" className="sheet-h">
+      {/* L'onglet dit déjà « Actus » : le titre reste pour les lecteurs d'écran seulement. */}
+      <h3 id="news-h" className="sr-only">
         Actus
       </h3>
       {state.status === 'loading' && <NewsSkeleton />}

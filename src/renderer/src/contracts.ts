@@ -5,7 +5,7 @@ import type { Identity } from '@shared/profile'
 import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 import type { SearchItem } from './components/search/SearchResults'
 
-export type View = 'home' | 'library' | 'friends' | 'profile' | 'stats' | 'trophies' | 'settings' | 'news'
+export type View = 'home' | 'library' | 'friends' | 'profile' | 'stats' | 'settings'
 export type SettingsSection = 'accounts' | 'library' | 'interface' | 'overlay' | 'advanced' | 'about'
 export type LoginPlatform = 'steam' | 'discord' | 'psn'
 
@@ -62,9 +62,6 @@ export interface TopBarProps {
   /** Page affichée (onglet souligné) et changement de page. */
   view: View
   onView: (v: View) => void
-  /** Actus des jeux activées : onglet « Actus », avec le nombre de nouveaux patchs. */
-  news: boolean
-  newsCount: number
   /** Amis en jeu : pastille de l'onglet « Amis ». */
   friendsInGame: number
   /** Bouton du compte (avatar, à droite) : ouvre le menu du compte. */
@@ -99,15 +96,8 @@ export interface HomeProps {
   onFavorite: (g: Game) => void
   onRescan: () => void
   onShowLibrary: () => void
-  /** Actus des jeux activées : lien « Patch » du jeu à la une et « Mises à jour de tes jeux ». */
-  news: boolean
-  /** Ouvre la fiche du jeu directement sur cette annonce (lecteur). */
-  onReadNews: (gameId: string, postId: string) => void
-  /** « Toutes les actus » : page Actus des jeux. */
-  onShowNews: () => void
   /** « Voir tous les amis » : page Amis. */
   onShowFriends: () => void
-  /** « Trophées » : page Trophées. */
 }
 
 /** components/library/Library.tsx → `export function Library` */
@@ -145,10 +135,8 @@ export interface GameSheetProps {
   onInstall: (g: Game) => void
   /** Raccourci « Tes stats Battlefield 6 » (fiche de Battlefield 6 seulement). */
   onOpenStats: () => void
-  /** Actus des jeux activées (Paramètres › Bibliothèque) : section « Actus » et bandeau du nouveau patch. */
+  /** Actus des jeux activées (Paramètres › Bibliothèque) : onglet « Actus », le premier de la fiche. */
   news: boolean
-  /** Annonce à ouvrir directement dans le lecteur. */
-  post?: string | null
   /** Page d'où la fiche est ouverte (fil d'Ariane et bouton « Retour »). */
   from?: View
 }
@@ -173,16 +161,6 @@ export interface StatsProps {
   games: Game[]
   /** Stats à vie de CS2 sans clé ou sans compte Steam : ouvre la bonne section des Paramètres. */
   onOpenSettings: (section: SettingsSection) => void
-}
-
-/** components/achievements/Trophies.tsx → `export function Trophies` (succès Steam de tous les jeux joués) */
-export interface TrophiesProps {
-  /** Pour les jaquettes, et pour ouvrir la fiche d'un jeu installé ou non. */
-  games: Game[]
-  notInstalled: Game[]
-  onOpen: (g: Game) => void
-  /** Pas de compte Steam ou pas de clé : vers Paramètres › Comptes. */
-  onOpenAccounts: () => void
 }
 
 /** components/settings/SettingsView.tsx → `export function SettingsView` */
@@ -218,17 +196,6 @@ export interface SettingsProps {
   /** Bloc à montrer et à focaliser en arrivant (« Gérer » de la liste d'amis). */
   focus: 'hidden-members' | null
   onFocused: () => void
-}
-
-/** components/news/NewsPage.tsx → `export function NewsPage` (page Actus des jeux) */
-export interface NewsPageProps {
-  games: Game[]
-  enabled: boolean
-  demo: boolean
-  /** Ouvre la fiche du jeu sur cette annonce. */
-  onRead: (gameId: string, postId: string) => void
-  /** Actus coupées : vers Paramètres › Bibliothèque. */
-  onOpenSettings: () => void
 }
 
 /** components/Login.tsx → `export function Login` (plein écran, hors coque) */

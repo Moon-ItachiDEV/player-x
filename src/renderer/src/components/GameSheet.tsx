@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { CS2_GAME_ID } from '@shared/cs2'
 import { PLAYED_SOURCE } from '@shared/played'
-import { capitalize, cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
+import { cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
 import type { Friend, Game, NewsPost } from '@shared/types'
 import { isBf6Game, useBf6Summary } from './stats/bf6'
 import type { GameSheetProps, LaunchFn, View } from '../contracts'
@@ -15,9 +15,8 @@ import { useAchievements, type AchievementsLoad } from './achievements/useAchiev
 import { Cs2Matches, Cs2Overview } from './cs2/Cs2Section'
 import { useCs2 } from './cs2/useCs2'
 import { NewsReader } from './news/NewsReader'
-import { NewsSection, type GameArt } from './news/NewsSection'
-import { NewsThumb } from './news/NewsThumb'
-import { useGameNews, type NewsState } from './news/useGameNews'
+import { NewsSection } from './news/NewsSection'
+import { useGameNews } from './news/useGameNews'
 import { Avatar } from './ui/Avatar'
 import { CountUp } from './ui/CountUp'
 import { Cover } from './ui/Cover'
@@ -44,9 +43,7 @@ const FROM_LABEL: Record<View, string> = {
   friends: 'Amis',
   profile: 'Profil',
   stats: 'Stats de jeu',
-  trophies: 'Trophées',
-  settings: 'Paramètres',
-  news: 'Actus des jeux'
+  settings: 'Paramètres'
 }
 
 type Tab = 'overview' | 'matches' | 'ach' | 'news'
@@ -85,7 +82,6 @@ function Sheet({
   friends,
   closing,
   news,
-  post,
   from,
   onClose,
   onLaunch,
@@ -107,29 +103,27 @@ function Sheet({
   // Ouverte par une transition de vue : pas d'entrée CSS en plus (la classe reste pour cette ouverture).
   const [morph] = useState(() => document.documentElement.classList.contains('vt-open'))
 
-  // Actus : lues à l'ouverture. Le patch signalé par le badge reste en avant tant que la fiche est ouverte,
-  // même une fois marqué comme vu (le badge des cartes, lui, disparaît).
+  // Actus : lues à l'ouverture (premier onglet de la fiche).
   const { state: newsState, reload: reloadNews } = useGameNews(game.id, news && !closing)
-  const [opened, setOpened] = useState({ id: game.id, patch: game.newPatch })
-  if (opened.id !== game.id) setOpened({ id: game.id, patch: game.newPatch })
-  const patch = news ? opened.patch : undefined
   // Succès Steam : lus à l'ouverture, pour les jeux Steam seulement. La liste complète est l'onglet « Succès ».
   const { state: achState, reload: reloadAch } = useAchievements(game.id, game.store === 'steam' && !closing)
   // Counter-Strike 2 : match en direct et bilans (onglet « Matchs »), lus seulement sur sa fiche.
   const isCs2 = game.id === CS2_GAME_ID && !game.notInstalled
   const { state: cs2, live } = useCs2(isCs2 && !closing)
 
-  // Onglets montrés : ceux qui ont quelque chose à dire pour ce jeu.
+  // Onglets montrés : ceux qui ont quelque chose à dire pour ce jeu. « Actus » en premier, ouvert d'office (demande de
+  // Breezydev, 0.9.6-beta.2 : la page Actus est retirée, les actus d'un jeu sont sur sa fiche) ; un jeu sans page Steam ou
+  // sans aucune annonce s'ouvre sur l'aperçu.
+  const newsShown = news && !(newsState.status === 'ready' && (!newsState.news.appId || !newsState.news.posts.length))
   const achShown = game.store === 'steam' && !(achState.status === 'ready' && (achState.data.state === 'not-steam' || achState.data.state === 'none'))
   const hasMatches = isCs2 && !!cs2?.enabled
-  const tabs: Tab[] = ['overview', ...(hasMatches ? (['matches'] as const) : []), ...(achShown ? (['ach'] as const) : []), ...(news ? (['news'] as const) : [])]
-  const [tab, setTab] = useState<Tab>('overview')
+  const tabs: Tab[] = [...(newsShown ? (['news'] as const) : []), 'overview', ...(hasMatches ? (['matches'] as const) : []), ...(achShown ? (['ach'] as const) : [])]
+  const [tab, setTab] = useState<Tab>('news')
   const current = tabs.includes(tab) ? tab : 'overview'
   const focusTab = useRef(false)
 
-  // Annonce ouverte dans le lecteur (identifiant), et d'où on vient pour y revenir. Ouverte depuis l'accueil ou la page
-  // Actus des jeux (`post`) : la fiche s'ouvre directement sur le lecteur.
-  const [reading, setReading] = useState<string | null>(news && post ? post : null)
+  // Annonce ouverte dans le lecteur (identifiant), et d'où on vient pour y revenir.
+  const [reading, setReading] = useState<string | null>(null)
   const readingRef = useRef(reading)
   readingRef.current = reading
   const readerBack = useRef<HTMLButtonElement>(null)
@@ -138,14 +132,14 @@ function Sheet({
   const seenFor = useRef<string | null>(null)
   const readSeen = useRef<string | null>(null)
 
-  // Autre jeu, ou fiche rouverte pendant l'animation de fermeture : on repart de l'annonce demandée (ou de l'aperçu).
+  // Autre jeu, ou fiche rouverte pendant l'animation de fermeture : on repart du premier onglet, lecteur fermé.
   // Pendant le rendu (et pas dans un effet) : l'effet de focus de l'ouverture doit déjà voir le bon état.
   const [resetKey, setResetKey] = useState(`${game.id}|${closing}`)
   if (resetKey !== `${game.id}|${closing}`) {
     setResetKey(`${game.id}|${closing}`)
     if (!closing) {
-      setReading(news && post ? post : null)
-      setTab('overview')
+      setReading(null)
+      setTab('news')
     }
   }
 
@@ -154,13 +148,6 @@ function Sheet({
     seenFor.current = game.id
     window.launcher.markNewsSeen(game.id).catch(() => {})
   }, [game.id])
-
-  // Le patch est en avant dans l'aperçu : vu dès que les actus sont là. Pas tant que la fiche montre une annonce ou un
-  // autre onglet : ouverte sur une annonce plus ancienne, le patch plus récent garde « Nouveau ». Au retour à l'aperçu,
-  // la règle s'applique.
-  useEffect(() => {
-    if (patch && !reading && current === 'overview' && newsState.status === 'ready') markSeen()
-  }, [patch, reading, current, newsState.status, markSeen])
 
   // Annonce lue : vue jusqu'à elle (les plus récentes gardent « Nouveau »).
   useEffect(() => {
@@ -209,9 +196,8 @@ function Sheet({
     goTab(tabs[next])
   }
 
-  // Lecteur ouvert : en haut, focus sur « Retour ». Refermé : retour à la même hauteur, focus sur l'actu d'origine.
-  // Ouvert depuis l'extérieur de la fiche (accueil, page Actus) : le focus est encore sur la carte cliquée, c'est l'effet
-  // d'ouverture qui le prend (et qui retient la carte pour y revenir) ; au retour, haut de la fiche et focus sur la page.
+  // Lecteur ouvert : en haut, focus sur « Retour ». Refermé : retour à la même hauteur, focus sur l'actu d'origine
+  // (introuvable : haut de la fiche et focus sur la page).
   // On retient le jeu dont le lecteur était ouvert : sur un autre jeu, pas de retour à la hauteur de l'ancien.
   const wasReading = useRef<string | null>(null)
   useLayoutEffect(() => {
@@ -468,7 +454,6 @@ function Sheet({
                   {/* Personne sur ce jeu : pas de carte (pas de ligne de remplissage). */}
                   {pals.length > 0 && <FriendsCard title="Amis sur ce jeu" list={pals} />}
                   {members.length > 0 && <FriendsCard title="Membres du serveur Discord" list={members} />}
-                  {news && <LatestNews game={game} patch={patch} state={newsState} onOpen={openPost} onRetry={reloadNews} />}
                 </div>
               </div>
             )}
@@ -630,67 +615,6 @@ function FriendsCard({ title, list }: { title: string; list: Friend[] }): React.
           </li>
         ))}
       </ul>
-    </section>
-  )
-}
-
-interface LatestProps {
-  game: GameArt
-  /** Patch qui a valu son badge au jeu : en avant tant que la fiche est ouverte. */
-  patch?: Game['newPatch']
-  state: NewsState
-  onOpen: (id: string, opener: HTMLElement) => void
-  onRetry: () => void
-}
-
-/** Dernière actu du jeu (ou le patch signalé par le badge), ouverte dans le lecteur. Toutes les actus : onglet « Actus ». */
-function LatestNews({ game, patch, state, onOpen, onRetry }: LatestProps): React.JSX.Element | null {
-  const posts = state.status === 'ready' ? state.news.posts : []
-  const post = patch ? posts.find((x) => x.id === patch.id) : posts[0]
-  if (!patch && !post) {
-    if (state.status === 'loading') {
-      return (
-        <section className="sheet-card sheet-news" aria-label="Dernière actu" aria-busy="true">
-          <span className="skel sheet-news-thumb" />
-          <span className="sheet-news-text" aria-hidden="true">
-            <span className="skel" style={{ width: '30%', height: 12 }} />
-            <span className="skel" style={{ width: '80%', height: 15 }} />
-          </span>
-        </section>
-      )
-    }
-    if (state.status === 'error') {
-      return (
-        <section className="sheet-card" aria-labelledby="sheet-news-h">
-          <h3 id="sheet-news-h" className="sheet-h">
-            Dernière actu
-          </h3>
-          <p className="caption">{state.message}</p>
-          <button className="btn btn-secondary btn-sm" onClick={onRetry}>
-            <Icon name="refresh" size={14} />
-            Réessayer
-          </button>
-        </section>
-      )
-    }
-    // Pas d'annonce (ou jeu introuvable sur Steam) : l'onglet « Actus » le dit.
-    return null
-  }
-  const id = patch?.id ?? post!.id
-  const at = post?.date ?? patch!.at
-  const kicker = patch ? 'Nouveau patch' : post!.patch ? 'Dernier patch' : 'Dernière actu'
-  return (
-    <section className="sheet-card sheet-news" aria-label={kicker}>
-      <button className="sheet-news-link" onClick={(e) => onOpen(id, e.currentTarget)}>
-        <NewsThumb game={game} image={post?.image} patch={!!patch || !!post?.patch} className="sheet-news-thumb" />
-        <span className="sheet-news-text">
-          <span className="sheet-news-kicker">{kicker}</span>
-          <span className="sheet-news-title">{post?.title ?? patch!.title}</span>
-          <span className="sheet-news-date num" title={formatDate(at)}>
-            {capitalize(timeAgo(at))}
-          </span>
-        </span>
-      </button>
     </section>
   )
 }

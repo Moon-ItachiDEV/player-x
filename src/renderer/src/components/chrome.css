@@ -121,10 +121,6 @@
   background: rgba(79, 214, 232, 0.16);
   color: var(--live, #4fd6e8);
 }
-.tb-nav-badge.is-info {
-  background: rgba(185, 166, 255, 0.16);
-  color: var(--info, #b9a6ff);
-}
 
 /* Heure du PC, réglages, compte */
 .tb-clock {

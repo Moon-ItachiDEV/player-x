@@ -44,7 +44,7 @@ export function score(entry: SearchEntry, query: string): number {
     .map(norm)
     .filter(Boolean)
   if (words.some((w) => w.startsWith(key))) return 1
-  // Une ou deux lettres : seulement les débuts, sinon presque tout correspondrait (« ro » dans Trophées, Profil…).
+  // Une ou deux lettres : seulement les débuts, sinon presque tout correspondrait (« ro » dans Profil, Paramètres…).
   if (key.length < 3) return -1
   if (whole.includes(key)) return 2
   if (entry.keywords?.some((k) => norm(k).startsWith(key))) return 3
