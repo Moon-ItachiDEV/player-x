@@ -121,6 +121,15 @@ export const SIM_POSTS: SimPost[] = [
     tags: [],
     patch: false,
     contents: '[p]Thanks to everyone who joined the event.[/p]'
+  },
+  {
+    // Jeu du compte pas installé en mode démo (Balatro) : son nouveau patch donne le badge de sa jaquette dans la Bibliothèque.
+    appId: '2379780',
+    hours: 30,
+    title: 'Patch Notes 1.0.2',
+    tags: ['patchnotes'],
+    patch: true,
+    contents: fixes(['Fixed a rare crash when opening a booster pack.', 'Stability improvements.'])
   }
 ]
 
