@@ -15,6 +15,8 @@ export default defineConfig({
   },
   renderer: {
     resolve: { alias: { '@shared': resolve('src/shared') } },
-    plugins: [react()]
+    plugins: [react()],
+    // electron-vite ne compresse pas l'interface par défaut : JS 1,46 Mo → 0,72 Mo, CSS 361 → 258 Ko (démarrage plus rapide).
+    build: { minify: true }
   }
 })

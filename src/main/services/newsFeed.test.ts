@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import type { RawNews } from './newsFormat'
 // Node exige l'extension ; TypeScript ne la permet que via allowImportingTsExtensions, absent du tsconfig de l'appli.
 // @ts-ignore TS5097
-import { buildFeed, entryFrom, FEED_MAX, fetchAll, needsRefresh, NEW_MS, nextSeen, olderThanAll, patchFlags, postsStillFresh, type IndexEntry, type NewsIndex } from './newsFeed.ts'
+import { entryFrom, fetchAll, needsRefresh, NEW_MS, nextSeen, olderThanAll, patchFlags, postsStillFresh, type IndexEntry } from './newsFeed.ts'
 // @ts-ignore TS5097
 import { cleanRawNews, isPatchPost } from './newsFormat.ts'
 // @ts-ignore TS5097
@@ -141,67 +141,6 @@ test('patchFlags : dernier patch toujours, badge seulement s’il a moins de 7 j
   assert.deepEqual(patchFlags(e, 0, NOW - 2 * D + NEW_MS + 1), { lastPatch: last })
   assert.deepEqual(patchFlags({ at: NOW, latest: NOW, items: [] }, 0, NOW), {})
   assert.deepEqual(patchFlags(undefined, 0, NOW), {})
-})
-
-test('buildFeed : un appid partagé n’est compté qu’une fois, pour le jeu joué le plus récemment', () => {
-  const index: NewsIndex = {
-    '2807960': entry([['b1', 'Battlefield 6 Update 1.1.2.0', NOW - 2 * H, true]]),
-    '730': entry([
-      ['c1', 'Counter-Strike 2 Update', NOW - 3 * H, true],
-      ['c2', 'Counter-Strike 2 Update', NOW - 9 * D, true]
-    ]),
-    // Relevé de la 0.7.2 : rien à montrer tant qu'il n'est pas refait.
-    '570': { at: NOW, latest: NOW - H, patch: { id: 'd1', title: 'Patch', date: NOW - H } }
-  }
-  const games = [
-    { id: 'ea:bf6', name: 'Battlefield™ 6', appId: '2807960', lastPlayed: NOW - D },
-    { id: 'steam:2807960', name: 'Battlefield™ 6', appId: '2807960', lastPlayed: NOW - 3 * D },
-    { id: 'steam:730', name: 'Counter-Strike 2', appId: '730' },
-    { id: 'steam:570', name: 'Dota 2', appId: '570', lastPlayed: NOW }
-  ]
-  const feed = buildFeed(index, games, { 'steam:730': NOW - 5 * H }, NOW)
-  assert.deepEqual(
-    feed.map((i) => [i.id, i.gameId, i.gameName, i.isNew]),
-    [
-      ['b1', 'ea:bf6', 'Battlefield 6', true],
-      ['c1', 'steam:730', 'Counter-Strike 2', true],
-      // Plus de 7 jours : plus « Nouveau », même jamais vu.
-      ['c2', 'steam:730', 'Counter-Strike 2', false]
-    ]
-  )
-  // Vu jusqu'à cette annonce : plus « Nouveau ».
-  assert.equal(buildFeed(index, games, { 'steam:730': NOW - 3 * H }, NOW)[1].isNew, false)
-})
-
-test('buildFeed : les plus récentes d’abord puis par nom, 200 au plus, doublons retirés', () => {
-  const index: NewsIndex = {
-    '1': entry([
-      ['x', 'B news', NOW - H, false],
-      ['x', 'B news (doublon)', NOW - H, false]
-    ]),
-    '2': entry([['y', 'A news', NOW - H, false]])
-  }
-  const feed = buildFeed(
-    index,
-    [
-      { id: 'steam:1', name: 'Bravo', appId: '1' },
-      { id: 'steam:2', name: 'alpha', appId: '2' }
-    ],
-    {},
-    NOW
-  )
-  assert.deepEqual(
-    feed.map((i) => i.gameName),
-    ['alpha', 'Bravo']
-  )
-  const big: NewsIndex = {}
-  const many = Array.from({ length: 60 }, (_, g) => {
-    big[String(g + 1)] = entry(Array.from({ length: 5 }, (_, k) => [`${g}-${k}`, 'News', NOW - (g * 5 + k) * H, false] as [string, string, number, boolean]))
-    return { id: `steam:${g + 1}`, name: `Jeu ${g}`, appId: String(g + 1) }
-  })
-  const capped = buildFeed(big, many, {}, NOW)
-  assert.equal(capped.length, FEED_MAX)
-  assert.ok(capped.every((it, i) => i === 0 || capped[i - 1].date >= it.date))
 })
 
 test('simulateur : chaque titre est reconnu comme prévu, annonces au format de Steam, signées « Simulation Player X »', () => {

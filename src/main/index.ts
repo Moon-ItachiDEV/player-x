@@ -26,7 +26,7 @@ import { getScanReport, handoff, launchTarget, scanAllGames } from './services/g
 import { createLaunches, sanitizeOpts, type LaunchDeps, type Launches, type LaunchWindow, type Timers } from './services/launches'
 import { createWatcher } from './services/launchWatch'
 import { newMatches } from './services/launchWatchParse'
-import { getGameNews, markAllNewsSeen, markNewsSeen, newsFeed, refreshNewsIndex, refreshNewsNow, startNewsWatcher, withNews } from './services/news'
+import { getGameNews, markNewsSeen, refreshNewsIndex, startNewsWatcher, withNews } from './services/news'
 import { allowDemo, getAccounts, getMemberPrefs, getSettings, publicSettings, removeAccount, saveMemberPrefs, saveSettings } from './services/settings'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { installSteamGame, isSteamSoftware, ownedForNews, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
@@ -310,13 +310,6 @@ function registerIpc(): void {
   handle('news:seen', (_e, id: unknown, upTo?: unknown) => {
     const game = findGame(id)
     if (game) markNewsSeen(game, typeof upTo === 'number' ? upTo : undefined, knownGames().filter((g) => g.id !== game.id))
-  })
-  handle('news:seen-all', () => markAllNewsSeen(knownGames()))
-  // Page Actus des jeux : construite à partir du relevé, sans réseau.
-  handle('news:feed', () => newsFeed(knownGames()))
-  handle('news:refresh', async () => {
-    if (getSettings().gameNews) await refreshNewsNow(knownGames())
-    return newsFeed(knownGames())
   })
   // Jeux du compte Steam pas installés sur ce PC (Bibliothèque › Non installés).
   handle('steam:library', async (_e, refresh?: unknown): Promise<SteamLibrary> => {

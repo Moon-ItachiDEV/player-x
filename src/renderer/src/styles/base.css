@@ -934,7 +934,7 @@ kbd {
   backdrop-filter: none !important;
 }
 
-/* Fenêtre masquée ou sans focus (Ambient.tsx) : les boucles d'ambiance s'arrêtent */
+/* Fenêtre masquée, sans focus, ou personne n'y touche depuis une minute (motion.ts) : les boucles d'ambiance s'arrêtent */
 :root[data-window='idle'] .fx-loop,
 :root[data-window='idle'] .fx-loop::before,
 :root[data-window='idle'] .fx-loop::after {
