@@ -110,8 +110,8 @@ export function Login({ games, pending, error, onSteam, onCancel, onSkip }: Logi
 
       <section className="login-panel">
         <div className="login-brand">
-          <BrandMark height={48} />
-          <BrandWordmark size={20} />
+          <BrandMark height={48} alt="" />
+          <BrandWordmark height={30} />
         </div>
 
         <div className="login-stage">

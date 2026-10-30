@@ -36,7 +36,7 @@
   padding: 0 24px 0 84px;
 }
 
-/* Marque : l'icône, « Player X », et « Bêta » sur une version de test */
+/* Marque : l'icône, le logo « Player X » (la croix à la place du X), et « Bêta » sur une version de test */
 .tb-brand {
   display: flex;
   flex-shrink: 0;
@@ -44,14 +44,12 @@
   gap: 10px;
   margin-right: 14px;
 }
+/* Tuile claire : une ombre neutre la pose sur la barre sombre (une lueur rose la ferait baver). */
 .tb-brand .brand-mark {
-  filter: drop-shadow(0 4px 10px rgba(224, 32, 126, 0.35));
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
 }
 .tb-brand-name {
-  font: 700 17px/1 var(--font-display);
-  letter-spacing: -0.01em;
-  color: var(--text-1);
-  white-space: nowrap;
+  flex-shrink: 0;
 }
 .tb-brand-beta {
   padding: 3px 7px;
