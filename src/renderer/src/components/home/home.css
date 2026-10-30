@@ -173,6 +173,47 @@
 .hc-meta > .hc-news {
   margin-left: 14px;
 }
+/* Prêt à jouer : la mise à jour Steam à la place de « Installé », « Voir dans Steam », et la barre en dessous. */
+.hc-meta > .hc-upd {
+  color: var(--warning);
+  font-variant-numeric: tabular-nums;
+}
+.hc-meta > .dl-bar::before {
+  content: none;
+}
+.hc-link {
+  margin-left: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-1);
+  font: 600 14.5px/22px var(--font-ui);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.35);
+  text-underline-offset: 3px;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: text-decoration-color var(--d-1) var(--ease-out);
+}
+.hc-link:hover {
+  text-decoration-color: currentColor;
+}
+.hc-link:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--accent-text);
+  outline-offset: 3px;
+}
+
+/* Serveurs (Counter-Strike 2) : l'état du matchmaking selon Valve, avec l'attente moyenne. */
+.hc-srv {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-1);
+}
+.hc-srv.is-bad {
+  color: var(--warning);
+}
 
 .hc-actions {
   display: flex;
@@ -302,6 +343,90 @@
 .no-blur .btn.hc-glass {
   background: rgba(30, 24, 40, 0.92);
   backdrop-filter: none;
+}
+
+/* ---------- colonne de droite : vocal du serveur, puis amis ---------- */
+
+.hc-side {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  width: 260px;
+  margin-top: -6px;
+}
+.hc-side > .hc-squad {
+  margin-top: 0;
+}
+
+.hc-voice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: right;
+}
+.hc-room {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+.hc-room-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+.hc-room-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  font: 600 13.5px/18px var(--font-ui);
+  color: var(--text-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.6);
+}
+.hc-room-name svg {
+  flex-shrink: 0;
+  color: var(--text-2);
+}
+.hc-room-open {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-1);
+  font: 600 11.5px/16px var(--font-ui);
+  cursor: pointer;
+  transition: background-color var(--d-1) var(--ease-out);
+}
+.hc-room-open:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.hc-room-open:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+.hc-room-list {
+  gap: 8px;
+}
+.hc-mate.is-voice {
+  gap: 10px;
+}
+.hc-voice-mark {
+  flex-shrink: 0;
+  color: var(--text-3);
 }
 
 /* ---------- amis, à droite ---------- */
@@ -479,6 +604,21 @@
   background: rgba(7, 6, 10, 0.62);
   color: var(--gold, #f2c66d);
 }
+.hc-cover-upd {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(7, 6, 10, 0.62);
+  color: var(--warning);
+}
+.hc-cover-upd.is-paused {
+  color: var(--text-2);
+}
 .hc-cover-patch {
   position: absolute;
   top: 9px;
@@ -582,7 +722,8 @@
   .hc {
     --hc-x: 24px;
   }
-  .hc-squad {
+  .hc-squad,
+  .hc-side {
     width: 220px;
   }
   .hc-mate-name,

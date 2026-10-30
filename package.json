@@ -1,6 +1,6 @@
 {
   "name": "plateforme-gaming",
-  "version": "0.9.7-beta.1",
+  "version": "0.9.7-beta.2",
   "description": "Player X : lance tes jeux Steam, Epic et EA et vois tes amis en ligne.",
   "main": "out/main/index.js",
   "private": true,
@@ -23,7 +23,8 @@
     "test:overlay": "node --experimental-strip-types --test src/shared/hotkey.test.ts",
     "test:profile": "node --experimental-strip-types --test src/shared/profile.test.ts src/shared/steamApps.test.ts",
     "test:cs2stats": "node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/shared/cs2Lifetime.test.ts",
-    "test": "npm run test:update && npm run test:launch && npm run test:news && npm run test:bf6 && npm run test:cs2 && npm run test:achievements && npm run test:played && npm run test:friends && npm run test:home && npm run test:search && npm run test:ui && npm run test:overlay && npm run test:cs2stats && npm run test:profile",
+    "test:ready": "node --import ./scripts/test-resolve.mjs --experimental-strip-types --test src/shared/steamUpdate.test.ts src/shared/servers.test.ts src/main/services/recentGames.test.ts",
+    "test": "npm run test:update && npm run test:launch && npm run test:news && npm run test:bf6 && npm run test:cs2 && npm run test:achievements && npm run test:played && npm run test:friends && npm run test:home && npm run test:search && npm run test:ui && npm run test:overlay && npm run test:cs2stats && npm run test:profile && npm run test:ready",
     "dist": "electron-vite build && node scripts/build-update-window.mjs && electron-builder --win --x64 --publish never",
     "release": "electron-vite build && node scripts/build-update-window.mjs && electron-builder --win --x64 --publish always",
     "postinstall": "node node_modules/electron/install.js"

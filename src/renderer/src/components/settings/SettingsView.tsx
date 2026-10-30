@@ -440,6 +440,13 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
             </button>
           </div>
         </SettingRow>
+        <SettingRow label="Jeu prêt à jouer" value="Quand Steam a fini la mise à jour ou le téléchargement d'un jeu">
+          <Switch
+            checked={settings.gameReadyAlert}
+            onChange={(gameReadyAlert) => onSaveSettings({ gameReadyAlert }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
+            label="Jeu prêt à jouer"
+          />
+        </SettingRow>
       </SettingsCard>
       <SettingsCard title="Bilans de match">
         <SettingRow label="Bilan Battlefield 6">

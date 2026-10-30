@@ -1,0 +1,13 @@
+/* Serveurs : le point d'état (vert : tout va bien selon Valve ; ambre : ralenti, hors ligne…). */
+.srv-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 3px var(--success-soft);
+}
+.is-bad > .srv-dot {
+  background: var(--warning);
+  box-shadow: 0 0 0 3px var(--warning-soft);
+}

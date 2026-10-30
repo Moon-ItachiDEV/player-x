@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { cardMeta } from '@shared/played'
+import { updateLabel } from '@shared/steamUpdate'
 import { capitalize, cleanName, formatPlaytime, timeAgo } from '@shared/text'
-import type { Game } from '@shared/types'
+import type { Game, SteamUpdate } from '@shared/types'
 import type { LaunchFn } from '../../contracts'
 import { libraryMeta } from '../../launch/copy'
 import { PlayLabel } from '../../launch/PlayLabel'
 import { usePlayState, type PlayInfo } from '../../launch/usePlayState'
 import { setArtFocus, setMorphSource } from '../../motion'
+import { useSteamUpdate } from '../../ready/store'
+import { UpdateBadge, UpdateBar } from '../../ready/UpdateBadge'
 import { Cover, generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
 import { KIND_LABEL, STORE_LONG } from '../ui/StoreTag'
@@ -55,6 +58,8 @@ function useGameItem({ game, onOpen, onLaunch }: GameItemProps) {
   const focusArt = useRef(false)
   const art = game.heroUrl || game.coverUrl
   const p = usePlayState(game, onLaunch)
+  // Prêt à jouer : mise à jour ou téléchargement Steam en attente ou en cours.
+  const update = useSteamUpdate(game)
 
   useEffect(
     () => () => {
@@ -114,14 +119,14 @@ function useGameItem({ game, onOpen, onLaunch }: GameItemProps) {
     }
   }
 
-  return { p, cover, art, launch, handlers }
+  return { p, cover, art, launch, handlers, update }
 }
 
 // Les boutons internes ne doivent ni ouvrir la fiche ni lancer au double-clic.
 const stop = (e: React.SyntheticEvent): void => e.stopPropagation()
 
-/** Pastille d'état du jeu : en jeu (cyan) ou nouveau patch (rose) ; rien sinon. */
-function StateBadge({ game, className }: { game: Game; className: string }): React.JSX.Element | null {
+/** Pastille d'état du jeu : en jeu (cyan), mise à jour Steam (ambre) ou nouveau patch (lavande) ; rien sinon. */
+function StateBadge({ game, update, className }: { game: Game; update?: SteamUpdate; className: string }): React.JSX.Element | null {
   if (game.running) {
     return (
       <span className={`lib-badge lib-badge-live ${className}`}>
@@ -130,6 +135,7 @@ function StateBadge({ game, className }: { game: Game; className: string }): Rea
       </span>
     )
   }
+  if (update) return <UpdateBadge update={update} className={className} />
   if (game.newPatch) {
     return (
       <span className={`lib-badge lib-badge-patch ${className}`} title={`${game.newPatch.title} · ${capitalize(timeAgo(game.newPatch.at))}`}>
@@ -171,7 +177,8 @@ function metaOf(game: Game, p: PlayInfo): string {
 const itemClass = (game: Game, p: PlayInfo): string =>
   `${game.running ? 'is-running' : ''} ${p.state !== 'idle' && p.state !== 'running' ? 'is-launching' : ''} ${game.favorite ? 'is-fav' : ''} ${game.notInstalled ? 'is-uninstalled' : ''}`
 
-const ariaOf = (name: string, meta: string, game: Game): string => `${name}, ${meta}${game.newPatch ? ', nouveau patch' : ''}`
+const ariaOf = (name: string, meta: string, game: Game, update?: SteamUpdate): string =>
+  `${name}, ${meta}${update ? `, ${updateLabel(update)}` : game.newPatch ? ', nouveau patch' : ''}`
 
 /**
  * Jaquette de la grille (direction « Écran console », 0.9.5-beta.7) : l'image seule, sans pastille posée sur le logo du jeu ;
@@ -185,7 +192,7 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
   // Monté pendant un tri animé : la transition de vue s'en charge, pas d'entrée en cascade.
   const [entering] = useState(() => !document.documentElement.classList.contains('vt-active'))
   const [glowFailed, setGlowFailed] = useState(false)
-  const { p, cover, art, launch, handlers } = useGameItem(props)
+  const { p, cover, art, launch, handlers, update } = useGameItem(props)
   const name = cleanName(game.name)
   // Jeu du compte Steam pas installé : « Installer » à la place de « Jouer », pas de favori.
   const install = !!game.notInstalled
@@ -201,7 +208,7 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
       className={`lib-card ${itemClass(game, p)} ${entering ? 'is-entering' : ''}`}
       data-launch={p.state === 'idle' ? undefined : p.state}
       tabIndex={0}
-      aria-label={ariaOf(name, meta, game)}
+      aria-label={ariaOf(name, meta, game, update)}
       aria-busy={p.busy || undefined}
       {...handlers}
     >
@@ -213,10 +220,11 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
           <div ref={cover} className="lib-card-cover">
             <Cover key={game.id} game={game} showTitle={false} />
             <div className="lib-card-overlay" aria-hidden="true" />
+            {update && <UpdateBar update={update} />}
             {install ? (
               <>
                 {/* Nouveau patch d'un jeu pas installé : au repos ; « Installer » prend sa place au survol. */}
-                <StateBadge game={game} className="lib-card-corner lib-card-corner-rest" />
+                <StateBadge game={game} update={update} className="lib-card-corner lib-card-corner-rest" />
                 <button
                   type="button"
                   className="lib-badge lib-badge-install lib-card-corner"
@@ -236,7 +244,7 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
               </>
             ) : (
               <>
-                <StateBadge game={game} className="lib-card-corner" />
+                <StateBadge game={game} update={update} className="lib-card-corner" />
                 <button
                   type="button"
                   className={`lib-card-play ${p.className}`}
@@ -276,7 +284,7 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
 /** Ligne du mode Liste : vignette, titre, temps de jeu, dernière partie, lancements, état, favori, Jouer ou Installer. */
 export function GameRow(props: GameItemProps): React.JSX.Element {
   const { game, onFavorite } = props
-  const { p, cover, launch, handlers } = useGameItem(props)
+  const { p, cover, launch, handlers, update } = useGameItem(props)
   const name = cleanName(game.name)
   const install = !!game.notInstalled
   const meta = metaOf(game, p)
@@ -288,7 +296,7 @@ export function GameRow(props: GameItemProps): React.JSX.Element {
       className={`lib-row ${itemClass(game, p)}`}
       data-launch={p.state === 'idle' ? undefined : p.state}
       tabIndex={0}
-      aria-label={ariaOf(name, meta, game)}
+      aria-label={ariaOf(name, meta, game, update)}
       aria-busy={p.busy || undefined}
       {...handlers}
     >
@@ -308,7 +316,7 @@ export function GameRow(props: GameItemProps): React.JSX.Element {
       <span className="lib-row-num num">{game.lastPlayed ? capitalize(timeAgo(game.lastPlayed)) : '—'}</span>
       <span className="lib-row-num num lib-row-launches">{game.launches || '—'}</span>
       <span className="lib-row-badge">
-        <StateBadge game={game} className="" />
+        <StateBadge game={game} update={update} className="" />
       </span>
       {install ? <span /> : <FavButton game={game} onFavorite={onFavorite} className="lib-row-fav" size={16} />}
       <button

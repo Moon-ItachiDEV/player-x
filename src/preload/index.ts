@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
-import type { Bf6RecapEvent, Cs2Live, Cs2OverlayConfig, Cs2RecapEvent, FriendAlert, LauncherApi, RareUnlock, UpdateState } from '@shared/types'
+import type { Bf6RecapEvent, Cs2Live, Cs2OverlayConfig, Cs2RecapEvent, FriendAlert, GameReady, LauncherApi, RareUnlock, SteamUpdates, UpdateState } from '@shared/types'
 
 declare const __APP_VERSION__: string
 
@@ -110,6 +110,21 @@ const api: LauncherApi = {
   getAchievements: (id, refresh) => ipcRenderer.invoke('achievements:game', id, refresh),
   getAchievementsOverview: (refresh) => ipcRenderer.invoke('achievements:overview', refresh),
   getStartupState: () => ipcRenderer.invoke('app:startup'),
+  getSteamUpdates: () => ipcRenderer.invoke('steam:updates'),
+  onSteamUpdates: (cb) => {
+    const listener = (_e: unknown, u: SteamUpdates): void => cb(u)
+    ipcRenderer.on('steam:updates', listener)
+    return () => ipcRenderer.removeListener('steam:updates', listener)
+  },
+  onGameReady: (cb) => {
+    const listener = (_e: unknown, e: GameReady): void => cb(e)
+    ipcRenderer.on('games:ready', listener)
+    return () => ipcRenderer.removeListener('games:ready', listener)
+  },
+  openSteamDownloads: () => ipcRenderer.invoke('steam:open-downloads'),
+  openDiscordChannel: (channelId) => ipcRenderer.invoke('discord:open-channel', channelId),
+  cs2Servers: (force) => ipcRenderer.invoke('servers:cs2', force === true),
+  steamPlayers: (gameId) => ipcRenderer.invoke('servers:players', gameId),
   platform: process.platform,
   version: __APP_VERSION__
 }
