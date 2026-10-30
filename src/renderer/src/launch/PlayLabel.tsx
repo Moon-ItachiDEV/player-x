@@ -1,5 +1,5 @@
 // Contenu d'un bouton Jouer (icône + libellé) selon l'état du lancement. Rien ne tourne pendant l'attente.
-import { Icon } from '../components/ui/Icon'
+import { Icon, type IconName } from '../components/ui/Icon'
 import type { PlayInfo } from './usePlayState'
 
 export function PlayIcon({ p, size = 16 }: { p: PlayInfo; size?: number }): React.JSX.Element {
@@ -9,10 +9,11 @@ export function PlayIcon({ p, size = 16 }: { p: PlayInfo; size?: number }): Reac
   return <Icon name="play" size={size} />
 }
 
-export function PlayLabel({ p, size, label }: { p: PlayInfo; size?: number; label?: string }): React.JSX.Element {
+/** `label` et `icon` : à la place de Jouer au repos (« Mettre à jour » quand Steam a une mise à jour pour ce jeu). */
+export function PlayLabel({ p, size, label, icon }: { p: PlayInfo; size?: number; label?: string; icon?: IconName }): React.JSX.Element {
   return (
     <>
-      <PlayIcon p={p} size={size} />
+      {icon ? <Icon name={icon} size={size ?? 16} /> : <PlayIcon p={p} size={size} />}
       <span>{label ?? p.label}</span>
     </>
   )

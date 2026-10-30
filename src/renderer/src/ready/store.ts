@@ -1,6 +1,7 @@
 // Prêt à jouer, côté interface : l'état des mises à jour Steam (appid → état), tenu par le processus principal
 // (services/steamUpdates.ts). Un seul abonnement pour toute l'appli ; chaque jaquette lit l'état de son jeu.
 import { useSyncExternalStore } from 'react'
+import { updateActive } from '@shared/steamUpdate'
 import type { Game, SteamUpdate, SteamUpdates } from '@shared/types'
 import { createStore } from '../update/session'
 
@@ -30,7 +31,14 @@ export function useSteamUpdate(game: Game | null | undefined): SteamUpdate | und
   return useSyncExternalStore(updates.subscribe, () => (appId ? updates.get()[appId] : undefined))
 }
 
-/** Libellé du bouton Jouer quand une mise à jour attend : Steam la termine, puis lance le jeu. */
-export function playLabelFor(u: SteamUpdate | undefined): string | undefined {
-  return u && !u.firstInstall ? 'Mettre à jour et jouer' : undefined
+/**
+ * Bouton principal quand Steam a une mise à jour (ou un premier téléchargement) pour ce jeu : il ouvre les téléchargements
+ * de Steam, sans lancer le jeu (demande de Breezydev, 0.9.7-beta.4 : « mettre à jour seulement »). Steam n'a pas de
+ * commande qui lance seulement la mise à jour ; « … est prêt » propose ensuite Jouer.
+ */
+export function updateAction(u: SteamUpdate | undefined): { label: string; title: string } | undefined {
+  if (!u) return undefined
+  if (updateActive(u)) return { label: 'Voir dans Steam', title: 'Steam télécharge : ouvre ses téléchargements. Le jeu ne démarre pas.' }
+  if (u.firstInstall) return { label: 'Installer', title: 'Ouvre les téléchargements de Steam pour reprendre le téléchargement. Le jeu ne démarre pas.' }
+  return { label: 'Mettre à jour', title: 'Ouvre les téléchargements de Steam pour lancer la mise à jour. Le jeu ne démarre pas.' }
 }

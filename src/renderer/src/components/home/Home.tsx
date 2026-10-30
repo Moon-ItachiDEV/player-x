@@ -2,7 +2,7 @@
 // Jouer ; à droite, les amis en ligne ; en bas, « Tes jeux » en jaquettes debout. La molette, les flèches ← → ou un clic
 // sur une jaquette changent de jeu ; Entrée joue ; clic droit (ou clic sur le jeu déjà choisi) ouvre sa fiche.
 // Rien d'autre à l'écran : le bilan de partie s'ouvre déjà tout seul à la fin d'un match, les patchs sont sur les jaquettes.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CS2_GAME_ID } from '@shared/cs2'
 import { hasPlayed, PLAYED_SOURCE } from '@shared/played'
 import { formatPlayers, serversLabel, serversOk, stateFr } from '@shared/servers'
@@ -13,7 +13,7 @@ import type { HomeProps } from '../../contracts'
 import { PlayLabel } from '../../launch/PlayLabel'
 import { usePlayState } from '../../launch/usePlayState'
 import { motionReduced, setArtBase, setMorphSource } from '../../motion'
-import { playLabelFor, useSteamUpdate } from '../../ready/store'
+import { updateAction, useSteamUpdate } from '../../ready/store'
 import { UpdateBar, useOpenSteamDownloads } from '../../ready/UpdateBadge'
 import { useCs2Servers } from '../../servers/useServers'
 import { useOpenChannel } from '../friends/useOpenChannel'
@@ -45,6 +45,7 @@ export function Home(props: HomeProps): React.JSX.Element {
   const heroId = hero?.id
   const [dir, setDir] = useState<'next' | 'prev' | null>(null)
   const page = useRef<HTMLDivElement>(null)
+  const [inner, innerH] = useHeight()
 
   // Un jeu qui démarre passe à l'écran, même après un choix à la main.
   const runningId = auto?.running ? auto.id : null
@@ -91,7 +92,10 @@ export function Home(props: HomeProps): React.JSX.Element {
   const rooms = useMemo(() => voiceRooms(channels, friends, (f) => f), [channels, friends])
   const inVoice = useMemo(() => new Set(rooms.flatMap((r) => r.people.map((f) => f.id))), [rooms])
   const around = useMemo(() => (hero ? whoIsAround(hero, inVoice.size ? friends.filter((f) => !inVoice.has(f.id)) : friends) : null), [hero, friends, inVoice])
-  const voiceRows = Math.min(VOICE_MAX, voiceCount(rooms))
+  // Colonne de droite : autant de personnes que la hauteur le permet (l'accueil tient sans défiler, même sur un petit écran).
+  const rows = innerH ? Math.max(2, Math.min(SIDE_MAX, Math.floor((innerH - 96) / 56))) : SIDE_MAX
+  const voiceMax = rooms.length ? Math.min(VOICE_MAX, around ? Math.max(1, rows - 3) : rows - 1) : 0
+  const voiceRows = Math.min(voiceMax, voiceCount(rooms))
 
   if (games.length === 0 && scanning) return <HomeSkeleton />
   if (games.length === 0 || !hero) {
@@ -105,12 +109,12 @@ export function Home(props: HomeProps): React.JSX.Element {
   return (
     <div ref={page} className="hc">
       <HeroArt game={hero} dir={dir} />
-      <div className="hc-in">
+      <div ref={inner} className="hc-in">
         <HeroText key={hero.id} game={hero} players={playersOf(hero, friends)} dir={dir} onLaunch={onLaunch} onOpen={onOpen} onFavorite={onFavorite} />
         {(rooms.length > 0 || around) && (
           <div className="hc-side">
-            {rooms.length > 0 && <Voice rooms={rooms} />}
-            {around && <Squad around={around.people} here={around.here} max={Math.max(2, SIDE_MAX - voiceRows)} onShowFriends={onShowFriends} />}
+            {rooms.length > 0 && <Voice rooms={rooms} max={voiceMax} />}
+            {around && <Squad around={around.people} here={around.here} max={Math.max(1, rows - voiceRows - (voiceRows ? 1 : 0))} onShowFriends={onShowFriends} />}
           </div>
         )}
       </div>
@@ -204,16 +208,17 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
   const name = cleanName(game.name)
   const fav = !!game.favorite
   const src = game.lastPlayedSource
-  // Prêt à jouer : une mise à jour Steam attend ou arrive. « Jouer » la lance (Steam démarre le jeu ensuite).
+  // Prêt à jouer : une mise à jour Steam attend ou arrive. Le bouton « Mettre à jour » ouvre les téléchargements de Steam,
+  // sans lancer le jeu ; « … est prêt » proposera Jouer.
   const update = useSteamUpdate(game)
   const openDownloads = useOpenSteamDownloads()
-  const updateLabelPlay = p.state === 'idle' ? playLabelFor(update) : undefined
+  const act = p.state === 'idle' ? updateAction(update) : undefined
   // Serveurs : seulement pour Counter-Strike 2, avec la clé Steam Web API.
   const servers = useCs2Servers(game.id === CS2_GAME_ID && !game.notInstalled)
 
-  // Entrée joue le jeu affiché (hors champ de texte, menu ou fenêtre).
+  // Entrée joue le jeu affiché (hors champ de texte, menu ou fenêtre), ou ouvre sa mise à jour dans Steam.
   const activate = useRef(p.activate)
-  activate.current = p.activate
+  activate.current = act ? () => openDownloads() : p.activate
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Enter' || e.defaultPrevented || e.repeat) return
@@ -272,13 +277,8 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
         ) : (
           <span>Installé</span>
         )}
-        {update && (
-          <button type="button" className="hc-link" onClick={openDownloads}>
-            Voir dans Steam
-          </button>
-        )}
-        {game.newPatch && <NewsBadge patch={game.newPatch} className="hc-news" />}
         {update && <UpdateBar update={update} className="is-inline" />}
+        {game.newPatch && <NewsBadge patch={game.newPatch} className="hc-news" />}
       </p>
       <div className="hc-actions">
         <button
@@ -287,14 +287,14 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
           data-magnetic={p.state === 'idle' ? '' : undefined}
           aria-disabled={p.inert || undefined}
           aria-busy={p.busy || undefined}
-          aria-label={updateLabelPlay ? `${updateLabelPlay} : ${name}` : p.ariaLabel}
-          title={updateLabelPlay ? 'Steam termine la mise à jour, puis lance le jeu (Entrée)' : p.state === 'idle' ? 'Jouer (Entrée)' : p.title}
-          onClick={() => p.activate(play.current)}
+          aria-label={act ? `${act.label} : ${name}` : p.ariaLabel}
+          title={act ? `${act.title} (Entrée)` : p.state === 'idle' ? 'Jouer (Entrée)' : p.title}
+          onClick={() => (act ? openDownloads() : p.activate(play.current))}
         >
           {/* Bouton « Aura » du site (verre sombre, bordure braise qui tourne, halo) : seulement au repos. */}
           <span className="hc-aura-ring fx-loop" aria-hidden="true" />
           <span className="hc-aura-fill" aria-hidden="true" />
-          <PlayLabel p={p} size={20} label={updateLabelPlay} />
+          <PlayLabel p={p} size={20} label={act?.label} icon={act ? 'download' : undefined} />
         </button>
         <button
           className="btn hc-glass"
@@ -364,11 +364,12 @@ function Squad({ around, here, max, onShowFriends }: { around: Friend[]; here: R
  * Salons vocaux occupés du serveur Discord (deux au plus) : qui y est, sur quel jeu, micro ou casque coupé, et
  * « Ouvrir dans Discord ». Seuls les salons que @everyone voit sont dans le widget.
  */
-function Voice({ rooms }: { rooms: VoiceRoom<Friend>[] }): React.JSX.Element {
+function Voice({ rooms, max }: { rooms: VoiceRoom<Friend>[]; max: number }): React.JSX.Element {
   const openChannel = useOpenChannel()
   const total = voiceCount(rooms)
-  let budget = VOICE_MAX
-  const shown = rooms.slice(0, ROOMS_MAX).map((r) => {
+  let budget = max
+  // Peu de place : un seul salon.
+  const shown = rooms.slice(0, max >= 3 ? ROOMS_MAX : 1).map((r) => {
     const people = r.people.slice(0, Math.max(1, budget))
     budget -= people.length
     return { ...r, shown: people }
@@ -519,6 +520,20 @@ function ShelfMarks({ game, name }: { game: Game; name: string }): React.JSX.Ele
       </span>
     </>
   )
+}
+
+/** Hauteur d'un élément (référence à poser sur lui), suivie au redimensionnement ; 0 avant la première mesure. */
+function useHeight(): [(el: HTMLElement | null) => void, number] {
+  const [h, setH] = useState(0)
+  const ro = useRef<ResizeObserver | null>(null)
+  const attach = useCallback((el: HTMLElement | null) => {
+    ro.current?.disconnect()
+    ro.current = null
+    if (!el) return
+    ro.current = new ResizeObserver(([e]) => setH(Math.round(e.contentRect.height)))
+    ro.current.observe(el)
+  }, [])
+  return [attach, h]
 }
 
 function HomeSkeleton(): React.JSX.Element {
