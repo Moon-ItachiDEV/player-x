@@ -3,7 +3,7 @@ import type { TopBarProps, View } from '../contracts'
 import { countGames, searchAll } from './search/searchIndex'
 import { LIBRARY_ROW, optionId, SearchResults } from './search/SearchResults'
 import { Avatar } from './ui/Avatar'
-import { BrandMark } from './ui/Brand'
+import { BrandMark, BrandWordmark } from './ui/Brand'
 import { Icon } from './ui/Icon'
 import './chrome.css'
 
@@ -118,8 +118,8 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
   return (
     <header className={`topbar ${IS_MAC ? 'is-mac' : ''}`}>
       <div className="tb-brand">
-        {!IS_MAC && <BrandMark height={30} />}
-        <span className="tb-brand-name">Player X</span>
+        {!IS_MAC && <BrandMark height={30} alt="" />}
+        <BrandWordmark height={23} className="tb-brand-name" />
         {IS_PRERELEASE && <span className="tb-brand-beta">Bêta</span>}
       </div>
       <nav className="tb-nav" aria-label="Pages">
