@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CS2_GAME_ID } from '@shared/cs2'
 import { hasPlayed, PLAYED_SOURCE } from '@shared/played'
 import { formatPlayers, serversLabel, serversOk, stateFr } from '@shared/servers'
+import { eventDates, eventLabel, eventWhen } from '@shared/gameEvents'
 import { updateLabel, updateSentence } from '@shared/steamUpdate'
 import { cleanName, formatDate, formatPlaytime, plural, timeAgo } from '@shared/text'
 import type { Friend, Game, Store } from '@shared/types'
@@ -16,6 +17,8 @@ import { motionReduced, setArtBase, setMorphSource } from '../../motion'
 import { updateAction, useSteamUpdate } from '../../ready/store'
 import { UpdateBar, useOpenSteamDownloads } from '../../ready/UpdateBadge'
 import { useCs2Servers } from '../../servers/useServers'
+import { useGameEvents } from '../../events/useGameEvents'
+import '../../events/events.css'
 import { useOpenChannel } from '../friends/useOpenChannel'
 import { voiceAria, voiceCount, voiceRooms, voiceSub, type VoiceRoom } from '../friends/voice'
 import { FavStar, usePop } from '../library/GameCard'
@@ -215,6 +218,11 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
   const act = p.state === 'idle' ? updateAction(update) : undefined
   // Serveurs : seulement pour Counter-Strike 2, avec la clé Steam Web API.
   const servers = useCs2Servers(game.id === CS2_GAME_ID && !game.notInstalled)
+  // Événement le plus proche (en cours, ou dans les 7 jours) : demandé quand le jeu reste à l'écran un instant.
+  const { events } = useGameEvents(game, true, EVENTS_DELAY_MS)
+  const now = Date.now()
+  const nextEvent = events.find((e) => e.start <= now || e.start - now < EVENT_SOON_MS)
+  const nextWhen = nextEvent ? eventWhen(nextEvent, now) : null
 
   // Entrée joue le jeu affiché (hors champ de texte, menu ou fenêtre), ou ouvre sa mise à jour dans Steam.
   const activate = useRef(p.activate)
@@ -279,6 +287,14 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
         )}
         {update && <UpdateBar update={update} className="is-inline" />}
         {game.newPatch && <NewsBadge patch={game.newPatch} className="hc-news" />}
+        {nextEvent && nextWhen && (
+          <span className="ev-pill" title={`${eventLabel(nextEvent.type)} · ${nextEvent.title} · ${eventDates(nextEvent)}`}>
+            <Icon name="calendar" size={12} />
+            <span className="ev-pill-text">
+              {nextEvent.title} · {nextWhen.text}
+            </span>
+          </span>
+        )}
       </p>
       <div className="hc-actions">
         <button
@@ -322,6 +338,11 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
 }
 
 /* ---------- amis, en colonne à droite ---------- */
+
+/** Événements sur l'Accueil : demandés quand le jeu reste affiché ce temps-là (pas à chaque cran de molette). */
+const EVENTS_DELAY_MS = 600
+/** Un événement à venir n'est montré sur l'Accueil que s'il commence dans la semaine. */
+const EVENT_SOON_MS = 7 * 86_400_000
 
 /** Colonne de droite : au plus tant de personnes (vocal et amis), pour que l'accueil tienne sans défiler. */
 const SIDE_MAX = 6

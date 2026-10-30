@@ -90,6 +90,11 @@ interface ToolbarProps {
   install: LibInstall | null
   fav: boolean
   favCount: number
+  /** Collections du joueur (le choix n'apparaît que s'il en a). */
+  collections: { id: string; name: string; count: number }[]
+  /** Collection choisie ('' : toutes). */
+  collection: string
+  onCollection: (id: string) => void
   sort: LibSort
   view: LibView
   coverSize: CoverSize
@@ -183,6 +188,16 @@ export function LibraryToolbar(props: ToolbarProps): React.JSX.Element {
                   <span className="lib-seg-count num">· {favCount}</span>
                 </button>
               </div>
+              {props.collections.length > 0 && (
+                <PickMenu<string>
+                  label="Collection"
+                  value={props.collection}
+                  className="lib-pick"
+                  display={props.collection ? undefined : 'Toutes'}
+                  options={[{ value: '', label: 'Toutes' }, ...props.collections.map((c) => ({ value: c.id, label: c.name, hint: c.count }))]}
+                  onPick={(v) => reorder(() => props.onCollection(v))}
+                />
+              )}
               {/* Tri et affichage : ensemble, calés à droite, même quand la barre passe sur deux lignes */}
               <div className="lib-filters-end">
                 <PickMenu<LibSort>

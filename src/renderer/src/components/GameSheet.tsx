@@ -15,6 +15,10 @@ import { usePlayState, type PlayInfo } from '../launch/usePlayState'
 import { updateAction, useSteamUpdate } from '../ready/store'
 import { UpdateBadge, UpdateBar, useOpenSteamDownloads } from '../ready/UpdateBadge'
 import { useCs2Servers, useSteamPlayers } from '../servers/useServers'
+import { EventsBlock } from '../events/EventsBlock'
+import { ShelfMenu } from '../shelves/ShelfMenu'
+import { useShelves } from '../shelves/store'
+import { useGameEvents } from '../events/useGameEvents'
 import { AchievementsSection, AchievementsTab } from './achievements/SheetAchievements'
 import { useAchievements, type AchievementsLoad } from './achievements/useAchievements'
 import { Cs2Matches, Cs2Overview } from './cs2/Cs2Section'
@@ -120,6 +124,10 @@ function Sheet({
   const update = useSteamUpdate(game.notInstalled ? null : game)
   const act = p.state === 'idle' ? updateAction(update) : undefined
   const openDownloads = useOpenSteamDownloads()
+  // Masqué (Ranger › Masquer) : la fiche le dit, et « Ranger » permet de le réafficher.
+  const hidden = useShelves().hidden.includes(game.id)
+  // Événements (saisons, bonus d'XP…) de la page Steam du jeu : en haut de l'onglet Actus.
+  const eventsInfo = useGameEvents(game, news && !closing)
   // Serveurs : l'état de CS2 selon Valve ; pour tout jeu Steam, les joueurs en jeu sur Steam.
   const servers = useCs2Servers(isCs2 && !closing)
   const players = useSteamPlayers(closing ? null : game)
@@ -371,6 +379,7 @@ function Sheet({
                 <span className="sheet-tags">
                   <StoreTag kind={game.store} long />
                   {game.running && <LiveBadge />}
+                  {hidden && <span className="sheet-uninstalled">Masqué</span>}
                   {game.notInstalled ? (
                     <span className="sheet-uninstalled">Pas installé</span>
                   ) : update ? (
@@ -386,10 +395,13 @@ function Sheet({
               <div ref={actionsRef} className="sheet-actions">
                 {game.notInstalled ? (
                   // Pas installé sur ce PC : Steam s'occupe du téléchargement ; ni favori ni dossier tant que le jeu n'est pas là.
-                  <button className="btn btn-primary btn-play sheet-play" onClick={() => onInstall(game)} title="Installer avec Steam" data-magnetic>
-                    <Icon name="download" size={20} />
-                    Installer
-                  </button>
+                  <>
+                    <button className="btn btn-primary btn-play sheet-play" onClick={() => onInstall(game)} title="Installer avec Steam" data-magnetic>
+                      <Icon name="download" size={20} />
+                      Installer
+                    </button>
+                    <ShelfMenu game={game} className="sheet-round" />
+                  </>
                 ) : (
                   <>
                     <button
@@ -424,6 +436,7 @@ function Sheet({
                     >
                       <Icon name="folder" size={20} />
                     </button>
+                    <ShelfMenu game={game} className="sheet-round" />
                   </>
                 )}
               </div>
@@ -489,6 +502,7 @@ function Sheet({
             )}
             {current === 'matches' && cs2 && <Cs2Matches state={cs2} live={live} onRetry={onRescan} onOpenFolder={() => onOpenFolder(game)} />}
             {current === 'ach' && <AchievementsTab state={achState} onRetry={reloadAch} />}
+            {current === 'news' && <EventsBlock info={eventsInfo} />}
             {current === 'news' && (
               <NewsSection
                 game={game}

@@ -3,6 +3,7 @@ import { cleanName, norm } from '@shared/text'
 import type { Game, Store } from '@shared/types'
 import type { LibraryProps } from '../../contracts'
 import { withViewTransition } from '../../motion'
+import { useShelves } from '../../shelves/store'
 import { TopTitle } from '../TopTabs'
 import { Icon } from '../ui/Icon'
 import { GameCard, GameCardSkeleton, GameRow, GameRowHead } from './GameCard'
@@ -22,6 +23,8 @@ interface LibPrefs {
   store: LibStore
   sort: LibSort
   view: LibView
+  /** Collection choisie ('' : toutes). */
+  collection: string
 }
 
 const DEFAULT_PREFS: LibPrefs = {
@@ -30,7 +33,8 @@ const DEFAULT_PREFS: LibPrefs = {
   fav: false,
   store: 'all',
   sort: 'recent',
-  view: 'grid'
+  view: 'grid',
+  collection: ''
 }
 
 /**
@@ -50,7 +54,8 @@ function loadPrefs(): LibPrefs {
       fav: fav && install !== 'uninstalled',
       store,
       sort: raw.sort && SORTS.includes(raw.sort) ? raw.sort : 'recent',
-      view: raw.view === 'list' ? 'list' : 'grid'
+      view: raw.view === 'list' ? 'list' : 'grid',
+      collection: typeof raw.collection === 'string' ? raw.collection : ''
     }
   } catch {
     return DEFAULT_PREFS
@@ -98,6 +103,9 @@ export function Library(props: LibraryProps): React.JSX.Element {
   const { games, notInstalled, onInstall, scanning, report, demo, query, onClearQuery, onLaunch, onOpen, onFavorite, onRescan, coverSize, onCoverSize } =
     props
   const [prefs, setPrefs] = useState<LibPrefs>(loadPrefs)
+  const { collections } = useShelves()
+  // Collection supprimée entre-temps : toutes.
+  const coll = collections.find((c) => c.id === prefs.collection) ?? null
 
   const update = (patch: Partial<LibPrefs>): void =>
     setPrefs((prev) => {
@@ -116,11 +124,19 @@ export function Library(props: LibraryProps): React.JSX.Element {
 
   // Sélection avant le filtre de store : favoris (tous installés), installés, non installés, ou les deux mêlés.
   const inSet = useMemo(() => {
-    if (fav) return games.filter((g) => g.favorite)
-    if (install === 'installed') return games
-    if (install === 'uninstalled') return notInstalled
-    return notInstalled.length ? [...games, ...notInstalled] : games
-  }, [games, notInstalled, install, fav])
+    const base = fav
+      ? games.filter((g) => g.favorite)
+      : install === 'installed'
+        ? games
+        : install === 'uninstalled'
+          ? notInstalled
+          : notInstalled.length
+            ? [...games, ...notInstalled]
+            : games
+    if (!coll || q) return base
+    const ids = new Set(coll.games)
+    return base.filter((g) => ids.has(g.id))
+  }, [games, notInstalled, install, fav, coll, q])
 
   const storeCounts = useMemo(() => {
     const c: Record<Store, number> = { steam: 0, epic: 0, ea: 0 }
@@ -167,6 +183,9 @@ export function Library(props: LibraryProps): React.JSX.Element {
       install={hasUninstalled ? install : null}
       fav={fav}
       favCount={favCount}
+      collections={collections.map((c) => ({ id: c.id, name: c.name, count: c.games.length }))}
+      collection={q ? '' : (coll?.id ?? '')}
+      onCollection={(id) => select({ collection: id })}
       sort={prefs.sort}
       view={prefs.view}
       coverSize={coverSize}
@@ -224,7 +243,7 @@ export function Library(props: LibraryProps): React.JSX.Element {
 
   const clearFilters = (): void => {
     onClearQuery()
-    update({ store: 'all', install: 'all', fav: false })
+    update({ store: 'all', install: 'all', fav: false, collection: '' })
   }
 
   return (
@@ -251,6 +270,19 @@ export function Library(props: LibraryProps): React.JSX.Element {
           <p className="caption">Clique sur l'étoile d'une jaquette : tes favoris s'affichent ici.</p>
           <div className="empty-actions">
             <button className="btn btn-secondary btn-sm" onClick={() => update({ fav: false })}>
+              Voir tous les jeux
+            </button>
+          </div>
+        </div>
+      ) : coll && !q && coll.games.length === 0 ? (
+        <div className="empty-state lib-empty-small">
+          <div className="empty-icon">
+            <Icon name="layers" size={28} />
+          </div>
+          <h3>« {coll.name} » est vide</h3>
+          <p className="caption">Ouvre la fiche d'un jeu, puis « Ranger » pour l'ajouter à cette collection.</p>
+          <div className="empty-actions">
+            <button className="btn btn-secondary btn-sm" onClick={() => update({ collection: '' })}>
               Voir tous les jeux
             </button>
           </div>

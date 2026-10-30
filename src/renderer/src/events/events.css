@@ -1,0 +1,116 @@
+/* Événements d'un jeu : bloc en haut de l'onglet Actus de la fiche, pastille sur l'Accueil. Or : un rendez-vous
+   (le cyan reste à « En jeu », le lavande aux actus, l'ambre aux mises à jour). */
+
+.ev-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 18px 20px;
+  border-radius: var(--r-xl);
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.ev-block-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font: 600 16px/22px var(--font-display);
+  color: var(--text-1);
+}
+.ev-block-h svg {
+  color: var(--gold, #f2c66d);
+}
+.ev-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ev-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 20px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line-1);
+}
+.ev-row:first-child {
+  border-top: 0;
+  padding-top: 4px;
+}
+.ev-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ev-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 600 12.5px/17px var(--font-ui);
+  color: var(--text-2);
+}
+.ev-row.is-live .ev-kind {
+  color: var(--gold, #f2c66d);
+}
+.ev-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold, #f2c66d);
+  box-shadow: 0 0 0 3px rgba(242, 198, 109, 0.18);
+}
+.ev-title {
+  font: 600 15px/21px var(--font-ui);
+  color: var(--text-1);
+}
+.ev-dates {
+  font: 500 12.5px/17px var(--font-ui);
+  color: var(--text-3);
+}
+.ev-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ev-actions .btn {
+  gap: 6px;
+}
+.ev-actions .btn.is-on {
+  color: var(--gold, #f2c66d);
+}
+
+/* Accueil : la pastille de l'événement le plus proche, dans la ligne d'infos du jeu. */
+.ev-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  margin-left: 14px;
+  padding: 0 9px 0 8px;
+  border-radius: var(--r-pill);
+  background: var(--badge-bg);
+  border: 1px solid rgba(242, 198, 109, 0.5);
+  color: var(--text-1);
+  font: 700 11px/1 var(--font-ui);
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+.ev-pill svg {
+  flex-shrink: 0;
+  color: var(--gold, #f2c66d);
+}
+.ev-pill-text {
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hc-meta > .ev-pill::before {
+  content: none;
+}

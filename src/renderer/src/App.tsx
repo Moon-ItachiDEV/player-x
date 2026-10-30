@@ -31,6 +31,7 @@ import { LaunchDock } from './launch/LaunchDock'
 import { LaunchStage } from './launch/LaunchStage'
 import { bindLaunchIpc, resetLaunches, setLaunchDemo, startLaunch, useFrozenGames, useLaunchPending } from './launch/store'
 import { bindSteamUpdates } from './ready/store'
+import { loadShelves, useShelves } from './shelves/store'
 import { WhatsNew } from './components/WhatsNew'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
 import { COVER_MIN, type LoginPlatform, type SettingsSection, type UiPrefs, type View } from './contracts'
@@ -285,6 +286,16 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     return (steamLib?.notInstalled ?? []).filter((g) => !here.has(g.id))
   }, [games, steamLib])
 
+  // Collections et jeux masqués : relus au démarrage et à chaque bascule du mode démo (il a les siens).
+  const shelves = useShelves()
+  useEffect(() => {
+    if (ready) loadShelves()
+  }, [ready, settings?.demoMode])
+  // Jeux masqués : ni sur l'Accueil ni dans la Bibliothèque. La recherche et la fiche les trouvent encore (pour les réafficher).
+  const hiddenSet = useMemo(() => new Set(shelves.hidden), [shelves.hidden])
+  const visibleGames = useMemo(() => (hiddenSet.size ? shownGames.filter((g) => !hiddenSet.has(g.id)) : shownGames), [shownGames, hiddenSet])
+  const visibleNotInstalled = useMemo(() => (hiddenSet.size ? notInstalled.filter((g) => !hiddenSet.has(g.id)) : notInstalled), [notInstalled, hiddenSet])
+
   // Clic sur une notification Windows d'un ami (ou sur une alerte) : la page Amis s'ouvre.
   const showFriends = useCallback(() => {
     setView('friends')
@@ -457,6 +468,18 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       }),
     [notify, openSheet]
   )
+  // « Me prévenir » : un événement suivi commence. « Voir » ouvre sa page sur Steam.
+  useEffect(
+    () =>
+      api.onEventStarted((e) =>
+        notify(`Ça commence : ${e.title} (${e.gameName})`, {
+          kind: 'info',
+          id: `event:${e.eventId}`,
+          action: { label: 'Voir', onClick: () => void api.openExternal(e.url) }
+        })
+      ),
+    [notify]
+  )
   // Prêt à jouer : Steam a fini la mise à jour (ou le téléchargement) d'un jeu. « Jouer » le lance tout de suite.
   useEffect(
     () =>
@@ -481,13 +504,21 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   const searchItems = useMemo<SearchItem[]>(() => {
     const games: SearchItem[] = [...shownGames]
       .sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0))
-      .map((g) => ({ id: `game:${g.id}`, kind: 'game', label: g.name, hint: KIND_LABEL[g.store], art: 'cover', game: g, launchable: true }))
+      .map((g) => ({
+        id: `game:${g.id}`,
+        kind: 'game',
+        label: g.name,
+        hint: hiddenSet.has(g.id) ? `${KIND_LABEL[g.store]} · Masqué` : KIND_LABEL[g.store],
+        art: 'cover',
+        game: g,
+        launchable: true
+      }))
     // Jeux du compte Steam absents de ce PC : après les installés, la fiche propose de les installer.
     const missing: SearchItem[] = notInstalled.map((g) => ({
       id: `game:${g.id}`,
       kind: 'game',
       label: g.name,
-      hint: `${KIND_LABEL[g.store]} · Pas installé`,
+      hint: `${KIND_LABEL[g.store]} · Pas installé${hiddenSet.has(g.id) ? ' · Masqué' : ''}`,
       art: 'cover',
       game: g,
       launchable: false
@@ -532,7 +563,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       page('action:replay', "Revoir l'accueil de Player X", 'gamepad', ['première connexion', 'bienvenue', 'scan'])
     ]
     return [...games, ...missing, ...people, ...pages]
-  }, [shownGames, notInstalled, friends.friends, settings?.gameNews])
+  }, [shownGames, notInstalled, friends.friends, settings?.gameNews, hiddenSet])
 
   // Le filtre posé par la recherche globale ne sert qu'une fois : il s'efface en quittant la page Amis.
   useEffect(() => {
@@ -640,7 +671,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
           <div ref={setTabSlot} className="page-bar" />
           {view === 'home' && (
             <Home
-              games={shownGames}
+              games={visibleGames}
               friends={friends.friends}
               channels={friends.discordChannels}
               scanning={scanning}
@@ -656,8 +687,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
           )}
           {view === 'library' && (
             <Library
-              games={shownGames}
-              notInstalled={notInstalled}
+              games={visibleGames}
+              notInstalled={visibleNotInstalled}
               onInstall={install}
               scanning={scanning}
               report={report}

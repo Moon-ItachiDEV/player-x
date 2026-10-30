@@ -14,10 +14,17 @@ import { getSettings } from './settings'
 //    « Nouveau patch » et le dernier patch du jeu (newsFeed.ts).
 
 const API = 'https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/'
-/** Liste d'événements du magasin, celle du site Steam : elle donne la version française d'une annonce quand l'éditeur l'a écrite. */
+/**
+ * Liste d'événements du magasin, celle du site Steam : elle donne la version française d'une annonce quand l'éditeur l'a
+ * écrite, et les événements datés du jeu (saisons, bonus d'XP… : events.ts).
+ */
 const EVENTS_API = 'https://store.steampowered.com/events/ajaxgetpartnereventspageable/'
 /** La version française ne retarde pas la fiche : passé ce délai, l'annonce s'affiche dans sa langue d'origine. */
 const FRENCH_TIMEOUT_MS = 6_000
+/** Assez d'événements pour les annonces de la fiche et les événements datés à venir. */
+const STORE_COUNT = 20
+/** Après un échec, la liste est redemandée au bout de 2 min (sinon 30 min, comme les annonces). */
+const STORE_RETRY_MS = 2 * 60_000
 const TIMEOUT_MS = 15_000
 const POSTS_COUNT = 8
 const POSTS_MAX_AGE = 30 * 60_000
@@ -45,6 +52,7 @@ let source: NewsSource | null = null
 export function setNewsSource(fn: NewsSource | null): void {
   source = fn
   posts.clear()
+  stores.clear()
 }
 
 /** Versions françaises du simulateur (événements au format du magasin), à la place de la liste d'événements de Steam. */
@@ -54,6 +62,7 @@ let frenchSource: FrenchSource | null = null
 export function setFrenchSource(fn: FrenchSource | null): void {
   frenchSource = fn
   posts.clear()
+  stores.clear()
 }
 
 /** Le simulateur a son propre relevé : les vrais ne sont jamais mélangés à des annonces inventées. */
@@ -110,21 +119,44 @@ async function fetchNews(appId: string, count: number, maxlength: number, enddat
     .sort((a, b) => b.date - a.date)
 }
 
-/**
- * Événements du jeu en français (versions traduites par l'éditeur, sinon l'anglais). Ne rejette jamais : sans réponse,
- * les annonces restent dans leur langue d'origine. Avec le simulateur, jamais de vraie requête.
- */
-async function fetchFrenchEvents(appId: string): Promise<unknown[]> {
+/** Liste d'événements du magasin pour un appid ; null si Steam ne répond pas. Avec le simulateur, jamais de vraie requête. */
+async function fetchStoreEvents(appId: string): Promise<unknown[] | null> {
   try {
     if (source) return frenchSource ? await frenchSource(appId) : []
-    const url = `${EVENTS_API}?clan_accountid=0&appid=${appId}&offset=0&count=${POSTS_COUNT + 4}&l=french`
+    const url = `${EVENTS_API}?clan_accountid=0&appid=${appId}&offset=0&count=${STORE_COUNT}&l=french`
     const res = await net.fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(FRENCH_TIMEOUT_MS) })
-    if (!res.ok) return []
+    if (!res.ok) return null
     const body = (await res.json()) as { events?: unknown }
     return Array.isArray(body?.events) ? body.events : []
   } catch {
-    return []
+    return null
   }
+}
+
+/** appid → dernière liste d'événements du magasin, et si Steam a répondu. */
+const stores = new Map<string, { at: number; ok: boolean; events: unknown[] }>()
+const storeRuns = new Map<string, Promise<unknown[]>>()
+
+/**
+ * Événements du magasin en français (versions traduites par l'éditeur, sinon l'anglais) : gardés 30 min, partagés par
+ * les actus (traductions) et les événements datés. Ne rejette jamais : sans réponse, une liste vide.
+ */
+export function storeEvents(appId: string, refresh = false): Promise<unknown[]> {
+  const c = stores.get(appId)
+  if (!refresh && c && Date.now() - c.at < (c.ok ? POSTS_MAX_AGE : STORE_RETRY_MS)) return Promise.resolve(c.events)
+  let run = storeRuns.get(appId)
+  if (!run) {
+    run = fetchStoreEvents(appId)
+      .then((events) => {
+        stores.delete(appId)
+        stores.set(appId, { at: Date.now(), ok: events !== null, events: events ?? [] })
+        if (stores.size > 100) stores.delete(stores.keys().next().value as string)
+        return events ?? []
+      })
+      .finally(() => storeRuns.delete(appId))
+    storeRuns.set(appId, run)
+  }
+  return run
 }
 
 const itemIds = (e: NewsIndex[string] | undefined): string => (e?.items ?? []).map((i) => i.id).join(',')
@@ -154,7 +186,7 @@ export async function getGameNews(game: Game, refresh = false): Promise<GameNews
   const fresh = postsStillFresh(cached && { at: cached.at, newest: cached.posts[0]?.date ?? 0 }, index[appId]?.latest ?? 0, Date.now(), POSTS_MAX_AGE)
   if (cached && !refresh && fresh) return { appId, posts: cached.posts, seenAt }
   // Version française demandée en même temps que les annonces : elle ne rallonge pas l'attente.
-  const french = fetchFrenchEvents(appId)
+  const french = storeEvents(appId, refresh)
   let raw: RawNews[]
   try {
     raw = await fetchNews(appId, POSTS_COUNT, 0)
