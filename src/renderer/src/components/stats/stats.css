@@ -1028,6 +1028,15 @@
   font: 500 13px/18px var(--font-ui);
   color: var(--text-3);
 }
+/* Six critères : dans une fenêtre étroite, la rangée défile au lieu de dépasser de la carte. */
+.bf-lb-by > .seg {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.bf-lb-by > .seg button {
+  flex-shrink: 0;
+}
 
 /* Podium : trois marches posées sur un même sol, la place gravée en grand dans chacune */
 .bf-lb-podium {
@@ -1181,7 +1190,7 @@
 }
 .bf-lb-table {
   width: 100%;
-  min-width: 820px;
+  min-width: 940px;
   border-collapse: separate;
   border-spacing: 0;
   font: 400 14px/20px var(--font-ui);
