@@ -190,3 +190,29 @@ export function simFrenchEvents(appId: string, t0: number): Record<string, unkno
       }
     }))
 }
+
+/**
+ * Événements datés du simulateur (types de Steam, EProtoClanEventType), en heures depuis le lancement du simulateur :
+ * un en cours, deux à venir, et une promo, qui ne doit jamais s'afficher.
+ */
+const SIM_EVENTS: { appId: string; type: number; title: string; startH: number; endH?: number }[] = [
+  { appId: '1245620', type: 22, title: 'Week-end double XP', startH: -20, endH: 52 },
+  { appId: '1245620', type: 25, title: 'Défi de la Lune rouge', startH: 70, endH: 238 },
+  { appId: '730', type: 32, title: 'Opération Braise', startH: 30, endH: 30 + 24 * 60 },
+  { appId: '1245620', type: 20, title: "Soldes d'automne", startH: -5, endH: 100 }
+]
+
+/** Événements datés d'un appid, au format de la liste d'événements du magasin (secondes Unix). */
+export function simEvents(appId: string, t0: number): Record<string, unknown>[] {
+  const at = (h: number): number => Math.floor((t0 + h * 3600_000) / 1000)
+  return SIM_EVENTS.map((e, i) => ({ e, i }))
+    .filter(({ e }) => e.appId === appId)
+    .map(({ e, i }) => ({
+      gid: `93000000000000000${String(i + 1).padStart(2, '0')}`,
+      event_name: e.title,
+      event_type: e.type,
+      rtime32_start_time: at(e.startH),
+      rtime32_end_time: e.endH === undefined ? 0 : at(e.endH),
+      announcement_body: { headline: e.title, language: 2 }
+    }))
+}

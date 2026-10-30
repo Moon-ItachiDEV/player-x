@@ -1,0 +1,89 @@
+/* Collections et jeux masqués : menu « Ranger » de la fiche, et les réglages. */
+
+.shelf-menu {
+  min-width: 280px;
+  max-width: 340px;
+}
+.shelf-menu-h {
+  margin: 0;
+  padding: 8px 12px 4px;
+  font: 600 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.shelf-new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+}
+.shelf-new-input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  background: var(--field-bg);
+  color: var(--text-1);
+  font: 500 13px/18px var(--font-ui);
+}
+.shelf-new-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* Paramètres : la liste des collections, puis les jeux masqués. */
+.shelf-sub {
+  margin: 8px 0;
+  font: 600 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.shelf-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.shelf-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  min-height: 48px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line-1);
+}
+.shelf-row:first-child {
+  border-top: 0;
+}
+.shelf-name {
+  font: 600 14px/20px var(--font-ui);
+  color: var(--text-1);
+}
+.shelf-count {
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-3);
+}
+.shelf-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.shelf-edit,
+.shelf-confirm {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.shelf-edit .shelf-new-input {
+  flex: 1 1 200px;
+  max-width: 320px;
+}
+.shelf-confirm-text {
+  flex: 1 1 260px;
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-1);
+}

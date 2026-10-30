@@ -60,7 +60,12 @@ const PATHS = {
   'mic-off': 'M3 3l18 18M9 9v2a3 3 0 0 0 5.1 2.1M15 10V5a3 3 0 0 0-5.7-1.3M19 11a7 7 0 0 1-1.1 3.8M5 11a7 7 0 0 0 10.9 5.8M12 18v3',
   'headphones-off': 'M3 3l18 18M4 18v-6a8 8 0 0 1 16 0v6M4 15h3v6H5a1 1 0 0 1-1-1zM20 15h-3v6h2a1 1 0 0 0 1-1z',
   // Serveurs : un battement (état du matchmaking).
-  pulse: 'M3 12h4l3-8 4 16 3-8h4'
+  pulse: 'M3 12h4l3-8 4 16 3-8h4',
+  // Événements des jeux : calendrier, cloche de « Me prévenir ».
+  calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+  bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0',
+  // Collections (« Ranger ») : des couches empilées, pour ne pas ressembler au dossier d'installation voisin.
+  layers: 'M12 3 2 8l10 5 10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5'
 } as const
 
 export type IconName = keyof typeof PATHS | 'play'

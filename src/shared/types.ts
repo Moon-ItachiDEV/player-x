@@ -776,6 +776,59 @@ export interface GameReady {
   firstInstall: boolean
 }
 
+// ---------- Événements des jeux (liste d'événements de la page Steam du jeu) ----------
+
+/**
+ * Un événement daté publié par l'éditeur sur Steam : saison, bonus d'XP, défi, bêta, essai gratuit, diffusion…
+ * `type` : le type d'événement de Steam (EProtoClanEventType : 22 bonus d'XP, 32 nouvelle saison…).
+ */
+export interface GameEvent {
+  /** Identifiant de l'événement sur Steam (gid). */
+  id: string
+  title: string
+  type: number
+  /** Début (ms). */
+  start: number
+  /** Fin (ms), quand l'éditeur en donne une. */
+  end?: number
+  /** Page de l'événement sur Steam (https). */
+  url: string
+}
+
+export interface GameEvents {
+  /** Appid Steam du jeu ; null si le jeu n'a pas de page Steam. */
+  appId: string | null
+  /** En cours puis à venir, du plus proche au plus lointain. */
+  events: GameEvent[]
+  /** Événements pour lesquels « Me prévenir » est demandé. */
+  reminders: string[]
+}
+
+/** Un événement suivi avec « Me prévenir » commence. */
+export interface GameEventStarted {
+  gameId: string
+  gameName: string
+  eventId: string
+  title: string
+  url: string
+}
+
+// ---------- Collections et jeux masqués ----------
+
+/** Une collection de jeux choisie par le joueur (« Avec les potes », « À finir »…), gardée sur ce PC. */
+export interface GameCollection {
+  id: string
+  name: string
+  /** Identifiants des jeux, dans l'ordre d'ajout. */
+  games: string[]
+}
+
+export interface Shelves {
+  collections: GameCollection[]
+  /** Jeux masqués : ni sur l'Accueil ni dans la Bibliothèque (Paramètres › Bibliothèque les liste). */
+  hidden: string[]
+}
+
 // ---------- Serveurs ----------
 
 /**
@@ -926,6 +979,22 @@ export interface LauncherApi {
   cs2Servers(force?: boolean): Promise<Cs2ServersResult>
   /** Joueurs en jeu sur Steam pour un jeu Steam (gardé 5 min) ; null si Steam ne répond pas ou si ce n'est pas un jeu Steam. */
   steamPlayers(gameId: string): Promise<SteamPlayers | null>
+  /** Événements en cours et à venir d'un jeu (page Steam du jeu, gardés 30 min). */
+  getGameEvents(gameId: string): Promise<GameEvents>
+  /** « Me prévenir » au début d'un événement (ou l'annule). Renvoie les événements suivis de ce jeu. */
+  setEventReminder(gameId: string, eventId: string, on: boolean): Promise<string[]>
+  /** Un événement suivi commence (fenêtre au premier plan, ou clic sur la notification Windows). */
+  onEventStarted(cb: (e: GameEventStarted) => void): () => void
+  /** Collections et jeux masqués. */
+  getShelves(): Promise<Shelves>
+  /** Crée une collection (avec un premier jeu, si donné). */
+  createCollection(name: string, gameId?: string): Promise<Shelves>
+  renameCollection(id: string, name: string): Promise<Shelves>
+  deleteCollection(id: string): Promise<Shelves>
+  /** Ajoute un jeu à une collection, ou l'en retire. */
+  setInCollection(id: string, gameId: string, on: boolean): Promise<Shelves>
+  /** Masque un jeu de l'Accueil et de la Bibliothèque, ou le réaffiche. */
+  setGameHidden(gameId: string, hidden: boolean): Promise<Shelves>
   platform: string
   version: string
 }

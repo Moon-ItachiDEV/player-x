@@ -1,6 +1,18 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
-import type { Bf6RecapEvent, Cs2Live, Cs2OverlayConfig, Cs2RecapEvent, FriendAlert, GameReady, LauncherApi, RareUnlock, SteamUpdates, UpdateState } from '@shared/types'
+import type {
+  Bf6RecapEvent,
+  Cs2Live,
+  Cs2OverlayConfig,
+  Cs2RecapEvent,
+  FriendAlert,
+  GameEventStarted,
+  GameReady,
+  LauncherApi,
+  RareUnlock,
+  SteamUpdates,
+  UpdateState
+} from '@shared/types'
 
 declare const __APP_VERSION__: string
 
@@ -125,6 +137,19 @@ const api: LauncherApi = {
   openDiscordChannel: (channelId) => ipcRenderer.invoke('discord:open-channel', channelId),
   cs2Servers: (force) => ipcRenderer.invoke('servers:cs2', force === true),
   steamPlayers: (gameId) => ipcRenderer.invoke('servers:players', gameId),
+  getGameEvents: (gameId) => ipcRenderer.invoke('events:game', gameId),
+  setEventReminder: (gameId, eventId, on) => ipcRenderer.invoke('events:remind', gameId, eventId, on),
+  onEventStarted: (cb) => {
+    const listener = (_e: unknown, e: GameEventStarted): void => cb(e)
+    ipcRenderer.on('events:started', listener)
+    return () => ipcRenderer.removeListener('events:started', listener)
+  },
+  getShelves: () => ipcRenderer.invoke('shelves:get'),
+  createCollection: (name, gameId) => ipcRenderer.invoke('shelves:create', name, gameId),
+  renameCollection: (id, name) => ipcRenderer.invoke('shelves:rename', id, name),
+  deleteCollection: (id) => ipcRenderer.invoke('shelves:delete', id),
+  setInCollection: (id, gameId, on) => ipcRenderer.invoke('shelves:toggle', id, gameId, on),
+  setGameHidden: (gameId, hidden) => ipcRenderer.invoke('shelves:hide', gameId, hidden),
   platform: process.platform,
   version: __APP_VERSION__
 }

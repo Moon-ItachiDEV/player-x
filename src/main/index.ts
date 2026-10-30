@@ -20,6 +20,7 @@ import { getCs2Lifetime, startCs2LifetimeRecorder } from './services/cs2Lifetime
 import { cs2DemoChanged, cs2State, markCs2RecapSeen, setCs2Running, startCs2Live, syncCs2 } from './services/cs2Live'
 import { closeCs2Overlay, startCs2Overlay, syncCs2Overlay } from './services/cs2Overlay'
 import { DEMO_CHANNELS, DEMO_FRIENDS, DEMO_GAMES, DEMO_SERVER, demoGames, demoNotInstalled } from './services/demo'
+import { getGameEvents, setEventReminder, startEventReminders } from './services/events'
 import { hideMembers, withMemberHidden } from './services/discordMembers'
 import { connectPsn, getAllFriends, resetPsn } from './services/friends'
 import { getScanReport, handoff, launchTarget, scanAllGames } from './services/games'
@@ -30,6 +31,7 @@ import { getGameNews, markNewsSeen, refreshNewsIndex, startNewsWatcher, withNews
 import { allowDemo, getAccounts, getMemberPrefs, getSettings, publicSettings, removeAccount, saveMemberPrefs, saveSettings } from './services/settings'
 import { launchArgOf, recentGames } from './services/recentGames'
 import { getCs2Servers, getSteamPlayers } from './services/servers'
+import { createCollection, deleteCollection, getShelves, renameCollection, setGameHidden, setInCollection } from './services/shelves'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { installSteamGame, isSteamSoftware, ownedForNews, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
 import { startSteamUpdates, steamUpdates, steamUpdatesDemoChanged } from './services/steamUpdates'
@@ -382,6 +384,24 @@ function registerIpc(): void {
     await shell.openExternal('steam://open/downloads')
     return 'opened'
   })
+  // Événements des jeux (page Steam du jeu) et « Me prévenir » : le jeu est retrouvé ici, comme pour les actus.
+  handle('events:game', async (_e, id: unknown) => {
+    const game = findGame(id)
+    if (!game) throw new Error('Jeu introuvable.')
+    return getGameEvents(game)
+  })
+  handle('events:remind', (_e, id: unknown, eventId: unknown, on: unknown) => {
+    const game = findGame(id)
+    if (!game || typeof eventId !== 'string' || eventId.length > 32) throw new Error('Événement introuvable.')
+    return setEventReminder(game, eventId, on === true)
+  })
+  // Collections et jeux masqués (rangement du joueur, sur ce PC ; la démo a le sien).
+  handle('shelves:get', () => getShelves())
+  handle('shelves:create', (_e, name: unknown, gameId: unknown) => createCollection(name, gameId))
+  handle('shelves:rename', (_e, id: unknown, name: unknown) => renameCollection(id, name))
+  handle('shelves:delete', (_e, id: unknown) => deleteCollection(id))
+  handle('shelves:toggle', (_e, id: unknown, gameId: unknown, on: unknown) => setInCollection(id, gameId, on))
+  handle('shelves:hide', (_e, gameId: unknown, hidden: unknown) => setGameHidden(gameId, hidden))
   // Serveurs : CS2 avec la clé Steam Web API ; joueurs en jeu pour un jeu Steam retrouvé ici (jamais un appid reçu tel quel).
   handle('servers:cs2', (_e, force: unknown) => getCs2Servers(force === true))
   handle('servers:players', (_e, id: unknown) => {
@@ -663,6 +683,8 @@ app.whenReady().then(async () => {
   }
   onRareUnlocks(deliverRare)
   startAchievementsWatcher(() => getSettings().demoMode)
+  // « Me prévenir » : les événements suivis qui commencent (vérifiés chaque minute).
+  startEventReminders()
   // Prêt à jouer : une mise à jour Steam (ou un premier téléchargement) terminée prévient, si le réglage le permet.
   startSteamUpdates({
     demo: () => getSettings().demoMode,

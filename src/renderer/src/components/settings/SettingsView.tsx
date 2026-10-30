@@ -2,7 +2,7 @@
 // Pas de bouton « Enregistrer » global : chaque réglage s'applique seul.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { timeAgo } from '@shared/text'
-import type { FriendAlertMode, FriendPlatform, ScanReport, Settings, SteamLibrary, SteamLibraryState } from '@shared/types'
+import type { FriendAlertMode, FriendPlatform, Game, ScanReport, Settings, SteamLibrary, SteamLibraryState } from '@shared/types'
 import { COVER_MIN, type SettingsProps, type SettingsSection, type UiPrefs } from '../../contracts'
 import { useSystemReducedMotion, useSystemReducedTransparency } from '../../motion'
 import { TopTitle } from '../TopTabs'
@@ -19,6 +19,7 @@ import { BackgroundRows } from './BackgroundRows'
 import { OverlaySection } from './OverlaySection'
 import { Collapse, SectionHead, SettingRow, SettingsCard, storeCaption, useNow } from './parts'
 import './settings.css'
+import { ShelvesCard } from '../../shelves/ShelvesCard'
 
 const SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: 'accounts', label: 'Comptes' },
@@ -97,6 +98,7 @@ export function SettingsView(props: SettingsProps): React.JSX.Element {
               onRefreshSteamLibrary={props.onRefreshSteamLibrary}
               onConnectSteam={() => props.onLogin('steam')}
               onConfigureSteam={() => configure('steam')}
+              allGames={props.steamLibrary ? [...props.games, ...props.steamLibrary.notInstalled] : props.games}
             />
           )}
           {section === 'interface' && (
@@ -174,6 +176,8 @@ interface LibraryProps {
   onRefreshSteamLibrary: () => Promise<void>
   onConnectSteam: () => void
   onConfigureSteam: () => void
+  /** Bibliothèque et jeux Steam pas installés : noms des jeux masqués. */
+  allGames: Game[]
 }
 
 function LibrarySection(props: LibraryProps): React.JSX.Element {
@@ -248,6 +252,7 @@ function LibrarySection(props: LibraryProps): React.JSX.Element {
           onConfigure={props.onConfigureSteam}
         />
       </SettingsCard>
+      <ShelvesCard games={props.allGames} />
     </>
   )
 }
@@ -440,11 +445,11 @@ function InterfaceSection({ ui, onUiChange, settings, onSaveSettings }: Interfac
             </button>
           </div>
         </SettingRow>
-        <SettingRow label="Jeu prêt à jouer" value="Quand Steam a fini la mise à jour ou le téléchargement d'un jeu">
+        <SettingRow label="Jeu prêt après une mise à jour Steam">
           <Switch
             checked={settings.gameReadyAlert}
             onChange={(gameReadyAlert) => onSaveSettings({ gameReadyAlert }).catch((e) => notify(errorMessage(e), { kind: 'error' }))}
-            label="Jeu prêt à jouer"
+            label="Jeu prêt après une mise à jour Steam"
           />
         </SettingRow>
       </SettingsCard>
