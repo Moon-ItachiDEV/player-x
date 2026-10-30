@@ -3,13 +3,21 @@
 // sur une jaquette changent de jeu ; Entrée joue ; clic droit (ou clic sur le jeu déjà choisi) ouvre sa fiche.
 // Rien d'autre à l'écran : le bilan de partie s'ouvre déjà tout seul à la fin d'un match, les patchs sont sur les jaquettes.
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { CS2_GAME_ID } from '@shared/cs2'
 import { hasPlayed, PLAYED_SOURCE } from '@shared/played'
+import { formatPlayers, serversLabel, serversOk, stateFr } from '@shared/servers'
+import { updateLabel, updateSentence } from '@shared/steamUpdate'
 import { cleanName, formatDate, formatPlaytime, plural, timeAgo } from '@shared/text'
 import type { Friend, Game, Store } from '@shared/types'
 import type { HomeProps } from '../../contracts'
 import { PlayLabel } from '../../launch/PlayLabel'
 import { usePlayState } from '../../launch/usePlayState'
 import { motionReduced, setArtBase, setMorphSource } from '../../motion'
+import { playLabelFor, useSteamUpdate } from '../../ready/store'
+import { UpdateBar, useOpenSteamDownloads } from '../../ready/UpdateBadge'
+import { useCs2Servers } from '../../servers/useServers'
+import { useOpenChannel } from '../friends/useOpenChannel'
+import { voiceAria, voiceCount, voiceRooms, voiceSub, type VoiceRoom } from '../friends/voice'
 import { FavStar, usePop } from '../library/GameCard'
 import { NoGames } from '../library/NoGames'
 import { NewsBadge } from '../news/NewsBadge'
@@ -28,7 +36,7 @@ export type { HomeProps }
 const STORES: Store[] = ['steam', 'epic', 'ea']
 
 export function Home(props: HomeProps): React.JSX.Element {
-  const { games, friends, scanning, report, onLaunch, onOpen, onFavorite, onRescan, onShowLibrary, onShowFriends } = props
+  const { games, friends, channels, scanning, report, onLaunch, onOpen, onFavorite, onRescan, onShowLibrary, onShowFriends } = props
   // Jeu choisi à la main (molette, flèches, clic) ; sinon le choix automatique (en cours, dernière partie…).
   const [targetId, setTargetId] = useState<string | null>(null)
   const auto = useMemo(() => pickHero(games), [games])
@@ -79,7 +87,11 @@ export function Home(props: HomeProps): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const around = useMemo(() => (hero ? whoIsAround(hero, friends) : null), [hero, friends])
+  // Vocal : les salons occupés du serveur Discord, au-dessus des amis. Les membres en vocal n'y sont pas répétés.
+  const rooms = useMemo(() => voiceRooms(channels, friends, (f) => f), [channels, friends])
+  const inVoice = useMemo(() => new Set(rooms.flatMap((r) => r.people.map((f) => f.id))), [rooms])
+  const around = useMemo(() => (hero ? whoIsAround(hero, inVoice.size ? friends.filter((f) => !inVoice.has(f.id)) : friends) : null), [hero, friends, inVoice])
+  const voiceRows = Math.min(VOICE_MAX, voiceCount(rooms))
 
   if (games.length === 0 && scanning) return <HomeSkeleton />
   if (games.length === 0 || !hero) {
@@ -95,7 +107,12 @@ export function Home(props: HomeProps): React.JSX.Element {
       <HeroArt game={hero} dir={dir} />
       <div className="hc-in">
         <HeroText key={hero.id} game={hero} players={playersOf(hero, friends)} dir={dir} onLaunch={onLaunch} onOpen={onOpen} onFavorite={onFavorite} />
-        {around && <Squad around={around.people} here={around.here} onShowFriends={onShowFriends} />}
+        {(rooms.length > 0 || around) && (
+          <div className="hc-side">
+            {rooms.length > 0 && <Voice rooms={rooms} />}
+            {around && <Squad around={around.people} here={around.here} max={Math.max(2, SIDE_MAX - voiceRows)} onShowFriends={onShowFriends} />}
+          </div>
+        )}
       </div>
       <Shelf
         games={order}
@@ -187,6 +204,12 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
   const name = cleanName(game.name)
   const fav = !!game.favorite
   const src = game.lastPlayedSource
+  // Prêt à jouer : une mise à jour Steam attend ou arrive. « Jouer » la lance (Steam démarre le jeu ensuite).
+  const update = useSteamUpdate(game)
+  const openDownloads = useOpenSteamDownloads()
+  const updateLabelPlay = p.state === 'idle' ? playLabelFor(update) : undefined
+  // Serveurs : seulement pour Counter-Strike 2, avec la clé Steam Web API.
+  const servers = useCs2Servers(game.id === CS2_GAME_ID && !game.notInstalled)
 
   // Entrée joue le jeu affiché (hors champ de texte, menu ou fenêtre).
   const activate = useRef(p.activate)
@@ -217,6 +240,22 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
             {playersLabel(players)}
           </span>
         )}
+        {servers && (
+          <span
+            className={`hc-srv ${serversOk(servers) ? 'is-ok' : 'is-bad'}`}
+            title={[
+              `Selon Valve, il y a ${timeAgo(servers.at)}`,
+              `Connexion à Steam : ${stateFr(servers.logon)}`,
+              servers.online !== undefined ? `${formatPlayers(servers.online)} joueurs en ligne` : '',
+              servers.sample ? 'Chiffres d’exemple (simulateur)' : ''
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          >
+            <span className="srv-dot" aria-hidden="true" />
+            {serversLabel(servers)}
+          </span>
+        )}
       </p>
       <h1 className="hc-title" title={name}>
         {name}
@@ -224,8 +263,22 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
       <p className="hc-meta num">
         <span>{STORE_LONG[game.store]}</span>
         {!!game.playtime && <span>{formatPlaytime(game.playtime)} de jeu</span>}
-        {game.notInstalled ? <span>Pas installé</span> : <span>Installé</span>}
+        {update ? (
+          <span className="hc-upd" title={updateSentence(update)}>
+            {updateLabel(update)}
+          </span>
+        ) : game.notInstalled ? (
+          <span>Pas installé</span>
+        ) : (
+          <span>Installé</span>
+        )}
+        {update && (
+          <button type="button" className="hc-link" onClick={openDownloads}>
+            Voir dans Steam
+          </button>
+        )}
         {game.newPatch && <NewsBadge patch={game.newPatch} className="hc-news" />}
+        {update && <UpdateBar update={update} className="is-inline" />}
       </p>
       <div className="hc-actions">
         <button
@@ -234,14 +287,14 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
           data-magnetic={p.state === 'idle' ? '' : undefined}
           aria-disabled={p.inert || undefined}
           aria-busy={p.busy || undefined}
-          aria-label={p.ariaLabel}
-          title={p.state === 'idle' ? 'Jouer (Entrée)' : p.title}
+          aria-label={updateLabelPlay ? `${updateLabelPlay} : ${name}` : p.ariaLabel}
+          title={updateLabelPlay ? 'Steam termine la mise à jour, puis lance le jeu (Entrée)' : p.state === 'idle' ? 'Jouer (Entrée)' : p.title}
           onClick={() => p.activate(play.current)}
         >
           {/* Bouton « Aura » du site (verre sombre, bordure braise qui tourne, halo) : seulement au repos. */}
           <span className="hc-aura-ring fx-loop" aria-hidden="true" />
           <span className="hc-aura-fill" aria-hidden="true" />
-          <PlayLabel p={p} size={20} />
+          <PlayLabel p={p} size={20} label={updateLabelPlay} />
         </button>
         <button
           className="btn hc-glass"
@@ -270,11 +323,15 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
 
 /* ---------- amis, en colonne à droite ---------- */
 
-const SQUAD_MAX = 5
+/** Colonne de droite : au plus tant de personnes (vocal et amis), pour que l'accueil tienne sans défiler. */
+const SIDE_MAX = 6
+/** Membres en vocal montrés, tous salons confondus ; deux salons au plus. */
+const VOICE_MAX = 4
+const ROOMS_MAX = 2
 
 /** Amis en jeu ou en ligne (ceux de ce jeu d'abord) : avatar, pseudo et ce qu'ils font. Clic : page Amis. */
-function Squad({ around, here, onShowFriends }: { around: Friend[]; here: ReadonlySet<string>; onShowFriends: () => void }): React.JSX.Element {
-  const shown = around.slice(0, SQUAD_MAX)
+function Squad({ around, here, max, onShowFriends }: { around: Friend[]; here: ReadonlySet<string>; max: number; onShowFriends: () => void }): React.JSX.Element {
+  const shown = around.slice(0, max)
   const more = around.length - shown.length
   const inGame = around.filter((f) => f.status === 'in-game').length
   return (
@@ -299,6 +356,65 @@ function Squad({ around, here, onShowFriends }: { around: Friend[]; here: Readon
       {more > 0 && <span className="hc-squad-more num">+ {more}</span>}
     </button>
   )
+}
+
+/* ---------- vocal du serveur Discord, en haut de la colonne de droite ---------- */
+
+/**
+ * Salons vocaux occupés du serveur Discord (deux au plus) : qui y est, sur quel jeu, micro ou casque coupé, et
+ * « Ouvrir dans Discord ». Seuls les salons que @everyone voit sont dans le widget.
+ */
+function Voice({ rooms }: { rooms: VoiceRoom<Friend>[] }): React.JSX.Element {
+  const openChannel = useOpenChannel()
+  const total = voiceCount(rooms)
+  let budget = VOICE_MAX
+  const shown = rooms.slice(0, ROOMS_MAX).map((r) => {
+    const people = r.people.slice(0, Math.max(1, budget))
+    budget -= people.length
+    return { ...r, shown: people }
+  })
+  const hidden = total - shown.reduce((n, r) => n + r.shown.length, 0)
+  return (
+    <section className="hc-voice" aria-labelledby="hc-voice-h">
+      <h2 id="hc-voice-h" className="hc-squad-head">
+        Vocal
+        <span className="hc-squad-count num">{plural(total, 'membre', 'membres')}</span>
+      </h2>
+      {shown.map((r) => (
+        <div key={r.channel.id} className="hc-room">
+          <div className="hc-room-head">
+            <button type="button" className="hc-room-open" onClick={() => openChannel(r.channel)} aria-label={`Ouvrir le salon ${r.channel.name} dans Discord`}>
+              Ouvrir dans Discord
+            </button>
+            <span className="hc-room-name" title={r.channel.name}>
+              <Icon name="volume" size={14} />
+              {r.channel.name}
+            </span>
+          </div>
+          <ul className="hc-squad-list hc-room-list" aria-label={`Dans ${r.channel.name}`}>
+            {r.shown.map((f) => (
+              <li key={f.id} className="hc-mate is-voice" aria-label={voiceAria(f)}>
+                <span className="hc-mate-text" aria-hidden="true">
+                  <span className="hc-mate-name">{f.name}</span>
+                  <span className={`hc-mate-sub ${f.status === 'in-game' ? 'is-live' : ''}`}>{voiceSub(f)}</span>
+                </span>
+                <VoiceMarks friend={f} />
+                <Avatar name={f.name} url={f.avatarUrl} size={32} status={f.status} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      {hidden > 0 && <span className="hc-squad-more num">+ {hidden}</span>}
+    </section>
+  )
+}
+
+/** Micro ou casque coupé : une petite icône barrée à côté de l'avatar. */
+function VoiceMarks({ friend }: { friend: Friend }): React.JSX.Element | null {
+  if (friend.voice?.deafened) return <Icon name="headphones-off" size={14} className="hc-voice-mark" />
+  if (friend.voice?.muted) return <Icon name="mic-off" size={14} className="hc-voice-mark" />
+  return null
 }
 
 /* ---------- « Tes jeux », en bas ---------- */
@@ -362,17 +478,7 @@ function Shelf({ games, heroId, onPick, onOpen, onShowLibrary }: ShelfProps): Re
               }}
             >
               <Cover game={g} variant="portrait" />
-              {g.favorite && (
-                <span className="hc-cover-star" aria-hidden="true">
-                  <Icon name="star" size={13} filled />
-                </span>
-              )}
-              {g.newPatch && <span className="hc-cover-patch" aria-hidden="true" />}
-              <span className="sr-only">
-                {name}
-                {g.running ? ', en cours' : ''}
-                {g.newPatch ? ', nouveau patch' : ''}
-              </span>
+              <ShelfMarks game={g} name={name} />
             </button>
           )
         })}
@@ -385,6 +491,33 @@ function Shelf({ games, heroId, onPick, onOpen, onShowLibrary }: ShelfProps): Re
         </button>
       </div>
     </section>
+  )
+}
+
+/** Sur une jaquette de la rangée : favori, mise à jour Steam (sinon nouveau patch), barre de téléchargement, et le texte lu. */
+function ShelfMarks({ game, name }: { game: Game; name: string }): React.JSX.Element {
+  const update = useSteamUpdate(game)
+  return (
+    <>
+      {game.favorite && (
+        <span className="hc-cover-star" aria-hidden="true">
+          <Icon name="star" size={13} filled />
+        </span>
+      )}
+      {update ? (
+        <span className={`hc-cover-upd ${update.kind === 'paused' ? 'is-paused' : ''}`} aria-hidden="true">
+          <Icon name={update.kind === 'paused' ? 'pause' : 'download'} size={12} />
+        </span>
+      ) : (
+        game.newPatch && <span className="hc-cover-patch" aria-hidden="true" />
+      )}
+      {update && <UpdateBar update={update} />}
+      <span className="sr-only">
+        {name}
+        {game.running ? ', en cours' : ''}
+        {update ? `, ${updateLabel(update)}` : game.newPatch ? ', nouveau patch' : ''}
+      </span>
+    </>
   )
 }
 

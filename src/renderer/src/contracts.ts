@@ -2,7 +2,7 @@
 import type { RefObject } from 'react'
 import type { LaunchVia } from '@shared/launch'
 import type { Identity } from '@shared/profile'
-import type { Account, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
+import type { Account, DiscordChannel, Friend, FriendPlatform, FriendsResult, Game, ScanReport, Settings, SteamLibrary } from '@shared/types'
 import type { SearchItem } from './components/search/SearchResults'
 
 export type View = 'home' | 'library' | 'friends' | 'profile' | 'stats' | 'settings'
@@ -88,6 +88,8 @@ export interface AccountMenuProps {
 export interface HomeProps {
   games: Game[]
   friends: Friend[]
+  /** Salons vocaux publics du serveur Discord (widget) : bloc « Vocal » en haut de la colonne des amis. */
+  channels?: DiscordChannel[]
   scanning: boolean
   report: ScanReport[]
   demo: boolean

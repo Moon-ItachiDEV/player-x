@@ -54,7 +54,13 @@ const PATHS = {
   'trend-down': 'M3.5 7.5l6 6 4-4 7 7M15 16.5h5.5V11',
   trophy: 'M8 21h8M12 16v5M7 4h10v6a5 5 0 0 1-10 0zM7 6H4v1.5A3.5 3.5 0 0 0 7.5 11M17 6h3v1.5a3.5 3.5 0 0 1-3.5 3.5',
   lock: 'M6 11h12v10H6zM8.5 11V7.5a3.5 3.5 0 0 1 7 0V11',
-  news: 'M4 4h13v16H6a2 2 0 0 1-2-2zM17 8h3v10a2 2 0 0 1-2 2M8 8h5M8 12h5M8 16h3'
+  news: 'M4 4h13v16H6a2 2 0 0 1-2-2zM17 8h3v10a2 2 0 0 1-2 2M8 8h5M8 12h5M8 16h3',
+  // Vocal (salons Discord) : haut-parleur, micro coupé, casque coupé.
+  volume: 'M11 5L6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13',
+  'mic-off': 'M3 3l18 18M9 9v2a3 3 0 0 0 5.1 2.1M15 10V5a3 3 0 0 0-5.7-1.3M19 11a7 7 0 0 1-1.1 3.8M5 11a7 7 0 0 0 10.9 5.8M12 18v3',
+  'headphones-off': 'M3 3l18 18M4 18v-6a8 8 0 0 1 16 0v6M4 15h3v6H5a1 1 0 0 1-1-1zM20 15h-3v6h2a1 1 0 0 0 1-1z',
+  // Serveurs : un battement (état du matchmaking).
+  pulse: 'M3 12h4l3-8 4 16 3-8h4'
 } as const
 
 export type IconName = keyof typeof PATHS | 'play'

@@ -1,4 +1,4 @@
-import type { Friend, Game } from '@shared/types'
+import type { DiscordChannel, Friend, Game } from '@shared/types'
 
 // Données fictives pour voir l'interface sans compte ni jeu installé (Paramètres > Avancé > Mode démo).
 const steam = (appId: string, name: string): Game => ({
@@ -103,6 +103,17 @@ const avatar = (seed: string): string => `https://api.dicebear.com/9.x/bottts-ne
 /** Nom du serveur Discord de démo (son widget donnerait le sien). */
 export const DEMO_SERVER = 'Les Braises'
 
+/** Salons vocaux publics du serveur de démo, dans l'ordre du serveur. */
+export const DEMO_CHANNELS: DiscordChannel[] = [
+  { id: '1100000000000000001', name: 'Général' },
+  { id: '1100000000000000002', name: '5v5' },
+  { id: '1100000000000000003', name: 'Chill' },
+  { id: '1100000000000000004', name: 'AFK' }
+]
+const inVoice = (n: number, opts: { muted?: boolean; deafened?: boolean } = {}): Pick<Friend, 'voice'> => ({
+  voice: { channelId: DEMO_CHANNELS[n].id, ...opts }
+})
+
 // Mode démo seulement : « Ami depuis » (Steam, `friend_since`) et « Vu pour la dernière fois » (Steam, `lastlogoff`).
 const since = (y: number, m: number, d: number): { since: number } => ({ since: new Date(y, m - 1, d).getTime() })
 const seen = (hoursAgo: number): { lastSeen: number } => ({ lastSeen: Date.now() - hoursAgo * 3600_000 })
@@ -111,9 +122,12 @@ export const DEMO_FRIENDS: Friend[] = [
   { id: 'steam:1', platform: 'steam', name: 'NeoKai', avatarUrl: avatar('NeoKai'), status: 'in-game', game: 'ELDEN RING', ...since(2025, 9, 14) },
   { id: 'steam:9', platform: 'steam', name: 'Valkyr', avatarUrl: avatar('Valkyr'), status: 'in-game', game: 'ELDEN RING', ...since(2022, 3, 2) },
   { id: 'psn:3', platform: 'psn', name: 'ShadowFox_93', avatarUrl: avatar('ShadowFox'), status: 'in-game', game: 'EA SPORTS FC 27', device: 'PS5' },
-  { id: 'discord:2', platform: 'discord', name: 'Lunaa', avatarUrl: avatar('Lunaa'), status: 'in-game', game: 'Valorant' },
+  { id: 'discord:2', platform: 'discord', name: 'Lunaa', avatarUrl: avatar('Lunaa'), status: 'in-game', game: 'Valorant', ...inVoice(2) },
   { id: 'steam:4', platform: 'steam', name: 'Pixel', avatarUrl: avatar('Pixel'), status: 'online', ...since(2019, 11, 23) },
-  { id: 'discord:5', platform: 'discord', name: 'Mira', avatarUrl: avatar('Mira'), status: 'online' },
+  { id: 'discord:5', platform: 'discord', name: 'Mira', avatarUrl: avatar('Mira'), status: 'online', ...inVoice(2, { deafened: true }) },
+  { id: 'discord:16', platform: 'discord', name: 'Kaze', avatarUrl: avatar('Kaze'), status: 'in-game', game: 'Counter-Strike 2', ...inVoice(1) },
+  { id: 'discord:17', platform: 'discord', name: 'Sora', avatarUrl: avatar('Sora'), status: 'in-game', game: 'Counter-Strike 2', ...inVoice(1, { muted: true }) },
+  { id: 'discord:18', platform: 'discord', name: 'Yuki', avatarUrl: avatar('Yuki'), status: 'away' },
   { id: 'psn:10', platform: 'psn', name: 'Okami_X', avatarUrl: avatar('Okami'), status: 'online', device: 'PS5' },
   { id: 'steam:6', platform: 'steam', name: 'Draxx', avatarUrl: avatar('Draxx'), status: 'away', ...since(2024, 6, 8) },
   { id: 'psn:7', platform: 'psn', name: 'KenjiPlays', avatarUrl: avatar('Kenji'), status: 'offline' },

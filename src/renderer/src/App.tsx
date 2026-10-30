@@ -30,6 +30,7 @@ import { UpdateNotice } from './components/UpdateNotice'
 import { LaunchDock } from './launch/LaunchDock'
 import { LaunchStage } from './launch/LaunchStage'
 import { bindLaunchIpc, resetLaunches, setLaunchDemo, startLaunch, useFrozenGames, useLaunchPending } from './launch/store'
+import { bindSteamUpdates } from './ready/store'
 import { WhatsNew } from './components/WhatsNew'
 import { errorMessage, ToastProvider, useToast } from './components/ui/Toasts'
 import { COVER_MIN, type LoginPlatform, type SettingsSection, type UiPrefs, type View } from './contracts'
@@ -245,6 +246,8 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
 
   // Lancements : événements du processus principal, puis ceux déjà en cours (rechargement de l'interface).
   useEffect(() => bindLaunchIpc(), [])
+  // Prêt à jouer : mises à jour Steam en attente ou en cours (pastilles des jaquettes, bouton Jouer).
+  useEffect(() => bindSteamUpdates(), [])
   useEffect(() => setLaunchDemo(!!settings?.demoMode), [settings?.demoMode])
   const pending = useLaunchPending()
   // Les écrans voient la dernière partie d'avant le clic tant que le lancement attend (rien ne bouge).
@@ -454,6 +457,19 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       }),
     [notify, openSheet]
   )
+  // Prêt à jouer : Steam a fini la mise à jour (ou le téléchargement) d'un jeu. « Jouer » le lance tout de suite.
+  useEffect(
+    () =>
+      api.onGameReady((e) => {
+        const game = gamesRef.current.find((g) => g.id === e.gameId && !g.notInstalled)
+        notify(`${e.name} est prêt`, {
+          kind: 'success',
+          id: `ready:${e.gameId}`,
+          ...(game ? { action: { label: 'Jouer', onClick: () => startLaunch(game) } } : {})
+        })
+      }),
+    [notify]
+  )
   const closeSheet = useCallback(() => {
     withViewTransition(
       () => setOpenGameId(null),
@@ -507,7 +523,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
       page('profile', 'Profil', 'user'),
       page('settings:accounts', 'Paramètres › Comptes', 'settings', ['steam', 'discord', 'playstation', 'psn', 'connexion', 'membres masqués']),
       page('settings:library', 'Paramètres › Bibliothèque', 'settings', ['scan', 'favoris', 'actus']),
-      page('settings:interface', 'Paramètres › Interface', 'settings', ['jaquettes', 'animations', 'notifications', 'bilans']),
+      page('settings:interface', 'Paramètres › Interface', 'settings', ['jaquettes', 'animations', 'notifications', 'bilans', 'jeu prêt', 'mise à jour steam']),
       page('settings:overlay', 'Paramètres › Overlay', 'settings', ['cs2', 'counter-strike', 'premium']),
       page('settings:advanced', 'Paramètres › Avancé', 'settings', ['démo', 'démarrer avec windows']),
       page('settings:about', 'Paramètres › À propos', 'settings', ['version', 'mise à jour', 'nouveautés', 'bêta']),
@@ -626,6 +642,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
             <Home
               games={shownGames}
               friends={friends.friends}
+              channels={friends.discordChannels}
               scanning={scanning}
               report={report}
               demo={settings.demoMode}

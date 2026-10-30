@@ -56,6 +56,8 @@ export interface Friend {
   since?: number
   /** Dernière déconnexion (ms) : Steam seulement (`lastlogoff`), quand le profil la montre. */
   lastSeen?: number
+  /** Discord : le salon vocal où se trouve le membre (widget du serveur), et s'il a coupé son micro ou son casque. */
+  voice?: { channelId: string; muted?: boolean; deafened?: boolean }
 }
 
 export interface Account {
@@ -100,6 +102,8 @@ export interface Settings {
   profileName: string
   /** Ta photo (data URL WebP 256 × 256, recadrée dans l'interface) : passe avant celle de Steam. '' : celle du compte. */
   profileAvatar: string
+  /** Prêt à jouer : une alerte quand Steam a fini de télécharger la mise à jour (ou l'installation) d'un jeu. */
+  gameReadyAlert: boolean
 }
 
 /** `a` : façon Apple (matériaux, ressorts, sheet) ; `b` : verre ; `c` : finition du style Player X. */
@@ -152,6 +156,14 @@ export interface FriendsResult {
   hidden?: HiddenMember[]
   /** Nom du serveur Discord, tel que le donne son widget. */
   discordServer?: string
+  /** Salons vocaux publics du serveur Discord (ceux que @everyone voit), dans l'ordre du serveur. */
+  discordChannels?: DiscordChannel[]
+}
+
+/** Salon vocal d'un serveur Discord, d'après son widget. */
+export interface DiscordChannel {
+  id: string
+  name: string
 }
 
 /** Membre d'un serveur Discord retiré des listes : bot connu, ou masqué avec « Masquer ». */
@@ -735,6 +747,69 @@ export interface AchievementsOverview {
   updatedAt: number
 }
 
+// ---------- Prêt à jouer (mises à jour Steam) ----------
+
+/**
+ * Où en est Steam avec un jeu, d'après son manifeste local (`appmanifest_<appid>.acf`).
+ * `queued` : une mise à jour attend ; `downloading` ; `paused` ; `installing` : Steam pose les fichiers téléchargés ;
+ * `verifying` : vérification des fichiers.
+ */
+export type SteamUpdateKind = 'queued' | 'downloading' | 'paused' | 'installing' | 'verifying'
+
+export interface SteamUpdate {
+  kind: SteamUpdateKind
+  /** Octets de l'étape en cours (téléchargement ou installation), quand Steam les connaît. */
+  total?: number
+  /** Octets déjà traités dans cette étape. */
+  done?: number
+  /** Premier téléchargement du jeu (pas encore entièrement installé), pas une mise à jour. */
+  firstInstall?: boolean
+}
+
+/** appid Steam → état ; seulement les jeux qui attendent ou reçoivent quelque chose. Un jeu prêt n'y figure pas. */
+export type SteamUpdates = Record<string, SteamUpdate>
+
+/** Steam vient de finir la mise à jour (ou l'installation) d'un jeu. */
+export interface GameReady {
+  gameId: string
+  name: string
+  firstInstall: boolean
+}
+
+// ---------- Serveurs ----------
+
+/**
+ * État des services de Counter-Strike 2 selon Valve (`ICSGOServers_730/GetGameServersStatus`). Les états sont ceux
+ * de Valve, en anglais : `normal`, `delayed`, `surge`, `offline`… (traduits par l'interface).
+ */
+export interface Cs2Servers {
+  /** Moment du relevé (ms). */
+  at: number
+  /** Le matchmaking (`matchmaking.scheduler`). */
+  matchmaking: string
+  /** La connexion aux serveurs de Steam (`services.SessionsLogon`). */
+  logon: string
+  /** Temps moyen de recherche d'une partie, en secondes. */
+  searchSeconds?: number
+  /** Joueurs en recherche d'une partie. */
+  searching?: number
+  /** Joueurs en ligne sur CS2. */
+  online?: number
+  /** Datacenters européens : nom (« EU West »…), charge (`low`, `medium`, `high`, `full`, `idle`). */
+  europe: { name: string; load: string }[]
+  /** Chiffres d'exemple (simulateur de développement) : toujours présentés comme tels. */
+  sample?: boolean
+}
+
+export type Cs2ServersResult = { ok: true; servers: Cs2Servers } | { ok: false; reason: 'no-key' | 'key-refused' | 'offline' }
+
+/** Joueurs en jeu sur Steam en ce moment (`ISteamUserStats/GetNumberOfCurrentPlayers`) ; null si Steam ne répond pas. */
+export interface SteamPlayers {
+  count: number
+  at: number
+  sample?: boolean
+}
+
 export interface LauncherApi {
   getGames(refresh?: boolean): Promise<Game[]>
   /**
@@ -837,6 +912,20 @@ export interface LauncherApi {
   getAchievementsOverview(refresh?: boolean): Promise<AchievementsOverview>
   /** Démarrage avec Windows tel que Windows le voit (il peut l'avoir désactivé de son côté). */
   getStartupState(): Promise<StartupState>
+  /** Prêt à jouer : mises à jour et téléchargements Steam en attente ou en cours (appid → état). */
+  getSteamUpdates(): Promise<SteamUpdates>
+  /** Chaque changement de ces états. Renvoie la fonction de désabonnement. */
+  onSteamUpdates(cb: (u: SteamUpdates) => void): () => void
+  /** Un jeu est prêt après sa mise à jour (fenêtre au premier plan, ou clic sur la notification Windows). */
+  onGameReady(cb: (e: GameReady) => void): () => void
+  /** Ouvre la page Téléchargements de Steam. `demo` : rien n'est ouvert. */
+  openSteamDownloads(): Promise<'opened' | 'demo'>
+  /** Ouvre un salon vocal du serveur Discord dans l'appli Discord (ou le site). `demo` : rien n'est ouvert. */
+  openDiscordChannel(channelId: string): Promise<'opened' | 'demo'>
+  /** Serveurs de CS2 selon Valve (avec ta clé Steam Web API) : gardés 5 min, sauf `force`. */
+  cs2Servers(force?: boolean): Promise<Cs2ServersResult>
+  /** Joueurs en jeu sur Steam pour un jeu Steam (gardé 5 min) ; null si Steam ne répond pas ou si ce n'est pas un jeu Steam. */
+  steamPlayers(gameId: string): Promise<SteamPlayers | null>
   platform: string
   version: string
 }

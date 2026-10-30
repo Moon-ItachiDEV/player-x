@@ -419,6 +419,74 @@
 .fp-members-empty {
   padding: 4px 12px 8px;
 }
+/* Vocal : un sous-groupe par salon occupé (dans l'ordre du serveur), puis les membres qui n'y sont pas. */
+.fp-room {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px 0 6px;
+}
+.fp-room-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  padding: 0 4px 0 12px;
+}
+.fp-room-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font: 600 13.5px/18px var(--font-ui);
+  color: var(--text-1);
+}
+.fp-room-name > svg {
+  flex-shrink: 0;
+  color: var(--text-2);
+}
+.fp-room-name > .fp-group-sep {
+  margin: 0;
+  color: var(--text-3);
+}
+.fp-room-name > .num {
+  color: var(--text-2);
+}
+.fp-room-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fp-room-open {
+  flex-shrink: 0;
+  gap: 6px;
+}
+.fp-room-rest {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 4px 0 2px;
+  padding: 0 12px;
+  font: 600 13.5px/18px var(--font-ui);
+  color: var(--text-2);
+}
+.fp-room-rest > .fp-group-sep {
+  margin: 0;
+  color: var(--text-3);
+}
+/* Fiche d'un membre en vocal : le salon, sous ce qu'il fait. */
+.fp-detail-voice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  font: 500 15px/22px var(--font-ui);
+  color: var(--text-1);
+}
+.fp-detail-voice > svg {
+  color: var(--text-2);
+}
 /* Note sous la liste : bots masqués, et le lien vers Paramètres › Comptes › Membres masqués */
 .fp-discord-note {
   margin: 6px 0 0;

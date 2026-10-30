@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { CS2_GAME_ID } from '@shared/cs2'
 import { PLAYED_SOURCE } from '@shared/played'
+import { formatPlayers, loadFr, serversLabel, serversOk, stateFr, waitLabel } from '@shared/servers'
+import { updateSentence } from '@shared/steamUpdate'
 import { cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
-import type { Friend, Game, NewsPost } from '@shared/types'
+import type { Cs2Servers, Friend, Game, NewsPost, SteamPlayers } from '@shared/types'
 import { isBf6Game, useBf6Summary } from './stats/bf6'
 import type { GameSheetProps, LaunchFn, View } from '../contracts'
 import { sheetLine } from '../launch/copy'
@@ -10,6 +12,9 @@ import { isPending } from '../launch/phase'
 import { PlayLabel } from '../launch/PlayLabel'
 import { useWindowActive } from '../update/useCardPhase'
 import { usePlayState, type PlayInfo } from '../launch/usePlayState'
+import { playLabelFor, useSteamUpdate } from '../ready/store'
+import { UpdateBadge, UpdateBar, useOpenSteamDownloads } from '../ready/UpdateBadge'
+import { useCs2Servers, useSteamPlayers } from '../servers/useServers'
 import { AchievementsSection, AchievementsTab } from './achievements/SheetAchievements'
 import { useAchievements, type AchievementsLoad } from './achievements/useAchievements'
 import { Cs2Matches, Cs2Overview } from './cs2/Cs2Section'
@@ -110,6 +115,13 @@ function Sheet({
   // Counter-Strike 2 : match en direct et bilans (onglet « Matchs »), lus seulement sur sa fiche.
   const isCs2 = game.id === CS2_GAME_ID && !game.notInstalled
   const { state: cs2, live } = useCs2(isCs2 && !closing)
+  // Prêt à jouer : mise à jour Steam en attente ou en cours ; « Jouer » la lance, Steam démarre le jeu ensuite.
+  const update = useSteamUpdate(game.notInstalled ? null : game)
+  const updatePlay = p.state === 'idle' ? playLabelFor(update) : undefined
+  const openDownloads = useOpenSteamDownloads()
+  // Serveurs : l'état de CS2 selon Valve ; pour tout jeu Steam, les joueurs en jeu sur Steam.
+  const servers = useCs2Servers(isCs2 && !closing)
+  const players = useSteamPlayers(closing ? null : game)
 
   // Onglets montrés : ceux qui ont quelque chose à dire pour ce jeu. « Actus » en premier, ouvert d'office (demande de
   // Breezydev, 0.9.6-beta.2 : la page Actus est retirée, les actus d'un jeu sont sur sa fiche) ; un jeu sans page Steam ou
@@ -335,10 +347,10 @@ function Sheet({
                 onClick={() => p.activate(posterRef.current)}
                 aria-disabled={p.inert || undefined}
                 aria-busy={p.busy || undefined}
-                aria-label={p.ariaLabel}
-                title={p.state === 'idle' ? undefined : p.title}
+                aria-label={updatePlay ? `${updatePlay} : ${title}` : p.ariaLabel}
+                title={updatePlay ? 'Steam termine la mise à jour, puis lance le jeu' : p.state === 'idle' ? undefined : p.title}
               >
-                <PlayLabel p={p} size={16} />
+                <PlayLabel p={p} size={16} label={updatePlay} />
               </button>
             )}
           </span>
@@ -358,7 +370,13 @@ function Sheet({
                 <span className="sheet-tags">
                   <StoreTag kind={game.store} long />
                   {game.running && <LiveBadge />}
-                  {game.notInstalled ? <span className="sheet-uninstalled">Pas installé</span> : <span className="sheet-installed">Installé</span>}
+                  {game.notInstalled ? (
+                    <span className="sheet-uninstalled">Pas installé</span>
+                  ) : update ? (
+                    <UpdateBadge update={update} />
+                  ) : (
+                    <span className="sheet-installed">Installé</span>
+                  )}
                 </span>
                 <SheetTitle id={titleId} title={title} logo={game.logoUrl} />
                 <Facts game={game} ach={achState} />
@@ -379,11 +397,11 @@ function Sheet({
                       onClick={() => p.activate(posterRef.current)}
                       aria-disabled={p.inert || undefined}
                       aria-busy={p.busy || undefined}
-                      aria-label={p.ariaLabel}
-                      title={p.state === 'idle' ? undefined : p.title}
+                      aria-label={updatePlay ? `${updatePlay} : ${title}` : p.ariaLabel}
+                      title={updatePlay ? 'Steam termine la mise à jour, puis lance le jeu' : p.state === 'idle' ? undefined : p.title}
                       data-magnetic={p.state === 'idle' ? '' : undefined}
                     >
-                      <PlayLabel p={p} size={20} />
+                      <PlayLabel p={p} size={20} label={updatePlay} />
                     </button>
                     <button
                       className={`sheet-round ${game.favorite ? 'is-fav' : ''}`}
@@ -446,10 +464,21 @@ function Sheet({
                     <h3 id="sheet-install-h" className="sheet-h">
                       Installation
                     </h3>
+                    {update && (
+                      <div className="sheet-update">
+                        <p className="sheet-update-text">{updateSentence(update)}</p>
+                        <UpdateBar update={update} className="is-inline" />
+                        <button className="btn btn-secondary btn-sm" onClick={openDownloads}>
+                          <Icon name="external-link" size={16} />
+                          Voir dans Steam
+                        </button>
+                      </div>
+                    )}
                     <InstallPath game={game} onOpenFolder={onOpenFolder} />
                   </section>
                 </div>
                 <div className="sheet-side">
+                  {(servers || players) && <ServersCard servers={servers} players={players} />}
                   {hasMatches && achCard}
                   {/* Personne sur ce jeu : pas de carte (pas de ligne de remplissage). */}
                   {pals.length > 0 && <FriendsCard title="Amis sur ce jeu" list={pals} />}
@@ -593,6 +622,76 @@ function Bf6Link({ onOpen }: { onOpen: () => void }): React.JSX.Element {
       </span>
       <Icon name="chevron-right" size={16} className="sheet-link-go" />
     </button>
+  )
+}
+
+/**
+ * Serveurs : pour Counter-Strike 2, ce que dit Valve (matchmaking, connexion, attente moyenne, datacenters européens) ;
+ * pour tout jeu Steam, les joueurs en jeu sur Steam. Rien d'inventé : sans réponse, la carte n'est pas là.
+ */
+function ServersCard({ servers, players }: { servers: Cs2Servers | null; players: SteamPlayers | null }): React.JSX.Element {
+  const at = servers?.at ?? players?.at ?? Date.now()
+  const sample = !!(servers?.sample || players?.sample)
+  return (
+    <section className="sheet-card sheet-servers" aria-labelledby="sheet-servers-h">
+      <h3 id="sheet-servers-h" className="sheet-h">
+        {servers ? 'Serveurs' : 'En ce moment'}
+      </h3>
+      {servers && (
+        <p className={`sheet-srv-state ${serversOk(servers) ? 'is-ok' : 'is-bad'}`}>
+          <span className="srv-dot" aria-hidden="true" />
+          {serversLabel(servers)}
+        </p>
+      )}
+      <dl className="sheet-srv-rows">
+        {servers && (
+          <>
+            <div>
+              <dt>Connexion à Steam</dt>
+              <dd>{stateFr(servers.logon)}</dd>
+            </div>
+            <div>
+              <dt>Matchmaking</dt>
+              <dd>{stateFr(servers.matchmaking)}</dd>
+            </div>
+            {servers.searchSeconds !== undefined && (
+              <div>
+                <dt>Attente moyenne</dt>
+                <dd className="num">{waitLabel(servers.searchSeconds)}</dd>
+              </div>
+            )}
+            {servers.searching !== undefined && (
+              <div>
+                <dt>En recherche d'une partie</dt>
+                <dd className="num">{formatPlayers(servers.searching)}</dd>
+              </div>
+            )}
+          </>
+        )}
+        {players && (
+          <div>
+            <dt>En jeu sur Steam</dt>
+            <dd className="num">{formatPlayers(players.count)}</dd>
+          </div>
+        )}
+      </dl>
+      {servers && servers.europe.length > 0 && (
+        <div className="sheet-srv-eu">
+          <p className="sheet-srv-sub">Charge des serveurs en Europe</p>
+          <ul className="sheet-srv-dcs">
+            {servers.europe.map((d) => (
+              <li key={d.name}>
+                {d.name} <strong>{loadFr(d.load)}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="caption">
+        {servers ? 'Selon Valve' : 'Selon Steam'}, {timeAgo(at)}
+        {sample ? ' · chiffres d’exemple (simulateur)' : ''}
+      </p>
+    </section>
   )
 }
 

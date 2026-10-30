@@ -8,7 +8,7 @@ import {
   type AuthTokensResponse
 } from 'psn-api'
 import { net } from 'electron'
-import type { Account, Friend, FriendPlatform, FriendsResult, FriendStatus } from '@shared/types'
+import type { Account, DiscordChannel, Friend, FriendPlatform, FriendsResult, FriendStatus } from '@shared/types'
 import { discordGuildIdFrom } from '@shared/text'
 import { memberKey } from './discordMembers'
 import { getAccounts, getSettings, saveAccount } from './settings'
@@ -149,13 +149,41 @@ async function steamFriends(account: Account, key: string): Promise<Friend[]> {
 
 interface DiscordWidget {
   name: string
-  members: { id: string; username: string; avatar_url: string; status: string; activity?: { name: string } }[]
+  /** Salons vocaux que @everyone peut voir (les salons privés n'y sont pas). Leurs identifiants sont les vrais. */
+  channels: { id: string; name: string; position: number }[]
+  /**
+   * Membres en ligne. En vocal : `channel_id` du salon, micro et casque coupés (`mute`, `deaf` par le serveur ;
+   * `self_mute`, `self_deaf` par le membre ; `suppress` : auditeur d'une scène). Noms lus par discord.py et disnake.
+   */
+  members: {
+    id: string
+    username: string
+    avatar_url: string
+    status: string
+    activity?: { name: string }
+    channel_id?: string | null
+    mute?: boolean
+    self_mute?: boolean
+    deaf?: boolean
+    self_deaf?: boolean
+    suppress?: boolean
+  }[]
+}
+
+/** Salons vocaux du widget, dans l'ordre du serveur (`position`). */
+function widgetChannels(raw: unknown): DiscordChannel[] {
+  if (!Array.isArray(raw)) return []
+  return (raw as Partial<DiscordWidget['channels'][number]>[])
+    .map((c, i) => ({ id: typeof c?.id === 'string' && /^\d{15,22}$/.test(c.id) ? c.id : '', name: text(c?.name, 100) ?? '', position: typeof c?.position === 'number' ? c.position : i }))
+    .filter((c) => c.id && c.name)
+    .sort((a, b) => a.position - b.position)
+    .map(({ id, name }) => ({ id, name }))
 }
 
 const DISCORD_WIDGET_OFF =
   'Le widget de ce serveur est désactivé. Dans les paramètres du serveur Discord, active « Activer le widget du serveur » puis enregistre les modifications.'
 
-async function discordServerMembers(rawId: string): Promise<{ name?: string; members: Friend[] }> {
+async function discordServerMembers(rawId: string): Promise<{ name?: string; members: Friend[]; channels: DiscordChannel[] }> {
   const guildId = discordGuildIdFrom(rawId)
   if (!/^\d{15,22}$/.test(guildId))
     throw new UserError('Identifiant de serveur Discord invalide : colle l’« Identifiant du serveur » affiché à côté du widget.')
@@ -182,6 +210,8 @@ async function discordServerMembers(rawId: string): Promise<{ name?: string; mem
     throw new Error(`Discord ${res.status}`)
   }
   const widget = (await res.json()) as Partial<DiscordWidget>
+  const channels = widgetChannels(widget.channels)
+  const voiceIds = new Set(channels.map((c) => c.id))
   const friends: Friend[] = []
   // Les identifiants du widget sont anonymes et changent selon la position : l'identité d'un membre, c'est son pseudo
   // (stable d'une récupération à l'autre, comme « Masquer »). Deux membres au même pseudo : « pseudo#2 »…
@@ -193,16 +223,21 @@ async function discordServerMembers(rawId: string): Promise<{ name?: string; mem
     const n = (seen.get(key) ?? 0) + 1
     seen.set(key, n)
     const game = text(m.activity?.name)
+    // En vocal : seulement dans un salon que le widget liste (sinon, pas de nom à montrer ni de lien sûr).
+    const channelId = typeof m.channel_id === 'string' && voiceIds.has(m.channel_id) ? m.channel_id : undefined
+    const muted = m.mute === true || m.self_mute === true || m.suppress === true
+    const deafened = m.deaf === true || m.self_deaf === true
     friends.push({
       id: `discord:${n > 1 ? `${key}#${n}` : key}`,
       platform: 'discord',
       name,
       avatarUrl: httpsUrl(m.avatar_url),
       status: game ? 'in-game' : m.status === 'idle' ? 'away' : 'online',
-      game
+      game,
+      ...(channelId ? { voice: { channelId, ...(muted ? { muted } : {}), ...(deafened ? { deafened } : {}) } } : {})
     })
   }
-  return { name: text(widget.name, 100), members: friends }
+  return { name: text(widget.name, 100), members: friends, channels }
 }
 
 // ---------- PlayStation (non officiel, via psn-api) ----------
@@ -313,8 +348,9 @@ export async function getAllFriends(): Promise<FriendsResult> {
   if (settings.discordGuildId) {
     tasks.push(
       collect('discord', async () => {
-        const { name, members } = await discordServerMembers(settings.discordGuildId)
+        const { name, members, channels } = await discordServerMembers(settings.discordGuildId)
         if (name) result.discordServer = name
+        if (channels.length) result.discordChannels = channels
         return members
       })
     )

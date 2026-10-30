@@ -5,6 +5,7 @@ import type { StartupState } from '@shared/types'
 import { getKv, setKv } from '../db'
 import { getSettings, saveSettings } from './settings'
 import { mainWindow } from '../windows'
+import { LAUNCH_ARG, menuLabel } from './recentGames'
 
 // Zone de notification (près de l'horloge) : la croix y range Player X au lieu de le fermer, pour que le temps de jeu,
 // les alertes d'amis et le bilan Battlefield 6 continuent. « Quitter » dans le menu de l'icône le ferme vraiment.
@@ -23,6 +24,9 @@ const SUPPORTED = process.platform !== 'darwin'
 let tray: Tray | null = null
 let quitting = false
 let playing: string[] = []
+/** Jeux récents (menu de l'icône, liste de raccourcis de Windows) et ce que fait un clic sur l'un d'eux. */
+let recent: { id: string; name: string }[] = []
+let onLaunch: (id: string) => void = () => {}
 /** Gardée tant qu'elle vit, sinon son clic est perdu. */
 let hint: Notification | null = null
 let onHide = (): void => {}
@@ -42,11 +46,59 @@ function refresh(): void {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Ouvrir Player X', click: showMainWindow },
-      ...(playing.length ? [{ type: 'separator' as const }, ...playing.map((name) => ({ label: `En jeu : ${name}`, enabled: false }))] : []),
+      ...(playing.length ? [{ type: 'separator' as const }, ...playing.map((name) => ({ label: menuLabel(`En jeu : ${name}`), enabled: false }))] : []),
+      // Jeux récents : un clic lance le jeu comme le bouton Jouer, sans ouvrir la fenêtre.
+      ...(recent.length
+        ? [
+            { type: 'separator' as const },
+            { label: 'Jeux récents', enabled: false },
+            ...recent.map((g) => ({ label: menuLabel(g.name), click: () => onLaunch(g.id) }))
+          ]
+        : []),
       { type: 'separator' },
       { label: 'Quitter Player X', click: () => app.quit() }
     ])
   )
+}
+
+/**
+ * Jeux récents : dans le menu de l'icône et dans la liste de raccourcis de Windows (clic droit sur Player X dans la
+ * barre des tâches). Rien n'est refait si la liste n'a pas changé.
+ */
+export function setRecentGames(list: { id: string; name: string }[], launch: (id: string) => void): void {
+  onLaunch = launch
+  if (JSON.stringify(list) === JSON.stringify(recent)) return
+  recent = list
+  refresh()
+  syncJumpList()
+}
+
+/**
+ * Liste de raccourcis de Windows : la catégorie « Jeux récents ». Chaque entrée relance Player X avec `--launch=<id>` ;
+ * l'instance déjà ouverte reçoit l'argument (second-instance) et lance le jeu. Version installée seulement : en
+ * développement, l'exécutable est celui d'Electron.
+ */
+function syncJumpList(): void {
+  if (process.platform !== 'win32' || !app.isPackaged) return
+  try {
+    // Une entrée retirée à la main ne peut pas revenir : Windows refuserait alors toute la catégorie.
+    const removed = new Set(app.getJumpListSettings().removedItems.map((i) => i.args ?? ''))
+    const items = recent
+      .filter((g) => !removed.has(`${LAUNCH_ARG}${g.id}`))
+      .map((g) => ({
+        type: 'task' as const,
+        title: g.name,
+        description: `Lancer ${g.name}`,
+        program: process.execPath,
+        args: `${LAUNCH_ARG}${g.id}`,
+        iconPath: process.execPath,
+        iconIndex: 0
+      }))
+    const result = app.setJumpList(items.length ? [{ type: 'custom', name: 'Jeux récents', items }] : null)
+    if (result !== 'ok') console.warn('[jump-list]', result)
+  } catch (e) {
+    console.warn('[jump-list]', e)
+  }
 }
 
 /** Jeux en cours, affichés dans le menu et l'infobulle de l'icône. */

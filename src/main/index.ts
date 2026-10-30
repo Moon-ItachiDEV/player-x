@@ -12,14 +12,14 @@ import { handle } from './ipc'
 import { appWindows, mainWindow } from './windows'
 import { getAchievementsOverview, getGameAchievements, onRareUnlocks, startAchievementsWatcher } from './services/achievements'
 import { demoAchievements, demoAchievementsOverview } from './services/achievementsDemo'
-import { checkFriends, deliverRare, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
+import { checkFriends, deliverRare, deliverReady, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
 import { cancelLogin, loginDiscord, loginSteam } from './services/auth'
 import { applyArtwork, updateArtwork, withLogos } from './services/artwork'
 import { bf6RecapState, markBf6RecapSeen, setBf6Running, startBf6Recaps, syncBf6Recaps } from './services/bf6Recap'
 import { getCs2Lifetime, startCs2LifetimeRecorder } from './services/cs2Lifetime'
 import { cs2DemoChanged, cs2State, markCs2RecapSeen, setCs2Running, startCs2Live, syncCs2 } from './services/cs2Live'
 import { closeCs2Overlay, startCs2Overlay, syncCs2Overlay } from './services/cs2Overlay'
-import { DEMO_FRIENDS, DEMO_GAMES, DEMO_SERVER, demoGames, demoNotInstalled } from './services/demo'
+import { DEMO_CHANNELS, DEMO_FRIENDS, DEMO_GAMES, DEMO_SERVER, demoGames, demoNotInstalled } from './services/demo'
 import { hideMembers, withMemberHidden } from './services/discordMembers'
 import { connectPsn, getAllFriends, resetPsn } from './services/friends'
 import { getScanReport, handoff, launchTarget, scanAllGames } from './services/games'
@@ -28,8 +28,11 @@ import { createWatcher } from './services/launchWatch'
 import { newMatches } from './services/launchWatchParse'
 import { getGameNews, markNewsSeen, refreshNewsIndex, startNewsWatcher, withNews } from './services/news'
 import { allowDemo, getAccounts, getMemberPrefs, getSettings, publicSettings, removeAccount, saveMemberPrefs, saveSettings } from './services/settings'
+import { launchArgOf, recentGames } from './services/recentGames'
+import { getCs2Servers, getSteamPlayers } from './services/servers'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { installSteamGame, isSteamSoftware, ownedForNews, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
+import { startSteamUpdates, steamUpdates, steamUpdatesDemoChanged } from './services/steamUpdates'
 import {
   exeNamesFor,
   isRunning,
@@ -44,7 +47,18 @@ import {
   storeWasRunning,
   withPlaytime
 } from './services/playtime'
-import { applyInstallOptions, attachWindow, onHideToTray, setTrayPlaying, startHidden, startTray, startupState, syncStartup } from './services/tray'
+import {
+  applyInstallOptions,
+  attachWindow,
+  onHideToTray,
+  setRecentGames,
+  setTrayPlaying,
+  showMainWindow,
+  startHidden,
+  startTray,
+  startupState,
+  syncStartup
+} from './services/tray'
 import { initUpdater, takeRelaunchBounds, updateChannelChanged, updateWindowReady } from './services/updater'
 import type { LaunchSim } from './launchSim'
 
@@ -130,9 +144,14 @@ function notifyGamesChanged(): void {
 
 /** Jeux en cours dans la vraie bibliothèque : menu de l'icône près de l'horloge, session Battlefield 6, match Counter-Strike 2. */
 function updateRunning(): void {
-  const running = withPlaytime(db.listGames()).filter((g) => g.running)
+  const all = withPlaytime(db.listGames())
+  const running = all.filter((g) => g.running)
   // La démo reste dans la fenêtre : rien dans le menu de l'icône.
-  setTrayPlaying(getSettings().demoMode ? [] : running.map((g) => cleanName(g.name)))
+  const demo = getSettings().demoMode
+  setTrayPlaying(demo ? [] : running.map((g) => cleanName(g.name)))
+  // Jeux récents : menu de l'icône et liste de raccourcis de Windows (rien n'est refait si la liste ne change pas).
+  const recent = demo ? [] : recentGames(all.filter(isGameEntry)).map((g) => ({ id: g.id, name: cleanName(g.name) }))
+  if (launches) setRecentGames(recent, launchFromShortcut)
   // Fin vue sans relevé fiable (mise en veille, PowerShell en panne) : le bilan attend le prochain relevé réussi.
   setBf6Running(running.some((g) => isBf6Name(g.name)), lastPollOk())
   setCs2Running(running.some((g) => g.id === CS2_GAME_ID), lastPollOk())
@@ -220,6 +239,11 @@ function newsGames(): Game[] {
   return [...installed, ...(getSettings().demoMode ? demoNotInstalled() : ownedForNews(installed))]
 }
 
+/** Amis et membres du serveur du mode démo (salons vocaux compris). */
+function demoFriends(): FriendsResult {
+  return { friends: DEMO_FRIENDS, errors: {}, discordServer: DEMO_SERVER, discordChannels: DEMO_CHANNELS }
+}
+
 /** Un jeu de la bibliothèque, ou un jeu du compte Steam pas installé sur ce PC (sa fiche s'ouvre aussi). */
 function findGame(id: unknown): Game | undefined {
   if (typeof id !== 'string') return undefined
@@ -282,7 +306,7 @@ function registerIpc(): void {
   handle('friends:list', async () => {
     if (getSettings().demoMode) {
       demoFriendAlert(DEMO_FRIENDS)
-      return hideMembers({ friends: DEMO_FRIENDS, errors: {}, discordServer: DEMO_SERVER }, getMemberPrefs(true))
+      return hideMembers(demoFriends(), getMemberPrefs(true))
     }
     const raw = await getAllFriends()
     lastRaw = raw
@@ -297,7 +321,23 @@ function registerIpc(): void {
     if (!clean || clean.length > 128 || typeof hidden !== 'boolean') throw new Error('Membre inconnu.')
     const demo = getSettings().demoMode
     saveMemberPrefs(demo, withMemberHidden(getMemberPrefs(demo), clean, hidden))
-    return hideMembers(demo ? { friends: DEMO_FRIENDS, errors: {}, discordServer: DEMO_SERVER } : lastRaw, getMemberPrefs(demo))
+    return hideMembers(demo ? demoFriends() : lastRaw, getMemberPrefs(demo))
+  })
+  // Salon vocal du serveur Discord : l'appli Discord s'il est installé, sinon le site. L'adresse est faite ici,
+  // avec le serveur des Paramètres ; l'interface ne donne que l'identifiant du salon.
+  handle('discord:open-channel', async (_e, channelId: unknown) => {
+    if (typeof channelId !== 'string' || !/^\d{15,22}$/.test(channelId)) throw new Error('Salon inconnu.')
+    if (getSettings().demoMode) return 'demo'
+    const guild = getSettings().discordGuildId
+    if (!/^\d{15,22}$/.test(guild)) throw new Error('Serveur Discord inconnu : vérifie son identifiant dans Paramètres › Comptes.')
+    let app_ = ''
+    try {
+      app_ = app.getApplicationNameForProtocol('discord://')
+    } catch {
+      /* inconnu : le site */
+    }
+    await shell.openExternal(app_ ? `discord://-/channels/${guild}/${channelId}` : `https://discord.com/channels/${guild}/${channelId}`)
+    return 'opened'
   })
   handle('friends:test-alert', () => testFriendAlert(getSettings().demoMode ? DEMO_FRIENDS : lastFriends))
   // Actus des jeux : l'appid Steam est retrouvé ici, à partir de la bibliothèque, jamais reçu de l'interface.
@@ -334,6 +374,19 @@ function registerIpc(): void {
     if (!game?.notInstalled) throw new Error('Ce jeu n’est pas dans la liste de ton compte Steam.')
     // Mode démo : rien n'est installé pour de vrai.
     if (!getSettings().demoMode) await installSteamGame(game.storeId)
+  })
+  // Prêt à jouer : mises à jour Steam en attente ou en cours (manifestes locaux et registre de Steam).
+  handle('steam:updates', () => steamUpdates())
+  handle('steam:open-downloads', async () => {
+    if (getSettings().demoMode) return 'demo'
+    await shell.openExternal('steam://open/downloads')
+    return 'opened'
+  })
+  // Serveurs : CS2 avec la clé Steam Web API ; joueurs en jeu pour un jeu Steam retrouvé ici (jamais un appid reçu tel quel).
+  handle('servers:cs2', (_e, force: unknown) => getCs2Servers(force === true))
+  handle('servers:players', (_e, id: unknown) => {
+    const game = findGame(id)
+    return game?.store === 'steam' ? getSteamPlayers(game.storeId) : null
   })
   handle('accounts:list', () => getAccounts())
   handle('accounts:login', async (_e, platform: 'steam' | 'discord') => {
@@ -376,6 +429,7 @@ function registerIpc(): void {
     if (next.demoMode !== wasDemo) {
       updateRunning()
       resetFriendAlerts()
+      steamUpdatesDemoChanged()
       cs2DemoChanged()
       // Les lancements en cours (vrais ou de démo) s'arrêtent sans carte : l'interface vide aussi les siens.
       launches.reset()
@@ -506,6 +560,20 @@ function launchDeps(): LaunchDeps {
   }
 }
 
+/**
+ * Jeu lancé depuis le menu de l'icône près de l'horloge ou la liste de raccourcis de Windows (`--launch=<id>`) : le
+ * même lancement que le bouton Jouer, sans ouvrir la fenêtre. Si l'envoi échoue, la fenêtre s'ouvre sur la carte qui
+ * l'explique.
+ */
+function launchFromShortcut(id: string): void {
+  launches
+    .start(id, sanitizeOpts({ via: 'play' }))
+    .then((s) => {
+      if (s.phase === 'failed') showMainWindow()
+    })
+    .catch(() => showMainWindow())
+}
+
 /** En développement, PX_LAUNCH_SIM branche le vrai orchestrateur sur un faux Windows (launchSim.ts, jamais dans l'installeur). */
 async function startLaunches(): Promise<Launches> {
   const deps = launchDeps()
@@ -552,7 +620,11 @@ if (process.platform === 'win32') app.setAppUserModelId('dev.breezy.playerx')
 // Une seule instance : deux Player X ouverts écraseraient chacun la base de l'autre (temps de jeu relevé chaque minute).
 const firstInstance = app.requestSingleInstanceLock()
 if (!firstInstance) app.quit()
-app.on('second-instance', () => {
+// Une deuxième ouverture montre la fenêtre déjà là ; avec `--launch=<id>` (liste de raccourcis de Windows), elle lance
+// seulement le jeu.
+app.on('second-instance', (_e, argv) => {
+  const id = launchArgOf(argv)
+  if (id && launches) return launchFromShortcut(id)
   const win = mainWindow()
   if (!win) return
   if (win.isMinimized()) win.restore()
@@ -591,6 +663,24 @@ app.whenReady().then(async () => {
   }
   onRareUnlocks(deliverRare)
   startAchievementsWatcher(() => getSettings().demoMode)
+  // Prêt à jouer : une mise à jour Steam (ou un premier téléchargement) terminée prévient, si le réglage le permet.
+  startSteamUpdates({
+    demo: () => getSettings().demoMode,
+    onReady: (appId, firstInstall) => {
+      if (!getSettings().gameReadyAlert) return
+      const game = findGame(`steam:${appId}`)
+      if (game) deliverReady({ gameId: game.id, name: cleanName(game.name), firstInstall })
+    }
+  })
+  // Développement seulement : PX_READY_SIM simule des mises à jour Steam, PX_SERVERS_SIM l'état des serveurs (jamais dans l'installeur).
+  if (!app.isPackaged && process.env.PX_READY_SIM) {
+    const mode = process.env.PX_READY_SIM
+    import('./services/steamUpdatesSim').then(({ startSteamUpdatesSim }) => startSteamUpdatesSim(mode)).catch((e) => console.warn('[ready-sim]', e))
+  }
+  if (!app.isPackaged && process.env.PX_SERVERS_SIM) {
+    const mode = process.env.PX_SERVERS_SIM
+    import('./services/serversSim').then(({ startServersSim }) => startServersSim(mode)).catch((e) => console.warn('[servers-sim]', e))
+  }
   // Un jeu installé avec « Installer » : nouveau scan, il passe des « Non installés » à la bibliothèque.
   startSteamLibrary(notifyGamesChanged, () => {
     games(true)
@@ -612,6 +702,9 @@ app.whenReady().then(async () => {
     import('./services/cs2Sim').then(({ startCs2Sim }) => startCs2Sim(mode)).catch((e) => console.warn('[cs2-sim]', e))
   }
   createWindow()
+  // Ouvert par la liste de raccourcis de Windows alors que Player X était fermé : le jeu demandé part tout de suite.
+  const launchAtStart = launchArgOf(process.argv)
+  if (launchAtStart) launchFromShortcut(launchAtStart)
   // En démo aussi, on récupère les vraies jaquettes des jeux fictifs.
   if (getSettings().demoMode) updateArtwork(DEMO_GAMES).then((changed) => changed && notifyGamesChanged())
   app.on('activate', () => appWindows().length === 0 && createWindow())

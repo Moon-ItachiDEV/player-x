@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { norm, plural } from '@shared/text'
-import type { FriendPlatform, FriendStatus, HiddenMember } from '@shared/types'
+import type { DiscordChannel, FriendPlatform, FriendStatus, HiddenMember } from '@shared/types'
 import type { SideFriendsProps } from '../../contracts'
 import { Avatar } from '../ui/Avatar'
 import { Icon } from '../ui/Icon'
 import { byStatus, classify, friendSinceLabel, lastSeenLabel, libraryIndex, pickDefault, steamProfileUrl, type Entry } from './friendView'
+import { useOpenChannel } from './useOpenChannel'
+import { voiceRooms } from './voice'
 import './friends.css'
 
 export type { SideFriendsProps }
@@ -123,12 +125,14 @@ function maskedLabel(hidden: HiddenMember[]): string {
   return parts.length ? `${parts.join(' et ')} masqué${hidden.length > 1 ? 's' : ''}` : ''
 }
 
-/** Sous-ligne d'une rangée : « ▶ Valorant », « En ligne · PS5 », « En ligne · Spotify », « Hors ligne ». */
+/** Sous-ligne d'une rangée : « ▶ Valorant », « En ligne · PS5 », « En ligne · Spotify », « Hors ligne » ; en vocal, « micro coupé ». */
 function rowSub({ friend, status, game, activity }: Entry): string {
-  if (status === 'in-game') return game ?? ''
+  const voice = friend.voice?.deafened ? 'casque coupé' : friend.voice?.muted ? 'micro coupé' : ''
+  if (status === 'in-game') return [game ?? '', voice].filter(Boolean).join(' · ')
   const parts = [STATUS_LABEL[status]]
   if (friend.device && status !== 'offline') parts.push(friend.device)
   if (activity) parts.push(activity)
+  if (voice) parts.push(voice)
   return parts.join(' · ')
 }
 
@@ -177,7 +181,14 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
   )
   const match = useMemo(() => matcher(query), [query])
   const found = pals.filter(match)
-  const members = allMembers.filter(match)
+  // Membres du serveur : d'abord ceux de chaque salon vocal (dans l'ordre du serveur), puis les autres.
+  const filteredMembers = allMembers.filter(match)
+  const rooms = voiceRooms(result.discordChannels, filteredMembers, (e) => e.friend)
+  const inVoice = new Set(rooms.flatMap((r) => r.people.map((e) => e.friend.id)))
+  const notInVoice = filteredMembers.filter((e) => !inVoice.has(e.friend.id))
+  const members = [...rooms.flatMap((r) => r.people), ...notInVoice]
+  const openChannel = useOpenChannel()
+  const channelOf = (e: Entry): DiscordChannel | undefined => result.discordChannels?.find((c) => c.id === e.friend.voice?.channelId)
 
   // Filtre de plateforme : seulement quand les deux ont des amis (sinon il ne filtrerait rien).
   const platforms = PALS.filter((p) => pals.some((e) => e.friend.platform === p))
@@ -467,9 +478,43 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
               </span>
             </h2>
             {result.errors.discord && <ErrorNote platform="discord" message={result.errors.discord} onFix={onOpenAccounts} />}
-            {members.length > 0 ? (
-              <Rows id="fp-g-members" entries={members} selected={selected} pulsing={pulsing} onChoose={choose} />
-            ) : (
+            {rooms.map((r) => {
+              const id = `fp-g-voice-${r.channel.id}`
+              return (
+                <div key={r.channel.id} className="fp-room">
+                  <div className="fp-room-head">
+                    <span id={id} className="fp-room-name">
+                      <Icon name="volume" size={14} />
+                      <span className="fp-room-label" title={r.channel.name}>
+                        {r.channel.name}
+                      </span>
+                      <span className="fp-group-sep" aria-hidden="true">
+                        ·
+                      </span>
+                      <span className="num">{r.people.length}</span>
+                      <span className="sr-only"> en vocal</span>
+                    </span>
+                    <button type="button" className="btn btn-ghost btn-sm fp-room-open" onClick={() => openChannel(r.channel)} aria-label={`Ouvrir le salon ${r.channel.name} dans Discord`}>
+                      Ouvrir dans Discord
+                      <Icon name="external-link" size={13} />
+                    </button>
+                  </div>
+                  <Rows id={id} entries={r.people} selected={selected} pulsing={pulsing} onChoose={choose} />
+                </div>
+              )
+            })}
+            {rooms.length > 0 && notInVoice.length > 0 && (
+              <p id="fp-g-members-rest" className="fp-room-rest">
+                Pas en vocal
+                <span className="fp-group-sep" aria-hidden="true">
+                  ·
+                </span>
+                <span className="num">{notInVoice.length}</span>
+              </p>
+            )}
+            {notInVoice.length > 0 ? (
+              <Rows id={rooms.length ? 'fp-g-members-rest' : 'fp-g-members'} entries={notInVoice} selected={selected} pulsing={pulsing} onChoose={choose} />
+            ) : members.length > 0 ? null : (
               !result.errors.discord && (
                 <p className="fp-caption fp-members-empty">
                   {query.trim() && allMembers.length > 0 ? 'Aucun membre ne correspond.' : "Personne en ligne sur le serveur pour l'instant."}
@@ -494,6 +539,8 @@ export function SideFriends(props: SideFriendsProps): React.JSX.Element {
     <FriendDetail
       entry={selected}
       server={result.discordServer}
+      channel={channelOf(selected)}
+      onOpenChannel={openChannel}
       onOpenGame={onOpenGame}
       onHide={hide}
       onBack={narrow ? back : undefined}
@@ -624,12 +671,17 @@ function Ring({ entry, size, pulse }: { entry: Entry; size: number; pulse?: bool
 function FriendDetail({
   entry,
   server,
+  channel,
+  onOpenChannel,
   onOpenGame,
   onHide,
   onBack
 }: {
   entry: Entry
   server?: string
+  /** Salon vocal où se trouve le membre du serveur (widget Discord). */
+  channel?: DiscordChannel
+  onOpenChannel: (c: DiscordChannel) => void
   onOpenGame: SideFriendsProps['onOpenGame']
   onHide: (e: Entry) => void
   onBack?: () => void
@@ -683,6 +735,12 @@ function FriendDetail({
           {friend.name}
         </h2>
         {line && <p className="fp-detail-line">{line}</p>}
+        {channel && (
+          <p className="fp-detail-voice">
+            <Icon name="volume" size={15} />
+            En vocal dans « {channel.name} »{friend.voice?.deafened ? ' · casque coupé' : friend.voice?.muted ? ' · micro coupé' : ''}
+          </p>
+        )}
         {meta && <p className="fp-detail-meta">{meta}</p>}
         {friend.presenceUnknown && <p className="fp-detail-meta">PlayStation n’a pas donné sa présence cette fois-ci : le statut peut être en retard.</p>}
 
@@ -690,6 +748,13 @@ function FriendDetail({
 
         {(profile || member) && (
           <div className="fp-actions">
+            {channel && (
+              <button type="button" className="btn btn-secondary btn-lg fp-action" onClick={() => onOpenChannel(channel)}>
+                <Icon name="volume" size={17} />
+                Ouvrir le salon dans Discord
+                <Icon name="external-link" size={15} className="fp-action-ext" />
+              </button>
+            )}
             {profile && (
               <button type="button" className="btn btn-secondary btn-lg fp-action" onClick={() => void window.launcher.openExternal(profile)}>
                 <Icon name="user" size={17} />

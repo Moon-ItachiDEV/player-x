@@ -1,6 +1,6 @@
 import { app, BrowserWindow, nativeImage, net, Notification } from 'electron'
 import { join } from 'node:path'
-import type { Friend, FriendAlert, FriendAlertMode, FriendPlatform, FriendsResult, RareUnlock } from '@shared/types'
+import type { Friend, FriendAlert, FriendAlertMode, FriendPlatform, FriendsResult, GameReady, RareUnlock } from '@shared/types'
 import { getSettings } from './settings'
 import { appWindows, mainWindow } from '../windows'
 
@@ -172,6 +172,37 @@ export function demoFriendAlert(friends: Friend[]): void {
     const at = Date.now()
     void deliver([{ key: `demo:${at}`, friend: { ...friend, status: 'in-game', game: 'Hades' }, kind: 'in-game', at, sample: true }])
   }, 20_000)
+}
+
+// ---------- jeu prêt après une mise à jour (Prêt à jouer) ----------
+
+/** Steam a fini : carte dans Player X au premier plan (avec « Jouer »), sinon notification Windows. */
+export function deliverReady(e: GameReady): void {
+  const win = focusedWindow()
+  if (win) {
+    win.webContents.send('games:ready', e)
+    return
+  }
+  if (!Notification.isSupported()) return
+  const n = new Notification({
+    title: `${e.name} est prêt`,
+    body: e.firstInstall ? 'Steam a fini de le télécharger. Clique pour ouvrir Player X.' : 'Steam a fini la mise à jour. Clique pour ouvrir Player X.',
+    icon: appIcon()
+  })
+  live.add(n)
+  const drop = (): boolean => live.delete(n)
+  n.on('click', () => {
+    drop()
+    const w = mainWindow()
+    if (!w) return
+    if (w.isMinimized()) w.restore()
+    w.show()
+    w.focus()
+    w.webContents.send('games:ready', e)
+  })
+  n.on('close', drop)
+  n.on('failed', drop)
+  n.show()
 }
 
 // ---------- succès rares ----------
