@@ -296,8 +296,9 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   const visibleGames = useMemo(() => (hiddenSet.size ? shownGames.filter((g) => !hiddenSet.has(g.id)) : shownGames), [shownGames, hiddenSet])
   const visibleNotInstalled = useMemo(() => (hiddenSet.size ? notInstalled.filter((g) => !hiddenSet.has(g.id)) : notInstalled), [notInstalled, hiddenSet])
 
-  // Clic sur une notification Windows d'un ami (ou sur une alerte) : la page Amis s'ouvre.
+  // Clic sur une notification Windows d'un ami (ou sur une alerte) : la page Amis s'ouvre, à la place d'une fiche ouverte.
   const showFriends = useCallback(() => {
+    setOpenGameId(null)
     setView('friends')
     setAccountMenu(false)
   }, [])
@@ -432,6 +433,7 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
   )
 
   const goSettings = (s: SettingsSection): void => {
+    setOpenGameId(null)
     setSection(s)
     setView('settings')
     setAccountMenu(false)
@@ -604,9 +606,14 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
     )
   }
 
+  // Une page choisie (barre du haut, recherche, menu du compte…) remplace la fiche ouverte. Avant la 0.9.7-beta.6, la page
+  // changeait derrière la fiche et seul son fil d'Ariane suivait (retour de Breezydev). La page d'où vient la fiche :
+  // comme « Retour », la fiche se referme sur sa jaquette.
   const go = (v: View): void => {
-    setView(v)
     setAccountMenu(false)
+    if (openGameId && v === view) return closeSheet()
+    setOpenGameId(null)
+    setView(v)
   }
 
   const searchPick = (item: SearchItem | null, launch: boolean): void => {
@@ -770,20 +777,14 @@ function Shell({ ui, updateUi, setup, setSetup }: ShellProps): React.JSX.Element
         onFavorite={toggleFavorite}
         onOpenFolder={openFolder}
         onInstall={install}
-        onOpenStats={() => {
-          setOpenGameId(null)
-          go('stats')
-        }}
+        onOpenStats={() => go('stats')}
         news={settings.gameNews}
         from={view}
       />
       <FriendAlerts games={games} onShowFriends={showFriends} />
       <RecapHost
         games={games}
-        onOpenStats={() => {
-          setOpenGameId(null)
-          go('stats')
-        }}
+        onOpenStats={() => go('stats')}
       />
       <Cs2RecapHost games={games} />
       <UpdateNotice onOpenAbout={() => goSettings('about')} inGame={anyRunning} launching={pending.real && !anyRunning} />
