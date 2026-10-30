@@ -8,8 +8,8 @@ import { libraryMeta } from '../../launch/copy'
 import { PlayLabel } from '../../launch/PlayLabel'
 import { usePlayState, type PlayInfo } from '../../launch/usePlayState'
 import { setArtFocus, setMorphSource } from '../../motion'
-import { useSteamUpdate } from '../../ready/store'
-import { UpdateBadge, UpdateBar } from '../../ready/UpdateBadge'
+import { updateAction, useSteamUpdate } from '../../ready/store'
+import { UpdateBadge, UpdateBar, useOpenSteamDownloads } from '../../ready/UpdateBadge'
 import { Cover, generatedBackground } from '../ui/Cover'
 import { Icon } from '../ui/Icon'
 import { KIND_LABEL, STORE_LONG } from '../ui/StoreTag'
@@ -58,8 +58,11 @@ function useGameItem({ game, onOpen, onLaunch }: GameItemProps) {
   const focusArt = useRef(false)
   const art = game.heroUrl || game.coverUrl
   const p = usePlayState(game, onLaunch)
-  // Prêt à jouer : mise à jour ou téléchargement Steam en attente ou en cours.
+  // Prêt à jouer : mise à jour ou téléchargement Steam en attente ou en cours. Le bouton dit alors « Mettre à jour » et
+  // ouvre les téléchargements de Steam (double-clic et Entrée aussi), sans lancer le jeu.
   const update = useSteamUpdate(game)
+  const act = p.state === 'idle' && !game.notInstalled ? updateAction(update) : undefined
+  const openDownloads = useOpenSteamDownloads()
 
   useEffect(
     () => () => {
@@ -72,7 +75,8 @@ function useGameItem({ game, onOpen, onLaunch }: GameItemProps) {
 
   const launch = (): void => {
     clearTimeout(timer.current)
-    p.activate(cover.current)
+    if (act) openDownloads()
+    else p.activate(cover.current)
   }
 
   const open = (): void => {
@@ -119,7 +123,7 @@ function useGameItem({ game, onOpen, onLaunch }: GameItemProps) {
     }
   }
 
-  return { p, cover, art, launch, handlers, update }
+  return { p, cover, art, launch, handlers, update, act }
 }
 
 // Les boutons internes ne doivent ni ouvrir la fiche ni lancer au double-clic.
@@ -192,7 +196,7 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
   // Monté pendant un tri animé : la transition de vue s'en charge, pas d'entrée en cascade.
   const [entering] = useState(() => !document.documentElement.classList.contains('vt-active'))
   const [glowFailed, setGlowFailed] = useState(false)
-  const { p, cover, art, launch, handlers, update } = useGameItem(props)
+  const { p, cover, art, launch, handlers, update, act } = useGameItem(props)
   const name = cleanName(game.name)
   // Jeu du compte Steam pas installé : « Installer » à la place de « Jouer », pas de favori.
   const install = !!game.notInstalled
@@ -247,10 +251,10 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
                 <StateBadge game={game} update={update} className="lib-card-corner" />
                 <button
                   type="button"
-                  className={`lib-card-play ${p.className}`}
+                  className={`lib-card-play ${p.className} ${act ? 'is-update' : ''}`}
                   tabIndex={-1}
-                  aria-label={p.ariaLabel}
-                  title={p.title}
+                  aria-label={act ? `${act.label} : ${name}` : p.ariaLabel}
+                  title={act ? act.title : p.title}
                   aria-disabled={p.inert || undefined}
                   onClick={(e) => {
                     stop(e)
@@ -258,7 +262,7 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
                   }}
                   onDoubleClick={stop}
                 >
-                  <PlayLabel p={p} size={14} />
+                  <PlayLabel p={p} size={14} label={act?.label} icon={act ? 'download' : undefined} />
                 </button>
               </>
             )}
@@ -284,7 +288,7 @@ export function GameCard(props: GameItemProps): React.JSX.Element {
 /** Ligne du mode Liste : vignette, titre, temps de jeu, dernière partie, lancements, état, favori, Jouer ou Installer. */
 export function GameRow(props: GameItemProps): React.JSX.Element {
   const { game, onFavorite } = props
-  const { p, cover, launch, handlers, update } = useGameItem(props)
+  const { p, cover, launch, handlers, update, act } = useGameItem(props)
   const name = cleanName(game.name)
   const install = !!game.notInstalled
   const meta = metaOf(game, p)
@@ -323,8 +327,8 @@ export function GameRow(props: GameItemProps): React.JSX.Element {
         type="button"
         className={`lib-row-play ${install ? 'is-install' : p.className}`}
         tabIndex={-1}
-        aria-label={install ? `Installer ${name} avec Steam` : p.ariaLabel}
-        title={install ? 'Installer avec Steam' : p.title}
+        aria-label={install ? `Installer ${name} avec Steam` : act ? `${act.label} : ${name}` : p.ariaLabel}
+        title={install ? 'Installer avec Steam' : act ? act.title : p.title}
         aria-disabled={p.inert || undefined}
         onClick={(e) => {
           stop(e)
@@ -338,7 +342,7 @@ export function GameRow(props: GameItemProps): React.JSX.Element {
             <span>Installer</span>
           </>
         ) : (
-          <PlayLabel p={p} size={14} />
+          <PlayLabel p={p} size={14} label={act?.label} icon={act ? 'download' : undefined} />
         )}
       </button>
     </article>

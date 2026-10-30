@@ -12,7 +12,7 @@ import { isPending } from '../launch/phase'
 import { PlayLabel } from '../launch/PlayLabel'
 import { useWindowActive } from '../update/useCardPhase'
 import { usePlayState, type PlayInfo } from '../launch/usePlayState'
-import { playLabelFor, useSteamUpdate } from '../ready/store'
+import { updateAction, useSteamUpdate } from '../ready/store'
 import { UpdateBadge, UpdateBar, useOpenSteamDownloads } from '../ready/UpdateBadge'
 import { useCs2Servers, useSteamPlayers } from '../servers/useServers'
 import { AchievementsSection, AchievementsTab } from './achievements/SheetAchievements'
@@ -115,9 +115,10 @@ function Sheet({
   // Counter-Strike 2 : match en direct et bilans (onglet « Matchs »), lus seulement sur sa fiche.
   const isCs2 = game.id === CS2_GAME_ID && !game.notInstalled
   const { state: cs2, live } = useCs2(isCs2 && !closing)
-  // Prêt à jouer : mise à jour Steam en attente ou en cours ; « Jouer » la lance, Steam démarre le jeu ensuite.
+  // Prêt à jouer : mise à jour Steam en attente ou en cours. Le bouton « Mettre à jour » ouvre les téléchargements de
+  // Steam, sans lancer le jeu.
   const update = useSteamUpdate(game.notInstalled ? null : game)
-  const updatePlay = p.state === 'idle' ? playLabelFor(update) : undefined
+  const act = p.state === 'idle' ? updateAction(update) : undefined
   const openDownloads = useOpenSteamDownloads()
   // Serveurs : l'état de CS2 selon Valve ; pour tout jeu Steam, les joueurs en jeu sur Steam.
   const servers = useCs2Servers(isCs2 && !closing)
@@ -344,13 +345,13 @@ function Sheet({
             ) : (
               <button
                 className={`btn btn-primary btn-play sheet-bar-play ${p.className}`}
-                onClick={() => p.activate(posterRef.current)}
+                onClick={() => (act ? openDownloads() : p.activate(posterRef.current))}
                 aria-disabled={p.inert || undefined}
                 aria-busy={p.busy || undefined}
-                aria-label={updatePlay ? `${updatePlay} : ${title}` : p.ariaLabel}
-                title={updatePlay ? 'Steam termine la mise à jour, puis lance le jeu' : p.state === 'idle' ? undefined : p.title}
+                aria-label={act ? `${act.label} : ${title}` : p.ariaLabel}
+                title={act ? act.title : p.state === 'idle' ? undefined : p.title}
               >
-                <PlayLabel p={p} size={16} label={updatePlay} />
+                <PlayLabel p={p} size={16} label={act?.label} icon={act ? 'download' : undefined} />
               </button>
             )}
           </span>
@@ -394,14 +395,14 @@ function Sheet({
                     <button
                       ref={playRef}
                       className={`btn btn-primary btn-play sheet-play ${p.className}`}
-                      onClick={() => p.activate(posterRef.current)}
+                      onClick={() => (act ? openDownloads() : p.activate(posterRef.current))}
                       aria-disabled={p.inert || undefined}
                       aria-busy={p.busy || undefined}
-                      aria-label={updatePlay ? `${updatePlay} : ${title}` : p.ariaLabel}
-                      title={updatePlay ? 'Steam termine la mise à jour, puis lance le jeu' : p.state === 'idle' ? undefined : p.title}
+                      aria-label={act ? `${act.label} : ${title}` : p.ariaLabel}
+                      title={act ? act.title : p.state === 'idle' ? undefined : p.title}
                       data-magnetic={p.state === 'idle' ? '' : undefined}
                     >
-                      <PlayLabel p={p} size={20} label={updatePlay} />
+                      <PlayLabel p={p} size={20} label={act?.label} icon={act ? 'download' : undefined} />
                     </button>
                     <button
                       className={`sheet-round ${game.favorite ? 'is-fav' : ''}`}

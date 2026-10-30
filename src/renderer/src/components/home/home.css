@@ -78,7 +78,8 @@
     linear-gradient(90deg, rgba(7, 6, 10, 0.86) 0%, rgba(7, 6, 10, 0.5) 32%, rgba(7, 6, 10, 0) 60%),
     linear-gradient(0deg, rgba(7, 6, 10, 0.97) 0%, rgba(7, 6, 10, 0.72) 24%, rgba(7, 6, 10, 0) 52%),
     linear-gradient(180deg, rgba(7, 6, 10, 0.55) 0%, rgba(7, 6, 10, 0) 16%),
-    radial-gradient(40% 50% at 100% 12%, rgba(7, 6, 10, 0.55), rgba(7, 6, 10, 0));
+    /* Colonne de droite (vocal, amis) : assez sombre sur toute sa hauteur, même sur une image claire. */
+    radial-gradient(42% 72% at 100% 30%, rgba(7, 6, 10, 0.66), rgba(7, 6, 10, 0));
 }
 
 /* ---------- texte et actions ---------- */
@@ -90,6 +91,9 @@
   gap: 32px;
   min-height: 0;
   padding: clamp(28px, 7vh, 88px) var(--hc-x) 0;
+  /* Hauteur de la zone du jeu (au-dessus de « Tes jeux ») : le titre s'y règle (cqb), pour que les boutons ne
+     descendent jamais sur la rangée des jaquettes, même sur un petit écran (retour de Breezydev, 0.9.7-beta.4). */
+  container-type: size;
 }
 .hc-text {
   display: flex;
@@ -147,7 +151,7 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font: 700 clamp(44px, min(7.2vw, 11.5vh), 112px) / 0.96 var(--font-display);
+  font: 700 clamp(34px, min(7.2vw, 11.5vh, 18cqb), 112px) / 0.96 var(--font-display);
   letter-spacing: -0.035em;
   color: #fff;
   text-wrap: balance;
@@ -173,7 +177,7 @@
 .hc-meta > .hc-news {
   margin-left: 14px;
 }
-/* Prêt à jouer : la mise à jour Steam à la place de « Installé », « Voir dans Steam », et la barre en dessous. */
+/* Prêt à jouer : la mise à jour Steam à la place de « Installé », et sa barre sur la même ligne (pas de hauteur en plus). */
 .hc-meta > .hc-upd {
   color: var(--warning);
   font-variant-numeric: tabular-nums;
@@ -181,27 +185,10 @@
 .hc-meta > .dl-bar::before {
   content: none;
 }
-.hc-link {
-  margin-left: 12px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--text-1);
-  font: 600 14.5px/22px var(--font-ui);
-  text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.35);
-  text-underline-offset: 3px;
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
-  cursor: pointer;
-  transition: text-decoration-color var(--d-1) var(--ease-out);
-}
-.hc-link:hover {
-  text-decoration-color: currentColor;
-}
-.hc-link:focus-visible {
-  border-radius: 4px;
-  outline: 2px solid var(--accent-text);
-  outline-offset: 3px;
+.hc-meta > .dl-bar.is-inline {
+  flex-basis: auto;
+  width: 96px;
+  margin: 0 0 0 12px;
 }
 
 /* Serveurs (Counter-Strike 2) : l'état du matchmaking selon Valve, avec l'attente moyenne. */
@@ -354,7 +341,10 @@
   align-items: flex-end;
   gap: 4px;
   width: 260px;
+  /* Filet : le nombre de personnes suit déjà la hauteur (Home.tsx), rien ne déborde sur les jaquettes. */
+  max-height: calc(100% + 6px);
   margin-top: -6px;
+  overflow: hidden;
 }
 .hc-side > .hc-squad {
   margin-top: 0;

@@ -443,6 +443,11 @@
   transition: opacity 260ms var(--ease-out);
 }
 /* Jouer : au centre de la jaquette, au survol, au focus et pendant un lancement */
+/* Mettre à jour, Voir dans Steam : un peu plus long que Jouer. */
+.lib-card-play.is-update {
+  padding: 0 12px;
+  letter-spacing: 0.03em;
+}
 .lib-card-play {
   position: absolute;
   inset: 0;
