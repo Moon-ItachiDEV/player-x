@@ -989,7 +989,7 @@ function Details({ snap, tabs, title }: { snap: Bf6Snapshot; tabs: Tab[]; title:
 
 /* ---------- classement ---------- */
 
-type Metric = 'killDeath' | 'killsPerMinute' | 'winPercent' | 'kills' | 'secondsPlayed'
+type Metric = 'killDeath' | 'killsPerMinute' | 'winPercent' | 'kills' | 'revives' | 'secondsPlayed'
 
 /** Joueurs suivis au plus (le processus principal applique la même limite). */
 const MAX_RIVALS = 12
@@ -1016,6 +1016,8 @@ const METRICS: MetricDef[] = [
   // Écart de deux pourcentages : en points.
   { id: 'winPercent', label: 'Victoires', fmt: percent, gap: gapWith((n) => `${pct.format(n)} pt${n >= 2 ? 's' : ''}`) },
   { id: 'kills', label: 'Éliminations', fmt: int.format, gap: gapWith(int.format) },
+  // Réanimations de coéquipiers (demande de Breezydev, 0.9.7-beta.3) : le total, comme les éliminations.
+  { id: 'revives', label: 'Réanimations', fmt: int.format, gap: gapWith(int.format) },
   { id: 'secondsPlayed', label: 'Temps de jeu', fmt: duration, gap: gapWith(duration) }
 ]
 
@@ -1126,7 +1128,7 @@ function Leaderboard({ tracked, meSnap, meError, meLoading, rivals: board, onCha
               )}
               <p className="bf-text">
                 Ajoute tes amis ou des joueurs croisés en partie avec leur pseudo EA. Player X vous classe au K/D, aux éliminations par minute, aux victoires, aux
-                éliminations et au temps de jeu.
+                éliminations, aux réanimations et au temps de jeu.
               </p>
               <button className="btn btn-primary" onClick={() => setAdding(true)}>
                 <Icon name="plus" size={16} />
