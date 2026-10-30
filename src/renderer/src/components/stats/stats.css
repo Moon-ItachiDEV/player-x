@@ -192,7 +192,8 @@
   font-size: 12px;
   white-space: nowrap;
 }
-@container (max-width: 980px) {
+/* Six onglets et le profil sur une ligne jusqu'à un écran de 1280 px (125 %) : la date de mise à jour s'efface. */
+@container (max-width: 1300px) {
   .bf-id-when {
     display: none;
   }
