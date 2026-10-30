@@ -262,14 +262,17 @@ function Sheet({
   }
 
   // Focus : on entre dans la fiche à l'ouverture (sur « Retour » si elle s'ouvre sur une annonce), on rend la main à
-  // l'élément d'origine à la fermeture.
+  // l'élément d'origine à la fermeture. Fermée par un clic ailleurs (une page de la barre du haut), le focus reste là où
+  // on a cliqué : il ne repart pas, par exemple, dans la recherche qui avait ouvert la fiche.
   useEffect(() => {
     if (closing) return
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const target = readingRef.current ? readerBack.current : panelRef.current
     target?.focus({ preventScroll: true })
     return () => {
-      if (opener?.isConnected && !panelRef.current?.contains(opener)) opener.focus({ preventScroll: true })
+      const now = document.activeElement
+      const elsewhere = now instanceof HTMLElement && now !== document.body && !now.closest('.sheet-root')
+      if (!elsewhere && opener?.isConnected && !panelRef.current?.contains(opener)) opener.focus({ preventScroll: true })
     }
   }, [closing])
 
