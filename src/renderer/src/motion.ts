@@ -67,21 +67,43 @@ export function useSystemReducedTransparency(): boolean {
   return opaque
 }
 
-/** Fenêtre inactive (masquée ou sans focus) : `<html data-window='idle'>`, base.css met alors les boucles .fx-loop en pause. Sur tous les écrans. */
+/** Sans clic, touche, molette ni mouvement de souris pendant ce temps, la fenêtre compte comme inactive. */
+const IDLE_AFTER_MS = 60_000
+/** Les mouvements de souris arrivent par dizaines : le minuteur d'inactivité n'est relancé qu'une fois par seconde. */
+const INPUT_THROTTLE_MS = 1_000
+const INPUT_EVENTS = ['pointermove', 'pointerdown', 'keydown', 'wheel'] as const
+
+/**
+ * Fenêtre inactive (masquée, sans focus, ou personne n'y touche depuis une minute) : `<html data-window='idle'>`, base.css
+ * met alors les boucles .fx-loop en pause (elles coûtent du CPU à chaque image). Le premier geste les relance. Sur tous les écrans.
+ */
 export function useWindowActivity(): void {
   useEffect(() => {
     const root = document.documentElement
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let last = 0
     const set = (): void => {
-      root.dataset.window = document.hasFocus() && document.visibilityState === 'visible' ? 'active' : 'idle'
+      clearTimeout(timer)
+      last = performance.now()
+      if (document.hasFocus() && document.visibilityState === 'visible') {
+        root.dataset.window = 'active'
+        timer = setTimeout(() => (root.dataset.window = 'idle'), IDLE_AFTER_MS)
+      } else root.dataset.window = 'idle'
+    }
+    const input = (): void => {
+      if (root.dataset.window === 'idle' || performance.now() - last > INPUT_THROTTLE_MS) set()
     }
     set()
     window.addEventListener('focus', set)
     window.addEventListener('blur', set)
     document.addEventListener('visibilitychange', set)
+    for (const t of INPUT_EVENTS) window.addEventListener(t, input, { capture: true, passive: true })
     return () => {
+      clearTimeout(timer)
       window.removeEventListener('focus', set)
       window.removeEventListener('blur', set)
       document.removeEventListener('visibilitychange', set)
+      for (const t of INPUT_EVENTS) window.removeEventListener(t, input, { capture: true })
     }
   }, [])
 }

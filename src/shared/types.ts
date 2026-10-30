@@ -645,33 +645,6 @@ export interface GameNews {
   seenAt: number
 }
 
-/** Une annonce de la page Actus des jeux (relevé des titres, sans le texte). */
-export interface NewsFeedItem {
-  /** gid Steam de l'annonce. */
-  id: string
-  gameId: string
-  gameName: string
-  title: string
-  url: string
-  date: number
-  patch: boolean
-  /** Moins de 7 jours et pas encore vue (même règle que le badge « Nouveau patch »). */
-  isNew: boolean
-}
-
-export interface NewsFeed {
-  /** Les plus récentes d'abord, 200 au plus. */
-  items: NewsFeedItem[]
-  /** Jeux suivis : ceux de la bibliothèque qui ont une page Steam. */
-  tracked: number
-  /** Dernier relevé utilisé (0 : jamais). */
-  checkedAt: number
-  /** Premier relevé pas encore fait ou en cours. */
-  pending: boolean
-  /** Dernier passage : aucune réponse de Steam. */
-  offline: boolean
-}
-
 // ---------- Jeux du compte Steam (installés ou non) ----------
 
 /**
@@ -854,12 +827,6 @@ export interface LauncherApi {
   getGameNews(id: string, refresh?: boolean): Promise<GameNews>
   /** Les actus de ce jeu ont été vues dans sa fiche : son badge « Nouveau patch » disparaît. `upTo` : seulement jusqu'à cette date (une annonce lue). */
   markNewsSeen(id: string, upTo?: number): Promise<void>
-  /** Page Actus des jeux : les dernières annonces de tous les jeux suivis, sans réseau. */
-  getNewsFeed(): Promise<NewsFeed>
-  /** « Actualiser » : redemande à Steam les annonces relevées il y a plus d'une minute, puis renvoie la page. */
-  refreshNewsFeed(): Promise<NewsFeed>
-  /** « Tout marquer comme lu » : plus aucun badge « Nouveau patch » jusqu'aux prochaines annonces. */
-  markAllNewsSeen(): Promise<void>
   /** Jeux du compte Steam non installés sur ce PC (liste gardée 1 h, sauf `refresh`). */
   getSteamLibrary(refresh?: boolean): Promise<SteamLibrary>
   /** Ouvre l'installation d'un jeu Steam non installé ; il rejoint la bibliothèque une fois téléchargé. */

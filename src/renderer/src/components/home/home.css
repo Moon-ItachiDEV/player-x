@@ -186,12 +186,9 @@
   font: 700 17px/1 var(--font-ui);
 }
 /* Jouer : le bouton « Aura » du site (proposition C choisie par Breezydev). Verre sombre, bordure braise qui
-   tourne, halo qui grandit au survol. Pendant un lancement (envoi, attente, en jeu), les couleurs de l'état reprennent. */
-@property --hc-ang {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
+   tourne, halo qui grandit au survol. Pendant un lancement (envoi, attente, en jeu), les couleurs de l'état reprennent.
+   0.9.7 : l'anneau tourne avec `rotate` (la carte graphique s'en charge) et le halo flouté est fixe. Avant, l'angle du
+   dégradé était animé : le bouton et son halo flouté étaient repeints à chaque image (environ 30 % de CPU, appli inactive). */
 .btn.hc-play {
   --hc-spd: 5s;
   position: relative;
@@ -204,28 +201,40 @@
   color: var(--text-1);
   box-shadow: none;
 }
-.btn.hc-play:not(.is-sending, .is-waiting, .is-live)::before,
+/* Halo : le dégradé flouté, fixe (peint une fois) ; il grandit au survol. Remplace le reflet de .btn-play (::after). */
 .btn.hc-play:not(.is-sending, .is-waiting, .is-live)::after {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: conic-gradient(from var(--hc-ang), var(--brand-3), var(--accent), var(--brand-1), #ffd0dc, var(--accent), var(--brand-3));
-  /* Remplace le reflet de .btn-play (::after décalé de -130 % qui balaie au survol) */
-  translate: none;
-  pointer-events: none;
-}
-.btn.hc-play:not(.is-sending, .is-waiting, .is-live)::before {
-  z-index: -2;
-}
-.btn.hc-play:not(.is-sending, .is-waiting, .is-live)::after {
-  z-index: -3;
   inset: 4px;
+  z-index: -3;
+  border-radius: inherit;
+  background: conic-gradient(var(--brand-3), var(--accent), var(--brand-1), #ffd0dc, var(--accent), var(--brand-3));
   filter: blur(22px);
   opacity: 0.5;
+  translate: none;
+  pointer-events: none;
   transition:
     opacity 400ms var(--ease-out),
     inset 400ms var(--ease-out);
+}
+/* Anneau : un carré de dégradé qui tourne, découpé par le bouton (overflow et coins arrondis) ; le fond le recouvre à 2 px du bord. */
+.btn.hc-play > .hc-aura-ring {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+.btn.hc-play > .hc-aura-ring::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: conic-gradient(var(--brand-3), var(--accent), var(--brand-1), #ffd0dc, var(--accent), var(--brand-3));
 }
 .btn.hc-play > .hc-aura-fill {
   position: absolute;
@@ -235,7 +244,7 @@
   background: rgba(17, 13, 22, 0.94);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
-.btn.hc-play:is(.is-sending, .is-waiting, .is-live) > .hc-aura-fill {
+.btn.hc-play:is(.is-sending, .is-waiting, .is-live) > :is(.hc-aura-fill, .hc-aura-ring) {
   display: none;
 }
 .btn.hc-play:not(.is-sending, .is-waiting, .is-live) svg {
@@ -258,15 +267,15 @@
   outline: 2px solid var(--accent-text);
   outline-offset: 4px;
 }
+/* En pause quand Player X n'est pas au premier plan ou qu'on n'y touche plus (.fx-loop, base.css). */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not(.reduce-motion) .btn.hc-play::before,
-  :root:not(.reduce-motion) .btn.hc-play::after {
+  :root:not(.reduce-motion) .btn.hc-play > .hc-aura-ring::before {
     animation: hc-aura-spin var(--hc-spd) linear infinite;
   }
 }
 @keyframes hc-aura-spin {
   to {
-    --hc-ang: 360deg;
+    rotate: 360deg;
   }
 }
 

@@ -1,13 +1,10 @@
 // Relevé des actus des jeux : ce qu'on garde des dernières annonces de chaque jeu (par appid Steam), et ce qu'on en tire
-// (badge « Nouveau patch », dernier patch, page Actus des jeux). Module pur, sans Electron : testé sous Node seul (npm run test:news).
-import { cleanName } from '@shared/text'
-import type { Game, NewsFeedItem } from '@shared/types'
+// (badge « Nouveau patch », dernier patch). Module pur, sans Electron : testé sous Node seul (npm run test:news).
+import type { Game } from '@shared/types'
 import { isPatchPost, type RawNews } from './newsFormat'
 
 /** Annonces gardées par jeu dans le relevé (titres seulement). */
 export const ITEMS_PER_GAME = 5
-/** Page Actus des jeux : au plus tant d'annonces. */
-export const FEED_MAX = 200
 /** Comme NEW_MS de NewsSection.tsx : au-delà de 7 jours, plus de badge « Nouveau patch » ni de « Nouveau ». */
 export const NEW_MS = 7 * 24 * 3600_000
 
@@ -118,38 +115,4 @@ export function patchFlags(entry: IndexEntry | undefined, seenAt: number, now: n
   if (!p) return {}
   const lastPatch = { id: p.id, title: p.title, at: p.date }
   return now - p.date < NEW_MS && p.date > seenAt ? { newPatch: { ...lastPatch }, lastPatch } : { lastPatch }
-}
-
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
-
-/**
- * Annonces de tous les jeux suivis, les plus récentes d'abord. Un appid partagé (Battlefield 6 sur EA et sur Steam) n'est
- * compté qu'une fois, pour le jeu joué le plus récemment.
- */
-export function buildFeed(
-  index: NewsIndex,
-  games: { id: string; name: string; appId: string; lastPlayed?: number }[],
-  seen: Record<string, number>,
-  now: number
-): NewsFeedItem[] {
-  const owners = [...games].sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0))
-  const taken = new Set<string>()
-  const keys = new Set<string>()
-  const items: NewsFeedItem[] = []
-  for (const g of owners) {
-    if (taken.has(g.appId)) continue
-    taken.add(g.appId)
-    const entry = index[g.appId]
-    if (!entry?.items) continue
-    const seenAt = seen[g.id] ?? 0
-    const gameName = cleanName(g.name)
-    for (const it of entry.items) {
-      const key = `${g.appId}:${it.id}`
-      if (keys.has(key)) continue
-      keys.add(key)
-      items.push({ id: it.id, gameId: g.id, gameName, title: it.title, url: it.url, date: it.date, patch: it.patch, isNew: it.date > seenAt && now - it.date < NEW_MS })
-    }
-  }
-  items.sort((a, b) => b.date - a.date || collator.compare(a.gameName, b.gameName))
-  return items.slice(0, FEED_MAX)
 }

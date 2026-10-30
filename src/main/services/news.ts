@@ -1,8 +1,8 @@
 import { net } from 'electron'
-import type { Game, GameNews, NewsFeed, NewsPost } from '@shared/types'
+import type { Game, GameNews, NewsPost } from '@shared/types'
 import { getKv, setKv } from '../db'
 import { steamAppIds } from './artwork'
-import { buildFeed, entryFrom, fetchAll, needsRefresh, nextSeen, olderThanAll, patchFlags, postsStillFresh, type NewsIndex } from './newsFeed'
+import { entryFrom, fetchAll, needsRefresh, nextSeen, olderThanAll, patchFlags, postsStillFresh, type NewsIndex } from './newsFeed'
 import { cleanRawNews, frenchPost, frenchTexts, toNewsPost, type RawNews } from './newsFormat'
 import { getSettings } from './settings'
 
@@ -11,7 +11,7 @@ import { getSettings } from './settings'
 // Deux lectures :
 //  - la fiche d'un jeu : ses dernières annonces complètes, à l'ouverture (gardées 30 min en mémoire) ;
 //  - le relevé : les titres des dernières annonces de chaque jeu, au plus toutes les 6 h. Il donne le badge
-//    « Nouveau patch », le dernier patch du jeu et la page Actus des jeux (newsFeed.ts).
+//    « Nouveau patch » et le dernier patch du jeu (newsFeed.ts).
 
 const API = 'https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/'
 /** Liste d'événements du magasin, celle du site Steam : elle donne la version française d'une annonce quand l'éditeur l'a écrite. */
@@ -28,10 +28,6 @@ const INDEX_FORGET_MS = 30 * 24 * 3600_000
 const FIRST_RUN_MS = 45_000
 const RUN_EVERY_MS = 3600_000
 const PARALLEL = 4
-/** « Actualiser » : tout ce qui a plus d'une minute est redemandé (avec 15 min, le bouton ne faisait rien juste après un relevé). */
-const REFRESH_MAX_AGE = 60_000
-/** … mais la page n'attend pas plus : un Steam qui traîne finit le relevé en arrière-plan. */
-const REFRESH_WAIT_MS = 20_000
 
 const NETWORK_ERROR = 'Connexion à Steam impossible : vérifie ta connexion internet.'
 const SERVICE_ERROR = 'Steam ne répond pas pour le moment. Réessaie dans quelques minutes.'
@@ -133,7 +129,7 @@ async function fetchFrenchEvents(appId: string): Promise<unknown[]> {
 
 const itemIds = (e: NewsIndex[string] | undefined): string => (e?.items ?? []).map((i) => i.id).join(',')
 
-/** Range les relevés ; prévient l'interface si un badge ou la page Actus des jeux peut avoir changé. Renvoie true dans ce cas. */
+/** Range les relevés ; prévient l'interface si un badge peut avoir changé. Renvoie true dans ce cas. */
 function updateIndex(updates: NewsIndex): boolean {
   const now = Date.now()
   const index = readIndex()
@@ -195,7 +191,7 @@ function latestOf(index: NewsIndex, appId: string): number {
 
 /**
  * Les actus de ce jeu ont été vues : plus de badge jusqu'à la prochaine annonce. `upTo` : seulement jusqu'à cette annonce
- * (lue depuis l'accueil ou la page Actus des jeux). Les jeux qui partagent son appid (Battlefield 6 sur EA et sur Steam) suivent.
+ * (lue dans la fiche). Les jeux qui partagent son appid (Battlefield 6 sur EA et sur Steam) suivent.
  */
 export function markNewsSeen(game: Game, upTo?: number, siblings: Game[] = []): void {
   const ids = steamAppIds([game, ...siblings])
@@ -208,27 +204,6 @@ export function markNewsSeen(game: Game, upTo?: number, siblings: Game[] = []): 
   let changed = false
   for (const g of [game, ...siblings.filter((s) => ids.get(s.id) === appId)]) {
     const v = nextSeen(seen[g.id] ?? 0, latest, upTo)
-    if (v === (seen[g.id] ?? 0)) continue
-    next[g.id] = v
-    changed = true
-  }
-  if (!changed) return
-  setKv(key, next)
-  onChange()
-}
-
-/** « Tout marquer comme lu » : toutes les annonces connues de tous les jeux, en une écriture. */
-export function markAllNewsSeen(games: Game[]): void {
-  const index = readIndex()
-  const ids = steamAppIds(games)
-  const key = seenKey()
-  const seen = getKv<Record<string, number>>(key, {})
-  const next = { ...seen }
-  let changed = false
-  for (const g of games) {
-    const appId = ids.get(g.id)
-    if (!appId) continue
-    const v = nextSeen(seen[g.id] ?? 0, latestOf(index, appId))
     if (v === (seen[g.id] ?? 0)) continue
     next[g.id] = v
     changed = true
@@ -255,8 +230,6 @@ export function withNews(games: Game[]): Game[] {
 
 /** Relevé en cours : un deuxième appel attend la fin de celui-ci. */
 let running: Promise<void> | null = null
-/** Dernier relevé qui a eu quelque chose à demander (en mémoire) : pour « Premier relevé en cours… » et « Steam ne répond pas ». */
-let lastRun: { at: number; ok: number; failed: number } | null = null
 
 async function runIndex(games: Game[], maxAge: number): Promise<void> {
   const index = readIndex()
@@ -266,18 +239,14 @@ async function runIndex(games: Game[], maxAge: number): Promise<void> {
   // Titres seulement (le texte des annonces n'est lu qu'à l'ouverture de la fiche), mais autant d'annonces que la fiche :
   // le dernier patch est cherché dans les mêmes, sinon il apparaissait et disparaissait selon qui avait relevé en dernier.
   // Hors ligne ou Steam indisponible : redemandé au prochain passage.
-  const { results, ok, failed } = await fetchAll(
+  const { results } = await fetchAll(
     stale,
     PARALLEL,
     async (appId) => entryFrom(await fetchNews(appId, POSTS_COUNT, 1), Date.now(), index[appId]),
     (e) => e instanceof UserError && e.message === NETWORK_ERROR
   )
   const updates: NewsIndex = Object.fromEntries(results)
-  const first = lastRun === null
-  lastRun = { at: Date.now(), ok, failed }
-  const changed = Object.keys(updates).length > 0 && updateIndex(updates)
-  // Premier passage ou échec sans rien de neuf : la page Actus des jeux doit quand même quitter « Premier relevé en cours… ».
-  if (!changed && (first || failed > 0)) onChange()
+  if (Object.keys(updates).length) updateIndex(updates)
 }
 
 /** Relève les dernières annonces des jeux qui n'ont pas été relevés depuis `maxAge` (6 h par défaut). */
@@ -287,59 +256,6 @@ export async function refreshNewsIndex(games: Game[], { maxAge = INDEX_MAX_AGE }
   while (running) await running
   running = runIndex(games, maxAge).finally(() => (running = null))
   await running
-}
-
-/**
- * « Actualiser » de la page Actus des jeux : relève tout ce qui a plus d'une minute. N'attend pas plus de 20 s : au-delà, le
- * relevé continue en arrière-plan et la page est prévenue à la fin (comme pour le relevé de chaque heure).
- */
-export async function refreshNewsNow(games: Game[]): Promise<void> {
-  let late = false
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const run = refreshNewsIndex(games, { maxAge: REFRESH_MAX_AGE })
-    .catch(() => {})
-    .then(() => {
-      if (late) onChange()
-    })
-  const wait = new Promise<void>((resolve) => {
-    timer = setTimeout(() => {
-      late = true
-      resolve()
-    }, REFRESH_WAIT_MS)
-  })
-  await Promise.race([run, wait])
-  clearTimeout(timer)
-}
-
-/** Page Actus des jeux : construite à partir du relevé, sans réseau. Ne rejette jamais. */
-export function newsFeed(games: Game[]): NewsFeed {
-  const empty: NewsFeed = { items: [], tracked: 0, checkedAt: 0, pending: false, offline: false }
-  try {
-    if (!getSettings().gameNews) return empty
-    const index = readIndex()
-    const ids = steamAppIds(games)
-    const tracked = new Set(ids.values())
-    const list = games.flatMap((g) => {
-      const appId = ids.get(g.id)
-      return appId ? [{ id: g.id, name: g.name, appId, lastPlayed: g.lastPlayed }] : []
-    })
-    let checkedAt = 0
-    let missing = false
-    for (const appId of tracked) {
-      const e = index[appId]
-      if (e?.items) checkedAt = Math.max(checkedAt, e.at)
-      else missing = true
-    }
-    return {
-      items: buildFeed(index, list, seenMap(), Date.now()),
-      tracked: tracked.size,
-      checkedAt,
-      pending: tracked.size > 0 && missing && (running !== null || lastRun === null),
-      offline: lastRun?.ok === 0 && (lastRun?.failed ?? 0) > 0
-    }
-  } catch {
-    return empty
-  }
 }
 
 /** `listGames` : la bibliothèque affichée (vraie ou de démo). `notify` : les badges ont pu changer. */
