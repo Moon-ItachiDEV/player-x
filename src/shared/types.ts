@@ -823,6 +823,8 @@ export interface GameCollection {
   games: string[]
 }
 
+export type { Bf6Loadout, Bf6LoadoutPart } from './bf6Loadouts'
+
 export interface Shelves {
   collections: GameCollection[]
   /** Jeux masqués : ni sur l'Accueil ni dans la Bibliothèque (Paramètres › Bibliothèque les liste). */
@@ -995,6 +997,13 @@ export interface LauncherApi {
   setInCollection(id: string, gameId: string, on: boolean): Promise<Shelves>
   /** Masque un jeu de l'Accueil et de la Bibliothèque, ou le réaffiche. */
   setGameHidden(gameId: string, hidden: boolean): Promise<Shelves>
+  /** Mes loadouts Battlefield 6 (carnet gardé sur ce PC). */
+  getBf6Loadouts(): Promise<import('./bf6Loadouts').Bf6Loadout[]>
+  /** Enregistre un loadout (sans identifiant connu : un nouveau). Renvoie le carnet. */
+  saveBf6Loadout(loadout: unknown): Promise<import('./bf6Loadouts').Bf6Loadout[]>
+  deleteBf6Loadout(id: string): Promise<import('./bf6Loadouts').Bf6Loadout[]>
+  /** Copie dans le presse-papiers l'image de cette zone de la fenêtre (en pixels CSS). */
+  copyAreaImage(rect: { x: number; y: number; width: number; height: number }): Promise<'copied'>
   platform: string
   version: string
 }

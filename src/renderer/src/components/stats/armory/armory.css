@@ -1,0 +1,584 @@
+/* Stats › Battlefield 6 › Armurerie : l'arme, ses meilleures configs, ta config et son panneau. */
+
+.ar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ---------- l'arme ---------- */
+
+.ar-top {
+  display: flex;
+}
+.ar-hero {
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) minmax(0, 1fr);
+  align-items: center;
+  gap: 28px;
+  padding: 20px 28px;
+  border-radius: 24px;
+  background: radial-gradient(60% 90% at 22% 55%, rgba(255, 92, 134, 0.16), transparent 70%), var(--card-bg);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.ar-hero-art {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 2 / 1;
+  min-width: 0;
+}
+.ar-hero-art img {
+  width: 100%;
+  max-width: 512px;
+  height: auto;
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.55));
+}
+.ar-hero-ghost {
+  font: 700 56px/1 var(--font-display);
+  color: transparent;
+  -webkit-text-stroke: 1px var(--line-3);
+}
+.ar-hero-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.ar-hero-title {
+  font: 700 40px/1 var(--font-display);
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+}
+.ar-hero-text .caption {
+  max-width: 560px;
+}
+.ar-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin-top: 8px;
+}
+.ar-facts dt {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.ar-facts dd {
+  margin: 0;
+  font: 600 15px/22px var(--font-display);
+  color: var(--text-1);
+}
+
+/* ---------- meilleures configs ---------- */
+
+.ar-best-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+.ar-best-head .caption {
+  margin-top: 4px;
+  max-width: 620px;
+}
+.ar-opts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 24px;
+}
+.ar-opt-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font: 500 13.5px/18px var(--font-ui);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.ar-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Quatre objectifs : deux par ligne, pour que les noms des pièces tiennent sur une ligne. */
+.ar-cards.is-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ar-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.ar-card.is-mine {
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.ar-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ar-card-title {
+  font: 600 16px/22px var(--font-display);
+  color: var(--text-1);
+}
+.ar-card-skel {
+  height: 260px;
+  border-radius: 14px;
+}
+.ar-card-none {
+  padding: 12px 0;
+}
+.ar-figs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.ar-fig {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ar-fig-value {
+  font: 600 24px/28px var(--font-display);
+  color: var(--text-1);
+}
+.ar-fig-label {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.ar-parts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-1);
+}
+.ar-part {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-1);
+}
+.ar-part-slot {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.ar-part-name {
+  position: relative;
+  font: 500 13.5px/18px var(--font-ui);
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+/* Pièce différente de ta config : un point rose devant le nom. */
+.ar-part.is-changed .ar-part-name::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 7px 2px 0;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+.ar-part-pts {
+  font: 500 12.5px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.ar-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+}
+.ar-card-total {
+  font: 600 18px/22px var(--font-display);
+  color: var(--text-1);
+}
+.ar-card-total span {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.ar-card-mine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 13px/18px var(--font-ui);
+  color: var(--accent-text);
+}
+.ar-card-twin {
+  margin-top: -6px;
+}
+.ar-card-rule {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(7, 6, 10, 0.35);
+  font: 400 12.5px/18px var(--font-ui);
+  color: var(--text-3);
+}
+
+/* ---------- ta config ---------- */
+
+.ar-mine {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  align-items: start;
+  gap: 24px;
+}
+@media (max-width: 1100px) {
+  .ar-mine {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ar-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ar-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ar-slot-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 8px;
+}
+.ar-slot > .ar-chips {
+  padding-left: 12px;
+}
+.ar-lock {
+  color: var(--text-3);
+}
+.ar-lock.is-on {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.ar-lock-gap {
+  width: 36px;
+}
+.ar-mine-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* Choix d'un accessoire : un champ (emplacement, nom, points). */
+.ar-pick {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr) auto 14px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  background: var(--field-bg);
+  border: 1px solid var(--line-2);
+  color: var(--text-1);
+  text-align: left;
+  transition:
+    border-color var(--d-1) var(--ease-out),
+    background-color var(--d-1) var(--ease-out);
+}
+@media (hover: hover) {
+  .ar-pick:hover {
+    border-color: var(--line-3);
+  }
+}
+.ar-pick[aria-expanded='true'] {
+  border-color: var(--accent-line);
+}
+.ar-pick.is-off {
+  grid-template-columns: 136px minmax(0, 1fr);
+  border-style: dashed;
+  color: var(--text-3);
+}
+.ar-pick-slot {
+  font: 500 12.5px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.ar-pick-name {
+  font: 500 14px/18px var(--font-ui);
+  overflow-wrap: anywhere;
+}
+.ar-pick.is-empty .ar-pick-name,
+.ar-pick.is-off .ar-pick-name {
+  color: var(--text-3);
+}
+.ar-pick-pts {
+  font: 600 13px/16px var(--font-ui);
+  color: var(--text-2);
+}
+
+/* Liste des accessoires : défile, chaque choix sur deux lignes avec ses effets. */
+.ar-menu {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ar-menu-h {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px 8px;
+  font: 600 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.ar-menu .ar-opt {
+  height: auto;
+  min-height: 40px;
+  align-items: flex-start;
+  padding: 9px 10px;
+}
+.ar-opt-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.ar-opt-name {
+  font: 500 13.5px/18px var(--font-ui);
+}
+.ar-opt-type {
+  font: 400 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.ar-opt-pts {
+  font: 600 13px/18px var(--font-ui);
+  color: var(--text-2);
+}
+
+/* Effets en pastilles. */
+.ar-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ar-chip {
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.06);
+  font: 500 11.5px/16px var(--font-ui);
+  color: var(--text-2);
+}
+.ar-chip.is-good {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.ar-chip.is-bad {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+/* ---------- panneau ---------- */
+
+.ar-panel {
+  position: sticky;
+  top: 16px;
+  gap: 18px;
+}
+.ar-panel-title {
+  font: 600 15px/20px var(--font-display);
+  color: var(--text-1);
+}
+.ar-points {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ar-points-value {
+  font: 600 28px/32px var(--font-display);
+  color: var(--text-1);
+}
+.ar-points-value span {
+  font: 500 13px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.ar-meter {
+  position: relative;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+.ar-meter span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--v) * 100%);
+  border-radius: inherit;
+  background: var(--brand-gradient);
+}
+.ar-points.is-over .ar-meter span {
+  background: var(--danger);
+}
+.ar-points-warn {
+  font: 500 12.5px/18px var(--font-ui);
+  color: var(--danger-text);
+}
+.ar-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ar-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 44px;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+.ar-bar-label {
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-2);
+}
+.ar-bar-value {
+  font: 600 15px/18px var(--font-display);
+  color: var(--text-1);
+}
+.ar-bar-track {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.07);
+}
+.ar-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--v) * 100%);
+  border-radius: inherit;
+  background: var(--text-2);
+}
+/* Repère : la valeur de l'arme de série. */
+.ar-bar-stock {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: calc(var(--v) * 100% - 1px);
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+.ar-delta {
+  font: 600 12px/16px var(--font-ui);
+  text-align: right;
+}
+.ar-delta.is-up {
+  color: var(--success);
+}
+.ar-delta.is-down {
+  color: var(--warning);
+}
+.ar-stats {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line-1);
+}
+.ar-stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-1);
+}
+.ar-stat dt {
+  font: 400 13px/18px var(--font-ui);
+  color: var(--text-2);
+}
+.ar-stat dd {
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font: 600 13px/18px var(--font-ui);
+  color: var(--text-1);
+  text-align: right;
+}
+.ar-stat dd.is-up {
+  color: var(--success);
+}
+.ar-ttk {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ar-ttk table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.ar-ttk th,
+.ar-ttk td {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-1);
+  text-align: left;
+  vertical-align: baseline;
+}
+.ar-ttk thead th {
+  font: 500 12px/16px var(--font-ui);
+  color: var(--text-3);
+}
+.ar-ttk tbody th {
+  font: 400 13px/18px var(--font-ui);
+  color: var(--text-2);
+}
+.ar-ttk td {
+  font: 600 13.5px/18px var(--font-ui);
+  color: var(--text-1);
+}
+.ar-ttk td .caption {
+  display: block;
+  font-weight: 400;
+}
+
+/* ---------- méthode et sources ---------- */
+
+.ar-method {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 4px;
+}
+.ar-details summary {
+  width: fit-content;
+  font: 500 13px/18px var(--font-ui);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.ar-details p {
+  max-width: 760px;
+  margin-top: 8px;
+  font: 400 13px/20px var(--font-ui);
+  color: var(--text-3);
+}
+
+@media (max-width: 1100px) {
+  .ar-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ar-hero-art {
+    max-width: 420px;
+  }
+}

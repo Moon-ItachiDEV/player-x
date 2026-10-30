@@ -6,6 +6,7 @@ import { updateSentence } from '@shared/steamUpdate'
 import { cleanName, formatDate, formatPlaytime, norm, timeAgo } from '@shared/text'
 import type { Cs2Servers, Friend, Game, NewsPost, SteamPlayers } from '@shared/types'
 import { isBf6Game, useBf6Summary } from './stats/bf6'
+import { SheetLoadouts } from './stats/loadouts/SheetLoadouts'
 import type { GameSheetProps, LaunchFn, View } from '../contracts'
 import { sheetLine } from '../launch/copy'
 import { isPending } from '../launch/phase'
@@ -55,12 +56,13 @@ const FROM_LABEL: Record<View, string> = {
   settings: 'Paramètres'
 }
 
-type Tab = 'overview' | 'matches' | 'ach' | 'news'
+type Tab = 'overview' | 'matches' | 'ach' | 'news' | 'loadouts'
 const TAB_LABEL: Record<Tab, string> = {
   overview: 'Aperçu',
   matches: 'Matchs',
   ach: 'Succès',
-  news: 'Actus'
+  news: 'Actus',
+  loadouts: 'Loadouts'
 }
 
 /** Fiche d'un jeu : une page par-dessus le contenu (le rail reste sous le voile). `game === null` : fermée. */
@@ -138,7 +140,13 @@ function Sheet({
   const newsShown = news && !(newsState.status === 'ready' && (!newsState.news.appId || !newsState.news.posts.length))
   const achShown = game.store === 'steam' && !(achState.status === 'ready' && (achState.data.state === 'not-steam' || achState.data.state === 'none'))
   const hasMatches = isCs2 && !!cs2?.enabled
-  const tabs: Tab[] = [...(newsShown ? (['news'] as const) : []), 'overview', ...(hasMatches ? (['matches'] as const) : []), ...(achShown ? (['ach'] as const) : [])]
+  const tabs: Tab[] = [
+    ...(newsShown ? (['news'] as const) : []),
+    'overview',
+    ...(isBf6Game(game) ? (['loadouts'] as const) : []),
+    ...(hasMatches ? (['matches'] as const) : []),
+    ...(achShown ? (['ach'] as const) : [])
+  ]
   const [tab, setTab] = useState<Tab>('news')
   const current = tabs.includes(tab) ? tab : 'overview'
   const focusTab = useRef(false)
@@ -505,6 +513,7 @@ function Sheet({
             )}
             {current === 'matches' && cs2 && <Cs2Matches state={cs2} live={live} onRetry={onRescan} onOpenFolder={() => onOpenFolder(game)} />}
             {current === 'ach' && <AchievementsTab state={achState} onRetry={reloadAch} />}
+            {current === 'loadouts' && <SheetLoadouts onOpenStats={onOpenStats} />}
             {current === 'news' && <EventsBlock info={eventsInfo} />}
             {current === 'news' && (
               <NewsSection

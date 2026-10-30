@@ -1,6 +1,6 @@
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { app, BrowserWindow, Menu, powerMonitor, screen, session, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ClipboardItem, Menu, powerMonitor, screen, session, shell } from 'electron'
 import type { LaunchStatus } from '@shared/launch'
 import { lastPlayedOf, type PlayedDates } from '@shared/played'
 import { CS2_GAME_ID } from '@shared/cs2'
@@ -32,6 +32,7 @@ import { allowDemo, getAccounts, getMemberPrefs, getSettings, publicSettings, re
 import { launchArgOf, recentGames } from './services/recentGames'
 import { getCs2Servers, getSteamPlayers } from './services/servers'
 import { createCollection, deleteCollection, getShelves, renameCollection, setGameHidden, setInCollection } from './services/shelves'
+import { deleteBf6Loadout, getBf6Loadouts, saveBf6Loadout } from './services/bf6Loadouts'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { installSteamGame, isSteamSoftware, ownedForNews, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
 import { startSteamUpdates, steamUpdates, steamUpdatesDemoChanged } from './services/steamUpdates'
@@ -402,6 +403,24 @@ function registerIpc(): void {
   handle('shelves:delete', (_e, id: unknown) => deleteCollection(id))
   handle('shelves:toggle', (_e, id: unknown, gameId: unknown, on: unknown) => setInCollection(id, gameId, on))
   handle('shelves:hide', (_e, gameId: unknown, hidden: unknown) => setGameHidden(gameId, hidden))
+  // Mes loadouts Battlefield 6 (carnet du joueur, sur ce PC ; la démo a le sien).
+  handle('loadouts:get', () => getBf6Loadouts())
+  handle('loadouts:save', (_e, loadout: unknown) => saveBf6Loadout(loadout))
+  handle('loadouts:delete', (_e, id: unknown) => deleteBf6Loadout(id))
+  // Image d'une zone de la fenêtre (une carte de loadout) dans le presse-papiers, pour la coller sur Discord.
+  handle('window:copy-area', async (e, rect: unknown) => {
+    const r = rect && typeof rect === 'object' ? (rect as Record<string, unknown>) : {}
+    const box = ['x', 'y', 'width', 'height'].map((k) => (typeof r[k] === 'number' && Number.isFinite(r[k]) ? Math.round(r[k] as number) : NaN))
+    if (box.some(Number.isNaN) || box[2] < 1 || box[3] < 1) throw new Error('Zone à copier invalide.')
+    const [width0, height0] = BrowserWindow.fromWebContents(e.sender)?.getContentSize() ?? [box[0] + box[2], box[1] + box[3]]
+    const x = Math.max(0, box[0])
+    const y = Math.max(0, box[1])
+    const area = { x, y, width: Math.min(box[2], width0 - x), height: Math.min(box[3], height0 - y) }
+    if (area.width < 1 || area.height < 1) throw new Error('Zone à copier hors de la fenêtre.')
+    const png = (await e.sender.capturePage(area)).toPNG()
+    await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) })])
+    return 'copied' as const
+  })
   // Serveurs : CS2 avec la clé Steam Web API ; joueurs en jeu pour un jeu Steam retrouvé ici (jamais un appid reçu tel quel).
   handle('servers:cs2', (_e, force: unknown) => getCs2Servers(force === true))
   handle('servers:players', (_e, id: unknown) => {

@@ -32,6 +32,7 @@ import { Cs2Stats } from './Cs2Stats'
 import { Chart, Progress, RANGE_DAYS, type Range } from './Progress'
 import { LastSession } from './Recap'
 import { StatsTabs } from './StatsTabs'
+import { LoadoutsHub } from './loadouts/Hub'
 import './stats.css'
 
 export type { StatsProps }
@@ -48,10 +49,12 @@ const entries = (list: Bf6Row[]): Bf6Row[] => list.filter((r) => !isTotal(r))
 const ACC_BROKEN = 'Faussé par l’API : chaque plomb compte comme un tir touché'
 const accuracyOf = (r: Bf6Row): number | undefined => (r.accuracy !== undefined && r.accuracy <= 100 ? r.accuracy : undefined)
 
-type StatsTab = 'overview' | 'progress' | 'arsenal' | 'maps' | 'board'
+type StatsTab = 'overview' | 'progress' | 'arsenal' | 'maps' | 'board' | 'loadouts'
+/** Onglets qui n'ont pas besoin d'un profil relié. */
+const FREE_TABS: StatsTab[] = ['loadouts']
 
 const TAB_KEY = 'pg.stats.tab'
-const TAB_IDS: StatsTab[] = ['overview', 'progress', 'arsenal', 'maps', 'board']
+const TAB_IDS: StatsTab[] = ['overview', 'progress', 'arsenal', 'maps', 'board', 'loadouts']
 
 function loadTab(): StatsTab {
   try {
@@ -199,10 +202,13 @@ function Bf6Stats({ art, logo: logoUrl }: { art?: string; logo?: string }): Reac
   }
 
   const snap = me.snap
+  // Armes vues dans les stats du profil relié : leur image pour les loadouts, et des suggestions de noms.
+  const hints = useMemo(() => (snap ? entries(snap.stats.weapons).map((w) => ({ name: w.name, image: w.image })) : []), [snap])
+  const free = FREE_TABS.includes(tab)
 
   return (
     <>
-      {tracked?.me && (
+      {tracked && (
         <StatsTabs<StatsTab>
           label="Stats Battlefield 6"
           idBase="bf"
@@ -213,14 +219,21 @@ function Bf6Stats({ art, logo: logoUrl }: { art?: string; logo?: string }): Reac
             { id: 'progress', label: 'Progression' },
             { id: 'arsenal', label: 'Arsenal' },
             { id: 'maps', label: 'Cartes et modes' },
-            { id: 'board', label: 'Classement', badge: standing ? ordinal(standing.rank) : undefined }
+            { id: 'board', label: 'Classement', badge: standing ? ordinal(standing.rank) : undefined },
+            { id: 'loadouts', label: 'Loadouts' }
           ]}
         >
-          <PlayerIdentity account={tracked.me} name={snap?.stats.account.name ?? tracked.me.name} state={me} onUnlink={() => save({ me: null, rivals: tracked.rivals })} />
+          {tracked.me && (
+            <PlayerIdentity account={tracked.me} name={snap?.stats.account.name ?? tracked.me.name} state={me} onUnlink={() => save({ me: null, rivals: tracked.rivals })} />
+          )}
         </StatsTabs>
       )}
 
-      {!tracked ? (
+      {tracked && free ? (
+        <div id="bf-panel" className="bf-panel" role="tabpanel" aria-labelledby={`bf-tab-${tab}`}>
+          <LoadoutsHub hints={hints} />
+        </div>
+      ) : !tracked ? (
         <div className="skel bf-skel" />
       ) : !tracked.me ? (
         <section className="bf-card bf-link" aria-labelledby="bf-link-title">

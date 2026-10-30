@@ -150,6 +150,10 @@ const api: LauncherApi = {
   deleteCollection: (id) => ipcRenderer.invoke('shelves:delete', id),
   setInCollection: (id, gameId, on) => ipcRenderer.invoke('shelves:toggle', id, gameId, on),
   setGameHidden: (gameId, hidden) => ipcRenderer.invoke('shelves:hide', gameId, hidden),
+  getBf6Loadouts: () => ipcRenderer.invoke('loadouts:get'),
+  saveBf6Loadout: (loadout) => ipcRenderer.invoke('loadouts:save', loadout),
+  deleteBf6Loadout: (id) => ipcRenderer.invoke('loadouts:delete', id),
+  copyAreaImage: (rect) => ipcRenderer.invoke('window:copy-area', rect),
   platform: process.platform,
   version: __APP_VERSION__
 }
