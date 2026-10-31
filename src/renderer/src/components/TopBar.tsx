@@ -117,9 +117,10 @@ export function TopBar(props: TopBarProps): React.JSX.Element {
 
   return (
     <header className={`topbar ${IS_MAC ? 'is-mac' : ''}`}>
+      {/* Le logo seul : sa croix est l'icône. Dans une fenêtre étroite, il ne reste que la croix (tb-brand-compact). */}
       <div className="tb-brand">
-        {!IS_MAC && <BrandMark height={30} alt="" />}
         <BrandWordmark height={23} className="tb-brand-name" />
+        {!IS_MAC && <BrandMark height={24} className="tb-brand-compact" />}
         {IS_PRERELEASE && <span className="tb-brand-beta">Bêta</span>}
       </div>
       <nav className="tb-nav" aria-label="Pages">

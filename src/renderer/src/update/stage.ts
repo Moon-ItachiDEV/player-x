@@ -735,15 +735,24 @@ function exitReveal(r: Reveal, fast: boolean): void {
   r.run.later(flight, () => finishReveal(r))
 }
 
-/** FLIP vers .tb-brand .brand-mark (rectangles lus une fois, maintenant) ; sans logo dans la barre du haut, fondu sur place. */
+/**
+ * FLIP vers la croix visible de la barre du haut (rectangles lus une fois, maintenant) : celle du logo, ou la croix seule
+ * dans une fenêtre étroite ; sans croix visible, fondu sur place. L'échelle suit la croix et non son cadre : chaque dessin
+ * de la croix remplit une part différente de son image (data-fill, voir Brand.tsx ; px-icon.png : 0,906).
+ */
 function flyToRail(r: Reveal, mark: HTMLElement | null, ms: number, o: AnimOpts): void {
   if (!mark) return
   const a = mark.getBoundingClientRect()
-  const b = document.querySelector('.tb-brand .brand-mark')?.getBoundingClientRect()
-  if (b && b.width > 0 && b.height > 0 && a.height > 0) {
+  const target = [...document.querySelectorAll<HTMLElement>('.tb-brand .brand-mark')].find((el) => {
+    const box = el.getBoundingClientRect()
+    return box.width > 0 && box.height > 0
+  })
+  const b = target?.getBoundingClientRect()
+  if (target && b && a.height > 0) {
+    const fill = (el: HTMLElement, fallback: number): number => Number(el.dataset.fill) || fallback
     const dx = b.left + b.width / 2 - (a.left + a.width / 2)
     const dy = b.top + b.height / 2 - (a.top + a.height / 2)
-    r.run.play(mark, KF.markToRail(dx, dy, b.height / a.height, ms), o)
+    r.run.play(mark, KF.markToRail(dx, dy, (b.height * fill(target, 1)) / (a.height * fill(mark, 0.906)), ms), o)
   } else r.run.play(mark, KF.markFadeInPlace, { ...o, duration: (ms * 400) / 600 })
 }
 

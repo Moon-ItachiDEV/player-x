@@ -90,7 +90,7 @@ export function UpdateStage(): React.JSX.Element | null {
             {s.mode === 'warp' && s.origin && <span className="stage-flash" style={{ left: s.origin.x, top: s.origin.y }} aria-hidden="true" />}
             <span className="stage-shock" aria-hidden="true" />
             <TickRing className="stage-ring" />
-            <img className="stage-mark brand-mark" src={mark} alt="" draggable={false} decoding="sync" />
+            <img className="stage-mark brand-mark" src={mark} data-fill="0.906" alt="" draggable={false} decoding="sync" />
             <div className="stage-text">
               {s.mode === 'warp' ? <WarpText version={s.version} preview={s.preview} /> : info && <RevealText info={info} />}
             </div>

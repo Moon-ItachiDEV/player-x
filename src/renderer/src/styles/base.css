@@ -973,3 +973,17 @@ kbd {
   width: auto;
   user-select: none;
 }
+/* Logo : « Player » en image, et la croix de l'icône posée à la place du X (positions calculées dans Brand.tsx). */
+.brand-wordmark {
+  position: relative;
+  flex-shrink: 0;
+}
+.brand-wordmark-letters {
+  display: block;
+  height: 100%;
+  width: auto;
+}
+.brand-wordmark-x {
+  position: absolute;
+  max-width: none;
+}

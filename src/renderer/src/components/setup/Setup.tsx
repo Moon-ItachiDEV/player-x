@@ -266,8 +266,7 @@ export function Setup(props: SetupProps): React.JSX.Element {
         {view !== 'welcome' && (
           <>
             <div className="setup-brand">
-              <BrandMark height={36} alt="" />
-              <BrandWordmark height={23} />
+              <BrandWordmark height={26} />
             </div>
             <Stepper steps={steps} current={current} canGo={canGo} onGo={setStep} />
           </>
