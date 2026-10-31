@@ -45,7 +45,7 @@ l'icône. `px-mark.png` et `player-x-wordmark-source.png` sont les anciens logos
 
 ## Comment les fichiers ont été produits
 SVG dessinés à la main (formes, dégradés, masques, flous `feGaussianBlur`, sans texte ni image), puis rendus par Chromium
-(le moteur de l'appli) aux tailles exactes. Le `.ico` regroupe un rendu par taille (pas une image réduite) : 48 px et moins
+(le moteur de l'appli) aux tailles exactes. Le `.ico` regroupe un rendu par taille (pas une image réduite) : 128 px et moins
 en DIB 32 bits, 256 px en PNG. L'icône des deux exécutables sur mesure (`installer/rsrc_windows_amd64.syso` et
 `installer/cmd/update/rsrc_windows_amd64.syso`) est remplacée image par image par `scripts/syso-icons.py`, sans toucher
 au manifeste ni aux informations de version.
