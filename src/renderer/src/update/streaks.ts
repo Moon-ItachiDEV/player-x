@@ -23,9 +23,9 @@ const MAX = 120
 /** Si les 8 premières images dépassent 20 ms en moyenne, on passe à 60 traînées. */
 const LOW = 60
 const SLOW_FRAME = 20
-/** Rose de marque, corail, rose presque blanc. Jamais de cyan : il est réservé au « en jeu ». */
-const COLORS = ['#fb4f7a', '#ff8a80', '#ffe3ea'] as const
-/** Motif de 20 : 14 roses, 5 corail, 1 blanche. Chaque tranche de 20 garde le mélange, donc la première moitié aussi. */
+/** Rose braise, rose clair et rose presque blanc de la console (px-icon.svg). Jamais de cyan : il est réservé au « en jeu ». */
+const COLORS = ['#E04065', '#FF9CB1', '#FFE3E8'] as const
+/** Motif de 20 : 14 roses, 5 roses clairs, 1 blanche. Chaque tranche de 20 garde le mélange, donc la première moitié aussi. */
 const bucketOf = (i: number): number => (i % 20 === 0 ? 2 : i % 4 === 2 ? 1 : 0)
 /** Indices de chaque couleur, croissants : couper à `count` garde les proportions. */
 const BY_BUCKET: number[][] = [[], [], []]

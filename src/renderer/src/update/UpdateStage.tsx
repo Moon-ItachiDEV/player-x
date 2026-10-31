@@ -2,12 +2,11 @@
 // Elle n'a pas de logique : stage.ts pose son état et joue ses chronologies. Dans ToastProvider pour le toast d'abandon.
 import { useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
-import mark from '../assets/px-icon.png'
 import { Icon } from '../components/ui/Icon'
 import { useToast } from '../components/ui/Toasts'
+import { ConsoleMark } from './ConsoleMark'
 import { useStore } from './session'
 import { bindStageNotify, revealInfo, stage, stageAnnounce, stageCommitted, type RevealInfo } from './stage'
-import { TickRing } from './TickRing'
 import './stage.css'
 
 function WarpText({ version, preview }: { version: string; preview: boolean }): React.JSX.Element {
@@ -89,8 +88,8 @@ export function UpdateStage(): React.JSX.Element | null {
             <canvas className="stage-canvas" aria-hidden="true" />
             {s.mode === 'warp' && s.origin && <span className="stage-flash" style={{ left: s.origin.x, top: s.origin.y }} aria-hidden="true" />}
             <span className="stage-shock" aria-hidden="true" />
-            <TickRing className="stage-ring" />
-            <img className="stage-mark brand-mark" src={mark} alt="" draggable={false} decoding="sync" />
+            {/* La console : son écran s'éteint au saut et se rallume au retour (stage.ts). */}
+            <ConsoleMark className="stage-mark" />
             <div className="stage-text">
               {s.mode === 'warp' ? <WarpText version={s.version} preview={s.preview} /> : info && <RevealText info={info} />}
             </div>

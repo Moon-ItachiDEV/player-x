@@ -73,25 +73,62 @@ export const KF = {
     ),
   veilIn: k([{ opacity: 0 }, { opacity: 1 }], 520, EASE.warp, 40),
   flash: k([{ transform: 'scale(.2)', opacity: 0 }, { opacity: 0.85, offset: 0.35 }, { transform: 'scale(1.6)', opacity: 0 }], 200, EASE.out, 400),
-  /** Le cœur du réacteur devient le logo : il part de (dx, dy) par rapport à sa place finale. */
-  markFly: (dx: number, dy: number): KeyframeSet =>
+  /** Le cœur du réacteur devient la console : elle part de (dx, dy) par rapport à sa place finale, à l'échelle de l'icône du réacteur (52 / 112). */
+  markFly: (dx: number, dy: number, s0 = 0.46): KeyframeSet =>
     k(
       [
-        { transform: `translate(${dx}px, ${dy}px) scale(.35)`, opacity: 0 },
+        { transform: `translate(${dx}px, ${dy}px) scale(${s0})`, opacity: 0 },
         { opacity: 1, offset: 0.25 },
         { transform: 'translate(0, 0) scale(1)', opacity: 1 }
       ],
-      360,
+      280,
       EASE.glide,
-      460
+      380
     ),
-  ringLight: k([{ opacity: 0 }, { opacity: 1 }], 120, EASE.out, 600),
-  ringOut: k([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.25)', opacity: 0 }], 180, EASE.out, 720),
-  warpText: k([{ transform: 'translateY(6px)', opacity: 0 }, { transform: 'none', opacity: 1 }], 200, EASE.glide, 760),
+  /** Vieux tube qui s'éteint : l'écran se resserre en ligne, la ligne en point, le point s'éteint. */
+  crtOff: (ms = 340, delay = 660): KeyframeSet =>
+    k(
+      [
+        { transform: 'scale(1, 1)', opacity: 1 },
+        { transform: 'scale(1, .012)', opacity: 1, offset: 0.45 },
+        { transform: 'scale(0, .012)', opacity: 1, offset: 0.85 },
+        { transform: 'scale(0, .012)', opacity: 0 }
+      ],
+      ms,
+      EASE.in,
+      delay
+    ),
+  /** Le même tube qui se rallume : un point, la ligne s'ouvre, puis l'écran entier. */
+  crtOn: (ms = 640, delay = 0): KeyframeSet =>
+    k(
+      [
+        { transform: 'scale(0, .012)', opacity: 0 },
+        { transform: 'scale(0, .012)', opacity: 1, offset: 0.15 },
+        { transform: 'scale(1, .012)', opacity: 1, offset: 0.5 },
+        { transform: 'scale(1, 1)', opacity: 1 }
+      ],
+      ms,
+      EASE.out,
+      delay
+    ),
+  /** Voile blanc du tube : il s'allume avec la ligne et s'éteint avec elle (à l'envers au rallumage). */
+  crtFlash: (ms: number, delay: number, on = false): KeyframeSet =>
+    k(
+      on
+        ? [{ opacity: 0 }, { opacity: 0.9, offset: 0.15 }, { opacity: 0.9, offset: 0.6 }, { opacity: 0 }]
+        : [{ opacity: 0 }, { opacity: 0.9, offset: 0.4 }, { opacity: 0.9, offset: 0.85 }, { opacity: 0 }],
+      ms,
+      'linear',
+      delay
+    ),
+  /** Écran (ou Play) allumé en 150 ms depuis son état du moment : une seule image clé, le départ est l'état courant. */
+  screenOnNow: k([{ transform: 'none', opacity: 1 }], 150, EASE.out),
+  /** Le Play apparaît sur l'écran rallumé. */
+  playIn: k([{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], 320, EASE.glide, 520),
+  warpText: k([{ transform: 'translateY(6px)', opacity: 0 }, { transform: 'none', opacity: 1 }], 200, EASE.glide, 600),
   canvasOut: k([{ opacity: 1 }, { opacity: 0 }], 120, EASE.out, 880),
 
   // ---------- retour (t = 0 à la fin de l'attente) ----------
-  ringGroup: (g: number): KeyframeSet => k([{ opacity: 0 }, { opacity: 1 }], 180, EASE.out, g * 60),
   kicker: k([{ transform: 'translateY(6px)', opacity: 0 }, { transform: 'none', opacity: 1 }], 260, EASE.glide, 150),
   from: k([{ transform: 'translateX(-6px)', opacity: 0 }, { transform: 'none', opacity: 1 }], 260, EASE.glide, 250),
   toChar: (i: number, base = 350): KeyframeSet =>
@@ -99,7 +136,6 @@ export const KF = {
   chip: (i: number, base = 600): KeyframeSet => k([{ transform: 'translateY(4px)', opacity: 0 }, { transform: 'none', opacity: 1 }], 240, EASE.glide, base + i * 60),
   skipIn: k([{ opacity: 0 }, { opacity: 1 }], 260, EASE.out, 500),
   contentOut: k([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(.98)', opacity: 0 }], 240, EASE.in),
-  ringExit: k([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.3)', opacity: 0 }], 400, EASE.in),
   shock: k([{ transform: 'scale(.3)', opacity: 0.5 }, { transform: 'scale(2.6)', opacity: 0 }], 500, EASE.out),
   markToRail: (dx: number, dy: number, s: number, ms = 600): KeyframeSet =>
     k([{ transform: 'translate(0, 0) scale(1)' }, { transform: `translate(${dx}px, ${dy}px) scale(${s})` }], ms, EASE.glide),
