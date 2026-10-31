@@ -967,9 +967,18 @@ kbd {
 
 /* ---------- marque ---------- */
 
-.brand-mark,
-.brand-wordmark {
+.brand-mark {
   display: block;
   width: auto;
+  user-select: none;
+}
+/* Le nom « Player X » : du texte en Sora, pas une image (la taille vient de BrandWordmark). */
+.brand-wordmark {
+  display: block;
+  font-family: var(--font-brand);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  white-space: nowrap;
   user-select: none;
 }

@@ -1,39 +1,27 @@
 import mark from '../../assets/px-icon.svg'
 import markSmall from '../../assets/px-icon-petit.svg'
-import logo from '../../assets/px-logo.svg'
-import logoSmall from '../../assets/px-logo-petit.svg'
+import markTiny from '../../assets/px-icon-16.svg'
 
-/** En dessous, l'icône prend sa version simplifiée, dessinée pour 24 à 32 px (sans reflets fins ni flèches). */
+/** En dessous, l'icône prend sa version simplifiée, dessinée pour 24 à 40 px (tuile, console, P et X, sans reflets fins). */
 const MARK_SMALL_MAX = 40
-/** En dessous, le logo prend sa version simplifiée (croix pleine, lettres un peu plus grasses), lisible à 23 px de haut. */
-const LOGO_SMALL_MAX = 30
+/** En dessous, la version calée au pixel pour 16 à 22 px. */
+const MARK_TINY_MAX = 22
 
 /**
- * Icône de Player X : la croix directionnelle tournée de 45° (le X), en matière braise avec ses flèches en verre, sur
- * une tuile claire. `alt=""` quand le logo est juste à côté : le nom n'est pas lu deux fois.
+ * Icône de Player X : une console portable en verre blanc sur une tuile rose braise, ton sur ton, avec le P (son creux
+ * est un triangle Play) et le X. `alt=""` quand le nom « Player X » est juste à côté : il n'est pas lu deux fois.
  */
 export function BrandMark({ height = 24, className = '', alt = 'Player X' }: { height?: number; className?: string; alt?: string }): React.JSX.Element {
-  return (
-    <img
-      className={`brand-mark ${className}`}
-      src={height <= MARK_SMALL_MAX ? markSmall : mark}
-      alt={alt}
-      style={{ height }}
-      draggable={false}
-    />
-  )
+  const src = height <= MARK_TINY_MAX ? markTiny : height <= MARK_SMALL_MAX ? markSmall : mark
+  return <img className={`brand-mark ${className}`} src={src} alt={alt} style={{ height }} draggable={false} />
 }
 
-/** Logo « Player X » : « Player » en Sora et la croix de l'icône, en verre braise, à la place du X. */
+/** Le nom « Player X » en Sora, à côté de l'icône. `height` est la hauteur de la ligne, comme pour l'ancien logo dessiné. */
 export function BrandWordmark({ height = 23, className = '' }: { height?: number; className?: string }): React.JSX.Element {
   return (
-    <img
-      className={`brand-wordmark ${className}`}
-      src={height <= LOGO_SMALL_MAX ? logoSmall : logo}
-      alt="Player X"
-      style={{ height }}
-      draggable={false}
-    />
+    <span className={`brand-wordmark ${className}`} style={{ fontSize: Math.round(height * 0.82), lineHeight: `${height}px` }}>
+      Player X
+    </span>
   )
 }
 
