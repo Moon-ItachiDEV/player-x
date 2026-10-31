@@ -272,7 +272,8 @@ func drawn(hwnd uintptr, shot string, scale float64) bool {
 			}
 		}
 		b := img.Bounds()
-		// Le logo (128 px CSS, centré, haut à 122 px) est rose autour de la manette blanche : part de pixels roses dans son carré.
+		// Le logo (128 px CSS, centré, haut à 122 px) est rose autour de la console blanche : part de pixels roses dans son carré.
+		// Environ 25 % avec la console (beaucoup de verre blanc), 0 % sur une page vide : le seuil est à 15 %.
 		cx, top, side := b.Dx()/2, int(122*scale), int(128*scale)
 		pink, all := 0, 0
 		for y := top; y < top+side && y < b.Dy(); y += 4 {
@@ -290,7 +291,7 @@ func drawn(hwnd uintptr, shot string, scale float64) bool {
 		}
 		bg := img.RGBAAt(int(20*scale), b.Dy()-int(40*scale))
 		fmt.Printf("capture %d (%s) : %dx%d, logo rose à %d %%, fond %d,%d,%d\n", i, map[bool]string{false: "PrintWindow", true: "écran"}[fromScreen], b.Dx(), b.Dy(), share, bg.R, bg.G, bg.B)
-		if share >= 30 {
+		if share >= 15 {
 			ok = true
 		}
 	}

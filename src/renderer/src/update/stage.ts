@@ -75,7 +75,7 @@ const revealState = (t: Tier, preview: boolean, phase: StagePhase): StageState =
   preview
 })
 
-/** Premier rendu d'un retour : voile opaque et marque en M, immobiles (l'image finale du saut, sans le texte). */
+/** Premier rendu d'un retour : voile opaque et console en M, écran éteint, immobiles (l'image finale du saut, sans le texte). */
 export const stage = createStore<StageState>(REVEAL_AT_BOOT ? revealState(startTier, false, 'hold') : STAGE_IDLE)
 
 /** true une fois le retour fini, ou s'il n'y en a pas : Quoi de neuf attend ce signal. */
@@ -432,7 +432,10 @@ function createWarp(o: RestartRequest, t: Tier | 'hidden', delayMs: number): War
       })
   }
 
-  /** §7.3, t = 0 quand la transition est prête (ou au montage sans transition). Tout finit avant 1000 ms. */
+  /**
+   * §7.3, t = 0 quand la transition est prête (ou au montage sans transition). Tout finit avant 1000 ms (fermeture à 1200) :
+   * l'interface est aspirée dans le réacteur, la console en sort, puis son écran s'éteint comme un vieux tube (660 → 1000).
+   */
   function timeline(el: HTMLElement, viaVT: boolean): void {
     const q = (s: string): HTMLElement | null => el.querySelector<HTMLElement>(s)
     const M = markPoint()
@@ -446,12 +449,11 @@ function createWarp(o: RestartRequest, t: Tier | 'hidden', delayMs: number): War
     if (viaVT) run.play(root, KF.oldRoot(C.x, C.y), { pseudoElement: '::view-transition-old(root)' })
     else run.play(q('.stage-veil'), KF.veilIn)
     run.play(q('.stage-flash'), KF.flash)
-    // Le cœur du réacteur devient le logo.
+    // Le cœur du réacteur devient la console.
     run.play(q('.stage-mark'), KF.markFly(C.x - M.x, C.y - M.y))
-    const ring = q('.stage-ring')
-    run.play(ring, KF.ringLight)
-    // fill 'forwards' : avant 720 ms, c'est ringLight qui tient la couronne éteinte.
-    run.play(ring, KF.ringOut, { fill: 'forwards' })
+    // L'écran se resserre en ligne, puis en point : l'image finale (et finalFrame) est la console éteinte.
+    run.play(q('.cm-screen'), KF.crtOff())
+    run.play(q('.cm-veil'), KF.crtFlash(340, 660))
     run.play(q('.stage-text'), KF.warpText)
     run.play(q('.stage-badge'), KF.warpText)
     run.play(canvas, KF.canvasOut)
@@ -670,6 +672,8 @@ function startReveal(r: Reveal, t: Tier): void {
       const o: AnimOpts = { level: 'sober', whenIdle: true }
       r.run.play(el.querySelector('.stage-veil'), KF.fadeOut(260), o)
       r.run.play(el.querySelector('.stage-mark'), KF.fadeOut(260), o)
+      // L'écran se rallume en fondu pendant que la console s'efface.
+      r.run.play(el.querySelector('.cm-screen'), KF.fade(160), o)
       r.run.later(260, () => finishReveal(r))
     })
     return
@@ -683,6 +687,8 @@ function startReveal(r: Reveal, t: Tier): void {
     if (r.variant === 'sober') {
       // §8.5 : tout le contenu ensemble, tient jusqu'à 860 ms, puis tout s'efface.
       r.run.play(el.querySelector('.stage-text'), KF.fade(260), { level: 'sober' })
+      // Effets coupés : l'écran de la console se rallume en fondu, sans le tube.
+      r.run.play(el.querySelector('.cm-screen'), KF.fade(260), { level: 'sober' })
       r.run.later(860, () => exitReveal(r, false))
       return
     }
@@ -696,7 +702,10 @@ function cinematic(r: Reveal, el: HTMLElement): void {
   const all = (s: string): HTMLElement[] => [...el.querySelectorAll<HTMLElement>(s)]
   const canvas = el.querySelector<HTMLCanvasElement>('.stage-canvas')
   if (canvas && (r.idleOk || !isIdle())) r.run.streaks = runStreaks(canvas, [{ mode: 'arrive', at: 0, dur: 600, origin: markPoint() }])
-  all('.stage-ring g').forEach((g, i) => r.run.play(g, KF.ringGroup(i), o))
+  // L'écran se rallume : un point, la ligne s'ouvre, l'écran entier, puis le Play.
+  r.run.play(el.querySelector('.cm-screen'), KF.crtOn(), o)
+  r.run.play(el.querySelector('.cm-veil'), KF.crtFlash(640, 0, true), o)
+  r.run.play(el.querySelector('.cm-play'), KF.playIn, o)
   r.run.play(el.querySelector('.stage-kicker'), KF.kicker, o)
   all('.stage-from, .stage-arrow').forEach((e) => r.run.play(e, KF.from, o))
   all('.stage-to > span').forEach((e, i) => r.run.play(e, KF.toChar(i), o))
@@ -705,7 +714,7 @@ function cinematic(r: Reveal, el: HTMLElement): void {
   r.run.later(1400, () => exitReveal(r, false))
 }
 
-/** Sortie à 1400 ms, ou tout de suite (passé) compressée à 300 ms : contenu et couronne en 150, marque et voile en 300. */
+/** Sortie à 1400 ms, ou tout de suite (passé) compressée à 300 ms : contenu en 150, console et voile en 300. */
 function exitReveal(r: Reveal, fast: boolean): void {
   if (r.phase !== 'run') return
   r.phase = 'exit'
@@ -726,24 +735,34 @@ function exitReveal(r: Reveal, fast: boolean): void {
   const content = fast ? 150 : 240
   r.run.play(q('.stage-text'), fromNow(KF.contentOut), { ...o, duration: content })
   r.run.play(q('.stage-skip'), fromNow(KF.contentOut), { ...o, duration: content })
-  r.run.play(q('.stage-ring'), fromNow(KF.ringExit), { ...o, duration: fast ? 150 : 400 })
+  // Passé pendant le rallumage : l'écran finit de s'allumer en vol, sans saut.
+  if (fast) {
+    r.run.play(q('.cm-screen'), KF.screenOnNow, o)
+    r.run.play(q('.cm-play'), KF.screenOnNow, o)
+    r.run.play(q('.cm-veil'), fromNow(KF.fadeOut(150)), o)
+  }
   r.run.play(q('.stage-shock'), KF.shock, { ...o, duration: fast ? 250 : 500 })
   if (fast) r.run.play(q('.stage-canvas'), fromNow(KF.fadeOut(150)), o)
   const flight = fast ? 300 : 600
-  flyToRail(r, q('.stage-mark'), flight, o)
+  flyToRail(r, el.querySelector('.stage-mark'), flight, o)
   r.run.play(q('.stage-veil'), fast ? KF.veilOut(250, 25) : KF.veilOut(), o)
   r.run.later(flight, () => finishReveal(r))
 }
 
-/** FLIP vers .tb-brand .brand-mark (rectangles lus une fois, maintenant) ; sans logo dans la barre du haut, fondu sur place. */
-function flyToRail(r: Reveal, mark: HTMLElement | null, ms: number, o: AnimOpts): void {
+/**
+ * FLIP vers .tb-brand .brand-mark (rectangles lus une fois, maintenant) ; sans logo dans la barre du haut, fondu sur place.
+ * L'échelle vient de la vraie taille de l'icône de la barre ; data-fill est la part du cadre que remplit la tuile (1 : la
+ * tuile de la console remplit son cadre, comme celle de l'icône de la barre).
+ */
+function flyToRail(r: Reveal, mark: Element | null, ms: number, o: AnimOpts): void {
   if (!mark) return
   const a = mark.getBoundingClientRect()
   const b = document.querySelector('.tb-brand .brand-mark')?.getBoundingClientRect()
+  const fill = Number((mark as HTMLElement | SVGElement).dataset.fill) || 1
   if (b && b.width > 0 && b.height > 0 && a.height > 0) {
     const dx = b.left + b.width / 2 - (a.left + a.width / 2)
     const dy = b.top + b.height / 2 - (a.top + a.height / 2)
-    r.run.play(mark, KF.markToRail(dx, dy, b.height / a.height, ms), o)
+    r.run.play(mark, KF.markToRail(dx, dy, b.height / (a.height * fill), ms), o)
   } else r.run.play(mark, KF.markFadeInPlace, { ...o, duration: (ms * 400) / 600 })
 }
 

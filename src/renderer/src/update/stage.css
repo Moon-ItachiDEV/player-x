@@ -51,11 +51,11 @@
   margin: -210px 0 0 -210px;
   border-radius: 50%;
   opacity: 0;
-  background: radial-gradient(closest-side, rgb(255 227 234 / 0.9), rgb(251 79 122 / 0.5) 40%, rgb(224 32 126 / 0));
+  /* Couleurs de la tuile de la console (px-icon.svg) : #FFE3E8, #E04065, #B82348. */
+  background: radial-gradient(closest-side, rgb(255 227 232 / 0.9), rgb(224 64 101 / 0.5) 40%, rgb(184 35 72 / 0));
 }
 /* M : centre de la marque à (50 %, 50 % − 40 px), le même au saut et au retour (raccord). */
 .stage-mark,
-.stage-ring,
 .stage-shock {
   position: absolute;
   left: 50%;
@@ -63,14 +63,16 @@
   translate: -50% -50%;
 }
 .stage-mark {
-  height: 84px;
-  width: auto;
-}
-.stage-ring {
-  width: 160px;
-  height: 160px;
-  opacity: 0;
+  display: block;
+  width: 112px;
+  height: 112px;
   overflow: visible;
+}
+/* Pièces de la console (ConsoleMark.tsx) : l'écran, son voile et le Play se resserrent sur le centre de l'écran
+   (512, 500 dans le viewBox de 1024), comme un vieux tube. Pas fill-box : les taches floues débordent de l'écran. */
+.stage-mark :is(.cm-screen, .cm-veil, .cm-play) {
+  transform-box: view-box;
+  transform-origin: 512px 500px;
 }
 .stage-shock {
   width: 160px;
@@ -188,22 +190,18 @@ html.px-revealing .tb-brand .brand-mark {
 }
 
 /* Retour : caché pendant l'attente ; les entrées WAAPI ont fill 'both', donc une animation refusée (anim() → null) montre l'élément. */
-.stage[data-mode='reveal'][data-phase='hold'] :is(.stage-text, .stage-skip, .stage-ring) {
+.stage[data-mode='reveal'][data-phase='hold'] :is(.stage-text, .stage-skip) {
   opacity: 0;
 }
-.stage[data-mode='reveal'][data-tier='full']:not([data-phase='hold']) .stage-ring {
-  opacity: 1;
-}
-/* Les 8 groupes s'allument un à un. */
-.stage[data-mode='reveal'][data-tier='full'] .stage-ring g {
+/* Écran de la console : éteint à la fin du saut et pendant tout le retour, sauf quand une animation le rallume
+   (fill 'both' : elle le tient allumé jusqu'au démontage). Une console « au calme » reste éteinte. */
+.stage[data-mode='reveal'] .cm-screen,
+.stage[data-mode='warp'][data-tier='reduced'] .cm-screen {
   opacity: 0;
-}
-.stage[data-mode='warp'] .stage-ring g {
-  opacity: 1;
 }
 
-/* Sobre et réduit : pas de canvas, d'éclair ni de couronne. */
-.stage:is([data-tier='sober'], [data-tier='reduced']) :is(.stage-ring, .stage-canvas, .stage-flash, .stage-shock) {
+/* Sobre et réduit : pas de canvas, d'éclair ni d'onde. */
+.stage:is([data-tier='sober'], [data-tier='reduced']) :is(.stage-canvas, .stage-flash, .stage-shock) {
   display: none;
 }
 
@@ -217,9 +215,18 @@ html.px-revealing .tb-brand .brand-mark {
 .stage[data-mode='warp'][data-tier='sober'][data-phase='run'] :is(.stage-text, .stage-badge) {
   animation: stage-fade-in 180ms var(--ease-out) 120ms both;
 }
+/* Puis l'écran de la console s'éteint, en fondu (fini avant l'image finale, 120 ms avant la fermeture). */
+.stage[data-mode='warp'][data-tier='sober'][data-phase='run'] .cm-screen {
+  animation: stage-fade-out 120ms var(--ease-in) 200ms both;
+}
 
 @keyframes stage-fade-in {
   from {
+    opacity: 0;
+  }
+}
+@keyframes stage-fade-out {
+  to {
     opacity: 0;
   }
 }
