@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from 'react'
 import type { Game } from '@shared/types'
 import type { LoginProps } from '../contracts'
-import { BrandMark, BrandWordmark } from './ui/Brand'
+import { BrandWordmark } from './ui/Brand'
 import { Cover } from './ui/Cover'
 import { Icon } from './ui/Icon'
 import { useEscape } from './ui/Overlay'
@@ -110,8 +110,7 @@ export function Login({ games, pending, error, onSteam, onCancel, onSkip }: Logi
 
       <section className="login-panel">
         <div className="login-brand">
-          <BrandMark height={48} alt="" />
-          <BrandWordmark height={30} />
+          <BrandWordmark height={34} />
         </div>
 
         <div className="login-stage">

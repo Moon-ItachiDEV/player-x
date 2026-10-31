@@ -36,7 +36,8 @@
   padding: 0 24px 0 84px;
 }
 
-/* Marque : l'icône, le logo « Player X » (la croix à la place du X), et « Bêta » sur une version de test */
+/* Marque : le logo « Player X » (la croix de l'icône à la place du X), et « Bêta » sur une version de test.
+   Fenêtre étroite : la croix seule (.tb-brand-compact), sans le mot. */
 .tb-brand {
   display: flex;
   flex-shrink: 0;
@@ -44,12 +45,11 @@
   gap: 10px;
   margin-right: 14px;
 }
-/* Tuile claire : une ombre neutre la pose sur la barre sombre (une lueur rose la ferait baver). */
-.tb-brand .brand-mark {
-  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
-}
 .tb-brand-name {
   flex-shrink: 0;
+}
+.tb-brand-compact {
+  display: none;
 }
 .tb-brand-beta {
   padding: 3px 7px;
@@ -557,6 +557,9 @@
   .tb-brand-name,
   .tb-brand-beta {
     display: none;
+  }
+  .tb-brand-compact {
+    display: block;
   }
   .tb-brand {
     margin-right: 6px;
