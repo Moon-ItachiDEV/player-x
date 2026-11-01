@@ -13,7 +13,7 @@
 // Le panneau arrondit ses valeurs : une barre empilée peut tomber à un point près.
 import type { ArmoryAttachment, ArmoryWeapon, Build, SlotId, Stats } from './types'
 
-export const SLOT_ORDER: SlotId[] = ['optic', 'optic-accessory', 'muzzle', 'barrel', 'underbarrel', 'magazine', 'ammo', 'accessory', 'right-accessory', 'ergonomics']
+export const SLOT_ORDER: SlotId[] = ['optic', 'optic-accessory', 'muzzle', 'barrel', 'underbarrel', 'magazine', 'ammo', 'accessory', 'left-accessory', 'right-accessory', 'ergonomics']
 /** Emplacements qui ne restent jamais vides. */
 export const REQUIRED: SlotId[] = ['optic', 'barrel', 'magazine', 'ammo']
 export const BUDGET = 100

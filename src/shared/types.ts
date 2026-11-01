@@ -1002,6 +1002,14 @@ export interface LauncherApi {
   /** Enregistre un loadout (sans identifiant connu : un nouveau). Renvoie le carnet. */
   saveBf6Loadout(loadout: unknown): Promise<import('./bf6Loadouts').Bf6Loadout[]>
   deleteBf6Loadout(id: string): Promise<import('./bf6Loadouts').Bf6Loadout[]>
+  /** Enregistre plusieurs loadouts d'un coup (les modèles), dans l'ordre donné. */
+  saveBf6Loadouts(list: unknown[]): Promise<import('./bf6Loadouts').Bf6Loadout[]>
+  /** « Mes armes » : armes apprises des loadouts enregistrés. */
+  getMyBf6Weapons(): Promise<import('./bf6Workshop').MyWeapon[]>
+  forgetMyBf6Weapon(key: string): Promise<import('./bf6Workshop').MyWeapon[]>
+  /** Brouillon de l'atelier (null : aucun). Passer null l'efface. */
+  getBf6LoadoutDraft(): Promise<import('./bf6Workshop').LoadoutDraftSaved | null>
+  setBf6LoadoutDraft(draft: { id?: string; loadout: unknown } | null): Promise<import('./bf6Workshop').LoadoutDraftSaved | null>
   /** Copie dans le presse-papiers l'image de cette zone de la fenêtre (en pixels CSS). */
   copyAreaImage(rect: { x: number; y: number; width: number; height: number }): Promise<'copied'>
   platform: string

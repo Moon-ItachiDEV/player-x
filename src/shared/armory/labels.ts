@@ -5,14 +5,30 @@ import type { SlotId, WeaponCategory } from './types'
 
 export const SLOT_LABEL: Record<SlotId, string> = {
   optic: 'Optique',
-  'optic-accessory': 'Accessoire d’optique',
+  'optic-accessory': 'Accessoire optique',
   muzzle: 'Bouche',
   barrel: 'Canon',
   underbarrel: 'Sous le canon',
   magazine: 'Chargeur',
   ammo: 'Munitions',
-  accessory: 'Accessoire du haut',
-  'right-accessory': 'Accessoire de droite',
+  accessory: 'Accessoire supérieur',
+  'left-accessory': 'Accessoire gauche',
+  'right-accessory': 'Accessoire droit',
+  ergonomics: 'Ergonomie'
+}
+
+/** Libellés courts (cartes, éditeur), mêmes mots que le menu de personnalisation du jeu. */
+export const SLOT_SHORT: Record<SlotId, string> = {
+  optic: 'Optique',
+  'optic-accessory': 'Acc. optique',
+  muzzle: 'Bouche',
+  barrel: 'Canon',
+  underbarrel: 'Sous le canon',
+  magazine: 'Chargeur',
+  ammo: 'Munitions',
+  accessory: 'Acc. supérieur',
+  'left-accessory': 'Acc. gauche',
+  'right-accessory': 'Acc. droit',
   ergonomics: 'Ergonomie'
 }
 
