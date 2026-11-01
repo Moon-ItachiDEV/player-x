@@ -32,7 +32,7 @@ import { allowDemo, getAccounts, getMemberPrefs, getSettings, publicSettings, re
 import { launchArgOf, recentGames } from './services/recentGames'
 import { getCs2Servers, getSteamPlayers } from './services/servers'
 import { createCollection, deleteCollection, getShelves, renameCollection, setGameHidden, setInCollection } from './services/shelves'
-import { deleteBf6Loadout, getBf6Loadouts, saveBf6Loadout } from './services/bf6Loadouts'
+import { deleteBf6Loadout, forgetMyWeapon, getBf6Loadouts, getLoadoutDraft, getMyWeapons, saveBf6Loadout, saveBf6Loadouts, setLoadoutDraft } from './services/bf6Loadouts'
 import { getBf6Art, getBf6History, getBf6Stats, getBf6Tracked, searchBf6, setBf6Tracked, startBf6Recorder } from './services/stats'
 import { installSteamGame, isSteamSoftware, ownedForNews, ownedSteamGame, startSteamLibrary, steamLibrary } from './services/steamLibrary'
 import { startSteamUpdates, steamUpdates, steamUpdatesDemoChanged } from './services/steamUpdates'
@@ -407,6 +407,11 @@ function registerIpc(): void {
   handle('loadouts:get', () => getBf6Loadouts())
   handle('loadouts:save', (_e, loadout: unknown) => saveBf6Loadout(loadout))
   handle('loadouts:delete', (_e, id: unknown) => deleteBf6Loadout(id))
+  handle('loadouts:save-many', (_e, list: unknown) => saveBf6Loadouts(list))
+  handle('loadouts:weapons', () => getMyWeapons())
+  handle('loadouts:weapon-forget', (_e, k: unknown) => forgetMyWeapon(k))
+  handle('loadouts:draft-get', () => getLoadoutDraft())
+  handle('loadouts:draft-set', (_e, d: unknown) => setLoadoutDraft(d))
   // Image d'une zone de la fenêtre (une carte de loadout) dans le presse-papiers, pour la coller sur Discord.
   handle('window:copy-area', async (e, rect: unknown) => {
     const r = rect && typeof rect === 'object' ? (rect as Record<string, unknown>) : {}

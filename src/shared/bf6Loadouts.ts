@@ -3,7 +3,7 @@
 // arrive du stockage ou de l'interface, ajout, suppression, total des points et texte à copier.
 import { BF6_CLASSES, CLASS_LABEL, SLOT_LABEL, type Bf6ClassId } from './armory/labels'
 import { SLOT_ORDER } from './armory/engine'
-import type { SlotId } from './armory/types'
+import type { SlotId, WeaponCategory } from './armory/types'
 
 export type { Bf6ClassId }
 
@@ -23,6 +23,8 @@ export interface Bf6Loadout {
   weapon: string
   /** Arme de l'Armurerie quand ses accessoires viennent de ses relevés. */
   armoryId?: string
+  /** Catégorie de l'arme (silhouette de la carte, « Mes armes »). */
+  cat?: WeaponCategory
   parts: Partial<Record<SlotId, Bf6LoadoutPart>>
   secondary?: string
   gadget1?: string
@@ -44,6 +46,9 @@ const text = (v: unknown, max: number): string | undefined => {
   const s = v.replace(/\s+/g, ' ').trim().slice(0, max)
   return s || undefined
 }
+
+export const WEAPON_CATEGORIES: WeaponCategory[] = ['assault-rifle', 'carbine', 'smg', 'lmg', 'dmr', 'sniper', 'shotgun', 'pistol']
+export const isCategory = (v: unknown): v is WeaponCategory => typeof v === 'string' && (WEAPON_CATEGORIES as string[]).includes(v)
 
 const isClass = (v: unknown): v is Bf6ClassId => typeof v === 'string' && (BF6_CLASSES as string[]).includes(v)
 
@@ -77,6 +82,7 @@ export function cleanLoadout(raw: unknown): Bf6Loadout | null {
   const opt = {
     context: text(r.context, TEXT_MAX),
     armoryId: text(r.armoryId, 24),
+    cat: isCategory(r.cat) ? r.cat : undefined,
     secondary: text(r.secondary, TEXT_MAX),
     gadget1: text(r.gadget1, TEXT_MAX),
     gadget2: text(r.gadget2, TEXT_MAX),

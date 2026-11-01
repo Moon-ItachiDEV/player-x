@@ -153,6 +153,11 @@ const api: LauncherApi = {
   getBf6Loadouts: () => ipcRenderer.invoke('loadouts:get'),
   saveBf6Loadout: (loadout) => ipcRenderer.invoke('loadouts:save', loadout),
   deleteBf6Loadout: (id) => ipcRenderer.invoke('loadouts:delete', id),
+  saveBf6Loadouts: (list) => ipcRenderer.invoke('loadouts:save-many', list),
+  getMyBf6Weapons: () => ipcRenderer.invoke('loadouts:weapons'),
+  forgetMyBf6Weapon: (key) => ipcRenderer.invoke('loadouts:weapon-forget', key),
+  getBf6LoadoutDraft: () => ipcRenderer.invoke('loadouts:draft-get'),
+  setBf6LoadoutDraft: (draft) => ipcRenderer.invoke('loadouts:draft-set', draft),
   copyAreaImage: (rect) => ipcRenderer.invoke('window:copy-area', rect),
   platform: process.platform,
   version: __APP_VERSION__

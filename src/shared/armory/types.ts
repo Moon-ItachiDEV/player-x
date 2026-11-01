@@ -1,7 +1,7 @@
 // Armurerie Battlefield 6 : une arme, ses accessoires par emplacement, et ce que chacun change sur le panneau de l'arme.
 // Chaque arme est un relevé du menu de personnalisation du jeu (voir weapons/).
 
-export type SlotId = 'optic' | 'optic-accessory' | 'muzzle' | 'barrel' | 'underbarrel' | 'magazine' | 'ammo' | 'accessory' | 'right-accessory' | 'ergonomics'
+export type SlotId = 'optic' | 'optic-accessory' | 'muzzle' | 'barrel' | 'underbarrel' | 'magazine' | 'ammo' | 'accessory' | 'left-accessory' | 'right-accessory' | 'ergonomics'
 
 export type WeaponCategory = 'assault-rifle' | 'carbine' | 'smg' | 'lmg' | 'dmr' | 'sniper' | 'shotgun' | 'pistol'
 

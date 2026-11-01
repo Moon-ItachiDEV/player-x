@@ -1,0 +1,300 @@
+// Atelier des loadouts BF6 : ce qui évite de tout ressaisir. Règles pures (testées) :
+// - « Mes armes » : chaque loadout enregistré apprend son arme (catégorie, accessoires et points par emplacement) ;
+//   l'atelier les propose ensuite, comme les relevés de l'Armurerie.
+// - Le brouillon : l'éditeur en cours, gardé à chaque modification, repris après une fermeture ou un plantage.
+// - Les modèles : les builds de Breezydev (profil équipement de l'appli BF6), pour partir d'une config réelle.
+import { SLOT_ORDER } from './armory/engine'
+import type { SlotId, WeaponCategory } from './armory/types'
+import { NAME_MAX, NOTES_MAX, TEXT_MAX, isCategory, type Bf6ClassId, type Bf6Loadout, type Bf6LoadoutPart } from './bf6Loadouts'
+
+export const MAX_MY_WEAPONS = 80
+export const MAX_PER_SLOT = 40
+
+/** Clé d'une arme : « Z84M », « z84 m » et « Z-84M » sont la même. */
+export const myWeaponKey = (name: string): string =>
+  name
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]/gi, '')
+    .toLowerCase()
+
+export interface MyWeaponPart {
+  name: string
+  pts?: number
+}
+
+export interface MyWeapon {
+  key: string
+  /** Nom tel que le joueur l'a écrit la dernière fois. */
+  name: string
+  cat?: WeaponCategory
+  parts: Partial<Record<SlotId, MyWeaponPart[]>>
+  updatedAt: number
+}
+
+const text = (v: unknown, max: number): string | undefined => {
+  if (typeof v !== 'string') return undefined
+  const s = v.replace(/\s+/g, ' ').trim().slice(0, max)
+  return s || undefined
+}
+const isPts = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 100
+
+function cleanParts(raw: unknown): MyWeapon['parts'] {
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const out: MyWeapon['parts'] = {}
+  for (const s of SLOT_ORDER) {
+    const list = src[s]
+    if (!Array.isArray(list)) continue
+    const seen = new Set<string>()
+    const items: MyWeaponPart[] = []
+    for (const it of list) {
+      const o = it && typeof it === 'object' ? (it as Record<string, unknown>) : {}
+      const name = text(o.name, TEXT_MAX)
+      if (!name || seen.has(name.toLowerCase())) continue
+      seen.add(name.toLowerCase())
+      items.push(isPts(o.pts) ? { name, pts: o.pts } : { name })
+      if (items.length >= MAX_PER_SLOT) break
+    }
+    if (items.length) out[s] = items
+  }
+  return out
+}
+
+export function cleanMyWeapon(raw: unknown): MyWeapon | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const name = text(r.name, TEXT_MAX)
+  if (!name) return null
+  const key = myWeaponKey(name)
+  if (!key) return null
+  const w: MyWeapon = { key, name, parts: cleanParts(r.parts), updatedAt: typeof r.updatedAt === 'number' && Number.isFinite(r.updatedAt) ? r.updatedAt : 0 }
+  if (isCategory(r.cat)) w.cat = r.cat
+  return w
+}
+
+/** Liste relue : armes valides, sans doublon, les plus récentes d'abord. */
+export function cleanMyWeapons(raw: unknown): MyWeapon[] {
+  if (!Array.isArray(raw)) return []
+  const seen = new Set<string>()
+  const out: MyWeapon[] = []
+  for (const item of raw) {
+    const w = cleanMyWeapon(item)
+    if (!w || seen.has(w.key)) continue
+    seen.add(w.key)
+    out.push(w)
+  }
+  return out.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX_MY_WEAPONS)
+}
+
+/**
+ * Apprend l'arme d'un loadout : ses accessoires rejoignent ceux déjà retenus (les points notés remplacent les anciens,
+ * l'accessoire remonte en tête de son emplacement). Une arme de l'Armurerie n'est pas apprise : ses relevés font foi.
+ */
+export function learnWeapon(list: MyWeapon[], l: Pick<Bf6Loadout, 'weapon' | 'parts' | 'cat' | 'armoryId'>, now: number): MyWeapon[] {
+  if (l.armoryId) return list
+  const name = text(l.weapon, TEXT_MAX)
+  if (!name) return list
+  const key = myWeaponKey(name)
+  if (!key) return list
+  const cur = list.find((w) => w.key === key)
+  const parts: MyWeapon['parts'] = { ...(cur?.parts ?? {}) }
+  for (const s of SLOT_ORDER) {
+    const p: Bf6LoadoutPart | undefined = l.parts[s]
+    if (!p?.name?.trim()) continue
+    const item: MyWeaponPart = p.pts === undefined ? { name: p.name.trim() } : { name: p.name.trim(), pts: p.pts }
+    const old = (parts[s] ?? []).find((x) => x.name.toLowerCase() === item.name.toLowerCase())
+    if (item.pts === undefined && old?.pts !== undefined) item.pts = old.pts
+    parts[s] = [item, ...(parts[s] ?? []).filter((x) => x.name.toLowerCase() !== item.name.toLowerCase())].slice(0, MAX_PER_SLOT)
+  }
+  const next: MyWeapon = { key, name, parts, updatedAt: now }
+  const cat = l.cat ?? cur?.cat
+  if (cat) next.cat = cat
+  return cleanMyWeapons([next, ...list.filter((w) => w.key !== key)])
+}
+
+export const forgetWeapon = (list: MyWeapon[], key: string): MyWeapon[] => list.filter((w) => w.key !== key)
+
+/* ---------- brouillon ---------- */
+
+export interface LoadoutDraftSaved {
+  /** Le loadout modifié (absent : un nouveau). */
+  id?: string
+  /** Contenu du formulaire, nettoyé à la relecture comme un loadout (sans l'obligation du nom et de l'arme). */
+  loadout: Partial<Bf6Loadout>
+  savedAt: number
+}
+
+export function cleanDraft(raw: unknown): LoadoutDraftSaved | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const l = r.loadout && typeof r.loadout === 'object' ? (r.loadout as Record<string, unknown>) : null
+  if (!l) return null
+  const parts: Bf6Loadout['parts'] = {}
+  const src = l.parts && typeof l.parts === 'object' ? (l.parts as Record<string, unknown>) : {}
+  for (const s of SLOT_ORDER) {
+    const p = src[s] && typeof src[s] === 'object' ? (src[s] as Record<string, unknown>) : null
+    const name = p && text(p.name, TEXT_MAX)
+    if (!name) continue
+    parts[s] = isPts(p.pts) ? { name, pts: p.pts } : { name }
+  }
+  const out: Partial<Bf6Loadout> = { parts }
+  const name = text(l.name, NAME_MAX)
+  if (name) out.name = name
+  if (typeof l.cls === 'string' && ['assault', 'engineer', 'support', 'recon'].includes(l.cls)) out.cls = l.cls as Bf6ClassId
+  if (isCategory(l.cat)) out.cat = l.cat
+  for (const k of ['context', 'weapon', 'secondary', 'gadget1', 'gadget2', 'grenade', 'melee', 'training'] as const) {
+    const v = text(l[k], TEXT_MAX)
+    if (v) out[k] = v
+  }
+  if (typeof l.notes === 'string' && l.notes.trim()) out.notes = l.notes.replace(/\r\n?/g, '\n').trim().slice(0, NOTES_MAX)
+  const empty = !out.name && !out.weapon && !out.context && !Object.keys(parts).length && !out.notes
+  if (empty) return null
+  const draft: LoadoutDraftSaved = { loadout: out, savedAt: typeof r.savedAt === 'number' && Number.isFinite(r.savedAt) ? r.savedAt : 0 }
+  if (typeof r.id === 'string' && /^[a-z0-9]{1,24}$/i.test(r.id)) draft.id = r.id
+  return draft
+}
+
+/* ---------- modèles : les builds de Breezydev ---------- */
+
+export interface BuildTemplate {
+  id: string
+  /** Groupe affiché (l'arme). */
+  weapon: string
+  /** Nom du build. */
+  label: string
+  loadout: Partial<Bf6Loadout> & { cls: Bf6ClassId; weapon: string; parts: Bf6Loadout['parts'] }
+}
+
+type P = [string, number]
+const parts = (o: Partial<Record<SlotId, P>>): Bf6Loadout['parts'] => Object.fromEntries(Object.entries(o).map(([s, [name, pts]]) => [s, { name, pts }])) as Bf6Loadout['parts']
+const tpl = (id: string, weapon: string, cls: Bf6ClassId, cat: WeaponCategory, label: string, p: Partial<Record<SlotId, P>>): BuildTemplate => ({
+  id,
+  weapon,
+  label,
+  loadout: { name: `${weapon} ${label.toLowerCase()}`.slice(0, NAME_MAX), cls, cat, weapon, parts: parts(p) }
+})
+
+export const BUILD_TEMPLATES: BuildTemplate[] = [
+  tpl('cz-close', 'CZ3A1', 'engineer', 'smg', 'Courte portée', {
+    muzzle: ['Long Suppressor', 25],
+    barrel: ['7.7" Pencil', 20],
+    'right-accessory': ['5 MW Green', 10],
+    underbarrel: ['Slim Angled', 20],
+    magazine: ['30RND Fast Mag', 10],
+    ammo: ['FMJ', 5],
+    optic: ['Mini Flex 1.00x', 10]
+  }),
+  tpl('cz-versa', 'CZ3A1', 'engineer', 'smg', 'Polyvalent', {
+    muzzle: ['Lightened Suppressor', 30],
+    barrel: ['16.2" Cut', 5],
+    'right-accessory': ['50 MW Blue', 20],
+    underbarrel: ['Slim Angled', 20],
+    magazine: ['30RND Fast Mag', 10],
+    ammo: ['FMJ', 5],
+    optic: ['Mini Flex 1.00x', 10]
+  }),
+  tpl('cz-long', 'CZ3A1', 'engineer', 'smg', 'Longue portée', {
+    muzzle: ['Lightened Suppressor', 30],
+    barrel: ['16.2" Cut', 5],
+    underbarrel: ['Classic Vertical', 35],
+    magazine: ['35RND Magazine', 15],
+    ammo: ['FMJ', 5],
+    optic: ['RO-M 1.75x', 10]
+  }),
+  tpl('mk24-reco', 'MK 24', 'assault', 'assault-rifle', 'Recommandé', {
+    barrel: ['Heavy Ext.', 10],
+    underbarrel: ['Low-Profile Stubby', 45],
+    ammo: ['FMJ', 5],
+    muzzle: ['Hybrid Suppressor [L]', 30],
+    optic: ['CCO 2.00X', 10]
+  }),
+  tpl('mk24-ads', 'MK 24', 'assault', 'assault-rifle', 'Visée rapide', {
+    barrel: ['Cryo', 20],
+    underbarrel: ['Low-Profile Stubby', 45],
+    ammo: ['FMJ', 5],
+    muzzle: ['Compensator', 10],
+    accessory: ['50 MW Violet', 10],
+    optic: ['CCO 2.00X', 10]
+  }),
+  tpl('mk24-recul', 'MK 24', 'assault', 'assault-rifle', 'Recul minimal', {
+    barrel: ['Heavy Ext.', 10],
+    underbarrel: ['Classic Vertical', 35],
+    ammo: ['FMJ', 5],
+    muzzle: ['Compensator', 10],
+    'right-accessory': ['50 MW Violet', 10],
+    'left-accessory': ['50 MW Violet', 10],
+    accessory: ['50 MW Violet', 10],
+    optic: ['CCO 2.00X', 10]
+  }),
+  tpl('mk24-hanche', 'MK 24', 'assault', 'assault-rifle', 'Tir à la hanche', {
+    barrel: ['Short', 15],
+    ammo: ['Polymer Case', 10],
+    ergonomics: ['Improved Mag Catch', 5],
+    'right-accessory': ['50 MW Green', 20],
+    'left-accessory': ['50 MW Green', 20],
+    accessory: ['50 MW Green', 20],
+    optic: ['CCO 2.00X', 10]
+  }),
+  tpl('z84-reco', 'Z84M', 'support', 'lmg', 'Recommandé', {
+    barrel: ['Heavy Ext.', 10],
+    underbarrel: ['Classic Vertical', 35],
+    ammo: ['FMJ', 5],
+    muzzle: ['Hybrid Suppressor [S]', 40],
+    optic: ['CCO 2.00X', 10]
+  }),
+  tpl('z84-ads', 'Z84M', 'support', 'lmg', 'Visée rapide', {
+    barrel: ['Cryo', 20],
+    underbarrel: ['Low-Profile Stubby', 45],
+    ammo: ['FMJ', 5],
+    muzzle: ['Compensator', 10],
+    'left-accessory': ['50 MW Violet', 10],
+    optic: ['CCO 2.00X', 10]
+  }),
+  tpl('z84-recul', 'Z84M', 'support', 'lmg', 'Recul minimal', {
+    barrel: ['Heavy Ext.', 10],
+    underbarrel: ['Classic Vertical', 35],
+    ammo: ['FMJ', 5],
+    muzzle: ['Compensator', 10],
+    'right-accessory': ['50 MW Violet', 10],
+    accessory: ['50 MW Violet', 10],
+    'left-accessory': ['50 MW Violet', 10],
+    optic: ['CCO 2.00X', 10]
+  }),
+  tpl('z84-hanche', 'Z84M', 'support', 'lmg', 'Tir à la hanche', {
+    barrel: ['Short', 15],
+    ammo: ['Polymer Case', 10],
+    ergonomics: ['Improved Mag Catch', 5],
+    'right-accessory': ['50 MW Green', 20],
+    accessory: ['50 MW Green', 20],
+    'left-accessory': ['50 MW Green', 20],
+    optic: ['CCO 2.00X', 10]
+  })
+]
+
+/** Armes connues par les modèles, apprises comme si chaque modèle avait été enregistré (le plus ancien d'abord). */
+export function templateWeapons(): MyWeapon[] {
+  let list: MyWeapon[] = []
+  BUILD_TEMPLATES.forEach((t, i) => (list = learnWeapon(list, t.loadout, i)))
+  return list
+}
+
+/** Suggestions pour un emplacement : tes accessoires retenus, puis ceux des modèles, sans doublon. */
+export function suggestParts(mine: MyWeapon[], weapon: string, slot: SlotId): MyWeaponPart[] {
+  const key = myWeaponKey(weapon)
+  if (!key) return []
+  const out: MyWeaponPart[] = []
+  const seen = new Set<string>()
+  for (const src of [mine, templateWeapons()]) {
+    for (const p of src.find((w) => w.key === key)?.parts[slot] ?? []) {
+      if (seen.has(p.name.toLowerCase())) continue
+      seen.add(p.name.toLowerCase())
+      out.push(p)
+    }
+  }
+  return out
+}
+
+/** Catégorie connue d'une arme (tes armes, puis les modèles). */
+export function knownCategory(mine: MyWeapon[], weapon: string): WeaponCategory | undefined {
+  const key = myWeaponKey(weapon)
+  return mine.find((w) => w.key === key)?.cat ?? templateWeapons().find((w) => w.key === key)?.cat
+}

@@ -10,6 +10,8 @@ import { ClassIcon } from '../ClassIcon'
 import { Icon } from '../../ui/Icon'
 import { Menu } from '../../ui/Overlay'
 import { errorMessage, useToast } from '../../ui/Toasts'
+import { CardAffiche, CardGunsmith } from './cards'
+import { useCardStyle } from './store'
 
 /** Arme vue dans les stats gametools du joueur : son image. */
 export interface WeaponHint {
@@ -47,6 +49,7 @@ export function LoadoutCard({ l, hints, compact, onEdit, onDuplicate, onDelete }
     right: number
   } | null>(null)
   const [capturing, setCapturing] = useState(false)
+  const style = useCardStyle()
   const [imgFailed, setImgFailed] = useState(false)
   const image = weaponImage(l.weapon, hints)
   const pts = loadoutPoints(l)
@@ -102,6 +105,63 @@ export function LoadoutCard({ l, hints, compact, onEdit, onDuplicate, onDelete }
   const run = (fn?: () => void): void => {
     setMenu(null)
     fn?.()
+  }
+
+  if (!compact) {
+    return (
+      <div className={`lo-item ${capturing ? 'is-capturing' : ''}`}>
+        <div ref={ref as React.RefObject<HTMLDivElement>} className="lo-cap" title="Double-clic pour modifier" onDoubleClick={onEdit}>
+          {style === 'a' ? <CardGunsmith d={l} image={image} /> : <CardAffiche d={l} image={image} />}
+        </div>
+        <div className="lo-item-actions">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit}>
+            <Icon name="pencil" size={15} />
+            Modifier
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void copyImage()} title="Copie la carte seule, à coller sur Discord">
+            <Icon name="image" size={15} />
+            Copier l’image
+          </button>
+          <button
+            ref={moreRef}
+            type="button"
+            className="icon-btn lo-item-more"
+            aria-haspopup="menu"
+            aria-expanded={!!menu}
+            aria-label={`Plus d’actions pour « ${l.name} »`}
+            title="Plus d’actions"
+            onMouseDown={(e) => menu && e.stopPropagation()}
+            onClick={openMenu}
+          >
+            <Icon name="more" size={18} />
+          </button>
+          {createPortal(
+            <Menu open={!!menu} onClose={() => setMenu(null)} style={menu ?? {}} className="lo-menu">
+              <button className="menu-item" role="menuitem" onClick={() => run(copyText)}>
+                <span className="picker-check">
+                  <Icon name="clipboard" size={16} />
+                </span>
+                Copier le texte
+              </button>
+              <button className="menu-item" role="menuitem" onClick={() => run(onDuplicate)}>
+                <span className="picker-check">
+                  <Icon name="copy" size={16} />
+                </span>
+                Dupliquer
+              </button>
+              <div className="menu-sep" />
+              <button className="menu-item is-danger" role="menuitem" onClick={() => run(onDelete)}>
+                <span className="picker-check">
+                  <Icon name="trash" size={16} />
+                </span>
+                Supprimer…
+              </button>
+            </Menu>,
+            document.body
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
