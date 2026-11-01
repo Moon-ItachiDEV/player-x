@@ -12,6 +12,7 @@ import { Dialog, Segmented } from '../../ui/Overlay'
 import { errorMessage, useToast } from '../../ui/Toasts'
 import { LoadoutCard, type WeaponHint } from './LoadoutCard'
 import { LoadoutEditor } from './LoadoutEditor'
+import { CARD_STYLES } from './cards'
 import { draftActions, loadoutActions, setCardStyle, takeLoadoutDraft, useCardStyle, useLoadouts, useMyWeapons, useSavedDraft, type CardStyle, type LoadoutDraft } from './store'
 import './loadouts.css'
 
@@ -186,15 +187,7 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
             </div>
             <div className="lo-cardstyle">
               <span className="caption">Carte</span>
-              <Segmented<CardStyle>
-                label="Style des cartes"
-                value={style}
-                onChange={setCardStyle}
-                options={[
-                  { value: 'a', label: 'A · Gunsmith' },
-                  { value: 'b', label: 'B · Affiche' }
-                ]}
-              />
+              <Segmented<CardStyle> label="Style des cartes" value={style} onChange={setCardStyle} options={CARD_STYLES} />
             </div>
           </div>
           {shown.length === 0 ? (
@@ -206,7 +199,7 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
               </button>
             </div>
           ) : (
-            <div className="lo-grid is-cards">
+            <div className={`lo-grid is-cards is-${style}`}>
               {shown.map((l) => (
                 <LoadoutCard
                   key={l.id}

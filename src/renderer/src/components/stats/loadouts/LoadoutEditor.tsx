@@ -15,7 +15,7 @@ import { ClassIcon } from '../ClassIcon'
 import { Icon } from '../../ui/Icon'
 import { Segmented } from '../../ui/Overlay'
 import { errorMessage, useToast } from '../../ui/Toasts'
-import { CardAffiche, CardGunsmith, type CardData } from './cards'
+import { CARD_STYLES, LoadoutCardView, type CardData } from './cards'
 import { Combo, type ComboOption } from './Combo'
 import { draftActions, loadoutActions, setCardStyle, useCardStyle, useMyWeapons, type CardStyle, type LoadoutDraft } from './store'
 import { weaponImage, type WeaponHint } from './LoadoutCard'
@@ -573,21 +573,15 @@ export function LoadoutEditor({ initial, list, hints, onCancel, onSaved }: Props
 
         <aside className="la-preview" aria-label="Aperçu de la carte">
           <div className="la-preview-bar">
-            <Segmented<CardStyle>
-              label="Style des cartes"
-              value={style}
-              onChange={setCardStyle}
-              options={[
-                { value: 'a', label: 'A · Gunsmith' },
-                { value: 'b', label: 'B · Affiche' }
-              ]}
-            />
+            <Segmented<CardStyle> label="Style des cartes" value={style} onChange={setCardStyle} options={CARD_STYLES} />
             <span className="la-live">
               <i aria-hidden="true" />
               En direct
             </span>
           </div>
-          <div className="la-preview-card">{style === 'a' ? <CardGunsmith d={cardData} image={image} /> : <CardAffiche d={cardData} image={image} />}</div>
+          <div className="la-preview-card">
+            <LoadoutCardView style={style} d={cardData} image={image} />
+          </div>
           <p className="caption la-preview-hint">C’est cette carte, seule, que « Copier l’image » colle sur Discord.</p>
         </aside>
       </div>

@@ -170,7 +170,7 @@ const tpl = (id: string, weapon: string, cls: Bf6ClassId, cat: WeaponCategory, l
   id,
   weapon,
   label,
-  loadout: { name: `${weapon} ${label.toLowerCase()}`.slice(0, NAME_MAX), cls, cat, weapon, parts: parts(p) }
+  loadout: { name: label.slice(0, NAME_MAX), cls, cat, weapon, parts: parts(p) }
 })
 
 export const BUILD_TEMPLATES: BuildTemplate[] = [

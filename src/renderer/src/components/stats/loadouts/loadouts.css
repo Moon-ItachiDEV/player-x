@@ -33,9 +33,18 @@
 }
 /* Cartes A / B : largeur fixe (comme l'image copiée), autant de colonnes que la page en tient. */
 .lo-grid.is-cards {
-  grid-template-columns: repeat(auto-fill, 424px);
+  grid-template-columns: repeat(auto-fill, var(--lo-card-w, 400px));
   gap: 32px 28px;
   align-items: start;
+}
+.lo-grid.is-c {
+  --lo-card-w: 380px;
+}
+.lo-grid.is-d {
+  --lo-card-w: 440px;
+}
+.lo-grid.is-e {
+  --lo-card-w: 400px;
 }
 .lo-item {
   display: flex;
