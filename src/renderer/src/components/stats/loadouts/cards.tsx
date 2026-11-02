@@ -12,13 +12,13 @@ import './cards.css'
 
 /** Ce qu'une carte affiche : un loadout enregistré, ou le formulaire de l'atelier en cours. */
 export type CardData = Pick<Bf6Loadout, 'cls' | 'parts'> &
-  Partial<Pick<Bf6Loadout, 'name' | 'weapon' | 'context' | 'cat' | 'secondary' | 'gadget1' | 'gadget2' | 'grenade' | 'melee' | 'training' | 'notes' | 'updatedAt'>>
+  Partial<Pick<Bf6Loadout, 'name' | 'weapon' | 'context' | 'cat' | 'tier' | 'secondary' | 'gadget1' | 'gadget2' | 'grenade' | 'melee' | 'training' | 'notes' | 'updatedAt'>>
 
 const NSLOTS = SLOT_ORDER.length
 const sniperLike = (c?: WeaponCategory): boolean => c === 'sniper' || c === 'dmr'
 
 /** L'arme : son image (512 × 256, fond transparent) si on l'a, sinon la silhouette dessinée. */
-function WeaponArt({ image, cat, label }: { image?: string; cat?: WeaponCategory; label: string }): React.JSX.Element {
+export function WeaponArt({ image, cat, label }: { image?: string; cat?: WeaponCategory; label: string }): React.JSX.Element {
   const [failed, setFailed] = useState(false)
   if (image && !failed) return <img className="lc-img" src={image} alt={label} draggable={false} onError={() => setFailed(true)} />
   return (
@@ -75,6 +75,11 @@ export function LoadoutCardView({ d, image }: { d: CardData; image?: string }): 
   return (
     <article className={`lc lcm is-${d.cls} ${pts.total > 100 ? 'is-over' : ''}`} aria-label={`${title}, ${weapon}, ${CLASS_LABEL[d.cls]}`}>
       <header className="lcm-h">
+        {d.tier && (
+          <span className={`lc-tier is-${d.tier}`} title={`${d.tier} tier`}>
+            {d.tier}
+          </span>
+        )}
         <h3>{title}</h3>
         <span className="lcm-w">
           <ClassIcon name={d.cls} size={14} />

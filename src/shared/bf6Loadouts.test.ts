@@ -103,3 +103,9 @@ test('nom proposé', () => {
   assert.equal(suggestName(list, 'assault'), 'Assaut 3')
   assert.equal(suggestName(list, 'recon'), 'Éclaireur 1')
 })
+
+test('classement : S, A, B, C gardés, le reste ignoré', () => {
+  // @ts-ignore TS5097
+  assert.equal(cleanLoadout({ ...base, tier: 'S' })?.tier, 'S')
+  assert.equal(cleanLoadout({ ...base, tier: 'Z' })?.tier, undefined)
+})

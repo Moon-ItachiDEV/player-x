@@ -8,7 +8,19 @@ import { SLOT_ORDER, opticAccessories, pickAtt } from '@shared/armory/engine'
 import { BF6_CLASSES, CATEGORY_LABEL, CLASS_LABEL, SLOT_LABEL, SLOT_SHORT } from '@shared/armory/labels'
 import type { Build, SlotId, WeaponCategory } from '@shared/armory/types'
 import { ARMORY_WEAPONS, armoryWeaponByName } from '@shared/armory/weapons'
-import { NAME_MAX, NOTES_MAX, TEXT_MAX, WEAPON_CATEGORIES, loadoutPoints, suggestName, type Bf6ClassId, type Bf6Loadout, type Bf6LoadoutPart } from '@shared/bf6Loadouts'
+import {
+  NAME_MAX,
+  NOTES_MAX,
+  TEXT_MAX,
+  TIERS,
+  WEAPON_CATEGORIES,
+  type Bf6Tier,
+  loadoutPoints,
+  suggestName,
+  type Bf6ClassId,
+  type Bf6Loadout,
+  type Bf6LoadoutPart
+} from '@shared/bf6Loadouts'
 import { BF6_WEAPONS, BUILD_TEMPLATES, knownCategory, myWeaponKey, suggestParts, type BuildTemplate } from '@shared/bf6Workshop'
 import { timeAgo } from '@shared/text'
 import { ClassIcon } from '../ClassIcon'
@@ -46,6 +58,7 @@ interface Form {
   context: string
   weapon: string
   cat: WeaponCategory | ''
+  tier: Bf6Tier | ''
   parts: Partial<Record<SlotId, { name: string; pts: string }>>
   gear: Record<GearKey, string>
   notes: string
@@ -64,6 +77,7 @@ function toForm(d: LoadoutDraft, list: Bf6Loadout[]): Form {
     context: d.context ?? '',
     weapon: d.weapon ?? '',
     cat: d.cat ?? '',
+    tier: d.tier ?? '',
     parts,
     gear: { secondary: d.secondary ?? '', gadget1: d.gadget1 ?? '', gadget2: d.gadget2 ?? '', grenade: d.grenade ?? '', melee: d.melee ?? '', training: d.training ?? '' },
     notes: d.notes ?? ''
@@ -93,6 +107,7 @@ function toLoadout(f: Form): Omit<LoadoutDraft, 'id'> & { parts: Partial<Record<
     context: f.context,
     weapon: f.weapon,
     ...(f.cat ? { cat: f.cat } : {}),
+    ...(f.tier ? { tier: f.tier } : {}),
     ...(armory ? { armoryId: armory.id } : {}),
     parts,
     ...f.gear,
@@ -436,6 +451,26 @@ export function LoadoutEditor({ initial, list, hints, onCancel, onSaved }: Props
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="la-row">
+                <span className="la-k" id={`${uid}-tier`}>
+                  Classement
+                </span>
+                <div className="la-tiers" role="radiogroup" aria-labelledby={`${uid}-tier`}>
+                  {[...TIERS, ''].map((tr) => (
+                    <button
+                      key={tr || 'none'}
+                      type="button"
+                      role="radio"
+                      aria-checked={form.tier === tr}
+                      className={`la-tier ${tr ? `is-${tr}` : 'is-none'}`}
+                      title={tr ? `${tr} tier` : 'Sans classement'}
+                      onClick={() => set({ tier: tr as Bf6Tier | '' })}
+                    >
+                      {tr || '—'}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             {(shown('name') || shown('weapon')) && (

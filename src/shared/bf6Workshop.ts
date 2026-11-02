@@ -5,7 +5,7 @@
 // - Les modèles : les builds de Breezydev (profil équipement de l'appli BF6), pour partir d'une config réelle.
 import { SLOT_ORDER } from './armory/engine'
 import type { SlotId, WeaponCategory } from './armory/types'
-import { NAME_MAX, NOTES_MAX, TEXT_MAX, isCategory, type Bf6ClassId, type Bf6Loadout, type Bf6LoadoutPart } from './bf6Loadouts'
+import { NAME_MAX, NOTES_MAX, TEXT_MAX, isCategory, isTier, type Bf6ClassId, type Bf6Loadout, type Bf6LoadoutPart } from './bf6Loadouts'
 
 export const MAX_MY_WEAPONS = 80
 export const MAX_PER_SLOT = 40
@@ -141,6 +141,7 @@ export function cleanDraft(raw: unknown): LoadoutDraftSaved | null {
   if (name) out.name = name
   if (typeof l.cls === 'string' && ['assault', 'engineer', 'support', 'recon'].includes(l.cls)) out.cls = l.cls as Bf6ClassId
   if (isCategory(l.cat)) out.cat = l.cat
+  if (isTier(l.tier)) out.tier = l.tier
   for (const k of ['context', 'weapon', 'secondary', 'gadget1', 'gadget2', 'grenade', 'melee', 'training'] as const) {
     const v = text(l[k], TEXT_MAX)
     if (v) out[k] = v

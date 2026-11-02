@@ -597,3 +597,55 @@
   outline: none;
   box-shadow: none;
 }
+
+/* classement S / A / B / C */
+.la-k {
+  font: 500 13px/1.25 var(--font-ui);
+  color: var(--text-2);
+}
+.la-tiers {
+  justify-self: end;
+  display: flex;
+  gap: 4px;
+  padding: 6px 0;
+}
+.la-tier {
+  width: 32px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-3);
+  font: 800 13px/1 var(--font-display);
+  cursor: pointer;
+  transition-property: background-color, color, box-shadow, scale;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+.la-tier:active {
+  scale: 0.96;
+}
+.la-tier[aria-checked='true'] {
+  color: #1a0f05;
+}
+.la-tier.is-S[aria-checked='true'] {
+  background: var(--tier-s);
+}
+.la-tier.is-A[aria-checked='true'] {
+  background: var(--tier-a);
+}
+.la-tier.is-B[aria-checked='true'] {
+  background: var(--tier-b);
+}
+.la-tier.is-C[aria-checked='true'] {
+  background: var(--tier-c);
+}
+.la-tier.is-none[aria-checked='true'] {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+@media (hover: hover) {
+  .la-tier:hover {
+    color: var(--text-1);
+  }
+}
