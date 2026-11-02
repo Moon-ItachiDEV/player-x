@@ -148,6 +148,22 @@ h1 { margin: 0; font: 700 28px/34px var(--display); letter-spacing: -0.02em; fon
 //   step : étape en cours (0 fermeture, 1 fichiers, 2 redémarrage, 3 vérification, 4 tout est fait),
 //   percent : avancée totale (0 à 100), from / to : versions, written / total : octets vraiment écrits / attendus,
 //   error : "norelaunch" si Player X ne s'est pas rouvert, out : true pour s'effacer avant la fermeture }.
+
+// WebView2 enregistre les liaisons en parallèle du chargement de la page : si la page arrive avant, elles n'y sont
+// jamais (vu sur les machines Windows de GitHub le 02/11 : pxReady absent, fenêtre jamais déclarée prête). La page crée
+// alors elle-même celles qui manquent, sur le même canal que main.go écoute (chrome.webview.postMessage).
+;(() => {
+  const rpc = (window._rpc = window._rpc || { nextSeq: 1 })
+  for (const name of ['pxReady', 'pxDrag', 'pxMinimize', 'pxOpen', 'pxClose']) {
+    if (typeof window[name] === 'function') continue
+    window[name] = (...params) => {
+      const id = rpc.nextSeq++
+      const done = new Promise((resolve, reject) => (rpc[id] = { resolve, reject }))
+      window.chrome?.webview?.postMessage(JSON.stringify({ id, method: name, params }))
+      return done
+    }
+  }
+})()
 const $ = (id) => document.getElementById(id)
 const C = 552.9
 const mo = (b) => Math.max(0, Math.round(b / 1048576)).toLocaleString('fr-FR')

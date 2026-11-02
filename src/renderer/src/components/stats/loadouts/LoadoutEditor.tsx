@@ -8,8 +8,20 @@ import { SLOT_ORDER, opticAccessories, pickAtt } from '@shared/armory/engine'
 import { BF6_CLASSES, CATEGORY_LABEL, CLASS_LABEL, SLOT_LABEL, SLOT_SHORT } from '@shared/armory/labels'
 import type { Build, SlotId, WeaponCategory } from '@shared/armory/types'
 import { ARMORY_WEAPONS, armoryWeaponByName } from '@shared/armory/weapons'
-import { NAME_MAX, NOTES_MAX, TEXT_MAX, WEAPON_CATEGORIES, loadoutPoints, suggestName, type Bf6ClassId, type Bf6Loadout, type Bf6LoadoutPart } from '@shared/bf6Loadouts'
-import { BUILD_TEMPLATES, knownCategory, myWeaponKey, suggestParts, type BuildTemplate } from '@shared/bf6Workshop'
+import {
+  NAME_MAX,
+  NOTES_MAX,
+  TEXT_MAX,
+  TIERS,
+  WEAPON_CATEGORIES,
+  type Bf6Tier,
+  loadoutPoints,
+  suggestName,
+  type Bf6ClassId,
+  type Bf6Loadout,
+  type Bf6LoadoutPart
+} from '@shared/bf6Loadouts'
+import { BF6_WEAPONS, BUILD_TEMPLATES, knownCategory, myWeaponKey, suggestParts, type BuildTemplate } from '@shared/bf6Workshop'
 import { timeAgo } from '@shared/text'
 import { ClassIcon } from '../ClassIcon'
 import { Icon } from '../../ui/Icon'
@@ -46,6 +58,7 @@ interface Form {
   context: string
   weapon: string
   cat: WeaponCategory | ''
+  tier: Bf6Tier | ''
   parts: Partial<Record<SlotId, { name: string; pts: string }>>
   gear: Record<GearKey, string>
   notes: string
@@ -64,6 +77,7 @@ function toForm(d: LoadoutDraft, list: Bf6Loadout[]): Form {
     context: d.context ?? '',
     weapon: d.weapon ?? '',
     cat: d.cat ?? '',
+    tier: d.tier ?? '',
     parts,
     gear: { secondary: d.secondary ?? '', gadget1: d.gadget1 ?? '', gadget2: d.gadget2 ?? '', grenade: d.grenade ?? '', melee: d.melee ?? '', training: d.training ?? '' },
     notes: d.notes ?? ''
@@ -93,6 +107,7 @@ function toLoadout(f: Form): Omit<LoadoutDraft, 'id'> & { parts: Partial<Record<
     context: f.context,
     weapon: f.weapon,
     ...(f.cat ? { cat: f.cat } : {}),
+    ...(f.tier ? { tier: f.tier } : {}),
     ...(armory ? { armoryId: armory.id } : {}),
     parts,
     ...f.gear,
@@ -192,6 +207,7 @@ export function LoadoutEditor({ initial, list, hints, onCancel, onSaved }: Props
     for (const w of mine) add(w.name, `Mes armes${w.cat ? ` · ${CATEGORY_LABEL[w.cat]}` : ''}`)
     for (const t of BUILD_TEMPLATES) add(t.weapon, `Tes builds · ${t.loadout.cat ? CATEGORY_LABEL[t.loadout.cat] : ''}`)
     for (const w of ARMORY_WEAPONS) add(w.name, `Armurerie · ${CATEGORY_LABEL[w.category]}`)
+    for (const w of BF6_WEAPONS) add(w.name, CATEGORY_LABEL[w.cat])
     for (const h of hints) add(h.name, 'Vue dans tes stats')
     return out
   }, [mine, hints])
@@ -435,6 +451,26 @@ export function LoadoutEditor({ initial, list, hints, onCancel, onSaved }: Props
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="la-row">
+                <span className="la-k" id={`${uid}-tier`}>
+                  Classement
+                </span>
+                <div className="la-tiers" role="radiogroup" aria-labelledby={`${uid}-tier`}>
+                  {[...TIERS, ''].map((tr) => (
+                    <button
+                      key={tr || 'none'}
+                      type="button"
+                      role="radio"
+                      aria-checked={form.tier === tr}
+                      className={`la-tier ${tr ? `is-${tr}` : 'is-none'}`}
+                      title={tr ? `${tr} tier` : 'Sans classement'}
+                      onClick={() => set({ tier: tr as Bf6Tier | '' })}
+                    >
+                      {tr || '—'}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             {(shown('name') || shown('weapon')) && (

@@ -1,5 +1,34 @@
 /* La carte de loadout (lcm-) : la liste de l'appli BF6 et l'arme en scène. Communs : lc-. */
 
+:root {
+  --tier-s: #f2c66d;
+  --tier-a: #ff8a80;
+  --tier-b: #b9a6ff;
+  --tier-c: #8fa0b3;
+}
+.lc-tier {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font: 800 12px/1 var(--font-display);
+  color: #1a0f05;
+}
+.lc-tier.is-S {
+  background: var(--tier-s);
+}
+.lc-tier.is-A {
+  background: var(--tier-a);
+}
+.lc-tier.is-B {
+  background: var(--tier-b);
+}
+.lc-tier.is-C {
+  background: var(--tier-c);
+}
 .lc {
   --t: #ff5c86;
   --t-text: #ff9db5;
@@ -80,13 +109,13 @@
 }
 .lcm-h {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
   padding-bottom: 10px;
   border-bottom: 2px solid var(--t);
 }
 .lcm-h h3 {
+  flex: 1;
   min-width: 0;
   font: italic 800 19px/1.1 var(--font-display);
   letter-spacing: 0.01em;

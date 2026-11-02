@@ -25,6 +25,8 @@ export interface Bf6Loadout {
   armoryId?: string
   /** Catégorie de l'arme (silhouette de la carte, « Mes armes »). */
   cat?: WeaponCategory
+  /** Classement donné par le joueur (S le meilleur). */
+  tier?: Bf6Tier
   parts: Partial<Record<SlotId, Bf6LoadoutPart>>
   secondary?: string
   gadget1?: string
@@ -46,6 +48,12 @@ const text = (v: unknown, max: number): string | undefined => {
   const s = v.replace(/\s+/g, ' ').trim().slice(0, max)
   return s || undefined
 }
+
+export type Bf6Tier = 'S' | 'A' | 'B' | 'C'
+export const TIERS: Bf6Tier[] = ['S', 'A', 'B', 'C']
+export const isTier = (v: unknown): v is Bf6Tier => typeof v === 'string' && (TIERS as string[]).includes(v)
+/** Rang pour trier : S d'abord, sans classement en dernier. */
+export const tierRank = (t?: Bf6Tier): number => (t ? TIERS.indexOf(t) : TIERS.length)
 
 export const WEAPON_CATEGORIES: WeaponCategory[] = ['assault-rifle', 'carbine', 'smg', 'lmg', 'dmr', 'sniper', 'shotgun', 'pistol']
 export const isCategory = (v: unknown): v is WeaponCategory => typeof v === 'string' && (WEAPON_CATEGORIES as string[]).includes(v)
@@ -83,6 +91,7 @@ export function cleanLoadout(raw: unknown): Bf6Loadout | null {
     context: text(r.context, TEXT_MAX),
     armoryId: text(r.armoryId, 24),
     cat: isCategory(r.cat) ? r.cat : undefined,
+    tier: isTier(r.tier) ? r.tier : undefined,
     secondary: text(r.secondary, TEXT_MAX),
     gadget1: text(r.gadget1, TEXT_MAX),
     gadget2: text(r.gadget2, TEXT_MAX),
