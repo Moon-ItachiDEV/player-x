@@ -59,19 +59,35 @@ function groupByWeapon(list: Bf6Loadout[], mine: MyWeapon[]): WeaponGroup[] {
     .sort((a, b) => tierRank(a.best) - tierRank(b.best) || b.list.length - a.list.length || a.name.localeCompare(b.name, 'fr'))
 }
 
-/** La tuile d'une arme : son image, son nom, combien de loadouts et le meilleur classement. */
+/** Le décompte des classements d'une arme : S, A ×2, B… (rien quand aucun loadout n'est classé). */
+function TierCounts({ list }: { list: Bf6Loadout[] }): React.JSX.Element | null {
+  const counts = TIERS.map((t) => [t, list.filter((l) => l.tier === t).length] as const).filter(([, n]) => n)
+  if (!counts.length) return null
+  return (
+    <span className="lo-tcounts" aria-label={counts.map(([t, n]) => `${n} en ${t} tier`).join(', ')}>
+      {counts.map(([t, n]) => (
+        <span key={t} className={`lc-tier is-${t}`}>
+          {t}
+          {n > 1 && <small>×{n}</small>}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+/** La tuile d'une arme : son image, son nom, combien de loadouts et leurs classements. */
 function WeaponTile({ g, hints, onOpen }: { g: WeaponGroup; hints: WeaponHint[]; onOpen: () => void }): React.JSX.Element {
   const cat = g.cat === 'other' ? undefined : g.cat
   return (
-    <button type="button" className="lo-wpn" onClick={onOpen} aria-label={`${g.name} : ${plural(g.list.length)}${g.best ? `, meilleur ${g.best} tier` : ''}`}>
+    <button type="button" className="lo-wpn" onClick={onOpen}>
       <span className="lo-wpn-art" aria-hidden="true">
         <WeaponArt image={weaponImage(g.name, hints)} cat={cat} label="" />
       </span>
-      {g.best && <span className={`lc-tier is-${g.best} lo-wpn-tier`}>{g.best}</span>}
       <span className="lo-wpn-text">
         <b>{g.name}</b>
-        <span>
-          {cat ? CATEGORY_LABEL[cat] : 'Autre arme'} · {plural(g.list.length)}
+        <span className="lo-wpn-sub">
+          <span>{plural(g.list.length)}</span>
+          <TierCounts list={g.list} />
         </span>
       </span>
       <Icon name="chevron-right" size={16} className="lo-wpn-go" />
@@ -169,6 +185,14 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
   }
   const draftLabel = draft ? [draft.loadout.weapon, draft.loadout.name].filter(Boolean).join(' · ') || 'Loadout sans nom' : ''
 
+  /** Change le classement d'un loadout depuis sa carte, sans passer par l'atelier. */
+  const reclass = (l: Bf6Loadout, tier: Bf6Tier | undefined): void => {
+    const { tier: _old, ...rest } = l
+    loadoutActions
+      .save(tier ? { ...rest, tier } : rest)
+      .then(() => notify(tier ? `« ${l.name} » classé ${tier} tier` : `« ${l.name} » n’a plus de classement`, { kind: 'success', id: 'loadout-saved' }))
+      .catch((e) => notify(errorMessage(e), { kind: 'error' }))
+  }
   const remove = (l: Bf6Loadout): void => {
     setDeleting(null)
     loadoutActions
@@ -185,10 +209,10 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
           <h2 className="sr-only">Mes loadouts</h2>
           <p className="caption">Gardés sur ce PC. Le jeu ne laisse pas lire tes loadouts : note ici ceux que tu joues.</p>
         </div>
-        {list.length > 0 && (
+        {list.length > 0 && !group && (
           <button type="button" className="btn btn-primary" onClick={create}>
             <Icon name="plus" size={16} />
-            {group ? `Nouveau loadout ${group.name}` : 'Nouveau loadout'}
+            Nouveau loadout
           </button>
         )}
       </header>
@@ -245,46 +269,58 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
         <>
           {group ? (
             <section className="lo-wv" aria-labelledby="lo-wv-title">
-              <div className="lo-wv-head">
-                <button type="button" className="btn btn-ghost btn-sm lo-wv-back" onClick={() => setWeaponKey(null)}>
-                  <Icon name="chevron-left" size={16} />
-                  Toutes les armes
-                </button>
-                <div className="lo-wv-title">
+              <button type="button" className="btn btn-ghost btn-sm lo-wv-back" onClick={() => setWeaponKey(null)}>
+                <Icon name="chevron-left" size={16} />
+                Toutes les armes
+              </button>
+              <div className="lo-wv-hero">
+                <span className="lo-wv-art" aria-hidden="true">
+                  <WeaponArt image={weaponImage(group.name, hints)} cat={group.cat === 'other' ? undefined : group.cat} label="" />
+                </span>
+                <div className="lo-wv-id">
+                  <span className="lo-wv-kind">{group.cat === 'other' ? 'Autre arme' : CATEGORY_LABEL[group.cat]}</span>
                   <h3 id="lo-wv-title">{group.name}</h3>
-                  <span className="caption">
-                    {group.cat === 'other' ? 'Autre arme' : CATEGORY_LABEL[group.cat]} · {plural(group.list.length)}, du meilleur au moins bon
+                  <span className="lo-wv-sum">
+                    {plural(group.list.length)}
+                    <TierCounts list={group.list} />
                   </span>
                 </div>
+                <button type="button" className="btn btn-primary" onClick={create}>
+                  <Icon name="plus" size={16} />
+                  Nouveau loadout {group.name}
+                </button>
               </div>
-              {[...TIERS, undefined].map((t) => {
-                const ls = group.list.filter((l) => l.tier === t)
-                if (!ls.length) return null
-                return (
-                  <section key={t ?? 'none'} className="lo-tier-sec" aria-label={t ? `${t} tier` : 'Sans classement'}>
-                    <h4 className="lo-sec">
-                      {t ? <span className={`lc-tier is-${t}`}>{t}</span> : null}
-                      {t ? 'tier' : 'Sans classement'}
-                      <span className="lo-sec-n num">{ls.length}</span>
-                    </h4>
-                    <div className="lo-grid is-cards">
-                      {ls.map((l) => (
-                        <LoadoutCard
-                          key={l.id}
-                          l={l}
-                          hints={hints}
-                          onEdit={() => setEditing(l)}
-                          onDuplicate={() => {
-                            if (full) return notify(`Tu as déjà ${MAX_LOADOUTS} loadouts : supprimes-en un pour en ajouter un autre.`, { kind: 'error' })
-                            setEditing({ ...l, id: undefined, name: `${l.name} (copie)`.slice(0, 40) })
-                          }}
-                          onDelete={() => setDeleting(l)}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                )
-              })}
+              <div className="lo-tpack">
+                {[...TIERS, undefined].map((t) => {
+                  const ls = group.list.filter((l) => l.tier === t)
+                  if (!ls.length) return null
+                  return (
+                    <section key={t ?? 'none'} className={`lo-tg is-${t ?? 'none'}`} aria-label={t ? `${t} tier` : 'À classer'}>
+                      <h4 className="lo-tg-h">
+                        <span className="lo-tg-l">{t ?? '?'}</span>
+                        {t ? 'tier' : 'À classer'}
+                        <span className="lo-sec-n num">{ls.length}</span>
+                      </h4>
+                      <div className="lo-tg-cards">
+                        {ls.map((l) => (
+                          <LoadoutCard
+                            key={l.id}
+                            l={l}
+                            hints={hints}
+                            onEdit={() => setEditing(l)}
+                            onDuplicate={() => {
+                              if (full) return notify(`Tu as déjà ${MAX_LOADOUTS} loadouts : supprimes-en un pour en ajouter un autre.`, { kind: 'error' })
+                              setEditing({ ...l, id: undefined, name: `${l.name} (copie)`.slice(0, 40) })
+                            }}
+                            onDelete={() => setDeleting(l)}
+                            onSetTier={(tier) => reclass(l, tier)}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )
+                })}
+              </div>
             </section>
           ) : (
             <>
@@ -298,22 +334,24 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
                   ))}
                 </div>
               )}
-              {shownCats.map((c) => {
-                const gs = groups.filter((g) => g.cat === c)
-                return (
-                  <section key={c} className="lo-cat" aria-labelledby={`lo-cat-${c}`}>
-                    <h3 id={`lo-cat-${c}`} className="lo-sec">
-                      {CAT_PLURAL[c]}
-                      <span className="lo-sec-n num">{gs.length}</span>
-                    </h3>
-                    <div className="lo-wpns">
-                      {gs.map((g) => (
-                        <WeaponTile key={g.key} g={g} hints={hints} onOpen={() => setWeaponKey(g.key)} />
-                      ))}
-                    </div>
-                  </section>
-                )
-              })}
+              <div className="lo-packs">
+                {shownCats.map((c) => {
+                  const gs = groups.filter((g) => g.cat === c)
+                  return (
+                    <section key={c} className="lo-cat" style={{ '--n': Math.min(gs.length, 4) } as React.CSSProperties} aria-labelledby={`lo-cat-${c}`}>
+                      <h3 id={`lo-cat-${c}`} className="lo-sec">
+                        {CAT_PLURAL[c]}
+                        <span className="lo-sec-n num">{gs.length}</span>
+                      </h3>
+                      <div className="lo-wpns">
+                        {gs.map((g) => (
+                          <WeaponTile key={g.key} g={g} hints={hints} onOpen={() => setWeaponKey(g.key)} />
+                        ))}
+                      </div>
+                    </section>
+                  )
+                })}
+              </div>
             </>
           )}
         </>
