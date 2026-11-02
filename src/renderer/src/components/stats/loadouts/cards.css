@@ -68,31 +68,11 @@
   overflow-wrap: anywhere;
   white-space: pre-line;
 }
-.lc-ft {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-top: 14px;
-  font: 600 9.5px/1 var(--font-mono);
-  letter-spacing: 0.12em;
-  color: var(--text-3);
-  text-transform: uppercase;
-}
-.lc-ft .mk {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font: 700 10px/1 var(--font-display);
-  letter-spacing: 0.14em;
-  color: var(--text-2);
-}
-
 /* =====================  Carte (mix)  ===================== */
 
 .lcm {
   width: 400px;
-  padding: 18px 18px 14px;
+  padding: 18px;
   border-radius: 4px;
   background: #18151d;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);

@@ -7,7 +7,6 @@ import { CATEGORY_LABEL, CLASS_LABEL, SLOT_LABEL } from '@shared/armory/labels'
 import type { WeaponCategory } from '@shared/armory/types'
 import { loadoutPoints, type Bf6Loadout } from '@shared/bf6Loadouts'
 import { ClassIcon } from '../ClassIcon'
-import { BrandMark } from '../../ui/Brand'
 import { DEFS_A, RIFLE_A, SNIPER_A } from './weaponArt'
 import './cards.css'
 
@@ -17,10 +16,6 @@ export type CardData = Pick<Bf6Loadout, 'cls' | 'parts'> &
 
 const NSLOTS = SLOT_ORDER.length
 const sniperLike = (c?: WeaponCategory): boolean => c === 'sniper' || c === 'dmr'
-const dateOf = (t?: number): string => {
-  const d = t ? new Date(t) : new Date()
-  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getFullYear()).slice(-2)}`
-}
 
 /** L'arme : son image (512 × 256, fond transparent) si on l'a, sinon la silhouette dessinée. */
 function WeaponArt({ image, cat, label }: { image?: string; cat?: WeaponCategory; label: string }): React.JSX.Element {
@@ -131,16 +126,6 @@ export function LoadoutCardView({ d, image }: { d: CardData; image?: string }): 
         </div>
       )}
       {d.notes && <p className="lc-notes">{d.notes}</p>}
-      <footer className="lc-ft">
-        <span className="mk">
-          <BrandMark height={13} alt="" />
-          Player X
-        </span>
-        <span>
-          {CLASS_LABEL[d.cls]}
-          {d.context ? ` · ${d.context}` : ''} · {dateOf(d.updatedAt)}
-        </span>
-      </footer>
     </article>
   )
 }
