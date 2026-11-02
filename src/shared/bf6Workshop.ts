@@ -268,8 +268,88 @@ export const BUILD_TEMPLATES: BuildTemplate[] = [
     accessory: ['50 MW Green', 20],
     'left-accessory': ['50 MW Green', 20],
     optic: ['CCO 2.00X', 10]
+  }),
+  // Le loadout recommandé de l'appli BF6 (mis à jour le 16/10/2026, arme niveau 40), aux noms du menu du jeu :
+  // « Silencieux combat rapproché » = Silencieux CR, « 29" Full » = Standard 737 mm (mêmes points).
+  tpl('elr-sniper', 'ELR-40', 'recon', 'sniper', 'Sniper', {
+    muzzle: ['Silencieux CR', 30],
+    barrel: ['Standard 737 mm', 10],
+    'optic-accessory': ['Revêtement antireflet', 10],
+    underbarrel: ['Poignée angulaire fine', 15],
+    magazine: ['Single Shot', 5],
+    ammo: ['Balle chemisée', 5],
+    optic: ['1P86 LPVO', 20],
+    ergonomics: ['Arrêtoir de chargeur amélioré', 5]
   })
 ]
+
+/* ---------- les accessoires d'une arme, relevés dans le menu de personnalisation du jeu ---------- */
+
+type Catalog = Partial<Record<SlotId, (string | P)[]>>
+/** Accessoires connus par arme (clé : myWeaponKey). Les points ne sont notés que lorsqu'ils sont lisibles. */
+export const WEAPON_PARTS: Record<string, Catalog> = {
+  // ELR-40, vidéo de Breezydev du 02/11/2026.
+  elr40: {
+    muzzle: [
+      ['Frein de bouche multi-ports', 10],
+      ['Cache-flamme', 10],
+      ['Silencieux long', 25],
+      ['Silencieux CR', 30]
+    ],
+    barrel: [
+      ['Personnalisé 813 mm', 5],
+      ['Usine 737 mm', 20],
+      ['Standard 737 mm', 10]
+    ],
+    underbarrel: [
+      ['Poignée courte d’infiltration', 10],
+      ['Poignée pleinement angulaire', 5],
+      ['Bipied', 10],
+      ['Poignée bipied rapide', 10],
+      'Poignée bipied classique',
+      'Module actionné',
+      ['Poignée angulaire fine', 15]
+    ],
+    magazine: [['Single Shot', 5]],
+    ammo: [
+      ['Balle chemisée', 5],
+      ['Noyau en tungstène', 5],
+      ['Fragmentation', 20]
+    ],
+    optic: [
+      ['Mire métallique', 15],
+      ['Mini Flex 1X', 10],
+      ['OSA-7 1X', 10],
+      ['RO-S 1.25X', 10],
+      ['2PRO 1.25X', 10],
+      'SU-123 1.5X',
+      'RO-M 1.75X',
+      'CCO 2X',
+      'BF-2M 2.5X',
+      'SDO 3.5X',
+      ['1P86 LPVO', 20],
+      'LERT 8X'
+    ],
+    'optic-accessory': [['Revêtement antireflet', 10]],
+    'right-accessory': [
+      ['Lampe tactique visée', 5],
+      ['Lampe-torche', 10],
+      ['Lampe tactique au jugé', 15],
+      ['Télémètre', 15]
+    ],
+    accessory: [['Laser rouge 5 MW', 10], ['Laser violet 50 MW', 10], ['Laser vert 5 MW', 10], ['Laser vert 50 MW', 20], 'Laser bleu 50 MW', 'Laser bleu 120 MW'],
+    ergonomics: [
+      ['Arrêtoir de chargeur amélioré', 5],
+      ['Protection de rail', 5],
+      ['Culasse à manœuvre rectiligne', 30]
+    ]
+  }
+}
+
+/** Les accessoires connus d'une arme pour un emplacement. */
+export function catalogParts(weapon: string, slot: SlotId): MyWeaponPart[] {
+  return (WEAPON_PARTS[myWeaponKey(weapon)]?.[slot] ?? []).map((p) => (typeof p === 'string' ? { name: p } : { name: p[0], pts: p[1] }))
+}
 
 /** Armes connues par les modèles, apprises comme si chaque modèle avait été enregistré (le plus ancien d'abord). */
 export function templateWeapons(): MyWeapon[] {
@@ -278,14 +358,14 @@ export function templateWeapons(): MyWeapon[] {
   return list
 }
 
-/** Suggestions pour un emplacement : tes accessoires retenus, puis ceux des modèles, sans doublon. */
+/** Suggestions pour un emplacement : tes accessoires retenus, puis ceux des modèles, puis ceux relevés dans le jeu, sans doublon. */
 export function suggestParts(mine: MyWeapon[], weapon: string, slot: SlotId): MyWeaponPart[] {
   const key = myWeaponKey(weapon)
   if (!key) return []
   const out: MyWeaponPart[] = []
   const seen = new Set<string>()
-  for (const src of [mine, templateWeapons()]) {
-    for (const p of src.find((w) => w.key === key)?.parts[slot] ?? []) {
+  for (const list of [...[mine, templateWeapons()].map((src) => src.find((w) => w.key === key)?.parts[slot] ?? []), catalogParts(weapon, slot)]) {
+    for (const p of list) {
       if (seen.has(p.name.toLowerCase())) continue
       seen.add(p.name.toLowerCase())
       out.push(p)

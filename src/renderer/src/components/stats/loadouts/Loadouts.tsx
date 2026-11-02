@@ -156,7 +156,7 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
     const picked = BUILD_TEMPLATES.slice(0, room).map((t) => ({ ...t.loadout, name: t.loadout.name }))
     loadoutActions
       .saveMany(picked)
-      .then(() => notify(`${picked.length} builds ajoutés : CZ3A1, MK 24 et Z84M`, { kind: 'success', id: 'loadout-saved' }))
+      .then(() => notify(`${picked.length} builds ajoutés : ${[...new Set(picked.map((l) => l.weapon))].join(', ')}`, { kind: 'success', id: 'loadout-saved' }))
       .catch((e) => notify(errorMessage(e), { kind: 'error' }))
       .finally(() => setAdding(false))
   }
