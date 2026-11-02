@@ -192,11 +192,10 @@ export function saveStatsGame(game: StatsGame): void {
 }
 
 /** Ouvre la page Stats sur Battlefield 6 et cet onglet (à appeler juste avant d'y aller). */
-export function presetBf6Tab(tab: 'loadouts' | 'armory' | 'overview'): void {
+export function presetBf6Tab(tab: 'loadouts' | 'overview'): void {
   saveStatsGame('bf6')
   try {
-    localStorage.setItem('pg.stats.tab', tab === 'armory' ? 'loadouts' : tab)
-    if (tab !== 'overview') localStorage.setItem('pg.stats.loadouts.view', tab === 'armory' ? 'armory' : 'mine')
+    localStorage.setItem('pg.stats.tab', tab)
   } catch {
     /* stockage indisponible : la page s'ouvre sur son dernier onglet */
   }

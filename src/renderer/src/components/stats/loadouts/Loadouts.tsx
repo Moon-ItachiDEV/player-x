@@ -97,15 +97,12 @@ function WeaponTile({ g, hints, onOpen }: { g: WeaponGroup; hints: WeaponHint[];
 
 interface Props {
   hints: WeaponHint[]
-  /** Choix « Mes loadouts / Armurerie », en tête (pas pendant la modification d'un loadout). */
-  switcher: React.ReactNode
-  onOpenArmory: () => void
 }
 
-export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.Element {
+export function Loadouts({ hints }: Props): React.JSX.Element {
   const notify = useToast()
   const list = useLoadouts()
-  // Un brouillon venu de l'Armurerie ouvre l'éditeur tout de suite.
+  // Un brouillon posé ailleurs (« Nouveau loadout » de la fiche du jeu) ouvre l'éditeur tout de suite.
   const [editing, setEditingState] = useState<LoadoutDraft | null>(() => takeLoadoutDraft())
   // Chaque ouverture repart d'un éditeur neuf (un brouillon repris puis « Repartir de zéro », par exemple).
   const [seq, setSeq] = useState(0)
@@ -205,7 +202,6 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
     <div className="lo">
       <header className="lo-head">
         <div className="lo-head-text">
-          {switcher}
           <h2 className="sr-only">Mes loadouts</h2>
           <p className="caption">Gardés sur ce PC. Le jeu ne laisse pas lire tes loadouts : note ici ceux que tu joues.</p>
         </div>
@@ -259,9 +255,6 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
             <button type="button" className="btn btn-secondary" onClick={addTemplates} aria-busy={adding || undefined}>
               <Icon name="download" size={16} />
               Ajouter mes {BUILD_TEMPLATES.length} builds
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={onOpenArmory}>
-              Partir d’une config de l’Armurerie
             </button>
           </div>
         </section>
