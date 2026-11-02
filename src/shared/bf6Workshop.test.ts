@@ -2,7 +2,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 // @ts-ignore TS5097
-import { BF6_WEAPONS, BUILD_TEMPLATES, cleanDraft, cleanMyWeapons, forgetWeapon, knownCategory, learnWeapon, myWeaponKey, suggestParts, templateWeapons } from './bf6Workshop.ts'
+import * as W from './bf6Workshop.ts'
+const { BF6_WEAPONS, BUILD_TEMPLATES, catalogParts, cleanDraft, cleanMyWeapons, forgetWeapon, knownCategory, learnWeapon, myWeaponKey, suggestParts, templateWeapons } = W
 // @ts-ignore TS5097
 import { loadoutPoints } from './bf6Loadouts.ts'
 
@@ -93,4 +94,16 @@ test('armes du jeu : 60 armes, sans doublon, catégorie retrouvée', () => {
   assert.equal(knownCategory([], 'kv9'), 'smg')
   assert.equal(knownCategory([], 'Mini Scout'), 'sniper')
   assert.equal(knownCategory([], 'DB-12'), 'shotgun')
+})
+
+test('accessoires relevés dans le jeu : ELR-40', () => {
+  const muzzle = catalogParts('ELR-40', 'muzzle')
+  assert.deepEqual(muzzle.at(-1), { name: 'Silencieux CR', pts: 30 })
+  assert.equal(catalogParts('elr 40', 'optic').find((p) => p.name === 'LERT 8X')?.pts, undefined)
+  assert.deepEqual(catalogParts('Arme inconnue', 'muzzle'), [])
+  // Les suggestions finissent par le catalogue, sans doublon avec le modèle « Sniper ».
+  const names = suggestParts([], 'ELR-40', 'muzzle').map((p) => p.name)
+  assert.equal(names[0], 'Silencieux CR')
+  assert.equal(names.filter((n) => n === 'Silencieux CR').length, 1)
+  assert.ok(names.includes('Frein de bouche multi-ports'))
 })
