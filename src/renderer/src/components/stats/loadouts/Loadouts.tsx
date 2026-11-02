@@ -8,12 +8,11 @@ import { BUILD_TEMPLATES } from '@shared/bf6Workshop'
 import { timeAgo } from '@shared/text'
 import { ClassIcon } from '../ClassIcon'
 import { Icon } from '../../ui/Icon'
-import { Dialog, Segmented } from '../../ui/Overlay'
+import { Dialog } from '../../ui/Overlay'
 import { errorMessage, useToast } from '../../ui/Toasts'
 import { LoadoutCard, type WeaponHint } from './LoadoutCard'
 import { LoadoutEditor } from './LoadoutEditor'
-import { CARD_STYLES } from './cards'
-import { draftActions, loadoutActions, setCardStyle, takeLoadoutDraft, useCardStyle, useLoadouts, useMyWeapons, useSavedDraft, type CardStyle, type LoadoutDraft } from './store'
+import { draftActions, loadoutActions, takeLoadoutDraft, useLoadouts, useMyWeapons, useSavedDraft, type LoadoutDraft } from './store'
 import './loadouts.css'
 
 type Filter = 'all' | Bf6ClassId
@@ -39,7 +38,6 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
   const [filter, setFilter] = useState<Filter>('all')
   const [deleting, setDeleting] = useState<Bf6Loadout | null>(null)
   const [adding, setAdding] = useState(false)
-  const style = useCardStyle()
   const draft = useSavedDraft()
   useMyWeapons()
 
@@ -185,10 +183,6 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
                 </button>
               ))}
             </div>
-            <div className="lo-cardstyle">
-              <span className="caption">Carte</span>
-              <Segmented<CardStyle> label="Style des cartes" value={style} onChange={setCardStyle} options={CARD_STYLES} />
-            </div>
           </div>
           {shown.length === 0 ? (
             <div className="lo-none">
@@ -199,7 +193,7 @@ export function Loadouts({ hints, switcher, onOpenArmory }: Props): React.JSX.El
               </button>
             </div>
           ) : (
-            <div className={`lo-grid is-cards is-${style}`}>
+            <div className="lo-grid is-cards">
               {shown.map((l) => (
                 <LoadoutCard
                   key={l.id}

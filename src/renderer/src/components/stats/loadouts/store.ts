@@ -81,25 +81,3 @@ export const takeLoadoutDraft = (): LoadoutDraft | null => {
   draft.set(null)
   return d
 }
-
-/** Style des cartes : C « Appli BF6 », D « Écran du jeu » ou E « Fiche » (gardé sur ce PC, à tester en vrai). */
-export type CardStyle = 'c' | 'd' | 'e'
-export const CARD_KEY = 'pg.stats.loadouts.card'
-const readCard = (): CardStyle => {
-  try {
-    const v = localStorage.getItem(CARD_KEY)
-    return v === 'd' || v === 'e' ? v : 'c'
-  } catch {
-    return 'c'
-  }
-}
-const cardStyle = createStore<CardStyle>(readCard())
-export const useCardStyle = (): CardStyle => useStore(cardStyle)
-export function setCardStyle(s: CardStyle): void {
-  cardStyle.set(s)
-  try {
-    localStorage.setItem(CARD_KEY, s)
-  } catch {
-    /* stockage indisponible : le choix vaut pour la session */
-  }
-}

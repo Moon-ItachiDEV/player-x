@@ -11,7 +11,6 @@ import { Icon } from '../../ui/Icon'
 import { Menu } from '../../ui/Overlay'
 import { errorMessage, useToast } from '../../ui/Toasts'
 import { LoadoutCardView } from './cards'
-import { useCardStyle } from './store'
 
 /** Arme vue dans les stats gametools du joueur : son image. */
 export interface WeaponHint {
@@ -49,7 +48,6 @@ export function LoadoutCard({ l, hints, compact, onEdit, onDuplicate, onDelete }
     right: number
   } | null>(null)
   const [capturing, setCapturing] = useState(false)
-  const style = useCardStyle()
   const [imgFailed, setImgFailed] = useState(false)
   const image = weaponImage(l.weapon, hints)
   const pts = loadoutPoints(l)
@@ -111,7 +109,7 @@ export function LoadoutCard({ l, hints, compact, onEdit, onDuplicate, onDelete }
     return (
       <div className={`lo-item ${capturing ? 'is-capturing' : ''}`}>
         <div ref={ref as React.RefObject<HTMLDivElement>} className="lo-cap" title="Double-clic pour modifier" onDoubleClick={onEdit}>
-          <LoadoutCardView style={style} d={l} image={image} />
+          <LoadoutCardView d={l} image={image} />
         </div>
         <div className="lo-item-actions">
           <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit}>

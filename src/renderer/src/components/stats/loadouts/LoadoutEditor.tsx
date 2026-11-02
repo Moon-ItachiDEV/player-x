@@ -13,11 +13,10 @@ import { BUILD_TEMPLATES, knownCategory, myWeaponKey, suggestParts, type BuildTe
 import { timeAgo } from '@shared/text'
 import { ClassIcon } from '../ClassIcon'
 import { Icon } from '../../ui/Icon'
-import { Segmented } from '../../ui/Overlay'
 import { errorMessage, useToast } from '../../ui/Toasts'
-import { CARD_STYLES, LoadoutCardView, type CardData } from './cards'
+import { LoadoutCardView, type CardData } from './cards'
 import { Combo, type ComboOption } from './Combo'
-import { draftActions, loadoutActions, setCardStyle, useCardStyle, useMyWeapons, type CardStyle, type LoadoutDraft } from './store'
+import { draftActions, loadoutActions, useMyWeapons, type LoadoutDraft } from './store'
 import { weaponImage, type WeaponHint } from './LoadoutCard'
 import './atelier.css'
 
@@ -124,7 +123,6 @@ export function LoadoutEditor({ initial, list, hints, onCancel, onSaved }: Props
   const weaponRef = useRef<HTMLInputElement>(null)
   const focusingError = useRef(false)
   const dirty = useRef(resumed)
-  const style = useCardStyle()
   const mine = useMyWeapons()
   const editing = !!initial.id && list.some((l) => l.id === initial.id)
   const original = editing ? list.find((l) => l.id === initial.id) : undefined
@@ -573,14 +571,13 @@ export function LoadoutEditor({ initial, list, hints, onCancel, onSaved }: Props
 
         <aside className="la-preview" aria-label="Aperçu de la carte">
           <div className="la-preview-bar">
-            <Segmented<CardStyle> label="Style des cartes" value={style} onChange={setCardStyle} options={CARD_STYLES} />
             <span className="la-live">
               <i aria-hidden="true" />
               En direct
             </span>
           </div>
           <div className="la-preview-card">
-            <LoadoutCardView style={style} d={cardData} image={image} />
+            <LoadoutCardView d={cardData} image={image} />
           </div>
           <p className="caption la-preview-hint">C’est cette carte, seule, que « Copier l’image » colle sur Discord.</p>
         </aside>

@@ -37,15 +37,6 @@
   gap: 32px 28px;
   align-items: start;
 }
-.lo-grid.is-c {
-  --lo-card-w: 380px;
-}
-.lo-grid.is-d {
-  --lo-card-w: 440px;
-}
-.lo-grid.is-e {
-  --lo-card-w: 400px;
-}
 .lo-item {
   display: flex;
   flex-direction: column;
