@@ -24,8 +24,8 @@ export function weaponImage(name: string, hints: WeaponHint[]): string | undefin
   return hints.find((h) => h.image && weaponKey(h.name) === k)?.image ?? (armory ? WEAPON_IMAGE[armory.id] : undefined)
 }
 
-/** Hauteur du menu « Plus d'actions » (3 actions et un séparateur). */
-const MENU_H = 150
+/** Hauteur du menu « Partager » (deux actions sur deux lignes). */
+const MENU_H = 120
 
 const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
 
@@ -111,48 +111,51 @@ export function LoadoutCard({ l, hints, compact, onEdit, onDuplicate, onDelete }
         <div ref={ref as React.RefObject<HTMLDivElement>} className="lo-cap" title="Double-clic pour modifier" onDoubleClick={onEdit}>
           <LoadoutCardView d={l} image={image} />
         </div>
-        <div className="lo-item-actions">
+        <div className="lo-item-actions" role="toolbar" aria-label={`Actions pour « ${l.name} »`}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit}>
             <Icon name="pencil" size={15} />
             Modifier
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void copyImage()} title="Copie la carte seule, à coller sur Discord">
-            <Icon name="image" size={15} />
-            Copier l’image
-          </button>
+          <span className="lo-item-spacer" />
           <button
             ref={moreRef}
             type="button"
-            className="icon-btn lo-item-more"
+            className="btn btn-ghost btn-sm lo-share"
             aria-haspopup="menu"
             aria-expanded={!!menu}
-            aria-label={`Plus d’actions pour « ${l.name} »`}
-            title="Plus d’actions"
+            title="Copier la carte pour Discord, en image ou en texte"
             onMouseDown={(e) => menu && e.stopPropagation()}
             onClick={openMenu}
           >
-            <Icon name="more" size={18} />
+            <Icon name="image" size={15} />
+            Partager
+            <Icon name="chevron-down" size={14} />
+          </button>
+          <button type="button" className="icon-btn" aria-label={`Dupliquer « ${l.name} »`} title="Dupliquer" onClick={onDuplicate}>
+            <Icon name="copy" size={17} />
+          </button>
+          <button type="button" className="icon-btn lo-del" aria-label={`Supprimer « ${l.name} »`} title="Supprimer" onClick={onDelete}>
+            <Icon name="trash" size={17} />
           </button>
           {createPortal(
             <Menu open={!!menu} onClose={() => setMenu(null)} style={menu ?? {}} className="lo-menu">
-              <button className="menu-item" role="menuitem" onClick={() => run(copyText)}>
+              <button className="menu-item lo-menu-2l" role="menuitem" onClick={() => run(() => void copyImage())}>
+                <span className="picker-check">
+                  <Icon name="image" size={16} />
+                </span>
+                <span>
+                  Copier l’image
+                  <small>La carte seule, à coller sur Discord (Ctrl V)</small>
+                </span>
+              </button>
+              <button className="menu-item lo-menu-2l" role="menuitem" onClick={() => run(copyText)}>
                 <span className="picker-check">
                   <Icon name="clipboard" size={16} />
                 </span>
-                Copier le texte
-              </button>
-              <button className="menu-item" role="menuitem" onClick={() => run(onDuplicate)}>
-                <span className="picker-check">
-                  <Icon name="copy" size={16} />
+                <span>
+                  Copier le texte
+                  <small>La liste des accessoires, en texte</small>
                 </span>
-                Dupliquer
-              </button>
-              <div className="menu-sep" />
-              <button className="menu-item is-danger" role="menuitem" onClick={() => run(onDelete)}>
-                <span className="picker-check">
-                  <Icon name="trash" size={16} />
-                </span>
-                Supprimer…
               </button>
             </Menu>,
             document.body
