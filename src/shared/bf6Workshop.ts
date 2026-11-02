@@ -293,8 +293,23 @@ export function suggestParts(mine: MyWeapon[], weapon: string, slot: SlotId): My
   return out
 }
 
-/** Catégorie connue d'une arme (tes armes, puis les modèles). */
+/* ---------- les armes principales du jeu (relevées par Breezydev dans le menu des classes, 02/11/2026) ---------- */
+
+export const BF6_WEAPONS: { name: string; cat: WeaponCategory }[] = [
+  ...(['M433', 'B36A4', 'SOR-556 MK2', 'AK4D', 'TR-7', 'KORD 6P67', 'NVO-228E', 'L85A3', 'VCR-2', 'M16A4', 'EF88', 'MK 24'] as const).map((name) => ({
+    name,
+    cat: 'assault-rifle' as const
+  })),
+  ...(['M4A1', 'M277', 'AK-205', 'M417 A2', 'GRT-BC', 'QBZ-192', 'SG 553R', 'SOR-300SC', 'BROD 3'] as const).map((name) => ({ name, cat: 'carbine' as const })),
+  ...(['SGX', 'PW5A3', 'PW7A2', 'UMG-40', 'USG-90', 'KV9', 'SCW-10', 'SL9', 'CZ3A1', 'PP-19', 'RSPR'] as const).map((name) => ({ name, cat: 'smg' as const })),
+  ...(['L110', 'DRS-IAR', 'M/60', 'RPKM', 'M123K', 'M250', 'KTS100 MK8', 'M240L', 'M121 A2', 'RPK-74M', 'Z84M'] as const).map((name) => ({ name, cat: 'lmg' as const })),
+  ...(['M39 EMR', 'LMR27', 'SVK-8.6', 'SVDM', 'GRT-CPS', 'VSSM'] as const).map((name) => ({ name, cat: 'dmr' as const })),
+  ...(['M2010 ESR', 'SV-98', 'PSR', 'Mini Scout', 'L115', 'Interdictor', 'ELR-40'] as const).map((name) => ({ name, cat: 'sniper' as const })),
+  ...(['M87A1', 'M1014', '18.5KS-K', 'DB-12'] as const).map((name) => ({ name, cat: 'shotgun' as const }))
+]
+
+/** Catégorie connue d'une arme (tes armes, puis les modèles, puis la liste du jeu). */
 export function knownCategory(mine: MyWeapon[], weapon: string): WeaponCategory | undefined {
   const key = myWeaponKey(weapon)
-  return mine.find((w) => w.key === key)?.cat ?? templateWeapons().find((w) => w.key === key)?.cat
+  return mine.find((w) => w.key === key)?.cat ?? templateWeapons().find((w) => w.key === key)?.cat ?? BF6_WEAPONS.find((w) => myWeaponKey(w.name) === key)?.cat
 }

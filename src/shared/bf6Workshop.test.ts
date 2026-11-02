@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 // @ts-ignore TS5097
-import { BUILD_TEMPLATES, cleanDraft, cleanMyWeapons, forgetWeapon, knownCategory, learnWeapon, myWeaponKey, suggestParts, templateWeapons } from './bf6Workshop.ts'
+import { BF6_WEAPONS, BUILD_TEMPLATES, cleanDraft, cleanMyWeapons, forgetWeapon, knownCategory, learnWeapon, myWeaponKey, suggestParts, templateWeapons } from './bf6Workshop.ts'
 // @ts-ignore TS5097
 import { loadoutPoints } from './bf6Loadouts.ts'
 
@@ -85,4 +85,12 @@ test('suggestions : tes accessoires d’abord, puis ceux des modèles ; catégor
   assert.equal(knownCategory([], 'mk 24'), 'assault-rifle')
   assert.equal(knownCategory([], 'CZ3A1'), 'smg')
   assert.ok(templateWeapons().length >= 3)
+})
+
+test('armes du jeu : 60 armes, sans doublon, catégorie retrouvée', () => {
+  assert.equal(BF6_WEAPONS.length, 60)
+  assert.equal(new Set(BF6_WEAPONS.map((w) => myWeaponKey(w.name))).size, 60)
+  assert.equal(knownCategory([], 'kv9'), 'smg')
+  assert.equal(knownCategory([], 'Mini Scout'), 'sniper')
+  assert.equal(knownCategory([], 'DB-12'), 'shotgun')
 })
