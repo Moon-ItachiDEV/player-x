@@ -1,6 +1,6 @@
 // L'atelier : créer ou modifier un loadout, avec la carte en direct à côté (A « Gunsmith » ou B « Affiche »).
 // - Rien ne se perd : chaque modification est gardée (brouillon) et se reprend après une fermeture ou un plantage.
-// - Rien ne se ressaisit : les accessoires d'une arme déjà notée (« Mes armes »), de l'Armurerie ou des builds
+// - Rien ne se ressaisit : les accessoires d'une arme déjà notée (« Mes armes »), relevés en jeu ou des builds
 //   modèles sont proposés avec leurs points ; on peut aussi partir d'un build modèle.
 // - Nom et arme obligatoires ; une erreur ne s'affiche qu'après avoir quitté le champ (ou à l'enregistrement).
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -189,7 +189,7 @@ export function LoadoutEditor({ initial, list, hints, onCancel, onSaved }: Props
   const slotOptions = (s: SlotId): { options: ComboOption[]; source: string } => {
     if (armory) {
       const list = s === 'optic-accessory' ? opticAccessories(armory, build) : (armory.attachments[s] ?? [])
-      return { options: list.map((a) => ({ value: a.name, sub: a.type, pts: a.pts ?? undefined })), source: `Armurerie · ${armory.name}` }
+      return { options: list.map((a) => ({ value: a.name, sub: a.type, pts: a.pts ?? undefined })), source: `Relevé en jeu · ${armory.name}` }
     }
     const sugg = suggestParts(mine, form.weapon, s)
     const own = mine.some((w) => w.key === myWeaponKey(form.weapon))
@@ -206,7 +206,7 @@ export function LoadoutEditor({ initial, list, hints, onCancel, onSaved }: Props
     }
     for (const w of mine) add(w.name, `Mes armes${w.cat ? ` · ${CATEGORY_LABEL[w.cat]}` : ''}`)
     for (const t of BUILD_TEMPLATES) add(t.weapon, `Tes builds · ${t.loadout.cat ? CATEGORY_LABEL[t.loadout.cat] : ''}`)
-    for (const w of ARMORY_WEAPONS) add(w.name, `Armurerie · ${CATEGORY_LABEL[w.category]}`)
+    for (const w of ARMORY_WEAPONS) add(w.name, CATEGORY_LABEL[w.category])
     for (const w of BF6_WEAPONS) add(w.name, CATEGORY_LABEL[w.cat])
     for (const h of hints) add(h.name, 'Vue dans tes stats')
     return out
@@ -238,7 +238,7 @@ export function LoadoutEditor({ initial, list, hints, onCancel, onSaved }: Props
       const parts = { ...f.parts }
       if (!next.name.trim() && !next.pts.trim()) delete parts[s]
       else parts[s] = next
-      // Une optique de l'Armurerie qui n'accepte plus l'accessoire d'optique choisi le retire.
+      // Une optique relevée en jeu qui n'accepte plus l'accessoire d'optique choisi le retire.
       if (s === 'optic' && armory && parts['optic-accessory']) {
         const ok = (pickAtt(armory, 'optic', next.name)?.enables ?? []).includes(parts['optic-accessory'].name)
         if (!ok) delete parts['optic-accessory']
@@ -563,7 +563,7 @@ export function LoadoutEditor({ initial, list, hints, onCancel, onSaved }: Props
                 : pts.missing
                   ? `${pts.missing} accessoire${pts.missing > 1 ? 's' : ''} sans points : le total n’en tient pas compte.`
                   : armory
-                    ? `${armory.name} est dans l’Armurerie : ses accessoires et leurs points sont relevés en jeu.`
+                    ? `${armory.name} : ses accessoires et leurs points sont relevés en jeu.`
                     : form.weapon.trim()
                       ? `Enregistre ce loadout : ${form.weapon.trim()} et ses accessoires seront proposés la prochaine fois.`
                       : 'Choisis l’arme : ses accessoires connus seront proposés avec leurs points.'}

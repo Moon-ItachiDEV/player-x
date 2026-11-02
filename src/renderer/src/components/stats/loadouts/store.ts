@@ -1,5 +1,5 @@
 // Mes loadouts, côté interface : le carnet tenu par le processus principal (services/bf6Loadouts.ts), relu à chaque
-// ouverture de l'onglet (le mode démo a le sien). Un brouillon venu de l'Armurerie attend ici que l'onglet l'ouvre.
+// ouverture de l'onglet (le mode démo a le sien). Un brouillon posé ailleurs (fiche du jeu) attend ici que l'onglet l'ouvre.
 import { useEffect } from 'react'
 import type { Bf6Loadout } from '@shared/bf6Loadouts'
 import type { LoadoutDraftSaved, MyWeapon } from '@shared/bf6Workshop'
@@ -7,7 +7,7 @@ import { createStore, useStore } from '../../../update/session'
 
 const loadouts = createStore<Bf6Loadout[] | null>(null)
 
-/** Brouillon à ouvrir dans l'éditeur (config posée dans l'Armurerie). */
+/** Brouillon à ouvrir dans l'éditeur (« Nouveau loadout » depuis la fiche du jeu). */
 export type LoadoutDraft = Partial<Bf6Loadout>
 const draft = createStore<LoadoutDraft | null>(null)
 
