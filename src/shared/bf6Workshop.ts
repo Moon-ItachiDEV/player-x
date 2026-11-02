@@ -167,11 +167,11 @@ export interface BuildTemplate {
 
 type P = [string, number]
 const parts = (o: Partial<Record<SlotId, P>>): Bf6Loadout['parts'] => Object.fromEntries(Object.entries(o).map(([s, [name, pts]]) => [s, { name, pts }])) as Bf6Loadout['parts']
-const tpl = (id: string, weapon: string, cls: Bf6ClassId, cat: WeaponCategory, label: string, p: Partial<Record<SlotId, P>>): BuildTemplate => ({
+const tpl = (id: string, weapon: string, cls: Bf6ClassId, cat: WeaponCategory, label: string, p: Partial<Record<SlotId, P>>, context?: string): BuildTemplate => ({
   id,
   weapon,
   label,
-  loadout: { name: label.slice(0, NAME_MAX), cls, cat, weapon, parts: parts(p) }
+  loadout: { name: label.slice(0, NAME_MAX), cls, cat, weapon, parts: parts(p), ...(context ? { context } : {}) }
 })
 
 export const BUILD_TEMPLATES: BuildTemplate[] = [
@@ -280,7 +280,57 @@ export const BUILD_TEMPLATES: BuildTemplate[] = [
     ammo: ['Balle chemisée', 5],
     optic: ['1P86 LPVO', 20],
     ergonomics: ['Arrêtoir de chargeur amélioré', 5]
-  })
+  }),
+  // Loadouts recommandés pour RedSec (appli BF6, captures de Breezydev du 02/11/2026).
+  tpl(
+    'kts-redsec-long',
+    'KTS100 MK8',
+    'support',
+    'lmg',
+    'Longue portée · RedSec',
+    {
+      muzzle: ['Silencieux allégé', 30],
+      barrel: ['MK8 508 mm', 10],
+      underbarrel: ['Poignée verticale classique', 35],
+      magazine: ['Chargeur rapide 45 coups', 10],
+      ammo: ['Balle chemisée', 5],
+      optic: ['Baker 3.00X', 10]
+    },
+    'RedSec'
+  ),
+  tpl(
+    'sgx-redsec-court',
+    'SGX',
+    'engineer',
+    'smg',
+    'Courte portée · RedSec',
+    {
+      muzzle: ['Silencieux allégé', 30],
+      barrel: ['Long 203 mm', 5],
+      'right-accessory': ['Laser bleu 50 MW', 20],
+      underbarrel: ['Poignée angulaire fine', 20],
+      magazine: ['Chargeur 36 coups', 15],
+      ammo: ['Balle chemisée', 5],
+      optic: ['Mire métallique', 5]
+    },
+    'RedSec'
+  ),
+  tpl(
+    'rpk-redsec-long',
+    'RPK-74M',
+    'support',
+    'lmg',
+    'Longue portée · RedSec',
+    {
+      muzzle: ['Silencieux allégé', 30],
+      barrel: ['Usine 590 mm', 10],
+      underbarrel: ['Poignée angulaire fine', 25],
+      magazine: ['Chargeur 30 coups', 5],
+      ammo: ['Pointe synthétique', 20],
+      optic: ['Baker 3.00X', 10]
+    },
+    'RedSec'
+  )
 ]
 
 /* ---------- les accessoires d'une arme, relevés dans le menu de personnalisation du jeu ---------- */
