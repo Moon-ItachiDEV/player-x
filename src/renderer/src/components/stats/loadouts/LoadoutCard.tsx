@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { SLOT_ORDER } from '@shared/armory/engine'
 import { CLASS_LABEL, SLOT_LABEL } from '@shared/armory/labels'
 import { WEAPON_IMAGE, armoryWeaponByName, weaponKey } from '@shared/armory/weapons'
-import { loadoutPoints, loadoutText, type Bf6Loadout } from '@shared/bf6Loadouts'
+import { TIERS, loadoutPoints, loadoutText, type Bf6Loadout, type Bf6Tier } from '@shared/bf6Loadouts'
 import { ClassIcon } from '../ClassIcon'
 import { Icon } from '../../ui/Icon'
 import { Menu } from '../../ui/Overlay'
@@ -36,12 +36,16 @@ interface Props {
   onEdit?: () => void
   onDuplicate?: () => void
   onDelete?: () => void
+  /** Classer le loadout (S, A, B, C, ou sans classement) sans ouvrir l'atelier. */
+  onSetTier?: (tier: Bf6Tier | undefined) => void
 }
 
-export function LoadoutCard({ l, hints, compact, onEdit, onDuplicate, onDelete }: Props): React.JSX.Element {
+export function LoadoutCard({ l, hints, compact, onEdit, onDuplicate, onDelete, onSetTier }: Props): React.JSX.Element {
   const notify = useToast()
   const ref = useRef<HTMLElement>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
+  const tierRef = useRef<HTMLButtonElement>(null)
+  const [tierMenu, setTierMenu] = useState<{ top?: number; bottom?: number; left: number } | null>(null)
   const [menu, setMenu] = useState<{
     top?: number
     bottom?: number
@@ -100,6 +104,16 @@ export function LoadoutCard({ l, hints, compact, onEdit, onDuplicate, onDelete }
     // Le menu (trois actions) tient sous le bouton, sinon il s'ouvre au-dessus.
     setMenu(r.bottom + 6 + MENU_H > window.innerHeight ? { bottom: window.innerHeight - r.top + 6, right } : { top: r.bottom + 6, right })
   }
+  const openTierMenu = (): void => {
+    if (tierMenu || !tierRef.current) return setTierMenu(null)
+    const r = tierRef.current.getBoundingClientRect()
+    const left = Math.max(12, r.left)
+    setTierMenu(r.bottom + 6 + 52 > window.innerHeight ? { bottom: window.innerHeight - r.top + 6, left } : { top: r.bottom + 6, left })
+  }
+  const setTier = (t: Bf6Tier | undefined): void => {
+    setTierMenu(null)
+    if (t !== l.tier) onSetTier?.(t)
+  }
   const run = (fn?: () => void): void => {
     setMenu(null)
     fn?.()
@@ -116,6 +130,22 @@ export function LoadoutCard({ l, hints, compact, onEdit, onDuplicate, onDelete }
             <Icon name="pencil" size={15} />
             Modifier
           </button>
+          {onSetTier && (
+            <button
+              ref={tierRef}
+              type="button"
+              className="btn btn-ghost btn-sm lo-classer"
+              aria-haspopup="menu"
+              aria-expanded={!!tierMenu}
+              title="Changer le classement de ce loadout"
+              onMouseDown={(e) => tierMenu && e.stopPropagation()}
+              onClick={openTierMenu}
+            >
+              {l.tier && <span className={`lc-tier is-${l.tier}`}>{l.tier}</span>}
+              Classer
+              <Icon name="chevron-down" size={14} />
+            </button>
+          )}
           <span className="lo-item-spacer" />
           <button
             ref={moreRef}
@@ -160,6 +190,25 @@ export function LoadoutCard({ l, hints, compact, onEdit, onDuplicate, onDelete }
             </Menu>,
             document.body
           )}
+          {onSetTier &&
+            createPortal(
+              <Menu open={!!tierMenu} onClose={() => setTierMenu(null)} style={tierMenu ?? {}} className="lo-tier-menu">
+                {[...TIERS, undefined].map((t) => (
+                  <button
+                    key={t ?? 'none'}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={l.tier === t}
+                    className={`lo-tier-opt ${t ? `is-${t}` : 'is-none'}`}
+                    title={t ? `${t} tier` : 'Sans classement'}
+                    onClick={() => setTier(t)}
+                  >
+                    {t ?? 'Sans'}
+                  </button>
+                ))}
+              </Menu>,
+              document.body
+            )}
         </div>
       </div>
     )

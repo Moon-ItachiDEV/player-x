@@ -568,24 +568,30 @@
   border-radius: 18px;
 }
 
-/* =====  Rangé par type d'arme : tuiles d'armes, puis la page d'une arme (loadouts du S tier au C tier)  ===== */
-.lo-cat,
-.lo-wv,
-.lo-tier-sec {
+/* =====  Rangé par type d'arme (validé le 02/11 dans l'artefact « Rangement des armes », choix A)  =====
+   Les types se rangent côte à côte et s'élargissent avec leur nombre d'armes (--n) ; la page d'une arme reprend
+   le même principe pour les classements (un bloc par tier). */
+.lo-packs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px 18px;
+}
+.lo-cat {
+  --n: 1;
+  flex: 1 1 calc(var(--n) * 250px + (var(--n) - 1) * 10px);
+  min-width: min(250px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-.lo-wv {
-  gap: 24px;
+  gap: 10px;
 }
 .lo-sec {
   display: flex;
   align-items: center;
   gap: 8px;
   margin: 0;
-  font: 600 13px/1 var(--font-ui);
-  letter-spacing: 0.04em;
+  font: 600 12px/1 var(--font-ui);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-2);
 }
@@ -593,23 +599,19 @@
   font-weight: 500;
   color: var(--text-3);
 }
-.lo-tier-sec .lo-sec {
-  font-size: 14px;
-  color: var(--text-1);
-}
 .lo-wpns {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 10px;
 }
 .lo-wpn {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px 14px;
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
   border: 0;
-  border-radius: var(--r-md);
+  border-radius: 12px;
   background: var(--surface-1);
   box-shadow: inset 0 0 0 1px var(--line-1);
   color: var(--text-1);
@@ -632,66 +634,245 @@
 .lo-wpn:active {
   background: var(--surface-3);
 }
-.lo-wpn-art {
+.lo-wpn-art,
+.lo-wv-art {
   display: block;
-  height: 84px;
-  border-radius: var(--r-sm);
+  height: 52px;
+  border-radius: 8px;
   background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(255, 255, 255, 0.05), transparent 72%), #121018;
+  overflow: hidden;
 }
 .lo-wpn-art .lc-svg,
-.lo-wpn-art .lc-img {
-  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
-}
-.lo-wpn-tier {
-  position: absolute;
-  top: 18px;
-  left: 20px;
+.lo-wpn-art .lc-img,
+.lo-wv-art .lc-svg,
+.lo-wv-art .lc-img {
+  filter: drop-shadow(0 5px 6px rgba(0, 0, 0, 0.55));
 }
 .lo-wpn-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
-  padding-right: 22px;
 }
 .lo-wpn-text b {
-  font: 800 15px/1.15 var(--font-display);
+  font: 800 14.5px/1.15 var(--font-display);
   letter-spacing: 0.01em;
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
-.lo-wpn-text span {
+.lo-wpn-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   font: 400 12.5px/1.3 var(--font-ui);
   color: var(--text-3);
 }
 .lo-wpn-go {
-  position: absolute;
-  right: 12px;
-  bottom: 16px;
   color: var(--text-3);
   transition:
     color 160ms var(--ease-out),
     transform 160ms var(--ease-out);
 }
-.lo-wv-head {
+.lo-tcounts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.lo-tcounts .lc-tier {
+  min-width: 0;
+  height: 18px;
+  gap: 2px;
+  padding: 0 5px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  display: inline-flex;
+}
+.lo-tcounts small {
+  font: 600 10px/1 var(--font-mono);
+  opacity: 0.75;
+}
+
+/* La page d'une arme */
+.lo-wv {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
+  gap: 20px;
 }
 .lo-wv-back {
+  align-self: flex-start;
   margin-left: -8px;
 }
-.lo-wv-title {
+.lo-wv-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 340px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 22px 14px 14px;
+  border-radius: 16px;
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.lo-wv-art {
+  height: 150px;
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse 70% 60% at 55% 48%, var(--accent-soft), transparent 72%),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px) 0 0 / 18px 18px,
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px) 0 0 / 18px 18px,
+    #121018;
+}
+.lo-wv-id {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  min-width: 0;
 }
-.lo-wv-title h3 {
+.lo-wv-kind {
+  font: 600 10.5px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.lo-wv-id h3 {
   margin: 0;
-  font: italic 800 26px/1.1 var(--font-display);
+  font: italic 800 40px/1 var(--font-display);
+  letter-spacing: 0.01em;
   text-transform: uppercase;
   color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+.lo-wv-sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-2);
+}
+.lo-tpack {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 32px 20px;
+}
+.lo-tg {
+  --tc: var(--text-3);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lo-tg.is-S {
+  --tc: var(--tier-s);
+}
+.lo-tg.is-A {
+  --tc: var(--tier-a);
+}
+.lo-tg.is-B {
+  --tc: var(--tier-b);
+}
+.lo-tg.is-C {
+  --tc: var(--tier-c);
+}
+.lo-tg-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid color-mix(in srgb, var(--tc) 70%, transparent);
+  font: 700 13px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+.lo-tg-l {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--tc);
+  color: #1a0f05;
+  font: 800 18px/1 var(--font-display);
+}
+.lo-tg.is-none .lo-tg-l {
+  background: transparent;
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  font-size: 15px;
+}
+.lo-tg-cards {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 32px 20px;
+}
+
+/* « Classer » sous la carte */
+.lo-classer {
+  gap: 6px;
+}
+.lo-classer .lc-tier {
+  min-width: 0;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 5px;
+  font-size: 10.5px;
+}
+.menu.lo-tier-menu {
+  position: fixed;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  min-width: 0;
+  padding: 6px;
+}
+.lo-tier-opt {
+  min-width: 36px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  font: 800 13px/1 var(--font-display);
+  color: #1a0f05;
+  cursor: pointer;
+}
+.lo-tier-opt.is-S {
+  background: var(--tier-s);
+}
+.lo-tier-opt.is-A {
+  background: var(--tier-a);
+}
+.lo-tier-opt.is-B {
+  background: var(--tier-b);
+}
+.lo-tier-opt.is-C {
+  background: var(--tier-c);
+}
+.lo-tier-opt.is-none {
+  background: transparent;
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  font: 600 12px/1 var(--font-ui);
+}
+.lo-tier-opt[aria-checked='true'] {
+  outline: 2px solid var(--text-1);
+  outline-offset: 1px;
+}
+.lo-tier-opt:hover {
+  filter: brightness(1.08);
+}
+@media (max-width: 760px) {
+  .lo-wv-hero {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+  .lo-wv-id h3 {
+    font-size: 30px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .lo-wpn,
