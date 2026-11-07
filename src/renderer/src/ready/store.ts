@@ -36,9 +36,9 @@ export function useSteamUpdate(game: Game | null | undefined): SteamUpdate | und
  * de Steam, sans lancer le jeu (demande de Breezydev, 0.9.7-beta.4 : « mettre à jour seulement »). Steam n'a pas de
  * commande qui lance seulement la mise à jour ; « … est prêt » propose ensuite Jouer.
  */
-export function updateAction(u: SteamUpdate | undefined): { label: string; title: string } | undefined {
+export function updateAction(u: SteamUpdate | undefined): { label: string; title: string; tuck: boolean } | undefined {
   if (!u) return undefined
-  if (updateActive(u)) return { label: 'Voir dans Steam', title: 'Steam télécharge : ouvre ses téléchargements. Le jeu ne démarre pas.' }
-  if (u.firstInstall) return { label: 'Installer', title: 'Ouvre les téléchargements de Steam pour reprendre le téléchargement. Le jeu ne démarre pas.' }
-  return { label: 'Mettre à jour', title: 'Ouvre les téléchargements de Steam pour lancer la mise à jour. Le jeu ne démarre pas.' }
+  if (updateActive(u)) return { label: 'Voir dans Steam', title: 'Steam télécharge déjà : ouvre ses téléchargements. Le jeu ne démarre pas.', tuck: false }
+  if (u.firstInstall) return { label: 'Installer', title: 'Reprend le téléchargement : Steam s’ouvre un instant, puis se range dans la barre des tâches. Le jeu ne démarre pas.', tuck: true }
+  return { label: 'Mettre à jour', title: 'Lance la mise à jour : Steam s’ouvre un instant, puis se range dans la barre des tâches. Le jeu ne démarre pas.', tuck: true }
 }

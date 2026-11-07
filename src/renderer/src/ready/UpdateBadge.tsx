@@ -28,13 +28,13 @@ export function UpdateBar({ update, className = '' }: { update: SteamUpdate; cla
 }
 
 /** « Voir dans Steam » : la page Téléchargements de Steam (rien en mode démo, une carte le dit). */
-export function useOpenSteamDownloads(): () => void {
+export function useOpenSteamDownloads(): (tuck?: boolean) => void {
   const notify = useToast()
-  return () => {
+  return (tuck) => {
     window.launcher
-      .openSteamDownloads()
+      .openSteamDownloads(tuck === true)
       .then((r) => {
-        if (r === 'demo') notify('Mode démo : Steam ouvrirait ses téléchargements', { kind: 'info' })
+        if (r === 'demo') notify(tuck ? 'Mode démo : Steam s’ouvrirait un instant, puis se rangerait dans la barre des tâches' : 'Mode démo : Steam ouvrirait ses téléchargements', { kind: 'info' })
       })
       .catch((e) => notify(errorMessage(e), { kind: 'error' }))
   }

@@ -974,7 +974,8 @@ export interface LauncherApi {
   /** Un jeu est prêt après sa mise à jour (fenêtre au premier plan, ou clic sur la notification Windows). */
   onGameReady(cb: (e: GameReady) => void): () => void
   /** Ouvre la page Téléchargements de Steam. `demo` : rien n'est ouvert. */
-  openSteamDownloads(): Promise<'opened' | 'demo'>
+  /** `tuck` : réduit Steam ensuite et ramène Player X devant (Windows). */
+  openSteamDownloads(tuck?: boolean): Promise<'opened' | 'demo'>
   /** Ouvre un salon vocal du serveur Discord dans l'appli Discord (ou le site). `demo` : rien n'est ouvert. */
   openDiscordChannel(channelId: string): Promise<'opened' | 'demo'>
   /** Serveurs de CS2 selon Valve (avec ta clé Steam Web API) : gardés 5 min, sauf `force`. */
