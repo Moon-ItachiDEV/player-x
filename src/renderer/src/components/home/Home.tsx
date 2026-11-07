@@ -226,7 +226,7 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
 
   // Entrée joue le jeu affiché (hors champ de texte, menu ou fenêtre), ou ouvre sa mise à jour dans Steam.
   const activate = useRef(p.activate)
-  activate.current = act ? () => openDownloads() : p.activate
+  activate.current = act ? () => openDownloads(act.tuck) : p.activate
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Enter' || e.defaultPrevented || e.repeat) return
@@ -305,7 +305,7 @@ function HeroText({ game, players, dir, onLaunch, onOpen, onFavorite }: HeroText
           aria-busy={p.busy || undefined}
           aria-label={act ? `${act.label} : ${name}` : p.ariaLabel}
           title={act ? `${act.title} (Entrée)` : p.state === 'idle' ? 'Jouer (Entrée)' : p.title}
-          onClick={() => (act ? openDownloads() : p.activate(play.current))}
+          onClick={() => (act ? openDownloads(act.tuck) : p.activate(play.current))}
         >
           {/* Bouton « Aura » du site (verre sombre, bordure braise qui tourne, halo) : seulement au repos. */}
           <span className="hc-aura-ring fx-loop" aria-hidden="true" />

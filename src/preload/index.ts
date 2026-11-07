@@ -133,7 +133,7 @@ const api: LauncherApi = {
     ipcRenderer.on('games:ready', listener)
     return () => ipcRenderer.removeListener('games:ready', listener)
   },
-  openSteamDownloads: () => ipcRenderer.invoke('steam:open-downloads'),
+  openSteamDownloads: (tuck?: boolean) => ipcRenderer.invoke('steam:open-downloads', tuck === true),
   openDiscordChannel: (channelId) => ipcRenderer.invoke('discord:open-channel', channelId),
   cs2Servers: (force) => ipcRenderer.invoke('servers:cs2', force === true),
   steamPlayers: (gameId) => ipcRenderer.invoke('servers:players', gameId),

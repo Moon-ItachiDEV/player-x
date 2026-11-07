@@ -75,7 +75,7 @@ function useGameItem({ game, onOpen, onLaunch }: GameItemProps) {
 
   const launch = (): void => {
     clearTimeout(timer.current)
-    if (act) openDownloads()
+    if (act) openDownloads(act.tuck)
     else p.activate(cover.current)
   }
 

@@ -364,7 +364,7 @@ function Sheet({
             ) : (
               <button
                 className={`btn btn-primary btn-play sheet-bar-play ${p.className}`}
-                onClick={() => (act ? openDownloads() : p.activate(posterRef.current))}
+                onClick={() => (act ? openDownloads(act.tuck) : p.activate(posterRef.current))}
                 aria-disabled={p.inert || undefined}
                 aria-busy={p.busy || undefined}
                 aria-label={act ? `${act.label} : ${title}` : p.ariaLabel}
@@ -418,7 +418,7 @@ function Sheet({
                     <button
                       ref={playRef}
                       className={`btn btn-primary btn-play sheet-play ${p.className}`}
-                      onClick={() => (act ? openDownloads() : p.activate(posterRef.current))}
+                      onClick={() => (act ? openDownloads(act.tuck) : p.activate(posterRef.current))}
                       aria-disabled={p.inert || undefined}
                       aria-busy={p.busy || undefined}
                       aria-label={act ? `${act.label} : ${title}` : p.ariaLabel}
@@ -493,7 +493,7 @@ function Sheet({
                       <div className="sheet-update">
                         <p className="sheet-update-text">{updateSentence(update)}</p>
                         <UpdateBar update={update} className="is-inline" />
-                        <button className="btn btn-secondary btn-sm" onClick={openDownloads}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => openDownloads()}>
                           <Icon name="external-link" size={16} />
                           Voir dans Steam
                         </button>

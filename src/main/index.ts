@@ -10,6 +10,7 @@ import type { Friend, FriendPlatform, FriendsResult, Game, Settings, SteamLibrar
 import * as db from './db'
 import { handle } from './ipc'
 import { appWindows, mainWindow } from './windows'
+import { tuckSteamAway } from './services/steamWindow'
 import { getAchievementsOverview, getGameAchievements, onRareUnlocks, startAchievementsWatcher } from './services/achievements'
 import { demoAchievements, demoAchievementsOverview } from './services/achievementsDemo'
 import { checkFriends, deliverRare, deliverReady, demoFriendAlert, resetFriendAlerts, testFriendAlert } from './services/alerts'
@@ -380,9 +381,12 @@ function registerIpc(): void {
   })
   // Prêt à jouer : mises à jour Steam en attente ou en cours (manifestes locaux et registre de Steam).
   handle('steam:updates', () => steamUpdates())
-  handle('steam:open-downloads', async () => {
+  handle('steam:open-downloads', async (_e, tuck?: unknown) => {
     if (getSettings().demoMode) return 'demo'
     await shell.openExternal('steam://open/downloads')
+    // « Mettre à jour » et « Installer » : Steam ne sait pas télécharger sans se montrer, on réduit sa fenêtre et Player X
+    // revient devant. « Voir dans Steam » la laisse ouverte.
+    if (tuck === true) tuckSteamAway()
     return 'opened'
   })
   // Événements des jeux (page Steam du jeu) et « Me prévenir » : le jeu est retrouvé ici, comme pour les actus.
